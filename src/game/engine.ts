@@ -195,8 +195,9 @@ function syncBoardAuras(p: PlayerState, log: string[]): void {
 }
 
 /**
- * Конец хода: ATK к базе, замедление снимается.
- * HP к базе только без яда — отравленные сохраняют раны, чтобы яд мог добить.
+ * Конец хода: ATK к базе (затем снова вешаем «slow»), HP к базе без яда.
+ * Замедление само по себе здесь НЕ снимаем — иначе «Замедлить врага»
+ * сгорает до хода жертвы. Срок: expireSlow у владельца после его хода.
  */
 function restoreSurvivors(p: PlayerState): void {
   for (let i = 0; i < p.slots.length; i++) {
@@ -204,7 +205,6 @@ function restoreSurvivors(p: PlayerState): void {
     if (!s) continue;
     // Из последних сил: без резета ATK/HP до конца боя
     if (s.noRestore || s.statuses.some((st) => st.type === "last_gasp")) {
-      s.statuses = s.statuses.filter((st) => st.type !== "slow");
       continue;
     }
     const base = effectiveBase(s);
@@ -216,7 +216,25 @@ function restoreSurvivors(p: PlayerState): void {
       // яд держит раны, но не выше текущей базы
       s.health = Math.min(s.health, base.hp);
     }
+    for (const st of s.statuses) {
+      if (st.type === "slow") {
+        s.attack = Math.max(0, s.attack - st.amount);
+      }
+    }
+  }
+}
+
+/** Снять замедление после хода владельца (он уже успел/не успел бить ослабленным). */
+function expireSlow(p: PlayerState): void {
+  for (const s of p.slots) {
+    if (!s) continue;
+    if (!s.statuses.some((st) => st.type === "slow")) continue;
     s.statuses = s.statuses.filter((st) => st.type !== "slow");
+    if (s.noRestore || s.statuses.some((st) => st.type === "last_gasp")) {
+      continue;
+    }
+    const base = effectiveBase(s);
+    s.attack = base.atk;
   }
 }
 
@@ -1223,7 +1241,7 @@ function applySpellEffects(
         u.attack = Math.max(0, u.attack - eff.amount);
         u.statuses.push({ type: "slow", amount: eff.amount });
         log.unshift(
-          `${caster.name}: ${getCard(u.cardId).name}: −${eff.amount} атаки до конца хода`,
+          `${caster.name}: ${getCard(u.cardId).name}: −${eff.amount} атаки до конца его хода`,
         );
         break;
       }
@@ -3274,6 +3292,8 @@ export function endPlayerTurn(state: BattleState): BattleState {
   pruneLingering(next);
   // Сначала яд у того, чей ход начинается — пока ещё висят раны (1 HP + яд = смерть)
   tickPoison(next.enemy, next.log, next);
+  // Твои slow уже отыграли твой ход; у врага slow должен дожить до его атак
+  expireSlow(next.you);
   restoreSurvivors(next.you);
   restoreSurvivors(next.enemy);
   pruneLingering(next);
@@ -3314,6 +3334,7 @@ export function endEnemyTurn(state: BattleState): BattleState {
   // Эхо врага НЕ снимаем здесь — игрок должен видеть серые карты весь свой ход
   pruneLingering(next);
   tickPoison(next.you, next.log, next);
+  expireSlow(next.enemy);
   restoreSurvivors(next.you);
   restoreSurvivors(next.enemy);
   pruneLingering(next);

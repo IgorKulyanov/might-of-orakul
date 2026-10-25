@@ -1066,6 +1066,36 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
     return null;
   });
 
+  assert("slow_foe lasts through enemy turn", () => {
+    let s = boardForCreatures();
+    s.you.mana = { water: 9, hell: 9, death: 9, life: 9, nature: 9 };
+    s.you.hand = ["slow_foe"];
+    const foe = arm(dummy("zombie", "zbSlow", 5));
+    foe.attack = 5;
+    foe.baseAttack = 5;
+    s.enemy.slots[0] = foe;
+    s = playCard(s, 0, 0);
+    if ((s.enemy.slots[0]?.attack ?? 99) !== 3) {
+      return `сразу ATK ${s.enemy.slots[0]?.attack}, ждали 3`;
+    }
+    s = endPlayerTurn(s);
+    // Ход врага: замедление ещё висит, иначе спелл бесполезен
+    if (!s.enemy.slots[0]?.statuses.some((st) => st.type === "slow")) {
+      return "slow слетел до хода врага";
+    }
+    if ((s.enemy.slots[0]?.attack ?? 99) !== 3) {
+      return `на ходе врага ATK ${s.enemy.slots[0]?.attack}, ждали 3`;
+    }
+    s = endEnemyTurn(s);
+    if (s.enemy.slots[0]?.statuses.some((st) => st.type === "slow")) {
+      return "slow не снялся после хода врага";
+    }
+    if ((s.enemy.slots[0]?.attack ?? 0) !== 5) {
+      return `после хода врага ATK ${s.enemy.slots[0]?.attack}, ждали 5`;
+    }
+    return null;
+  });
+
   assert("nothingness lasts whole battle (not one turn)", () => {
     let s = boardForCreatures();
     s.you.mana = { water: 9, hell: 9, death: 9, life: 9, nature: 9 };
