@@ -565,6 +565,23 @@ export function progressIntegrity(fails: QaFail[], ok: string[]): void {
     return null;
   });
 
+  check("beginWithHero no foreign starters", () => {
+    // Черновой сейв life → онбординг death не должен оставить жизнь в кейсе
+    const dirty = seedOwned("life");
+    const res = beginWithHero(dirty, "hero_death");
+    if (!res.ok) return res.reason ?? "begin fail";
+    const foreign = (res.owned.unlocked ?? []).filter((id) => {
+      try {
+        const s = getCard(id).school;
+        return s !== "death" && s !== "neutral";
+      } catch {
+        return false;
+      }
+    });
+    if (foreign.length) return `чужие в кейсе: ${foreign.join(",")}`;
+    return null;
+  });
+
   check("all heroes resolve", () => {
     for (const h of [...BASE_HEROES, ...EPIC_HEROES]) getHero(h.id);
     return null;

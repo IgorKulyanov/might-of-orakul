@@ -132,27 +132,46 @@ function rebuildUnlocked(
   return [...new Set([...starters, ...kept])];
 }
 
+/**
+ * Убрать чужие бесплатные старты из коллекции (иначе кейс становится солянкой школ).
+ * Купленное и карты вне стартового пула оставляем.
+ */
+function scrubCollectionForHero(
+  heroId: string,
+  collection: Record<string, number>,
+  purchased: string[] | undefined,
+): Record<string, number> {
+  const faction = getHero(heroId).faction;
+  const starters = new Set(starterIds(heroId));
+  const pool = new Set(allStarterPoolIds());
+  const bought = new Set(purchased ?? []);
+  const cleaned: Record<string, number> = {};
+  for (const [id, n] of Object.entries(collection)) {
+    if ((n ?? 0) <= 0) continue;
+    if (pool.has(id) && !starters.has(id) && !bought.has(id)) continue;
+    cleaned[id] = n;
+  }
+  return mergeCollection(cleaned, starterCollectionForFaction(faction));
+}
+
 function withDefaults(parsed: OwnedState): OwnedState {
   const heroId = parsed.heroId ?? "hero_life";
   const faction = getHero(heroId).faction;
-  const starters = starterIds(heroId);
-  const pool = new Set(allStarterPoolIds());
-  const inferred = (parsed.unlocked ?? []).filter(
-    (id) => pool.has(id) && !starters.includes(id),
-  );
-  const purchased = [...new Set([...(parsed.purchased ?? []), ...inferred])];
+  // Только явные покупки — чужие старты в unlocked больше не считаем «купленным»
+  const purchased = [...new Set(parsed.purchased ?? [])];
   const unlocked = rebuildUnlocked(heroId, parsed.unlocked, purchased);
 
-  let collection: Record<string, number> = {
-    ...collectionFromUnlocked(unlocked),
-    ...(parsed.collection ?? {}),
-  };
-  // Гарантия: стартовый набор фракции целиком в коллекции
-  collection = mergeCollection(collection, starterCollectionForFaction(faction));
+  let collection = scrubCollectionForHero(
+    heroId,
+    {
+      ...collectionFromUnlocked(unlocked),
+      ...(parsed.collection ?? {}),
+    },
+    purchased,
+  );
   for (const id of unlocked) {
     if ((collection[id] ?? 0) < 1) collection[id] = 1;
   }
-  // купленное — минимум 1
   for (const id of purchased) {
     if ((collection[id] ?? 0) < 1) collection[id] = 1;
   }
@@ -603,6 +622,15 @@ export function beginWithHero(
     };
   }
 
+  // Онбординг: чистый кейс выбранной школы (черновой localStorage часто уже life).
+  state = {
+    ...state,
+    unlocked: starterIds(heroId),
+    collection: starterCollectionForFaction(home),
+    purchased: [],
+    decks: { starter: [] },
+    activeDeckId: "starter",
+  };
   const next = setHero(state, heroId);
   if (next.heroId !== heroId) {
     return { owned, ok: false, reason: "Не удалось назначить оракула" };
@@ -695,11 +723,12 @@ export function setHero(owned: OwnedState, heroId: string): OwnedState {
   // Фракцию после создания не меняем — только если home совпадает с надетым оракулом.
   // Если homeFaction врёт (смерть качали, в сейве вдруг nature) — не блокируем ремонт.
   if (home && hero.faction !== home && equippedF === home) return owned;
-  // Меняем расовый старт; купленное сохраняем (в т.ч. вампир и др. из старого пула)
+  // Меняем расовый старт; купленное сохраняем. Чужие бесплатные старты — выкидываем.
   const unlocked = rebuildUnlocked(heroId, owned.unlocked, owned.purchased);
-  let collection = mergeCollection(
+  let collection = scrubCollectionForHero(
+    heroId,
     owned.collection ?? collectionFromUnlocked(unlocked),
-    starterCollectionForFaction(hero.faction),
+    owned.purchased,
   );
   for (const id of unlocked) {
     if ((collection[id] ?? 0) < 1) collection[id] = 1;
