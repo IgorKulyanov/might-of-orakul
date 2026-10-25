@@ -1,5 +1,5 @@
 # Blueprint для Render (можно Import).
-# Или создай Web Service вручную: Root = server, Start = npm start.
+# Тест: домашний ПК (HOME-HOST.md). Потом: Starter + disk, залить users.json.
 services:
   - type: web
     name: orakul-api
@@ -7,7 +7,13 @@ services:
     rootDir: server
     buildCommand: npm install
     startCommand: npm start
-    plan: free
+    plan: starter
+    disk:
+      name: orakul-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
     envVars:
       - key: PORT
-        value: "8787"
+        value: "10000"
+      - key: ORACUL_DATA_DIR
+        value: /opt/render/project/src/data

@@ -287,4 +287,55 @@ export function mountAdminRoutes(app, deps) {
       }
     },
   );
+
+  /** Скачать users.json (сейвы всех игроков) — потом залить на платный хост. */
+  app.get("/api/admin/backup", adminAuth, (_req, res) => {
+    const file = path.join(DATA_DIR, "users.json");
+    if (!fs.existsSync(file)) {
+      res.status(404).json({ error: "users.json ещё нет" });
+      return;
+    }
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="orakul-users-${stamp}.json"`,
+    );
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.send(fs.readFileSync(file, "utf8"));
+  });
+
+  /** Залить users.json на этот сервер (миграция с домашнего ПК → Render). */
+  app.post(
+    "/api/admin/restore",
+    rateLimitMiddleware({ name: "admin-restore", maxN: 3, windowMs: 60_000 }),
+    adminAuth,
+    async (req, res) => {
+      try {
+        const body = req.body;
+        if (!body || typeof body !== "object" || !Array.isArray(body.users)) {
+          res.status(400).json({
+            error: "Нужен JSON вида { \"users\": [ ... ] } как в users.json",
+          });
+          return;
+        }
+        if (body.users.length > 50_000) {
+          res.status(400).json({ error: "Слишком много пользователей" });
+          return;
+        }
+        const result = await withDb((db) => {
+          db.users = body.users;
+          persistLiveDb();
+          return { n: db.users.length };
+        });
+        res.json({
+          ok: true,
+          message: `Восстановлено игроков: ${result.n}`,
+          users: result.n,
+        });
+      } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: "Не удалось восстановить" });
+      }
+    },
+  );
 }
