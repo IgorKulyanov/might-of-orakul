@@ -6,13 +6,22 @@
 ## Каждый день (тест)
 
 1. **СЕРВЕР-ДОМА.bat** — не закрывать (API + запись сейвов).
-2. **ТУННЕЛЬ.bat** — не закрывать; в окне будет `https://….trycloudflare.com`.
+2. Туннель (не закрывать):
+   - если **VPN выключен**: `ТУННЕЛЬ.bat` → `https://….trycloudflare.com`
+   - если **VPN включён** (Cloudflare Tunnel падает с `argotunnel.com: no such host`):  
+     **`TUNNEL-LT.bat`** → `https://….loca.lt`  
+     (первый раз браузер loca.lt может попросить «Click to continue» — открой ссылку один раз)
 3. Один раз (или после перезагрузки ПК):  
    Cloudflare Pages → проект → **Settings → Environment variables**  
    `VITE_API_URL` = ссылка из туннеля **без** `/` в конце → **Save** → **Deployments → Retry deployment**.
 4. Друзья открывают `https://might-of-orakul.pages.dev` как раньше.
 
 Комп 24/7 + оба окна открыты = аккаунты **не стираются**, без ожидания Render.
+
+### VPN
+
+Cloudflare Tunnel часто **не работает через VPN** (DNS не резолвит `argotunnel.com`).  
+Либо выключи VPN на ПК только для туннеля, либо используй **`TUNNEL-LT.bat`**.
 
 ## Бэкап на диск
 
