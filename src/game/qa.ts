@@ -464,11 +464,25 @@ function shortDeckAndShuffle(fails: QaFail[], ok: string[]): void {
   // Добор при пустой колоде не должен вытянуть только рамп из грейва
   const beforeHand = [...m.you.hand];
   m = endPlayerTurn(m);
-  // после конца хода эхо сброшено в грейв; на ходе врага свой добор не идёт
+  // после конца хода рамп сгорает (не в грейв); на ходе врага свой добор не идёт
   if (m.you.hand.join() !== beforeHand.join()) {
     fails.push({
       area: "доп.мана",
       detail: `рука изменилась на конце хода: ${beforeHand.join()} → ${m.you.hand.join()}`,
+    });
+  }
+  if (m.you.graveyard.includes("hero_mana")) {
+    fails.push({
+      area: "доп.мана",
+      detail: "hero_mana попала в грейв — снова зациклится в короткой колоде",
+    });
+  }
+  // полный цикл: ход врага → твой добор — рамп не должен вернуться
+  m = endEnemyTurn(m);
+  if (m.you.hand.includes("hero_mana") || m.you.deck.includes("hero_mana")) {
+    fails.push({
+      area: "доп.мана",
+      detail: "hero_mana вернулась после полного круга ходов",
     });
   }
 

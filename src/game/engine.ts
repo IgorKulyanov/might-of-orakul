@@ -2033,7 +2033,11 @@ function clearEchoSpells(state: BattleState): void {
       if (sp.mode === "echo" || sp.kind === "echo") {
         const caster =
           sp.casterSide === "enemy" ? state.enemy : state.you;
-        caster.graveyard.push(sp.cardId);
+        // Рамп («Доп. мана» / «Камни») после розыгрыша из боя — иначе в колоде
+        // из 4 карт она крутится каждый ход, пока существа стоят на столе.
+        if (!isManaRampCardId(sp.cardId)) {
+          caster.graveyard.push(sp.cardId);
+        }
         continue;
       }
       keep.push(sp);
@@ -2048,6 +2052,21 @@ function isManaRampSpell(effects: SpellEffect[]): boolean {
   return effects.every(
     (e) => e.type === "gain_mana" || e.type === "gain_mana_all",
   );
+}
+
+function isManaRampCardId(cardId: string): boolean {
+  try {
+    const card = getCard(cardId);
+    const effects =
+      card.spellEffects && card.spellEffects.length > 0
+        ? card.spellEffects
+        : cardId === "hero_mana"
+          ? ([{ type: "gain_mana" as const, amount: 1 }] as SpellEffect[])
+          : [];
+    return isManaRampSpell(effects);
+  } catch {
+    return false;
+  }
 }
 
 function addSpellEcho(
