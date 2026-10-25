@@ -15,6 +15,7 @@ import {
   sanitizeChatText,
   sanitizeDisplayName,
   sanitizeHeroId,
+  sanitizeLogin,
   sanitizeOwned,
 } from "./security.js";
 
@@ -330,14 +331,13 @@ app.post(
   rateLimitMiddleware({ name: "register", maxN: 8, windowMs: 60_000 }),
   async (req, res) => {
     try {
-      const login = String(req.body?.login || "")
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9_\-.]/g, "")
-        .slice(0, 24);
+      const login = sanitizeLogin(req.body?.login);
       const password = String(req.body?.password || "").slice(0, 72);
       if (login.length < 3 || password.length < 4) {
-        res.status(400).json({ error: "Логин от 3 символов, пароль от 4" });
+        res.status(400).json({
+          error:
+            "Логин от 3 лат. букв/цифр (a-z, 0-9, _ - .), пароль от 4. Кириллица в логине срезается.",
+        });
         return;
       }
       // bcrypt вне очереди — иначе 1000 регистраций встанут в один ряд на минуты.
@@ -380,10 +380,7 @@ app.post(
   rateLimitMiddleware({ name: "login", maxN: 20, windowMs: 60_000 }),
   async (req, res) => {
     try {
-      const login = String(req.body?.login || "")
-        .trim()
-        .toLowerCase()
-        .slice(0, 24);
+      const login = sanitizeLogin(req.body?.login);
       const password = String(req.body?.password || "").slice(0, 72);
       const ip = clientIp(req);
       const throttle = checkLoginThrottle(ip, login);

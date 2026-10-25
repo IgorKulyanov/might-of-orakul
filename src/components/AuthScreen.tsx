@@ -45,7 +45,9 @@ export function AuthScreen({ onAuthed }: Props) {
         </p>
         <h1>{mode === "login" ? "Вход" : "Регистрация"}</h1>
         <p className="hint">
-          Один аккаунт для ПК и будущего Telegram Mini App.
+          Логин — латиницей (a–z, цифры), не имя оракула. Один аккаунт с
+          телефона и ПК. Если «неверный пароль» после долгого простоя сервера —
+          зарегистрируйся снова (бесплатный хост мог сбросить базу).
         </p>
         <form className="auth-form" onSubmit={submit}>
           <label>
@@ -56,6 +58,11 @@ export function AuthScreen({ onAuthed }: Props) {
               onChange={(e) => setLogin(e.target.value)}
               minLength={3}
               required
+              placeholder="например igor_42"
+              inputMode="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
             />
           </label>
           <label>

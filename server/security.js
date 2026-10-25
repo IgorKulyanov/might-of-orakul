@@ -82,6 +82,15 @@ export function noteLoginOk(key) {
   loginFails.delete(key);
 }
 
+/** Логин аккаунта: латиница/цифры, без пробелов и кириллицы. */
+export function sanitizeLogin(raw) {
+  return String(raw || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_\-.]/g, "")
+    .slice(0, 24);
+}
+
 export function sanitizeDisplayName(raw) {
   return String(raw || "")
     .replace(/[\u0000-\u001f<>]/g, "")

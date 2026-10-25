@@ -51,7 +51,7 @@ async function request<T>(
     });
   } catch {
     throw new Error(
-      "Сервер не отвечает. Запусти игру через «Запуск» (нужны и сайт, и API).",
+      "Сервер не отвечает. Подожди ~30 сек (он просыпается) и обнови страницу.",
     );
   }
   const data = (await res.json().catch(() => ({}))) as T & { error?: string };
