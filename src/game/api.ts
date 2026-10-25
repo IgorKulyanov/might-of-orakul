@@ -45,13 +45,15 @@ async function request<T>(
       ...rest,
       headers: {
         "Content-Type": "application/json",
+        // localtunnel interstitial; harmless elsewhere
+        "Bypass-Tunnel-Reminder": "true",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...headers,
       },
     });
   } catch {
     throw new Error(
-      "Сервер не отвечает. Подожди ~30 сек (он просыпается) и обнови страницу.",
+      "Нет связи с API. Проверь: окна СЕРВЕР-ДОМА и TUNNEL открыты, а VITE_API_URL = текущий URL туннеля (после смены URL нужен Redeploy).",
     );
   }
   const data = (await res.json().catch(() => ({}))) as T & { error?: string };
