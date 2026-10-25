@@ -1,0 +1,2201 @@
+{
+  "_readme": "ПРАВЬ ЭТОТ ФАЙЛ — единственный реестр карт в игре. Карта в игре = есть в cards[]. Картинка без записи в cards[] НЕ работает. school: water|hell|death|life|nature|neutral. art — путь от public/cards. Каталог в меню показывает все cards[]; замок = не куплено. Стартовая колода = starterDeck (эти id сразу открыты).",
+  "starterDeck": [
+    "spearman",
+    "spearman",
+    "spearman",
+    "tank",
+    "tank",
+    "skeleton",
+    "skeleton",
+    "skeleton",
+    "zombie",
+    "zombie",
+    "water_spirit",
+    "water_spirit",
+    "water_spirit",
+    "aquilite",
+    "aquilite",
+    "fire_lizard",
+    "fire_lizard",
+    "fire_lizard",
+    "fire_gopnik",
+    "fire_gopnik",
+    "elf",
+    "elf",
+    "elf",
+    "arch_orc",
+    "hero_mana"
+  ],
+  "cards": [
+    {
+      "id": "spearman",
+      "name": "Копейщик",
+      "school": "life",
+      "kind": "creature",
+      "manaCost": {
+        "life": 2
+      },
+      "attack": 2,
+      "health": 2,
+      "attackPattern": "melee_lane3",
+      "text": "Бьёт 1 из 3: напротив, слева или справа.",
+      "rarity": "common",
+      "premium": false,
+      "art": "жизнь/копейщик.png",
+      "priceGold": 50,
+      "gender": "male",
+      "unitLevel": 1,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "crossbowman",
+      "name": "Арбалетчик",
+      "school": "life",
+      "kind": "creature",
+      "manaCost": {
+        "life": 2
+      },
+      "attack": 1,
+      "health": 3,
+      "attackPattern": "ranged",
+      "ability": "riposte",
+      "text": "Стрелок. Когда по нему бьёт существо и он выжил — сразу отвечает своей атакой.",
+      "rarity": "common",
+      "premium": false,
+      "art": "жизнь/арбалетчик.jpg",
+      "priceGold": 50,
+      "gender": "male",
+      "unitLevel": 1,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "tank",
+      "name": "Танк",
+      "school": "life",
+      "kind": "creature",
+      "manaCost": {
+        "life": 2
+      },
+      "attack": 1,
+      "health": 4,
+      "attackPattern": "melee",
+      "text": "Много жизней, мало атаки. Держит линию.",
+      "rarity": "common",
+      "premium": false,
+      "art": "жизнь/танк.png",
+      "priceGold": 50,
+      "gender": "male",
+      "unitLevel": 1,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "berserk",
+      "name": "Берсерк",
+      "school": "life",
+      "kind": "creature",
+      "manaCost": {
+        "life": 3
+      },
+      "attack": 3,
+      "health": 4,
+      "attackPattern": "melee_lane3",
+      "text": "Бьёт 1 из 3 (напротив/лево/право). Каждый свой ход −1 HP безвозвратно.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "жизнь/берсерк.png",
+      "ability": "berserk_decay",
+      "priceGold": 160,
+      "gender": "male",
+      "unitLevel": 2,
+      "priceDiamonds": 6
+    },
+    {
+      "id": "mage",
+      "name": "Маг",
+      "school": "life",
+      "kind": "creature",
+      "manaCost": {
+        "life": 3,
+        "nature": 1
+      },
+      "attack": 2,
+      "health": 3,
+      "attackPattern": "ranged",
+      "text": "Действие: удар любому ИЛИ навсегда +1 HP союзнику либо оракулу.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "жизнь/маг.png",
+      "ability": "mage_flex",
+      "priceGold": 160,
+      "gender": "male",
+      "unitLevel": 2,
+      "priceDiamonds": 6
+    },
+    {
+      "id": "valkyrie",
+      "name": "Валькирия",
+      "school": "life",
+      "kind": "creature",
+      "manaCost": {
+        "life": 4,
+        "nature": 1
+      },
+      "attack": 3,
+      "health": 4,
+      "attackPattern": "ranged",
+      "text": "Бьёт любого ИЛИ перемещается на свободный свой слот.",
+      "rarity": "epic",
+      "premium": true,
+      "art": "жизнь/валькирия.png",
+      "ability": "valkyrie_flex",
+      "priceGold": 620,
+      "gender": "female",
+      "unitLevel": 4,
+      "priceDiamonds": 26
+    },
+    {
+      "id": "angel",
+      "name": "Ангел",
+      "school": "life",
+      "kind": "creature",
+      "manaCost": {
+        "life": 3,
+        "water": 1
+      },
+      "attack": 2,
+      "health": 4,
+      "attackPattern": "melee",
+      "text": "Действие: союзник навсегда +1/+1 (или удар).",
+      "rarity": "rare",
+      "premium": false,
+      "art": "жизнь/ангел.jpg",
+      "ability": "angel_heal",
+      "priceGold": 340,
+      "gender": "male",
+      "unitLevel": 3,
+      "priceDiamonds": 14
+    },
+    {
+      "id": "paladin",
+      "name": "Паладин",
+      "school": "life",
+      "kind": "creature",
+      "manaCost": {
+        "life": 3
+      },
+      "attack": 2,
+      "health": 5,
+      "attackPattern": "melee",
+      "text": "Бьёт напротив. Вместо удара может дать союзнику щит (−50% урона на 2 хода).",
+      "rarity": "rare",
+      "premium": false,
+      "art": "жизнь/паладин.jpg",
+      "ability": "paladin_flex",
+      "gender": "male",
+      "unitLevel": 3,
+      "priceGold": 340,
+      "priceDiamonds": 14
+    },
+    {
+      "id": "colossus",
+      "name": "Колосс",
+      "school": "life",
+      "kind": "creature",
+      "manaCost": {
+        "life": 4,
+        "water": 3
+      },
+      "attack": 2,
+      "health": 14,
+      "attackPattern": "melee",
+      "text": "Титан-танк. Невосприимчив к заклинаниям. Призыв: щит (−50% урона) всей армии на 2 хода.",
+      "rarity": "legendary",
+      "premium": true,
+      "art": "жизнь/колосс.jpg",
+      "ability": "immune_spells",
+      "gender": "none",
+      "unitLevel": 5,
+      "priceGold": 1200,
+      "priceDiamonds": 48,
+      "onPlayHealHero": 2
+    },
+    {
+      "id": "skeleton",
+      "name": "Скелет",
+      "school": "death",
+      "kind": "creature",
+      "manaCost": {
+        "death": 1
+      },
+      "attack": 1,
+      "health": 1,
+      "attackPattern": "melee",
+      "text": "Стая: 2-й скелет даёт всем +1/+1, каждый следующий ещё +1/+1.",
+      "rarity": "common",
+      "premium": false,
+      "art": "смерть/skeleton.png",
+      "ability": "skeleton_pack",
+      "priceGold": 50,
+      "gender": "none",
+      "unitLevel": 1,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "vampire",
+      "name": "Вампир",
+      "school": "death",
+      "kind": "creature",
+      "manaCost": {
+        "death": 2
+      },
+      "attack": 1,
+      "health": 2,
+      "attackPattern": "melee",
+      "text": "Укус: навсегда +1/+1. Копится.",
+      "rarity": "common",
+      "premium": false,
+      "art": "смерть/vampire.png",
+      "ability": "vampire_grow",
+      "priceGold": 50,
+      "gender": "male",
+      "unitLevel": 1,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "werewolf",
+      "name": "Оборотень",
+      "school": "death",
+      "kind": "creature",
+      "manaCost": {
+        "death": 3
+      },
+      "attack": 3,
+      "health": 2,
+      "attackPattern": "melee",
+      "text": "Зверь линии: высокий урон, мало жизней.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "смерть/werewolf.png",
+      "priceGold": 160,
+      "gender": "male",
+      "unitLevel": 2,
+      "priceDiamonds": 6
+    },
+    {
+      "id": "gravedigger",
+      "name": "Могильщик",
+      "school": "death",
+      "kind": "creature",
+      "manaCost": {
+        "death": 2
+      },
+      "attack": 2,
+      "health": 3,
+      "attackPattern": "melee",
+      "text": "Бьёт напротив. Вместо удара: выбери существо из грейва (последние 5) и верни в пустой слот.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "смерть/могильщик.jpg",
+      "ability": "gravedigger_flex",
+      "gender": "male",
+      "unitLevel": 2,
+      "priceGold": 160,
+      "priceDiamonds": 6
+    },
+    {
+      "id": "zombie",
+      "name": "Зомби",
+      "school": "death",
+      "kind": "creature",
+      "manaCost": {
+        "death": 2
+      },
+      "attack": 2,
+      "health": 3,
+      "attackPattern": "melee",
+      "text": "Медленный, но живучий мертвец.",
+      "rarity": "common",
+      "premium": false,
+      "art": "смерть/зомби.png",
+      "priceGold": 50,
+      "gender": "none",
+      "unitLevel": 1,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "hell_rider",
+      "name": "Адский гонщик",
+      "school": "death",
+      "kind": "creature",
+      "manaCost": {
+        "death": 3,
+        "hell": 1
+      },
+      "attack": 4,
+      "health": 2,
+      "attackPattern": "melee",
+      "text": "Смерть+ад: быстрый удар 4/2.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "смерть/адский гонщик.jpg",
+      "priceGold": 340,
+      "gender": "male",
+      "unitLevel": 3,
+      "priceDiamonds": 14
+    },
+    {
+      "id": "water_golem",
+      "name": "Водяной голем",
+      "school": "water",
+      "kind": "creature",
+      "manaCost": {
+        "water": 3
+      },
+      "attack": 2,
+      "health": 5,
+      "attackPattern": "melee",
+      "text": "Водный танк.",
+      "rarity": "common",
+      "premium": false,
+      "art": "вода/water_golem.png",
+      "priceGold": 160,
+      "gender": "none",
+      "unitLevel": 2,
+      "priceDiamonds": 6
+    },
+    {
+      "id": "water_spirit",
+      "name": "Дух воды",
+      "school": "water",
+      "kind": "creature",
+      "manaCost": {
+        "water": 2
+      },
+      "attack": 2,
+      "health": 2,
+      "attackPattern": "ranged",
+      "text": "Лёгкий дух: бьёт любую цель.",
+      "rarity": "common",
+      "premium": false,
+      "art": "вода/дух воды.png",
+      "priceGold": 50,
+      "gender": "none",
+      "unitLevel": 1,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "water_elemental",
+      "name": "Элементаль воды",
+      "school": "water",
+      "kind": "creature",
+      "manaCost": {
+        "water": 3,
+        "nature": 1
+      },
+      "attack": 3,
+      "health": 4,
+      "attackPattern": "melee",
+      "text": "Стихия глубин.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "вода/элементаль воды.jpg",
+      "priceGold": 340,
+      "gender": "none",
+      "unitLevel": 3,
+      "priceDiamonds": 14
+    },
+    {
+      "id": "triton",
+      "name": "Тритон",
+      "school": "water",
+      "kind": "creature",
+      "manaCost": {
+        "water": 3
+      },
+      "attack": 2,
+      "health": 3,
+      "attackPattern": "melee",
+      "text": "Удар напротив ИЛИ призвать Акулита в свободный слот.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "вода/тритон.png",
+      "ability": "triton_flex",
+      "priceGold": 160,
+      "gender": "male",
+      "unitLevel": 2,
+      "priceDiamonds": 6
+    },
+    {
+      "id": "aquilite",
+      "name": "Акулит",
+      "school": "water",
+      "kind": "creature",
+      "manaCost": {
+        "water": 1
+      },
+      "attack": 1,
+      "health": 1,
+      "attackPattern": "melee",
+      "text": "Rush: атака сразу. Может ударить напротив или сменить слот.",
+      "rarity": "common",
+      "premium": false,
+      "art": "вода/акулит.png",
+      "ability": "rush",
+      "abilities": [
+        "aquilite_swap"
+      ],
+      "priceGold": 50,
+      "gender": "male",
+      "unitLevel": 1,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "clawfiend",
+      "name": "Водяной",
+      "school": "water",
+      "kind": "creature",
+      "manaCost": {
+        "water": 4,
+        "death": 1
+      },
+      "attack": 4,
+      "health": 6,
+      "attackPattern": "melee",
+      "text": "Волшебник глубин. Пока на поле: все водные союзники +1 HP.",
+      "rarity": "epic",
+      "premium": true,
+      "art": "вода/водяной.jpg",
+      "ability": "water_tide",
+      "gender": "male",
+      "unitLevel": 4,
+      "priceGold": 620,
+      "priceDiamonds": 26
+    },
+    {
+      "id": "kraken",
+      "name": "Кракен",
+      "school": "water",
+      "kind": "creature",
+      "manaCost": {
+        "water": 4,
+        "nature": 2,
+        "death": 1
+      },
+      "attack": 1,
+      "health": 10,
+      "attackPattern": "aoe_all",
+      "text": "Бьёт ВСЕХ вражеских существ на 1. Очень много HP.",
+      "rarity": "legendary",
+      "premium": true,
+      "priceStars": 250,
+      "art": "вода/кракен.png",
+      "priceGold": 1200,
+      "priceDiamonds": 48,
+      "gender": "male",
+      "unitLevel": 5
+    },
+    {
+      "id": "fire_lizard",
+      "name": "Огненный ящер",
+      "school": "hell",
+      "kind": "creature",
+      "manaCost": {
+        "hell": 2
+      },
+      "attack": 2,
+      "health": 2,
+      "attackPattern": "melee",
+      "text": "Быстрый ящер ада.",
+      "rarity": "common",
+      "premium": false,
+      "art": "ад/fire_lizard.png",
+      "priceGold": 50,
+      "gender": "male",
+      "unitLevel": 1,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "fire_gopnik",
+      "name": "Огненный гопник",
+      "school": "hell",
+      "kind": "creature",
+      "manaCost": {
+        "hell": 2
+      },
+      "attack": 3,
+      "health": 1,
+      "attackPattern": "ranged",
+      "text": "Харкает огнём: любая цель.",
+      "rarity": "common",
+      "premium": false,
+      "art": "ад/fire_gopnik.png",
+      "priceGold": 50,
+      "gender": "male",
+      "unitLevel": 1,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "fire_golem",
+      "name": "Огненный голем",
+      "school": "hell",
+      "kind": "creature",
+      "manaCost": {
+        "hell": 3,
+        "nature": 1
+      },
+      "attack": 3,
+      "health": 4,
+      "attackPattern": "melee",
+      "text": "Горячий танк 3/4.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "ад/fire_golem.png",
+      "priceGold": 340,
+      "gender": "none",
+      "unitLevel": 3,
+      "priceDiamonds": 14
+    },
+    {
+      "id": "fire_dragon",
+      "name": "Огненный дракон",
+      "school": "hell",
+      "kind": "creature",
+      "manaCost": {
+        "hell": 4,
+        "nature": 2
+      },
+      "attack": 5,
+      "health": 4,
+      "attackPattern": "cleave3",
+      "text": "Дыхание: цель + соседи.",
+      "rarity": "epic",
+      "premium": true,
+      "priceStars": 200,
+      "art": "ад/fire_dragon.png",
+      "priceGold": 620,
+      "priceDiamonds": 26,
+      "gender": "male",
+      "unitLevel": 4
+    },
+    {
+      "id": "cerberus",
+      "name": "Адский цербер",
+      "school": "hell",
+      "kind": "creature",
+      "manaCost": {
+        "hell": 3
+      },
+      "attack": 1,
+      "health": 4,
+      "attackPattern": "lane_cleave3",
+      "text": "Слабо, но кусает всех троих: напротив, слева и справа.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "ад/адский цербер.png",
+      "priceGold": 160,
+      "gender": "male",
+      "unitLevel": 2,
+      "priceDiamonds": 6
+    },
+    {
+      "id": "imp",
+      "name": "Имп",
+      "school": "hell",
+      "kind": "creature",
+      "manaCost": {
+        "hell": 2
+      },
+      "attack": 2,
+      "health": 2,
+      "attackPattern": "melee",
+      "text": "Бьёт напротив. При любой атаке дополнительно −1 HP герою врага.",
+      "rarity": "common",
+      "premium": false,
+      "art": "ад/имп.jpg",
+      "ability": "imp_burn",
+      "gender": "none",
+      "unitLevel": 2,
+      "priceGold": 160,
+      "priceDiamonds": 6
+    },
+    {
+      "id": "inferno",
+      "name": "Инферно",
+      "school": "hell",
+      "kind": "creature",
+      "manaCost": {
+        "hell": 4,
+        "death": 2,
+        "nature": 1
+      },
+      "attack": 5,
+      "health": 6,
+      "attackPattern": "ranged",
+      "text": "Легенда ада. Бьёт любого одного. Невосприимчив к заклинаниям ада и смерти.",
+      "rarity": "legendary",
+      "premium": true,
+      "art": "ад/инферно.png",
+      "ability": "immune_hell_death",
+      "priceGold": 1200,
+      "gender": "male",
+      "unitLevel": 5,
+      "priceDiamonds": 48
+    },
+    {
+      "id": "motardo",
+      "name": "Мотардо",
+      "school": "hell",
+      "kind": "creature",
+      "manaCost": {
+        "hell": 2
+      },
+      "attack": 2,
+      "health": 2,
+      "attackPattern": "melee",
+      "text": "Rush: может ударить напротив сразу в ход появления.",
+      "rarity": "common",
+      "premium": false,
+      "art": "ад/мотардо.png",
+      "ability": "rush",
+      "priceGold": 50,
+      "gender": "male",
+      "unitLevel": 1,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "elf",
+      "name": "Эльф",
+      "school": "nature",
+      "kind": "creature",
+      "manaCost": {
+        "nature": 2
+      },
+      "attack": 2,
+      "health": 2,
+      "attackPattern": "ranged",
+      "text": "Стреляет в кого угодно.",
+      "rarity": "common",
+      "premium": false,
+      "art": "природа/эльф.png",
+      "priceGold": 50,
+      "gender": "male",
+      "unitLevel": 1,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "spider",
+      "name": "Паук",
+      "school": "nature",
+      "kind": "creature",
+      "manaCost": {
+        "nature": 1
+      },
+      "attack": 1,
+      "health": 2,
+      "attackPattern": "melee",
+      "text": "Бьёт напротив. При ударе по существу — постоянный яд: каждый ход −1 HP, пока не вылечат.",
+      "rarity": "common",
+      "premium": false,
+      "art": "природа/паук.jpg",
+      "ability": "spider_poison",
+      "gender": "none",
+      "unitLevel": 1,
+      "priceGold": 50,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "hornet_warrior",
+      "name": "Шершень-воин",
+      "school": "nature",
+      "kind": "creature",
+      "manaCost": {
+        "nature": 1
+      },
+      "attack": 1,
+      "health": 1,
+      "attackPattern": "melee",
+      "text": "Бьёт напротив. Рой: каждый дополнительный шершень (воины и матка) даёт всем шершням +1 атаки.",
+      "rarity": "common",
+      "premium": false,
+      "art": "природа/шершень_воин.jpg",
+      "ability": "hornet_pack",
+      "gender": "none",
+      "unitLevel": 1,
+      "priceGold": 50,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "leprechaun",
+      "name": "Леприкон",
+      "school": "nature",
+      "kind": "creature",
+      "manaCost": {
+        "nature": 2
+      },
+      "attack": 1,
+      "health": 2,
+      "attackPattern": "melee",
+      "text": "Пока на поле: в начале твоего хода герой +1 HP (каждый леприкон отдельно).",
+      "rarity": "rare",
+      "premium": false,
+      "art": "природа/леприкон.png",
+      "ability": "leprechaun_aura",
+      "priceGold": 160,
+      "gender": "male",
+      "unitLevel": 2,
+      "priceDiamonds": 6
+    },
+    {
+      "id": "ent",
+      "name": "Энт",
+      "school": "nature",
+      "kind": "creature",
+      "manaCost": {
+        "nature": 3,
+        "life": 1
+      },
+      "attack": 2,
+      "health": 6,
+      "attackPattern": "melee",
+      "text": "Древесный колосс.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "природа/ent.png",
+      "priceGold": 340,
+      "gender": "none",
+      "unitLevel": 3,
+      "priceDiamonds": 14
+    },
+    {
+      "id": "basilisk",
+      "name": "Василиск",
+      "school": "nature",
+      "kind": "creature",
+      "manaCost": {
+        "nature": 3,
+        "life": 1
+      },
+      "attack": 3,
+      "health": 4,
+      "attackPattern": "melee_lane3",
+      "text": "Бьёт напротив / слева / справа. При ударе по существу — окаменение на следующий ход (не атакует).",
+      "rarity": "rare",
+      "premium": false,
+      "art": "природа/василиск.jpg",
+      "ability": "basilisk_gaze",
+      "gender": "none",
+      "unitLevel": 3,
+      "priceGold": 340,
+      "priceDiamonds": 14
+    },
+    {
+      "id": "hornet_queen",
+      "name": "Матка шершня",
+      "school": "nature",
+      "kind": "creature",
+      "manaCost": {
+        "nature": 3,
+        "life": 1
+      },
+      "attack": 2,
+      "health": 5,
+      "attackPattern": "melee",
+      "text": "Бьёт напротив. Яд (−1/ход). Вместо удара может создать Шершня-воина. В рое с воинами: каждый доп. шершень даёт всем +1 атаки (и матке тоже).",
+      "rarity": "rare",
+      "premium": false,
+      "art": "природа/матка_шершня.jpg",
+      "ability": "hornet_queen_flex",
+      "abilities": [
+        "hornet_pack",
+        "spider_poison"
+      ],
+      "gender": "none",
+      "unitLevel": 3,
+      "priceGold": 340,
+      "priceDiamonds": 14
+    },
+    {
+      "id": "arch_orc",
+      "name": "Архи-орк",
+      "school": "nature",
+      "kind": "creature",
+      "manaCost": {
+        "nature": 3
+      },
+      "attack": 3,
+      "health": 3,
+      "attackPattern": "melee",
+      "text": "Сбалансированный боец 3/3.",
+      "rarity": "common",
+      "premium": false,
+      "art": "природа/arch_orc.png",
+      "priceGold": 160,
+      "gender": "male",
+      "unitLevel": 2,
+      "priceDiamonds": 6
+    },
+    {
+      "id": "leshy",
+      "name": "Леший",
+      "school": "nature",
+      "kind": "creature",
+      "manaCost": {
+        "nature": 4,
+        "life": 1
+      },
+      "attack": 3,
+      "health": 7,
+      "attackPattern": "melee",
+      "text": "Удар напротив ИЛИ действие: навсегда меняет местами атаку и здоровье выбранного союзника или врага.",
+      "rarity": "epic",
+      "premium": true,
+      "art": "природа/леший.jpg",
+      "ability": "leshy_flex",
+      "gender": "male",
+      "unitLevel": 4,
+      "priceGold": 620,
+      "priceDiamonds": 26
+    },
+    {
+      "id": "veles",
+      "name": "Велес",
+      "school": "nature",
+      "kind": "creature",
+      "manaCost": {
+        "nature": 4,
+        "life": 2,
+        "water": 1
+      },
+      "attack": 3,
+      "health": 5,
+      "attackPattern": "melee",
+      "text": "Призыв: герой +2 HP.",
+      "rarity": "legendary",
+      "premium": true,
+      "priceStars": 200,
+      "art": "природа/veles.png",
+      "onPlayHealHero": 2,
+      "priceGold": 1200,
+      "priceDiamonds": 48,
+      "gender": "male",
+      "unitLevel": 5
+    },
+    {
+      "id": "black_dragon",
+      "name": "Чёрный дракон",
+      "school": "neutral",
+      "kind": "creature",
+      "manaCost": {
+        "death": 3,
+        "hell": 2,
+        "nature": 1
+      },
+      "attack": 5,
+      "health": 6,
+      "attackPattern": "cleave3",
+      "text": "Нейтрал: смерть+ад+природа. Бьёт цель и соседей.",
+      "rarity": "legendary",
+      "premium": true,
+      "priceStars": 300,
+      "art": "нетральные существа/black_dragon.png",
+      "priceGold": 1200,
+      "priceDiamonds": 48,
+      "gender": "male",
+      "unitLevel": 5
+    },
+    {
+      "id": "mercenary",
+      "name": "Наёмник",
+      "school": "neutral",
+      "kind": "creature",
+      "manaCost": {
+        "life": 2,
+        "hell": 1
+      },
+      "attack": 3,
+      "health": 3,
+      "attackPattern": "melee",
+      "text": "Нейтрал: жизнь+ад. Универсальный боец.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "нетральные существа/bot_00182_.png",
+      "priceGold": 160,
+      "gender": "male",
+      "unitLevel": 2,
+      "priceDiamonds": 6
+    },
+    {
+      "id": "recruit",
+      "name": "Новобранец",
+      "school": "neutral",
+      "kind": "creature",
+      "manaCost": {
+        "life": 1,
+        "hell": 1
+      },
+      "attack": 2,
+      "health": 1,
+      "attackPattern": "melee",
+      "text": "Нейтрал: жизнь+ад. Дешёвый ударник 2/1.",
+      "rarity": "common",
+      "premium": false,
+      "art": "нетральные существа/новобранец.jpg",
+      "gender": "male",
+      "unitLevel": 1,
+      "priceGold": 50,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "poison",
+      "name": "Яд",
+      "school": "death",
+      "kind": "spell",
+      "manaCost": {
+        "death": 2
+      },
+      "text": "Отравить врага: в начале его хода −1 HP, потом −2, −3… (растёт каждый ход). Карта у колоды, пока яд действует.",
+      "rarity": "common",
+      "premium": false,
+      "art": "заклинания/poison.png",
+      "spellEffects": [
+        {
+          "type": "poison",
+          "amount": 1
+        }
+      ],
+      "priceGold": 43,
+      "spellLinger": {
+        "untilCleared": true
+      },
+      "unitLevel": 1,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "strike",
+      "name": "Атака",
+      "school": "hell",
+      "kind": "spell",
+      "manaCost": {
+        "hell": 1
+      },
+      "text": "2 урона вражескому герою.",
+      "rarity": "common",
+      "premium": false,
+      "art": "заклинания/strike.png",
+      "spellEffects": [
+        {
+          "type": "damage_hero",
+          "amount": 2
+        }
+      ],
+      "priceGold": 43,
+      "unitLevel": 1,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "undead_strike",
+      "name": "Атака нежити",
+      "school": "death",
+      "kind": "spell",
+      "manaCost": {
+        "death": 2
+      },
+      "text": "3 урона всей нежити на поле.",
+      "rarity": "common",
+      "premium": false,
+      "art": "заклинания/undead_strike.png",
+      "spellEffects": [
+        {
+          "type": "damage_undead",
+          "amount": 3
+        }
+      ],
+      "priceGold": 43,
+      "unitLevel": 1,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "undead_bonus",
+      "name": "Бонус нежити",
+      "school": "death",
+      "kind": "spell",
+      "manaCost": {
+        "death": 2
+      },
+      "text": "Своя нежить навсегда +1/+1 (только школа смерти).",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/undead_bonus.png",
+      "spellEffects": [
+        {
+          "type": "buff_permanent",
+          "attack": 1,
+          "health": 1,
+          "onlySchool": "death"
+        }
+      ],
+      "priceGold": 136,
+      "unitLevel": 2,
+      "priceDiamonds": 5
+    },
+    {
+      "id": "swamp",
+      "name": "Болото",
+      "school": "nature",
+      "kind": "spell",
+      "manaCost": {
+        "nature": 3
+      },
+      "text": "2 урона всем вражеским существам.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/swamp.png",
+      "spellEffects": [
+        {
+          "type": "damage_all_enemies",
+          "amount": 2
+        }
+      ],
+      "priceGold": 136,
+      "unitLevel": 2,
+      "priceDiamonds": 5
+    },
+    {
+      "id": "hero_mana",
+      "name": "Доп. мана",
+      "school": "neutral",
+      "kind": "spell",
+      "manaCost": {},
+      "text": "+1 маны школы твоего оракула сразу.",
+      "rarity": "common",
+      "premium": false,
+      "art": "заклинания/hero_mana.png",
+      "spellEffects": [
+        {
+          "type": "gain_mana",
+          "amount": 1
+        }
+      ],
+      "priceGold": 40,
+      "unitLevel": 1,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "hell_cuffs",
+      "name": "Адские наручники",
+      "school": "hell",
+      "kind": "spell",
+      "manaCost": {
+        "hell": 2
+      },
+      "text": "Вражеское существо: −2 атаки до конца хода (slow).",
+      "rarity": "common",
+      "premium": false,
+      "art": "заклинания/адские наручники.png",
+      "spellEffects": [
+        {
+          "type": "slow_enemy",
+          "amount": 2
+        }
+      ],
+      "priceGold": 43,
+      "unitLevel": 1,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "fire_aura",
+      "name": "Аура огня",
+      "school": "hell",
+      "kind": "spell",
+      "manaCost": {
+        "hell": 3
+      },
+      "text": "2 урона всем вражеским существам.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/аура огня.png",
+      "spellEffects": [
+        {
+          "type": "damage_all_enemies",
+          "amount": 2
+        }
+      ],
+      "priceGold": 136,
+      "unitLevel": 2,
+      "priceDiamonds": 5
+    },
+    {
+      "id": "slow_foe",
+      "name": "Замедлить врага",
+      "school": "nature",
+      "kind": "spell",
+      "manaCost": {
+        "nature": 2
+      },
+      "text": "Враг −2 атаки до конца хода.",
+      "rarity": "common",
+      "premium": false,
+      "art": "заклинания/замедлить врага.png",
+      "spellEffects": [
+        {
+          "type": "slow_enemy",
+          "amount": 2
+        }
+      ],
+      "priceGold": 43,
+      "unitLevel": 1,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "mind_grab",
+      "name": "Захват разума",
+      "school": "death",
+      "kind": "spell",
+      "manaCost": {
+        "death": 3,
+        "hell": 1
+      },
+      "text": "3 урона вражескому герою + добор 1 карты.",
+      "rarity": "epic",
+      "premium": true,
+      "art": "заклинания/захват разума.png",
+      "spellEffects": [
+        {
+          "type": "damage_hero",
+          "amount": 3
+        },
+        {
+          "type": "draw",
+          "amount": 1
+        }
+      ],
+      "priceGold": 527,
+      "unitLevel": 4,
+      "priceDiamonds": 22
+    },
+    {
+      "id": "life_root",
+      "name": "Корень жизни",
+      "school": "life",
+      "kind": "spell",
+      "manaCost": {
+        "life": 2
+      },
+      "text": "Лечит героя на 4.",
+      "rarity": "common",
+      "premium": false,
+      "art": "заклинания/корень жизни.png",
+      "spellEffects": [
+        {
+          "type": "heal_hero",
+          "amount": 4
+        }
+      ],
+      "priceGold": 43,
+      "unitLevel": 1,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "ice_trap",
+      "name": "Ледяная ловушка",
+      "school": "water",
+      "kind": "spell",
+      "manaCost": {
+        "water": 2
+      },
+      "text": "3 урона одному вражескому существу.",
+      "rarity": "common",
+      "premium": false,
+      "art": "заклинания/ледяная ловушка.png",
+      "spellEffects": [
+        {
+          "type": "damage_unit",
+          "amount": 3
+        }
+      ],
+      "priceGold": 43,
+      "unitLevel": 1,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "wave",
+      "name": "Наслать волну",
+      "school": "water",
+      "kind": "spell",
+      "manaCost": {
+        "water": 3
+      },
+      "text": "2 урона всем вражеским существам.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/наслать волну.png",
+      "spellEffects": [
+        {
+          "type": "damage_all_enemies",
+          "amount": 2
+        }
+      ],
+      "priceGold": 136,
+      "unitLevel": 2,
+      "priceDiamonds": 5
+    },
+    {
+      "id": "arrow_cloud",
+      "name": "Туча стрел",
+      "school": "nature",
+      "kind": "spell",
+      "manaCost": {
+        "nature": 3
+      },
+      "text": "2 урона всем вражеским существам.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/туча стрел.png",
+      "spellEffects": [
+        {
+          "type": "damage_all_enemies",
+          "amount": 2
+        }
+      ],
+      "priceGold": 136,
+      "unitLevel": 2,
+      "priceDiamonds": 5
+    },
+    {
+      "id": "shield",
+      "name": "Щит",
+      "school": "life",
+      "kind": "spell",
+      "manaCost": {
+        "life": 2
+      },
+      "text": "Союзник: −50% входящего урона на 3 хода (нечётный урон вниз: 3→1, 5→2). Карта висит у колоды.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/щит.png",
+      "spellEffects": [
+        {
+          "type": "shield_ally",
+          "turns": 3
+        }
+      ],
+      "spellLinger": {
+        "turns": 3
+      },
+      "priceGold": 136,
+      "unitLevel": 2,
+      "priceDiamonds": 5
+    },
+    {
+      "id": "mermaid",
+      "name": "Русалка",
+      "school": "water",
+      "kind": "creature",
+      "manaCost": {
+        "water": 3,
+        "life": 1
+      },
+      "attack": 2,
+      "health": 4,
+      "attackPattern": "melee",
+      "text": "Удар напротив ИЛИ усыпить врага-воина на 1 ход (не действует на женщин: валькирия, сукуб, русалка…).",
+      "rarity": "rare",
+      "premium": false,
+      "art": "вода/русалка.png",
+      "ability": "mermaid_flex",
+      "gender": "female",
+      "priceGold": 340,
+      "unitLevel": 3,
+      "priceDiamonds": 14
+    },
+    {
+      "id": "succubus",
+      "name": "Сукуб",
+      "school": "hell",
+      "kind": "creature",
+      "manaCost": {
+        "hell": 3,
+        "death": 1
+      },
+      "attack": 3,
+      "health": 3,
+      "attackPattern": "melee",
+      "text": "Бьёт напротив. Мужчины не могут её бить (только женщины или магия). ИЛИ усыпить любую мужскую карту на 1 ход.",
+      "rarity": "epic",
+      "premium": false,
+      "art": "ад/сукуб.png",
+      "ability": "succubus_flex",
+      "gender": "female",
+      "priceGold": 340,
+      "unitLevel": 3,
+      "priceDiamonds": 14
+    },
+    {
+      "id": "calm",
+      "name": "Затишье",
+      "school": "nature",
+      "kind": "spell",
+      "manaCost": {
+        "nature": 2
+      },
+      "text": "Оба войска бездействуют: никто не атакует до конца хода соперника.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/затишье.png",
+      "spellEffects": [
+        {
+          "type": "skip_combat"
+        }
+      ],
+      "priceGold": 136,
+      "unitLevel": 2,
+      "priceDiamonds": 5
+    },
+    {
+      "id": "hurricane",
+      "name": "Ураган",
+      "school": "nature",
+      "kind": "spell",
+      "manaCost": {
+        "nature": 3
+      },
+      "text": "Случайно перемешивает твои карты на поле боя. Урон не наносит, бафы и эффекты сохраняются.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/ураган.png",
+      "spellEffects": [
+        {
+          "type": "shuffle_board"
+        }
+      ],
+      "priceGold": 136,
+      "unitLevel": 2,
+      "priceDiamonds": 5
+    },
+    {
+      "id": "extra_card",
+      "name": "Дополнительная карта",
+      "school": "neutral",
+      "kind": "spell",
+      "manaCost": {},
+      "text": "Бесплатно (0 маны). На 2 следующих своих хода получаешь +1 карту в добор (после применения).",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/дополнительная карта.jpg",
+      "spellEffects": [
+        {
+          "type": "extra_draw_turns",
+          "turns": 2
+        }
+      ],
+      "priceGold": 136,
+      "unitLevel": 2,
+      "priceDiamonds": 5
+    },
+    {
+      "id": "to_attack",
+      "name": "В атаку",
+      "school": "hell",
+      "kind": "spell",
+      "manaCost": {
+        "hell": 2
+      },
+      "text": "Все твои существа на поле получают +1 атаки до конца хода.",
+      "rarity": "common",
+      "premium": false,
+      "art": "заклинания/в атаку.png",
+      "spellEffects": [
+        {
+          "type": "buff_army_attack",
+          "amount": 1
+        }
+      ],
+      "priceGold": 136,
+      "unitLevel": 2,
+      "priceDiamonds": 5
+    },
+    {
+      "id": "balthazar",
+      "name": "Бальтазар",
+      "school": "hell",
+      "kind": "creature",
+      "manaCost": {
+        "hell": 3,
+        "death": 1,
+        "nature": 1
+      },
+      "attack": 3,
+      "health": 4,
+      "attackPattern": "melee",
+      "text": "Удар напротив ИЛИ поменять местами две карты соперника на поле.",
+      "rarity": "epic",
+      "premium": true,
+      "art": "ад/бальтазар.png",
+      "ability": "balthazar_flex",
+      "gender": "male",
+      "priceGold": 620,
+      "unitLevel": 4,
+      "priceDiamonds": 26
+    },
+    {
+      "id": "scorpicora",
+      "name": "Скорпикора",
+      "school": "neutral",
+      "kind": "creature",
+      "manaCost": {
+        "death": 2,
+        "nature": 1
+      },
+      "attack": 2,
+      "health": 3,
+      "attackPattern": "ranged",
+      "text": "Удар по любой цели (существо или герой). При ударе по существу — яд (−1, потом растёт каждый ход), пока не вылечат или не убьют.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "нетральные существа/скорпикора.jpg",
+      "ability": "scorpion_poison",
+      "gender": "none",
+      "priceGold": 340,
+      "unitLevel": 3,
+      "priceDiamonds": 14
+    },
+    {
+      "id": "wanderer",
+      "name": "Странник",
+      "school": "neutral",
+      "kind": "creature",
+      "manaCost": {
+        "life": 2,
+        "hell": 1
+      },
+      "attack": 3,
+      "health": 3,
+      "attackPattern": "melee",
+      "text": "Бьёт напротив.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "нетральные существа/странник.png",
+      "gender": "male",
+      "priceGold": 160,
+      "unitLevel": 2,
+      "priceDiamonds": 6
+    },
+    {
+      "id": "banshee",
+      "name": "Банши",
+      "school": "death",
+      "kind": "creature",
+      "manaCost": {
+        "death": 3,
+        "nature": 1
+      },
+      "attack": 2,
+      "health": 3,
+      "attackPattern": "melee",
+      "text": "Удар напротив ИЛИ оглушить любое существо врага на 1 ход (бездействие).",
+      "rarity": "rare",
+      "premium": false,
+      "art": "смерть/банши.png",
+      "ability": "banshee_flex",
+      "gender": "female",
+      "priceGold": 340,
+      "unitLevel": 3,
+      "priceDiamonds": 14
+    },
+    {
+      "id": "bone_rex",
+      "name": "Костяной рекс",
+      "school": "death",
+      "kind": "creature",
+      "manaCost": {
+        "death": 4,
+        "hell": 2,
+        "nature": 1
+      },
+      "attack": 4,
+      "health": 5,
+      "attackPattern": "melee",
+      "text": "Бьёт напротив. Невосприимчив к магии смерти.",
+      "rarity": "epic",
+      "premium": true,
+      "art": "смерть/костяной рекс.png",
+      "ability": "immune_death",
+      "gender": "none",
+      "priceGold": 1200,
+      "unitLevel": 5,
+      "priceDiamonds": 48
+    },
+    {
+      "id": "necro_mage",
+      "name": "Маг некромант",
+      "school": "death",
+      "kind": "creature",
+      "manaCost": {
+        "death": 4,
+        "hell": 1
+      },
+      "attack": 2,
+      "health": 3,
+      "attackPattern": "ranged",
+      "text": "Удар по любому существу врага ИЛИ призвать Скелета в пустой свой слот.",
+      "rarity": "epic",
+      "premium": true,
+      "art": "смерть/маг некромант.png",
+      "ability": "necro_flex",
+      "gender": "male",
+      "priceGold": 620,
+      "unitLevel": 4,
+      "priceDiamonds": 26
+    },
+    {
+      "id": "lich",
+      "name": "Лич",
+      "school": "death",
+      "kind": "creature",
+      "manaCost": {
+        "death": 3,
+        "water": 1
+      },
+      "attack": 3,
+      "health": 4,
+      "attackPattern": "ranged",
+      "text": "Стреляет в кого угодно. При ударе по существу вытягивает жизнь: +2 HP себе.",
+      "rarity": "epic",
+      "premium": false,
+      "art": "смерть/лич.jpg",
+      "ability": "lich_drain",
+      "gender": "none",
+      "unitLevel": 4,
+      "priceGold": 620,
+      "priceDiamonds": 26
+    },
+    {
+      "id": "rogue",
+      "name": "Разбойник",
+      "school": "neutral",
+      "kind": "creature",
+      "manaCost": {
+        "hell": 2,
+        "nature": 1
+      },
+      "attack": 2,
+      "health": 2,
+      "attackPattern": "melee",
+      "text": "Бьёт напротив. 30% шанс похитить 1 ману врага (случайной фракции).",
+      "rarity": "rare",
+      "premium": false,
+      "art": "нетральные существа/разбойник.png",
+      "ability": "mana_steal",
+      "gender": "male",
+      "priceGold": 340,
+      "unitLevel": 3,
+      "priceDiamonds": 14
+    },
+    {
+      "id": "arbiter",
+      "name": "Арбитр",
+      "school": "neutral",
+      "kind": "creature",
+      "manaCost": {
+        "life": 2,
+        "water": 2
+      },
+      "attack": 3,
+      "health": 6,
+      "attackPattern": "ranged",
+      "text": "Бьёт любую карту врага. Вердикт (повторный клик по Арбитру): все существа на поле становятся 1/1, кроме него.",
+      "rarity": "epic",
+      "premium": false,
+      "art": "нетральные существа/арбитр.jpg",
+      "ability": "arbiter_flex",
+      "gender": "male",
+      "unitLevel": 4,
+      "priceGold": 620,
+      "priceDiamonds": 26
+    },
+    {
+      "id": "banish",
+      "name": "Убрать с поля",
+      "school": "death",
+      "kind": "spell",
+      "manaCost": {
+        "death": 3
+      },
+      "text": "Убрать вражескую карту с поля боя (в сброс).",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/убрать с поля.jpg",
+      "spellEffects": [
+        {
+          "type": "banish_unit"
+        }
+      ],
+      "priceGold": 289,
+      "unitLevel": 3,
+      "priceDiamonds": 12
+    },
+    {
+      "id": "antidote",
+      "name": "Противоядие",
+      "school": "life",
+      "kind": "spell",
+      "manaCost": {
+        "life": 1
+      },
+      "text": "Снять яд с одного своего существа.",
+      "rarity": "common",
+      "premium": false,
+      "art": "заклинания/противоядие.jpg",
+      "spellEffects": [
+        {
+          "type": "cure_poison"
+        }
+      ],
+      "priceGold": 43,
+      "unitLevel": 1,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "mass_antidote",
+      "name": "Общее противоядие",
+      "school": "life",
+      "kind": "spell",
+      "manaCost": {
+        "life": 3
+      },
+      "text": "Снять яд со всех своих существ.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/общее противоядие.jpg",
+      "spellEffects": [
+        {
+          "type": "cure_poison_all"
+        }
+      ],
+      "priceGold": 136,
+      "unitLevel": 2,
+      "priceDiamonds": 5
+    },
+    {
+      "id": "return_hand",
+      "name": "Вернуть в руку",
+      "school": "water",
+      "kind": "spell",
+      "manaCost": {
+        "water": 2
+      },
+      "text": "Вернуть карту врага с поля в его руку.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/вернуть в руку.jpg",
+      "spellEffects": [
+        {
+          "type": "bounce_enemy_hand"
+        }
+      ],
+      "priceGold": 136,
+      "unitLevel": 2,
+      "priceDiamonds": 5
+    },
+    {
+      "id": "reveal_hand",
+      "name": "Увидеть руку",
+      "school": "water",
+      "kind": "spell",
+      "manaCost": {
+        "water": 2
+      },
+      "text": "Видишь карты в руке врага на 1 ход.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/увидеть руку.jpg",
+      "spellEffects": [
+        {
+          "type": "reveal_enemy_hand",
+          "turns": 1
+        }
+      ],
+      "priceGold": 136,
+      "unitLevel": 2,
+      "priceDiamonds": 5
+    },
+    {
+      "id": "freeze",
+      "name": "Заморозка",
+      "school": "water",
+      "kind": "spell",
+      "manaCost": {
+        "water": 3
+      },
+      "text": "Заморозить вражеское существо на следующий ход (не атакует).",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/заморозка.jpg",
+      "spellEffects": [
+        {
+          "type": "freeze_enemy"
+        }
+      ],
+      "unitLevel": 3,
+      "priceGold": 289,
+      "priceDiamonds": 12
+    },
+    {
+      "id": "discard_hand",
+      "name": "Сброс руки",
+      "school": "water",
+      "kind": "spell",
+      "manaCost": {
+        "water": 3,
+        "death": 1
+      },
+      "text": "Враг случайно сбрасывает 2 карты из руки в грейв.",
+      "rarity": "epic",
+      "premium": false,
+      "art": "заклинания/сброс_руки.jpg",
+      "spellEffects": [
+        {
+          "type": "discard_enemy_hand",
+          "amount": 2
+        }
+      ],
+      "unitLevel": 4,
+      "priceGold": 527,
+      "priceDiamonds": 22
+    },
+    {
+      "id": "guardian_bond",
+      "name": "Взять урон на себя",
+      "school": "life",
+      "kind": "spell",
+      "manaCost": {
+        "life": 3
+      },
+      "text": "Выбери стража, затем подопечного: страж принимает весь урон за него, пока не снимут заклинание или один не погибнет.",
+      "rarity": "epic",
+      "premium": false,
+      "art": "заклинания/взять урон на себя.jpg",
+      "spellEffects": [
+        {
+          "type": "guardian_bond"
+        }
+      ],
+      "spellLinger": {
+        "untilCleared": true
+      },
+      "priceGold": 289,
+      "unitLevel": 3,
+      "priceDiamonds": 12
+    },
+    {
+      "id": "break_spell",
+      "name": "Разбить заклинание",
+      "school": "nature",
+      "kind": "spell",
+      "manaCost": {
+        "nature": 2
+      },
+      "text": "Снять одно длящееся заклинание врага (яд, щит, страх…). Разовые вроде «Камни маны» уже сработали — серый след на поле не снимается.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/разбить заклинание.jpg",
+      "spellEffects": [
+        {
+          "type": "break_enemy_spell"
+        }
+      ],
+      "priceGold": 136,
+      "unitLevel": 2,
+      "priceDiamonds": 5
+    },
+    {
+      "id": "break_all_spells",
+      "name": "Общее разбитие заклинаний",
+      "school": "nature",
+      "kind": "spell",
+      "manaCost": {
+        "nature": 3,
+        "water": 1
+      },
+      "text": "Снять все длящиеся заклинания врага. Серые следы разовых карт (уже сработали) не снимаются.",
+      "rarity": "epic",
+      "premium": true,
+      "art": "заклинания/общее разбитие заклинаний.jpg",
+      "spellEffects": [
+        {
+          "type": "break_all_enemy_spells"
+        }
+      ],
+      "priceGold": 527,
+      "unitLevel": 4,
+      "priceDiamonds": 22
+    },
+    {
+      "id": "traitor",
+      "name": "Изменник",
+      "school": "hell",
+      "kind": "spell",
+      "manaCost": {
+        "hell": 3,
+        "death": 1
+      },
+      "text": "Враг под контролем: после конца хода бьёт своего слева/справа или по своему умению (без заклинаний). Враг не управляет им. Длится до конца твоего следующего хода.",
+      "rarity": "epic",
+      "premium": false,
+      "art": "заклинания/изменник.jpg",
+      "spellEffects": [
+        {
+          "type": "traitor"
+        }
+      ],
+      "spellLinger": {
+        "turns": 2
+      },
+      "priceGold": 289,
+      "unitLevel": 3,
+      "priceDiamonds": 12
+    },
+    {
+      "id": "fear",
+      "name": "Страх",
+      "school": "death",
+      "kind": "spell",
+      "manaCost": {
+        "death": 2
+      },
+      "text": "Страх смерти: враг не может атаковать существ школы твоего оракула 2 хода (остальных — может).",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/fear.jpg",
+      "spellEffects": [
+        {
+          "type": "fear_protect",
+          "turns": 2
+        }
+      ],
+      "spellLinger": {
+        "turns": 2
+      },
+      "priceGold": 120,
+      "unitLevel": 2,
+      "priceDiamonds": 5
+    },
+    {
+      "id": "marionette",
+      "name": "Марионетка",
+      "school": "hell",
+      "kind": "spell",
+      "manaCost": {
+        "hell": 3
+      },
+      "text": "Выбери существо врага, затем цель: ближник бьёт соседа слева/справа; лучник/маг бьёт любого врага/героя или лечит твоего союзника/оракула силой атаки. Затем марионетка спит.",
+      "rarity": "epic",
+      "premium": false,
+      "art": "заклинания/marionette.jpg",
+      "spellEffects": [
+        {
+          "type": "marionette"
+        }
+      ],
+      "priceGold": 220,
+      "unitLevel": 3,
+      "priceDiamonds": 10
+    },
+    {
+      "id": "nothingness",
+      "name": "Ничтожество",
+      "school": "death",
+      "kind": "spell",
+      "manaCost": {
+        "death": 3
+      },
+      "text": "Снять супер-умение с вражеского существа до конца боя. Бить по-прежнему может — только особые приёмы пропадают.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/nothingness.jpg",
+      "spellEffects": [
+        {
+          "type": "strip_ability"
+        }
+      ],
+      "priceGold": 160,
+      "unitLevel": 3,
+      "priceDiamonds": 7
+    },
+    {
+      "id": "mana_stones",
+      "name": "Камни маны",
+      "school": "neutral",
+      "kind": "spell",
+      "manaCost": {},
+      "text": "+1 маны каждой школе сразу.",
+      "rarity": "common",
+      "premium": false,
+      "art": "заклинания/mana_stones.jpg",
+      "spellEffects": [
+        {
+          "type": "gain_mana_all",
+          "amount": 1
+        }
+      ],
+      "priceGold": 2000,
+      "unitLevel": 1,
+      "priceDiamonds": 200
+    },
+    {
+      "id": "mass_poison",
+      "name": "Общее отравление",
+      "school": "death",
+      "kind": "spell",
+      "manaCost": {
+        "death": 4
+      },
+      "text": "Яд на всех вражеских существ: −1, потом −2, −3… каждый ход, пока не снимут.",
+      "rarity": "epic",
+      "premium": false,
+      "art": "заклинания/mass_poison.jpg",
+      "spellEffects": [
+        {
+          "type": "poison_all",
+          "amount": 1
+        }
+      ],
+      "spellLinger": {
+        "untilCleared": true
+      },
+      "priceGold": 280,
+      "unitLevel": 4,
+      "priceDiamonds": 14
+    },
+    {
+      "id": "betrayer",
+      "name": "Предатель",
+      "school": "hell",
+      "kind": "spell",
+      "manaCost": {
+        "hell": 3,
+        "death": 1
+      },
+      "text": "Переманить вражеское существо: оно уходит с поля в твою руку на эту битву.",
+      "rarity": "epic",
+      "premium": false,
+      "art": "заклинания/betrayer.jpg",
+      "spellEffects": [
+        {
+          "type": "recruit_to_hand"
+        }
+      ],
+      "priceGold": 300,
+      "unitLevel": 4,
+      "priceDiamonds": 15
+    },
+    {
+      "id": "last_stand",
+      "name": "Из последних сил",
+      "school": "hell",
+      "kind": "spell",
+      "manaCost": {
+        "hell": 2
+      },
+      "text": "Своё существо: удвоить базовые силу и жизнь. Без резета ATK/HP в конце хода до конца боя — запас HP равен новой базе; при 0 HP — смерть.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/last_stand.jpg",
+      "spellEffects": [
+        {
+          "type": "last_stand"
+        }
+      ],
+      "priceGold": 140,
+      "unitLevel": 2,
+      "priceDiamonds": 6
+    },
+    {
+      "id": "bunker",
+      "name": "Я в домике",
+      "school": "life",
+      "kind": "spell",
+      "manaCost": {
+        "life": 2
+      },
+      "text": "Своё существо 3 хода нельзя поразить, но и действовать оно не может. Снимается «Разбить заклинание».",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/bunker.jpg",
+      "spellEffects": [
+        {
+          "type": "bunker",
+          "turns": 3
+        }
+      ],
+      "spellLinger": {
+        "turns": 3
+      },
+      "priceGold": 130,
+      "unitLevel": 2,
+      "priceDiamonds": 5
+    },
+    {
+      "id": "clear_sky",
+      "name": "Чистое небо",
+      "school": "water",
+      "kind": "spell",
+      "manaCost": {
+        "water": 2
+      },
+      "text": "Стрелки и маги врага не могут атаковать 1 ход.",
+      "rarity": "common",
+      "premium": false,
+      "art": "заклинания/clear_sky.jpg",
+      "spellEffects": [
+        {
+          "type": "mute_ranged",
+          "turns": 1
+        }
+      ],
+      "spellLinger": {
+        "turns": 1
+      },
+      "priceGold": 90,
+      "unitLevel": 1,
+      "priceDiamonds": 3
+    },
+    {
+      "id": "dust_eyes",
+      "name": "Пыль в глаза",
+      "school": "nature",
+      "kind": "spell",
+      "manaCost": {
+        "nature": 3
+      },
+      "text": "Противник наносит только 50% урона существами 2 хода.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/dust_eyes.jpg",
+      "spellEffects": [
+        {
+          "type": "weaken_foe_damage",
+          "turns": 2
+        }
+      ],
+      "spellLinger": {
+        "turns": 2
+      },
+      "priceGold": 170,
+      "unitLevel": 3,
+      "priceDiamonds": 8
+    },
+    {
+      "id": "sniper",
+      "name": "Снайпер",
+      "school": "nature",
+      "kind": "spell",
+      "manaCost": {
+        "nature": 2
+      },
+      "text": "Все твои стрелки и маги: +2 атаки и могут бить и существ, и оракула 1 ход.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/sniper.jpg",
+      "spellEffects": [
+        {
+          "type": "sniper_buff",
+          "attack": 2,
+          "turns": 1
+        }
+      ],
+      "spellLinger": {
+        "turns": 1
+      },
+      "priceGold": 125,
+      "unitLevel": 2,
+      "priceDiamonds": 5
+    },
+    {
+      "id": "change_hand",
+      "name": "Сменить руку",
+      "school": "water",
+      "kind": "spell",
+      "manaCost": {
+        "water": 2
+      },
+      "text": "Сбрось все карты из руки в грейв и добери столько же новых из колоды.",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/сменить_руку.jpg",
+      "spellEffects": [
+        {
+          "type": "refresh_hand"
+        }
+      ],
+      "unitLevel": 3,
+      "priceGold": 289,
+      "priceDiamonds": 12
+    },
+    {
+      "id": "archer",
+      "name": "Лучница",
+      "school": "neutral",
+      "kind": "creature",
+      "manaCost": {
+        "life": 1,
+        "nature": 1
+      },
+      "attack": 1,
+      "health": 2,
+      "attackPattern": "ranged",
+      "text": "Нейтрал: жизнь+природа. Стреляет в кого угодно.",
+      "rarity": "common",
+      "premium": false,
+      "art": "нетральные существа/лучник.jpg",
+      "gender": "female",
+      "unitLevel": 1,
+      "priceGold": 50,
+      "priceDiamonds": 2
+    },
+    {
+      "id": "awakening",
+      "name": "Пробуждение",
+      "school": "life",
+      "kind": "spell",
+      "manaCost": {
+        "life": 2
+      },
+      "text": "Своё существо: снять сон и снова дать атаку (можно после призыва или уже после удара).",
+      "rarity": "rare",
+      "premium": false,
+      "art": "заклинания/пробуждение.jpg",
+      "spellEffects": [
+        {
+          "type": "wake_ally"
+        }
+      ],
+      "unitLevel": 3,
+      "priceGold": 289,
+      "priceDiamonds": 12
+    },
+    {
+      "id": "mass_reveille",
+      "name": "Общая побудка",
+      "school": "life",
+      "kind": "spell",
+      "manaCost": {
+        "life": 4,
+        "nature": 2
+      },
+      "text": "Все твои существа: снять сон и снова дать атаку. Дорогое, но переламывает ход.",
+      "rarity": "legendary",
+      "premium": false,
+      "art": "заклинания/общая_побудка.jpg",
+      "spellEffects": [
+        {
+          "type": "wake_all_allies"
+        }
+      ],
+      "unitLevel": 5,
+      "priceGold": 14000,
+      "priceDiamonds": 1000
+    }
+  ]
+}

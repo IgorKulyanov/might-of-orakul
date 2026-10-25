@@ -1,0 +1,11 @@
+# Render Blueprint: New → Blueprint → этот файл.
+# Бесплатный API+WebSocket для теста 10–20 друзей.
+services:
+  - type: web
+    name: orakul-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    plan: free
+    healthCheckPath: /api/health

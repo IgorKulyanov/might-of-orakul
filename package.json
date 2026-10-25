@@ -1,0 +1,33 @@
+{
+  "name": "might-of-orakul",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n web,api -c cyan,magenta \"vite\" \"npm run dev --prefix server\"",
+    "dev:web": "vite",
+    "dev:server": "npm run dev --prefix server",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "test": "tsx scripts/qa-game.ts",
+    "test:fuzz": "tsx scripts/qa-game.ts --fuzz 60",
+    "test:server": "tsx scripts/qa-server.ts --players=1000",
+    "test:all": "tsx scripts/qa-game.ts && tsx scripts/qa-server.ts --players=1000"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "concurrently": "^10.0.6",
+    "oxlint": "^1.81.0",
+    "tsx": "^4.21.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0"
+  }
+}

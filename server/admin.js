@@ -1,0 +1,290 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  listChatMutes,
+  muteChatUser,
+  readTailJsonl,
+  unmuteChatUser,
+} from "./lobbyChat.ts";
+import { LIMITS, sanitizeDisplayName } from "./security.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DATA_DIR = process.env.ORACUL_DATA_DIR
+  ? path.resolve(process.env.ORACUL_DATA_DIR)
+  : path.join(__dirname, "data");
+const FEEDBACK_FILE = path.join(DATA_DIR, "feedback.jsonl");
+const REPORT_FILE = path.join(DATA_DIR, "chat-reports.jsonl");
+const GRANTS_FILE = path.join(DATA_DIR, "admin-grants.jsonl");
+
+const ADMIN_KEY_FILE = path.join(DATA_DIR, "admin.key");
+
+/**
+ * Ключ админки:
+ * 1) env ORACUL_ADMIN_KEY
+ * 2) иначе файл server/data/admin.key (создаётся сам, ключ только в логе сервера)
+ * В UI ключ не светим — случайный игрок форму откроет, но не угадает.
+ */
+export function resolveAdminKey() {
+  if (process.env.ORACUL_ADMIN_KEY) {
+    return String(process.env.ORACUL_ADMIN_KEY).trim();
+  }
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (fs.existsSync(ADMIN_KEY_FILE)) {
+      const existing = fs.readFileSync(ADMIN_KEY_FILE, "utf8").trim();
+      if (existing.length >= 12) return existing;
+    }
+    const generated = `ora_${Date.now().toString(36)}_${Math.random()
+      .toString(36)
+      .slice(2, 12)}`;
+    fs.writeFileSync(ADMIN_KEY_FILE, `${generated}\n`, "utf8");
+    console.log(
+      `[orakul] Админ-ключ создан → server/data/admin.key\n[orakul] Ключ: ${generated}`,
+    );
+    return generated;
+  } catch (e) {
+    console.error("[orakul] admin key fail:", e.message);
+    return "";
+  }
+}
+
+/** Один раз при старте — напомнить, где ключ (не в браузере). */
+export function logAdminKeyHint() {
+  const key = resolveAdminKey();
+  if (!key) {
+    console.warn("[orakul] админка выключена — нет ключа");
+    return;
+  }
+  if (process.env.ORACUL_ADMIN_KEY) {
+    console.log("[orakul] админка: ключ из ORACUL_ADMIN_KEY");
+  } else {
+    console.log(
+      `[orakul] админка: ключ в server/data/admin.key (смотри лог выше / файл)`,
+    );
+  }
+}
+
+export function adminAuth(req, res, next) {
+  const key = resolveAdminKey();
+  if (!key) {
+    res.status(403).json({ error: "Админка выключена (задай ORACUL_ADMIN_KEY)" });
+    return;
+  }
+  const got =
+    req.headers["x-admin-key"] ||
+    req.body?.adminKey ||
+    req.query?.adminKey ||
+    "";
+  if (String(got) !== key) {
+    res.status(401).json({ error: "Неверный ключ админки" });
+    return;
+  }
+  next();
+}
+
+function findUser(db, loginOrId) {
+  const q = String(loginOrId || "")
+    .trim()
+    .toLowerCase();
+  if (!q) return null;
+  return (
+    db.users.find((u) => u.id === loginOrId) ||
+    db.users.find((u) => u.login === q) ||
+    db.users.find(
+      (u) =>
+        (u.displayName || "").toLowerCase() ===
+        String(loginOrId).trim().toLowerCase(),
+    ) ||
+    null
+  );
+}
+
+/**
+ * @param {import('express').Express} app
+ * @param {{ withDb: Function, persistLiveDb: Function, publicUser: Function, getLiveDb: Function }} deps
+ */
+export function mountAdminRoutes(app, deps) {
+  const { withDb, persistLiveDb, publicUser, getLiveDb, rateLimitMiddleware } =
+    deps;
+
+  app.post(
+    "/api/admin/ping",
+    rateLimitMiddleware({ name: "admin-ping", maxN: 30, windowMs: 60_000 }),
+    adminAuth,
+    (_req, res) => {
+      res.json({
+        ok: true,
+        message: "Админ-ключ принят",
+        users: getLiveDb().users.length,
+      });
+    },
+  );
+
+  app.get("/api/admin/inbox", adminAuth, (_req, res) => {
+    res.json({
+      feedback: readTailJsonl(FEEDBACK_FILE, 50),
+      reports: readTailJsonl(REPORT_FILE, 50),
+      mutes: listChatMutes(),
+    });
+  });
+
+  app.get("/api/admin/users", adminAuth, (req, res) => {
+    const q = String(req.query?.q || "")
+      .trim()
+      .toLowerCase();
+    const db = getLiveDb();
+    let list = db.users;
+    if (q) {
+      list = list.filter(
+        (u) =>
+          u.login.includes(q) ||
+          (u.displayName || "").toLowerCase().includes(q) ||
+          u.id.includes(q),
+      );
+    }
+    const out = list.slice(0, 40).map((u) => {
+      const pg = Number(u.pendingGrants?.gold) || 0;
+      const pd = Number(u.pendingGrants?.diamonds) || 0;
+      return {
+        id: u.id,
+        login: u.login,
+        displayName: u.displayName ?? null,
+        lastLoginAt: u.lastLoginAt ?? null,
+        dormant: Boolean(u.dormant),
+        gold: (Number(u.owned?.gold) || 0) + pg,
+        diamonds: (Number(u.owned?.diamonds) || 0) + pd,
+        pendingGold: pg,
+        pendingDiamonds: pd,
+        level: u.owned?.level ?? 1,
+        chatMutedUntil:
+          listChatMutes().find((m) => m.userId === u.id)?.until ?? null,
+      };
+    });
+    res.json({ users: out });
+  });
+
+  app.post(
+    "/api/admin/mute",
+    adminAuth,
+    rateLimitMiddleware({ name: "admin-mute", maxN: 40, windowMs: 60_000 }),
+    async (req, res) => {
+      try {
+        const login = String(req.body?.login || "").trim();
+        const minutes = Math.max(
+          1,
+          Math.min(60 * 24 * 30, Math.floor(Number(req.body?.minutes) || 60)),
+        );
+        const reason = sanitizeDisplayName(req.body?.reason || "mute").slice(
+          0,
+          80,
+        );
+        const user = await withDb((db) => findUser(db, login));
+        if (!user) {
+          res.status(404).json({ error: "Игрок не найден" });
+          return;
+        }
+        const until = muteChatUser(user.id, minutes * 60_000, {
+          login: user.login,
+          reason,
+        });
+        res.json({
+          ok: true,
+          login: user.login,
+          until,
+          message: `${user.login} в муте ${minutes} мин`,
+        });
+      } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: "Не удалось выдать мут" });
+      }
+    },
+  );
+
+  app.post("/api/admin/unmute", adminAuth, async (req, res) => {
+    try {
+      const login = String(req.body?.login || "").trim();
+      const user = await withDb((db) => findUser(db, login));
+      if (!user) {
+        res.status(404).json({ error: "Игрок не найден" });
+        return;
+      }
+      unmuteChatUser(user.id);
+      res.json({ ok: true, message: `Мут снят: ${user.login}` });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Не удалось снять мут" });
+    }
+  });
+
+  /** Поощрение: золото и/или алмазы на аккаунт. */
+  app.post(
+    "/api/admin/grant",
+    adminAuth,
+    rateLimitMiddleware({ name: "admin-grant", maxN: 40, windowMs: 60_000 }),
+    async (req, res) => {
+      try {
+        const login = String(req.body?.login || "").trim();
+        const goldAdd = Math.floor(Number(req.body?.gold) || 0);
+        const diaAdd = Math.floor(Number(req.body?.diamonds) || 0);
+        const note = String(req.body?.note || "")
+          .slice(0, 120)
+          .trim();
+        if (!login || (goldAdd <= 0 && diaAdd <= 0)) {
+          res.status(400).json({
+            error: "Укажи логин и сумму gold и/или diamonds (>0)",
+          });
+          return;
+        }
+        if (goldAdd > 500_000 || diaAdd > 50_000) {
+          res.status(400).json({ error: "Слишком жирный грант за раз" });
+          return;
+        }
+        const result = await withDb((db) => {
+          const user = findUser(db, login);
+          if (!user) return { missing: true };
+          // Только pending: применится на /api/me или PUT сейва — локальный сейв не сотрёт.
+          const pending = user.pendingGrants || { gold: 0, diamonds: 0 };
+          pending.gold = (Number(pending.gold) || 0) + Math.max(0, goldAdd);
+          pending.diamonds =
+            (Number(pending.diamonds) || 0) + Math.max(0, diaAdd);
+          user.pendingGrants = pending;
+          persistLiveDb();
+          const curG = Number(user.owned?.gold) || 0;
+          const curD = Number(user.owned?.diamonds) || 0;
+          const row = {
+            at: new Date().toISOString(),
+            login: user.login,
+            userId: user.id,
+            goldAdd: Math.max(0, goldAdd),
+            diamondsAdd: Math.max(0, diaAdd),
+            goldAfter: Math.min(LIMITS.MAX_GOLD, curG + pending.gold),
+            diamondsAfter: Math.min(LIMITS.MAX_DIAMONDS, curD + pending.diamonds),
+            pendingGold: pending.gold,
+            pendingDiamonds: pending.diamonds,
+            note: note || null,
+          };
+          try {
+            fs.appendFileSync(GRANTS_FILE, `${JSON.stringify(row)}\n`, "utf8");
+          } catch {
+            /* ignore */
+          }
+          return { user: publicUser(user), grant: row };
+        });
+        if (result.missing) {
+          res.status(404).json({ error: "Игрок не найден" });
+          return;
+        }
+        res.json({
+          ok: true,
+          message: `Начислено ${result.grant.login}: +${result.grant.goldAdd}🪙 +${result.grant.diamondsAdd}💎`,
+          user: result.user,
+          grant: result.grant,
+        });
+      } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: "Не удалось начислить" });
+      }
+    },
+  );
+}

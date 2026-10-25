@@ -1,0 +1,19 @@
+{
+  "name": "Might of Orakul",
+  "short_name": "Orakul",
+  "description": "Карточные дуэли оракулов",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0806",
+  "theme_color": "#c9a227",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

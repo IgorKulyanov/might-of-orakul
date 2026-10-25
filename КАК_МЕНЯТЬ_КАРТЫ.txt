@@ -1,0 +1,31 @@
+MIGHT OF ORAKUL — как менять карты
+=================================
+
+1) Открой файл КАРТЫ.json (в этой же папке, рядом с ЗАПУСК.bat).
+2) Найди нужную карту по "name" или "id".
+3) Меняй цифры, например:
+     "attack": 1,   ->   "attack": 3,
+     "health": 1,   ->   "health": 2,
+     "cost": 2,     ->   "cost": 1,
+4) Сохрани файл.
+5) Если игра запущена — обнови страницу в браузере (F5).
+   Если нет — снова ЗАПУСК.bat.
+
+Арт карты лежит в папке:
+  public\cards\
+Имя файла должно совпадать с полем "art" (например skeleton.png).
+
+Типы удара (attackPattern):
+  melee   — бьёт только напротив, оба получают урон
+  ranged  — бьёт любую цель, без ответки
+  cleave3 — бьёт выбранную + слева + справа
+
+Заклинания (spellEffects), примеры:
+  { "type": "damage_hero", "amount": 2 }
+  { "type": "poison", "amount": 1 }
+  { "type": "buff_permanent", "attack": 1, "health": 1 }
+  { "type": "damage_all_enemies", "amount": 2 }
+  { "type": "gain_mana", "amount": 2 }
+  { "type": "heal_hero", "amount": 4 }
+
+starterDeck — список id карт в стартовой колоде (ровно 30 штук лучше).
