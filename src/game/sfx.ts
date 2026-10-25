@@ -395,8 +395,8 @@ function makeBgAudio(id: string, src: string): HTMLAudioElement | null {
   a.loop = true;
   a.preload = "auto";
   a.volume = musicMuted ? 0 : musicVolume;
-  a.playsInline = true;
   a.setAttribute("playsinline", "true");
+  a.setAttribute("webkit-playsinline", "true");
   a.style.display = "none";
   attachSeamlessLoop(a, src);
   document.body.appendChild(a);

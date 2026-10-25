@@ -155,10 +155,6 @@ export function Collection({ owned, onChange, onBack }: Props) {
     commitDeck(deck.filter((_, i) => i !== idx));
   };
 
-  const removeCardFromDeck = (id: string) => {
-    commitDeck(deck.filter((x) => x !== id));
-  };
-
   const buy = (id: string, withDiamonds = false) => {
     const card = CARDS.find((c) => c.id === id);
     if (!card) return;

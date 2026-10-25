@@ -318,6 +318,10 @@ function manaRules(fails: QaFail[], ok: string[]): void {
     activeSpells: [],
     bonusDrawTurns: 0,
     revealEnemyHandTurns: 0,
+    weakenDamageTurns: 0,
+    muteRangedTurns: 0,
+    attackBanSchool: null,
+    attackBanTurns: 0,
   };
   p.mana.life = 1;
   growMana(p, 2);
@@ -1302,7 +1306,7 @@ function fuzz(fails: QaFail[], ok: string[], games: number): void {
       continue;
     }
     played += 1;
-    process.stderr.write(`… дуэль ${g + 1}/${games} (сид ${seed})\n`);
+    console.error(`… дуэль ${g + 1}/${games} (сид ${seed})`);
     const before = fails.length;
     checkBattle(s, fails, `старт#${seed}`);
     for (let step = 0; step < 28; step++) {
@@ -1334,7 +1338,7 @@ export function runQa(opts?: { fuzzGames?: number }): QaReport {
   const fails: QaFail[] = [];
   const ok: string[] = [];
   const note = (m: string) => {
-    process.stderr.write(`… ${m}\n`);
+    console.error(`… ${m}`);
   };
   note("каталог карт");
   catalog(fails, ok);

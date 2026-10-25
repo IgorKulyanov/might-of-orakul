@@ -110,8 +110,13 @@ export type PvpAction =
   | { kind: "swapBalthazar"; fromSlot: number; a: number; b: number }
   | { kind: "summonSkeleton"; fromSlot: number; toSlot: number }
   | { kind: "summonHornet"; fromSlot: number; toSlot: number }
-  | { kind: "swapLeshy"; fromSlot: number; toSlot: number }
-  | { kind: "verdictArbiter"; fromSlot: number; toSlot: number }
+  | {
+      kind: "swapLeshy";
+      fromSlot: number;
+      side: "you" | "enemy";
+      toSlot: number;
+    }
+  | { kind: "verdictArbiter"; fromSlot: number }
   | {
       kind: "marionette";
       handIndex: number;
@@ -185,9 +190,14 @@ export function applyPvpAction(
     case "summonHornet":
       return summonHornetWithQueen(viewedAsYou, action.fromSlot, action.toSlot);
     case "swapLeshy":
-      return swapStatsWithLeshy(viewedAsYou, action.fromSlot, action.toSlot);
+      return swapStatsWithLeshy(
+        viewedAsYou,
+        action.fromSlot,
+        action.side,
+        action.toSlot,
+      );
     case "verdictArbiter":
-      return verdictWithArbiter(viewedAsYou, action.fromSlot, action.toSlot);
+      return verdictWithArbiter(viewedAsYou, action.fromSlot);
     case "marionette":
       return playMarionette(
         viewedAsYou,
