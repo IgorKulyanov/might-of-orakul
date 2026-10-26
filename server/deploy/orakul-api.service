@@ -1,0 +1,18 @@
+[Unit]
+Description=Might of Orakul API (saves, chat, PvP)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/orakul/server
+Environment=NODE_ENV=production
+Environment=PORT=8787
+Environment=ORACUL_DATA_DIR=/var/lib/orakul/data
+ExecStart=/usr/bin/npm start
+Restart=always
+RestartSec=3
+# Не даём процессу молча сдохнуть при OOM на мелком VPS
+OOMPolicy=continue
+
+[Install]
+WantedBy=multi-user.target
