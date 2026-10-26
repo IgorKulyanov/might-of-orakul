@@ -1688,6 +1688,52 @@ button {
   border-top: 1px dashed rgba(212, 163, 115, 0.28);
 }
 
+.battle-hint-stack {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  align-content: center;
+}
+
+.flex-intent-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: center;
+}
+
+.flex-intent-bar .ghost {
+  font-size: 0.78rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(214, 184, 140, 0.35);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.flex-intent-bar .ghost.is-on {
+  border-color: rgba(232, 197, 120, 0.85);
+  background: rgba(180, 120, 40, 0.45);
+  color: #fff6e4;
+  font-weight: 700;
+}
+
+.hand-card-anchor {
+  touch-action: none;
+  user-select: none;
+}
+
+.hand-card-anchor.is-dragging {
+  opacity: 0.35;
+}
+
+.hand-drag-ghost {
+  position: fixed;
+  z-index: 90;
+  pointer-events: none;
+  transform: translate(-50%, -60%) scale(1.05);
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.55));
+}
+
 .battle-hint-row {
   display: grid;
   grid-template-columns: 9.5rem minmax(0, 1fr) 9.5rem;

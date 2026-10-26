@@ -735,14 +735,11 @@ export function homeFactionOf(owned: OwnedState): Faction {
   return owned.homeFaction ?? fromHero;
 }
 
-/** Можно ли поставить этого оракула (открыт; эпик — только своей фракции). */
+/** Можно ли поставить оракула: только своей школы. */
 export function canSelectHero(owned: OwnedState, heroId: string): boolean {
   if (!isHeroUnlocked(owned, heroId)) return false;
   try {
-    const hero = getHero(heroId);
-    // Базовые — всегда (восстановление после бага смены расы / смена дома).
-    if (hero.tier === "base") return true;
-    return hero.faction === homeFactionOf(owned);
+    return getHero(heroId).faction === homeFactionOf(owned);
   } catch {
     return false;
   }
@@ -751,16 +748,9 @@ export function canSelectHero(owned: OwnedState, heroId: string): boolean {
 export function setHero(owned: OwnedState, heroId: string): OwnedState {
   if (!isHeroUnlocked(owned, heroId)) return owned;
   const hero = getHero(heroId);
-  const equippedF = currentHeroFaction(owned);
   const home = owned.homeFaction;
-  // Эпик чужой фракции нельзя. Базового оракула другой школы — можно
-  // (иначе после бага «смерть→ад» игрок навсегда заперт в аде).
-  if (
-    home &&
-    hero.faction !== home &&
-    equippedF === home &&
-    hero.tier === "epic"
-  ) {
+  // Школу после онбординга не меняем — только облик внутри фракции.
+  if (home && hero.faction !== home) {
     return owned;
   }
   // Меняем расовый старт; купленное сохраняем. Чужие бесплатные старты — выкидываем.
@@ -781,11 +771,9 @@ export function setHero(owned: OwnedState, heroId: string): OwnedState {
     decks[id] = normalizeDeck(list ?? [], collection);
   }
   if (!decks.starter) decks.starter = [];
-  // Смена расы / старт → полная стартовая колода этой школы
+  // Старт / пустая колода → стартовая колода школы
   const needNewStarter =
-    !owned.homeFaction ||
-    owned.homeFaction !== hero.faction ||
-    (decks.starter?.length ?? 0) < MIN_DECK_SIZE;
+    !owned.homeFaction || (decks.starter?.length ?? 0) < MIN_DECK_SIZE;
   if (needNewStarter) {
     decks.starter = normalizeDeck(
       starterDeckForFaction(hero.faction),
@@ -795,7 +783,7 @@ export function setHero(owned: OwnedState, heroId: string): OwnedState {
   const next: OwnedState = {
     ...owned,
     heroId,
-    homeFaction: hero.faction,
+    homeFaction: home ?? hero.faction,
     unlocked: syncedUnlocked,
     collection,
     decks,

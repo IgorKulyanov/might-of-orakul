@@ -150,8 +150,7 @@ export function HeroSelect({ owned, onChange, onBack, onBattle }: Props) {
     level,
     hero?.tier,
   );
-  // Все базовые — чтобы можно было вернуть свою школу после бага смены расы
-  const myBase = BASE_HEROES;
+  const myBase = BASE_HEROES.filter((h) => h.faction === home);
   const myEpic = EPIC_HEROES.filter((h) => h.faction === home);
 
   return (
@@ -168,9 +167,9 @@ export function HeroSelect({ owned, onChange, onBack, onBattle }: Props) {
 
       <div className="hero-level-panel">
         <p className="hint hero-screen-hint">
-          Сейчас школа: <strong>{SCHOOL_LABEL[home]}</strong>. Базового оракула
-          можно сменить (колода станет стартовой новой школы). Эпик — только
-          своей школы. Ур. {level}, в бою <strong>{hp} HP</strong>.{" "}
+          Школа: <strong>{SCHOOL_LABEL[home]}</strong> — сменить на другую
+          нельзя. Можно надеть базового или эпик <em>своей</em> школы. Ур.{" "}
+          {level}, в бою <strong>{hp} HP</strong>.{" "}
           <span className="hero-wallet">
             {owned.gold ?? 0} 🪙 · {owned.diamonds ?? 0} 💎
           </span>

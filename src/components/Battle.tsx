@@ -265,6 +265,26 @@ export function Battle({
   const [marionettePuppet, setMarionettePuppet] = useState<number | null>(null);
   /** Могильщик: индекс выбранной карты в грейве */
   const [gravePickIdx, setGravePickIdx] = useState<number | null>(null);
+  /**
+   * Банши/русалка/сукуб/леший: напротив по умолчанию бьют.
+   * Режим «умение» — оглушить/усыпить/обмен и по клетке напротив.
+   */
+  const [flexIntent, setFlexIntent] = useState<"strike" | "skill">("strike");
+  /** Перетаскивание карты из руки на поле */
+  const [handDrag, setHandDrag] = useState<{
+    index: number;
+    cardId: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  const handDragMoved = useRef(false);
+  const handDragStart = useRef<{ x: number; y: number; index: number } | null>(
+    null,
+  );
+  const dropAfterSelectRef = useRef<{
+    side: "you" | "enemy";
+    slot: number;
+  } | null>(null);
   /** Подсказки первого боя */
   const [tutorialStep, setTutorialStep] = useState<number | null>(() =>
     hasSeenBattleTutorial() ? null : 0,
@@ -913,6 +933,7 @@ export function Battle({
     if (creature?.canAttack) {
       setBalthSwapFrom(null);
       setGravePickIdx(null);
+      setFlexIntent("strike");
       setState(selectSlot(state, state.selectedSlot === i ? null : i));
       return;
     }
@@ -1012,8 +1033,93 @@ export function Battle({
     const from = state.selectedSlot;
     const enemyUnit = state.enemy.slots[i];
 
-    // Русалка: другой слот (не напротив) → усыпить (не женщину)
+    const wantSkill = flexIntent === "skill";
+
+    // Режим «умение»: русалка — усыпить (в т.ч. напротив), не женщину
     if (
+      wantSkill &&
+      mermaidReady &&
+      enemyUnit &&
+      !isFemaleWarrior(enemyUnit.cardId)
+    ) {
+      void runLocked(async () => {
+        await playFx(
+          {
+            side: "you",
+            kind: "spell",
+            fromSlot: from,
+            toSlot: i,
+            cardId: state.you.slots[from]!.cardId,
+          },
+          (s) => sleepWithMermaid(s, from, i),
+          900,
+        );
+      });
+      return;
+    }
+
+    // Режим «умение»: сукуб — усыпить мужчину (в т.ч. напротив)
+    if (
+      wantSkill &&
+      succubusReady &&
+      enemyUnit &&
+      creatureGender(enemyUnit.cardId) === "male"
+    ) {
+      void runLocked(async () => {
+        await playFx(
+          {
+            side: "you",
+            kind: "spell",
+            fromSlot: from,
+            toSlot: i,
+            cardId: state.you.slots[from]!.cardId,
+          },
+          (s) => sleepWithSuccubus(s, from, i),
+          900,
+        );
+      });
+      return;
+    }
+
+    // Режим «умение»: банши — оглушить любое существо (в т.ч. напротив)
+    if (wantSkill && bansheeReady && enemyUnit) {
+      void runLocked(async () => {
+        await playFx(
+          {
+            side: "you",
+            kind: "spell",
+            fromSlot: from,
+            toSlot: i,
+            cardId: state.you.slots[from]!.cardId,
+          },
+          (s) => stunWithBanshee(s, from, i),
+          900,
+        );
+      });
+      return;
+    }
+
+    // Режим «умение»: леший — обмен ATK↔HP у любого врага
+    if (wantSkill && leshyReady && enemyUnit) {
+      void runLocked(async () => {
+        await playFx(
+          {
+            side: "you",
+            kind: "spell",
+            fromSlot: from,
+            toSlot: i,
+            cardId: state.you.slots[from]!.cardId,
+          },
+          (s) => swapStatsWithLeshy(s, from, "enemy", i),
+          900,
+        );
+      });
+      return;
+    }
+
+    // Режим «удар» или без выбора: старое поведение для НЕ напротив
+    if (
+      !wantSkill &&
       mermaidReady &&
       enemyUnit &&
       i !== from &&
@@ -1034,9 +1140,8 @@ export function Battle({
       });
       return;
     }
-
-    // Сукуб: другой слот → усыпить мужчину
     if (
+      !wantSkill &&
       succubusReady &&
       enemyUnit &&
       i !== from &&
@@ -1057,9 +1162,7 @@ export function Battle({
       });
       return;
     }
-
-    // Банши: другой слот → оглушить
-    if (bansheeReady && enemyUnit && i !== from) {
+    if (!wantSkill && bansheeReady && enemyUnit && i !== from) {
       void runLocked(async () => {
         await playFx(
           {
@@ -1075,9 +1178,8 @@ export function Battle({
       });
       return;
     }
-
-    // Леший: не напротив (или любой враг вне атаки) → обмен ATK↔HP
     if (
+      !wantSkill &&
       leshyReady &&
       enemyUnit &&
       !attackTargets.has(String(i))
@@ -1095,6 +1197,12 @@ export function Battle({
           900,
         );
       });
+      return;
+    }
+
+    // В режиме умения не бить — только скилл
+    if (wantSkill && (bansheeReady || mermaidReady || succubusReady || leshyReady)) {
+      pushHint("Режим умения: кликни подходящую цель врага (можно напротив)");
       return;
     }
 
@@ -1386,6 +1494,15 @@ export function Battle({
 
   const readyCount = state.you.slots.filter((s) => s?.canAttack).length;
 
+  useEffect(() => {
+    const pending = dropAfterSelectRef.current;
+    if (!pending || state.selectedHand == null || busy) return;
+    dropAfterSelectRef.current = null;
+    if (pending.side === "you") onYourSlot(pending.slot);
+    else onEnemySlot(pending.slot);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.selectedHand, busy]);
+
   const hint = (() => {
     if (busy && phase === "enemy") return "Ход соперника — смотри анимации";
     if (busy) return "…";
@@ -1432,13 +1549,24 @@ export function Battle({
         return "Тритон: враг = удар, пустой свой слот (+) = призвать Акулита";
       }
       if (ab === "mermaid_flex") {
-        return "Русалка: напротив = удар, другой враг (не женщина) = усыпить";
+        return flexIntent === "skill"
+          ? "Режим умения: кликни врага (не женщину), можно напротив — усыпить"
+          : "Режим удара: напротив = бить. Переключи на «Умение», чтобы усыпить напротив";
       }
       if (ab === "succubus_flex") {
-        return "Сукуб: напротив = удар, другой мужчина = усыпить";
+        return flexIntent === "skill"
+          ? "Режим умения: кликни мужчину врага (можно напротив) — усыпить"
+          : "Режим удара: напротив = бить. «Умение» — усыпить напротив";
       }
       if (ab === "banshee_flex") {
-        return "Банши: напротив = удар, другой враг = оглушить на 1 ход";
+        return flexIntent === "skill"
+          ? "Режим умения: кликни любое существо врага (можно напротив) — оглушить"
+          : "Режим удара: напротив = бить. Нажми «Оглушить», чтобы ором бить и напротив";
+      }
+      if (ab === "leshy_flex") {
+        return flexIntent === "skill"
+          ? "Режим умения: кликни врага или союзника — обмен ATK↔HP"
+          : "Режим удара: напротив = бить. «Умение» — обмен и по клетке напротив";
       }
       if (ab === "balthazar_flex") {
         return balthSwapFrom != null
@@ -1450,9 +1578,6 @@ export function Battle({
       }
       if (ab === "hornet_queen_flex") {
         return "Матка: враг = удар, пустой свой слот (+) = создать Шершня-воина";
-      }
-      if (ab === "leshy_flex") {
-        return "Леший: напротив = удар; союзник или другой враг = навсегда ATK↔HP";
       }
       if (ab === "arbiter_flex") {
         return "Арбитр: враг/герой = удар (любая цель); кликни Арбитра ещё раз = Вердикт (все 1/1, кроме него)";
@@ -1638,7 +1763,36 @@ export function Battle({
             )}
           </div>
         </aside>
-        <p className="battle-hint">{hint}</p>
+        <div className="battle-hint-stack">
+          <p className="battle-hint">{hint}</p>
+          {(bansheeReady ||
+            mermaidReady ||
+            succubusReady ||
+            leshyReady) &&
+          !busy &&
+          !state.winner ? (
+            <div className="flex-intent-bar" role="group" aria-label="Режим действия">
+              <button
+                type="button"
+                className={`ghost ${flexIntent === "strike" ? "is-on" : ""}`}
+                onClick={() => setFlexIntent("strike")}
+              >
+                Удар
+              </button>
+              <button
+                type="button"
+                className={`ghost ${flexIntent === "skill" ? "is-on" : ""}`}
+                onClick={() => setFlexIntent("skill")}
+              >
+                {bansheeReady
+                  ? "Оглушить"
+                  : mermaidReady || succubusReady
+                    ? "Усыпить"
+                    : "Обмен ATK↔HP"}
+              </button>
+            </div>
+          ) : null}
+        </div>
         <aside className="log log-you-panel battle-log" aria-label="Твои ходы">
           <div className="log-title">Ты</div>
           <div className="log-scroll">
@@ -1706,7 +1860,11 @@ export function Battle({
                 {state.enemy.slots.map((s, i) => {
                   const anim = enemyFx(i);
                   return (
-                    <div key={`eslot-${i}`} className="board-slot">
+                    <div
+                      key={`eslot-${i}`}
+                      className="board-slot"
+                      data-board-drop={`enemy:${i}`}
+                    >
                       {s ? (
                         <BoardCard
                           key={s.uid}
@@ -1723,17 +1881,24 @@ export function Battle({
                             (!busy &&
                               mermaidReady &&
                               state.selectedSlot != null &&
-                              i !== state.selectedSlot &&
+                              (flexIntent === "skill" ||
+                                i !== state.selectedSlot) &&
                               !isFemaleWarrior(s.cardId)) ||
                             (!busy &&
                               succubusReady &&
                               state.selectedSlot != null &&
-                              i !== state.selectedSlot &&
+                              (flexIntent === "skill" ||
+                                i !== state.selectedSlot) &&
                               creatureGender(s.cardId) === "male") ||
                             (!busy &&
                               bansheeReady &&
                               state.selectedSlot != null &&
-                              i !== state.selectedSlot) ||
+                              (flexIntent === "skill" ||
+                                i !== state.selectedSlot)) ||
+                            (!busy &&
+                              leshyReady &&
+                              flexIntent === "skill" &&
+                              !!s) ||
                             (!busy && balthazarReady && !!s) ||
                             (!busy && balthSwapFrom != null && !!s)
                           }
@@ -1815,7 +1980,11 @@ export function Battle({
                 {state.you.slots.map((s, i) => {
                   const anim = yourFx(i);
                   return (
-                    <div key={`yslot-${i}`} className="board-slot">
+                    <div
+                      key={`yslot-${i}`}
+                      className="board-slot"
+                      data-board-drop={`you:${i}`}
+                    >
                       {s ? (
                         <BoardCard
                           key={s.uid}
@@ -1968,17 +2137,92 @@ export function Battle({
                 <div
                   key={`hand-${i}-${id}`}
                   data-tut={i === 0 ? "hand-card" : undefined}
-                  className="hand-card-anchor"
+                  className={`hand-card-anchor ${handDrag?.index === i ? "is-dragging" : ""}`}
+                  onPointerDown={(e) => {
+                    if (busy || state.winner || state.active !== "you") return;
+                    if (e.button !== 0 && e.pointerType === "mouse") return;
+                    handDragMoved.current = false;
+                    handDragStart.current = {
+                      x: e.clientX,
+                      y: e.clientY,
+                      index: i,
+                    };
+                    (e.currentTarget as HTMLElement).setPointerCapture(
+                      e.pointerId,
+                    );
+                  }}
+                  onPointerMove={(e) => {
+                    const start = handDragStart.current;
+                    if (!start || start.index !== i) return;
+                    const dx = e.clientX - start.x;
+                    const dy = e.clientY - start.y;
+                    if (!handDragMoved.current) {
+                      if (dx * dx + dy * dy < 64) return;
+                      handDragMoved.current = true;
+                      setGravePickIdx(null);
+                      setState(selectHand(state, i));
+                    }
+                    setHandDrag({
+                      index: i,
+                      cardId: id,
+                      x: e.clientX,
+                      y: e.clientY,
+                    });
+                  }}
+                  onPointerUp={(e) => {
+                    const start = handDragStart.current;
+                    handDragStart.current = null;
+                    try {
+                      (e.currentTarget as HTMLElement).releasePointerCapture(
+                        e.pointerId,
+                      );
+                    } catch {
+                      /* ignore */
+                    }
+                    if (!start || start.index !== i) return;
+                    if (!handDragMoved.current) {
+                      setGravePickIdx(null);
+                      onHandClick(i);
+                      setHandDrag(null);
+                      return;
+                    }
+                    const el = document.elementFromPoint(
+                      e.clientX,
+                      e.clientY,
+                    ) as HTMLElement | null;
+                    const drop = el?.closest?.(
+                      "[data-board-drop]",
+                    ) as HTMLElement | null;
+                    const raw = drop?.getAttribute("data-board-drop") || "";
+                    setHandDrag(null);
+                    const [side, slotStr] = raw.split(":");
+                    const slot = Number(slotStr);
+                    if (
+                      (side === "you" || side === "enemy") &&
+                      Number.isFinite(slot) &&
+                      slot >= 0 &&
+                      slot < 5
+                    ) {
+                      dropAfterSelectRef.current = {
+                        side: side as "you" | "enemy",
+                        slot,
+                      };
+                      setState((s) => selectHand(s, start.index));
+                      return;
+                    }
+                    pushHint("Отпусти карту на подсвеченный слот поля");
+                  }}
+                  onPointerCancel={() => {
+                    handDragStart.current = null;
+                    handDragMoved.current = false;
+                    setHandDrag(null);
+                  }}
                 >
                   <CardView
                     cardId={id}
                     compact
                     selected={!busy && state.selectedHand === i}
                     manaCostOverride={battleManaCost(state, id)}
-                    onClick={() => {
-                      setGravePickIdx(null);
-                      onHandClick(i);
-                    }}
                   />
                 </div>
               );
@@ -1986,6 +2230,19 @@ export function Battle({
           </div>
         </div>
       </div>
+
+      {handDrag ? (
+        <div
+          className="hand-drag-ghost"
+          style={{
+            left: handDrag.x,
+            top: handDrag.y,
+          }}
+          aria-hidden
+        >
+          <CardView cardId={handDrag.cardId} compact flippable={false} />
+        </div>
+      ) : null}
 
       {fx?.cardId && fx.kind === "spell" && (
         <div
