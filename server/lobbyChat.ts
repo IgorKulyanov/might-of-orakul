@@ -194,9 +194,13 @@ export function attachLobbyChat(authLookup: AuthLookup): WebSocketServer {
       }
 
       if (msg.type === "hello") {
-        const u = authLookup(String(msg.token || ""));
+        const u = authLookup(String(msg.token || "").trim());
         if (!u) {
-          send(ws, { type: "error", message: "Нужен вход" });
+          send(ws, {
+            type: "error",
+            message:
+              "Сессия устарела (сервер перезапускался). Выйди из игры и войди снова — потом чат откроется.",
+          });
           return;
         }
         const name =
@@ -209,7 +213,10 @@ export function attachLobbyChat(authLookup: AuthLookup): WebSocketServer {
       }
 
       if (!user) {
-        send(ws, { type: "error", message: "Сначала авторизуйся в чате" });
+        send(ws, {
+          type: "error",
+          message: "Чат ещё подключается — подожди и отправь ещё раз",
+        });
         return;
       }
 

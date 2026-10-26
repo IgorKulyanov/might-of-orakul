@@ -58,7 +58,7 @@ export function CommunityPanel({
         if (msg.type === "ok") setStatus(msg.message);
       })
       .then(() => {
-        if (!cancelled) setStatus(null);
+        /* готово — статус снимет history */
       })
       .catch((e) => {
         if (!cancelled) {
