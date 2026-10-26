@@ -270,13 +270,19 @@ export function Battle({
    * Режим «умение» — оглушить/усыпить/обмен и по клетке напротив.
    */
   const [flexIntent, setFlexIntent] = useState<"strike" | "skill">("strike");
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
   /** Перетаскивание карты из руки на поле */
   const [handDrag, setHandDrag] = useState<{
     index: number;
     cardId: string;
     x: number;
     y: number;
+    magnet: { side: "you" | "enemy"; slot: number } | null;
   } | null>(null);
+  /** Счётчик: без него дроп не срабатывает, если карта уже была выбрана в начале драга */
+  const [dropSeq, setDropSeq] = useState(0);
   const handDragMoved = useRef(false);
   const handDragStart = useRef<{
     x: number;
@@ -298,46 +304,56 @@ export function Battle({
   const findBoardDropAt = (
     x: number,
     y: number,
-  ): { side: "you" | "enemy"; slot: number } | null => {
-    const el = document.elementFromPoint(x, y) as HTMLElement | null;
-    const hit = el?.closest?.("[data-board-drop]") as HTMLElement | null;
-    const fromHit = hit?.getAttribute("data-board-drop") || "";
-    if (fromHit) {
-      const [side, slotStr] = fromHit.split(":");
-      const slot = Number(slotStr);
-      if (
-        (side === "you" || side === "enemy") &&
-        Number.isFinite(slot) &&
-        slot >= 0 &&
-        slot < 5
-      ) {
-        return { side, slot };
+    cardId?: string,
+  ): { side: "you" | "enemy"; slot: number; cx: number; cy: number } | null => {
+    const card = cardId ? getCard(cardId) : null;
+    const live = stateRef.current;
+    const allowSide = (side: string, slot: number) => {
+      if (side !== "you" && side !== "enemy") return false;
+      if (!Number.isFinite(slot) || slot < 0 || slot > 4) return false;
+      // Существо — только в пустой свой слот
+      if (card?.kind === "creature") {
+        if (side !== "you") return false;
+        if (live.you.slots[slot]) return false;
+        return true;
       }
-    }
-    // На телефоне палец часто мимо узкого слота — берём ближайший
-    let best: { side: "you" | "enemy"; slot: number; dist: number } | null =
-      null;
+      // Заклинание без цели / с целью — пусть клик-логика разберёт; магнит к обеим сторонам
+      return true;
+    };
+
+    let best: {
+      side: "you" | "enemy";
+      slot: number;
+      dist: number;
+      cx: number;
+      cy: number;
+    } | null = null;
+
     for (const node of document.querySelectorAll("[data-board-drop]")) {
       const raw = node.getAttribute("data-board-drop") || "";
       const [side, slotStr] = raw.split(":");
       const slot = Number(slotStr);
-      if (
-        (side !== "you" && side !== "enemy") ||
-        !Number.isFinite(slot) ||
-        slot < 0 ||
-        slot > 4
-      ) {
-        continue;
-      }
+      if (!allowSide(side, slot)) continue;
       const r = (node as HTMLElement).getBoundingClientRect();
       const cx = r.left + r.width / 2;
       const cy = r.top + r.height / 2;
       const dist = (cx - x) * (cx - x) + (cy - y) * (cy - y);
-      const pad = Math.max(r.width, r.height) * 0.85;
-      if (dist > pad * pad) continue;
-      if (!best || dist < best.dist) best = { side, slot, dist };
+      // Широкий магнит — на телефоне слоты мелкие
+      const radius = Math.max(72, Math.max(r.width, r.height) * 1.35);
+      if (dist > radius * radius) continue;
+      if (!best || dist < best.dist) {
+        best = {
+          side: side as "you" | "enemy",
+          slot,
+          dist,
+          cx,
+          cy,
+        };
+      }
     }
-    return best ? { side: best.side, slot: best.slot } : null;
+    return best
+      ? { side: best.side, slot: best.slot, cx: best.cx, cy: best.cy }
+      : null;
   };
 
   useEffect(() => {
@@ -359,8 +375,6 @@ export function Battle({
   } | null>(null);
   const lock = useRef(false);
   const rewarded = useRef(false);
-  const stateRef = useRef(state);
-  stateRef.current = state;
   const onBattleEndRef = useRef(onBattleEnd);
   onBattleEndRef.current = onBattleEnd;
 
@@ -1563,7 +1577,7 @@ export function Battle({
     if (pending.side === "you") onYourSlot(pending.slot);
     else onEnemySlot(pending.slot);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.selectedHand, busy]);
+  }, [state.selectedHand, busy, dropSeq]);
 
   const hint = (() => {
     if (busy && phase === "enemy") return "Ход соперника — смотри анимации";
@@ -1924,7 +1938,12 @@ export function Battle({
                   return (
                     <div
                       key={`eslot-${i}`}
-                      className="board-slot"
+                      className={`board-slot ${
+                        handDrag?.magnet?.side === "enemy" &&
+                        handDrag.magnet.slot === i
+                          ? "is-magnet"
+                          : ""
+                      }`}
                       data-board-drop={`enemy:${i}`}
                     >
                       {s ? (
@@ -2044,7 +2063,12 @@ export function Battle({
                   return (
                     <div
                       key={`yslot-${i}`}
-                      className="board-slot"
+                      className={`board-slot ${
+                        handDrag?.magnet?.side === "you" &&
+                        handDrag.magnet.slot === i
+                          ? "is-magnet"
+                          : ""
+                      }`}
                       data-board-drop={`you:${i}`}
                     >
                       {s ? (
@@ -2089,6 +2113,8 @@ export function Battle({
                               state.selectedHand != null &&
                               getCard(state.you.hand[state.selectedHand])
                                 .kind === "creature") ||
+                            (!!handDrag &&
+                              getCard(handDrag.cardId).kind === "creature") ||
                             (!busy && moveReady) ||
                             (!busy && tritonSummoning) ||
                             (!busy && necroReady) ||
@@ -2243,13 +2269,18 @@ export function Battle({
                         onHandClick(start.index);
                         return;
                       }
-                      const drop = findBoardDropAt(x, y);
+                      const drop = findBoardDropAt(x, y, start.cardId);
                       if (drop) {
-                        dropAfterSelectRef.current = drop;
+                        dropAfterSelectRef.current = {
+                          side: drop.side,
+                          slot: drop.slot,
+                        };
                         setState((s) => selectHand(s, start.index));
+                        // selectedHand мог уже стоять с начала драга — форсим эффект
+                        setDropSeq((n) => n + 1);
                         return;
                       }
-                      pushHint("Отпусти карту на подсвеченный слот поля");
+                      pushHint("Поднеси карту ближе к пустому слоту своего ряда");
                     };
 
                     const onMove = (ev: PointerEvent) => {
@@ -2266,11 +2297,20 @@ export function Battle({
                         setGravePickIdx(null);
                         setState((s) => selectHand(s, start.index));
                       }
+                      const magnet = findBoardDropAt(
+                        ev.clientX,
+                        ev.clientY,
+                        start.cardId,
+                      );
                       setHandDrag({
                         index: start.index,
                         cardId: start.cardId,
-                        x: ev.clientX,
-                        y: ev.clientY,
+                        // Магнит: призрак «прилипает» к центру слота
+                        x: magnet ? magnet.cx : ev.clientX,
+                        y: magnet ? magnet.cy : ev.clientY,
+                        magnet: magnet
+                          ? { side: magnet.side, slot: magnet.slot }
+                          : null,
                       });
                     };
 

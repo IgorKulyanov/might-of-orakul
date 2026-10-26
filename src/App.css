@@ -1677,6 +1677,20 @@ button {
   height: var(--board-card-h);
   position: relative;
   flex: none;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.board-slot.is-magnet {
+  z-index: 6;
+  transform: scale(1.08);
+  box-shadow: 0 0 0 2px rgba(232, 196, 120, 0.95),
+    0 0 18px rgba(232, 196, 120, 0.45);
+  border-radius: 8px;
+}
+
+.board-slot.is-magnet .empty-slot {
+  background: rgba(232, 196, 120, 0.22);
+  color: #ffe7b0;
 }
 
 .enemy-row {
