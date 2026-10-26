@@ -33,11 +33,7 @@ import {
   starterDeckForFaction,
   starterUnlockIdsForFaction,
 } from "./progression";
-import {
-  DIAMOND_PACK_MAP,
-  GOLD_EXCHANGE_MAP,
-  goldForDiamonds,
-} from "./shop";
+import { GOLD_EXCHANGE_MAP, goldForDiamonds } from "./shop";
 import type { Faction, OwnedState } from "./types";
 
 /** v4 key; миграция копий — флаг COPIES_FLAG. */

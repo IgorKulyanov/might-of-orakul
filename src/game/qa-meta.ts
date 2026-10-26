@@ -98,7 +98,8 @@ export function economyAll(fails: QaFail[], ok: string[]): void {
     }
     let o = seedOwned("death", 100, 0);
     o = buyDiamondPack(o, "dia_60");
-    if ((o.diamonds ?? 0) < 60) return "пакет dia_60 не начислил";
+    // Пока нет оплаты — пакеты витрина, алмазы не сыпем
+    if ((o.diamonds ?? 0) !== 0) return "пакет не должен начислять без оплаты";
     return null;
   });
 
