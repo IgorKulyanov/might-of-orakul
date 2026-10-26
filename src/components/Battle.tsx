@@ -2329,7 +2329,6 @@ export function Battle({
                   <CardView
                     cardId={id}
                     compact
-                    flippable={false}
                     selected={!busy && state.selectedHand === i}
                     manaCostOverride={battleManaCost(state, id)}
                   />
