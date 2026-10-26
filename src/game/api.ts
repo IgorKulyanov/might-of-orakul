@@ -216,6 +216,9 @@ export function apiAdminUsers(adminKey: string, q?: string) {
       diamonds: number;
       level: number;
       chatMutedUntil: number | null;
+      pvpBanned?: boolean;
+      pvpBannedUntil?: number | null;
+      pendingResetCampaign?: boolean;
     }>;
   }>(`/api/admin/users${qs}`, { adminKey });
 }
