@@ -53,14 +53,9 @@ export function startManaBonus(level: number): number {
 
 export type LevelUpReward = { gold: number; diamonds: number };
 
-/**
- * Подарок при апе: золото + 1 кристалл (на «круглых» — чуть больше).
- * Основной запас кристаллов всё равно из магазина/доната.
- */
-export function levelUpReward(newLevel: number): LevelUpReward {
-  const gold = 45 + newLevel * 5;
-  const diamonds = newLevel % 5 === 0 ? 3 : 1;
-  return { gold, diamonds };
+/** Подарок за каждый новый уровень: фиксированно 50🪙 и 1💎. */
+export function levelUpReward(_newLevel: number): LevelUpReward {
+  return { gold: 50, diamonds: 1 };
 }
 
 /**
