@@ -24,6 +24,7 @@ import {
   type DevBattleSetup,
 } from "./game/devMode";
 import {
+  ARENA_ROUNDS,
   applyArenaLoss,
   applyArenaWin,
   arenaFoeLevel,
@@ -33,6 +34,10 @@ import {
   resetArenaRun,
   type ArenaState,
 } from "./game/arena";
+import {
+  canEnterPvp,
+  recordPvpFlee,
+} from "./game/pvpFleeBan";
 import { applyArenaRules } from "./game/battleRules";
 import {
   applyCampaignLoss,
@@ -221,6 +226,8 @@ export default function App() {
     endMessage: null,
   });
   const pvpSocketRef = useRef<PvpSocket | null>(null);
+  /** Сбежал из PvP — без наград (даже утешительных). */
+  const pvpFledRef = useRef(false);
   const pvpStateRef = useRef(pvpState);
   pvpStateRef.current = pvpState;
   const ownedRef = useRef(owned);
@@ -441,6 +448,21 @@ export default function App() {
     const isCampaign = screenRef.current === "battle_campaign";
     const isArena = screenRef.current === "battle_arena";
     const isPvp = screenRef.current === "battle_pvp";
+    const fledPvp = isPvp && pvpFledRef.current;
+    if (fledPvp) pvpFledRef.current = false;
+
+    // Побег из PvP: ни XP, ни золота (анти-накрут вдвоём).
+    if (fledPvp) {
+      return {
+        won: false,
+        xpGained: 0,
+        gainedLevels: 0,
+        goldReward: 0,
+        diamondReward: 0,
+        giftLine: "Побег из дуэли — без наград",
+      };
+    }
+
     // Тропа: только XP (+ вехи). Арена: своя таблица. PvP: повышенные XP/золото (без алмазов).
     let res = applyBattleResult(ownedRef.current, won, {
       xpOnly: isCampaign,
@@ -505,11 +527,18 @@ export default function App() {
     if (fighting) {
       if (
         !window.confirm(
-          "Выход из боя = поражение. Соперник получит победу. Сдаёшься?",
+          "Покидаете PvP-бой?\n\n" +
+            "• Вам будет засчитано поражение\n" +
+            "• Ни опыта, ни золота (наград нет)\n" +
+            "• Соперник получит победу\n\n" +
+            "Сбегать некрасиво. На 3-й раз за день — бан 5 мин, на 4-й — 10 мин, дальше — 30 мин. Счётчик обнуляется завтра.\n\n" +
+            "Всё равно выйти?",
         )
       ) {
         return;
       }
+      pvpFledRef.current = true;
+      const flee = recordPvpFlee();
       try {
         pvpSocketRef.current?.leave();
       } catch {
@@ -521,14 +550,15 @@ export default function App() {
           ...s,
           winner: "enemy",
           you: { ...s.you, hp: 0 },
-          log: ["Ты сдался — поражение", ...s.log].slice(0, 12),
+          log: ["Ты сбежал — поражение без наград", ...s.log].slice(0, 12),
         };
       });
       setPvpClock((c) => ({
         ...c,
         turnEndsAt: null,
-        endMessage: "Ты вышел из боя — поражение",
+        endMessage: flee.message,
       }));
+      window.setTimeout(() => window.alert(flee.message), 50);
       return;
     }
     try {
@@ -640,6 +670,18 @@ export default function App() {
             : undefined
         }
         allowRematch={!vsArena && !vsCamp}
+        exitPolicy={vsCamp || vsArena ? "defeat" : "free"}
+        resultExitLabel={(won) => {
+          if (vsArena) {
+            if (won && arena.cleared < ARENA_ROUNDS) {
+              return `К правилам боя ${arena.cleared + 1}`;
+            }
+            return "В меню арены";
+          }
+          if (vsCamp) return "К карте тропы";
+          if (vsBot) return "К одиночному бою";
+          return "В меню";
+        }}
         onExit={() =>
           setScreen(
             vsCamp
@@ -854,6 +896,14 @@ export default function App() {
           void startBattleMusic();
           setScreen("battle_bot");
         }}
+        canStartPvp={() => {
+          const gate = canEnterPvp();
+          if (!gate.ok) {
+            window.alert(gate.message);
+            return false;
+          }
+          return true;
+        }}
         onPvpStart={({
           socket,
           state,
@@ -864,6 +914,7 @@ export default function App() {
           maxTimeouts,
           turnLimitSec,
         }) => {
+          pvpFledRef.current = false;
           pvpSocketRef.current = socket;
           setPvpSeat(youAre);
           setPvpState(state);

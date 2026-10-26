@@ -100,6 +100,14 @@ type Props = {
   prepareBattle?: (state: BattleState) => BattleState;
   /** Скрыть «Ещё раз» (забеги с прогрессом). */
   allowRematch?: boolean;
+  /**
+   * free — вышел и всё (бот в «одиночном бое»).
+   * defeat — подтверждение, выход = поражение (тропа / арена).
+   * PvP подтверждает сам onExit (leavePvp).
+   */
+  exitPolicy?: "free" | "defeat";
+  /** Подпись кнопки после боя (или от победы/поражения). */
+  resultExitLabel?: string | ((won: boolean) => string);
   /** Сетевой бой: стейт с сервера + отправка действий. */
   network?: {
     sendAction: (action: PvpAction) => void;
@@ -196,6 +204,8 @@ export function Battle({
   enemyLevel = yourLevel,
   prepareBattle,
   allowRematch = true,
+  exitPolicy = "free",
+  resultExitLabel,
   network,
   externalState = null,
   onExit,
@@ -1519,7 +1529,39 @@ export function Battle({
       className={`battle ${busy ? "is-busy" : ""} ${entered ? "is-entered" : ""}`}
     >
       <header className="battle-bar">
-        <button type="button" className="ghost" onClick={onExit} disabled={busy}>
+        <button
+          type="button"
+          className="ghost"
+          disabled={busy}
+          onClick={() => {
+            if (state.winner) {
+              onExit();
+              return;
+            }
+            // PvP: leavePvp сам спрашивает и сдаёт бой
+            if (network) {
+              onExit();
+              return;
+            }
+            if (exitPolicy === "free") {
+              onExit();
+              return;
+            }
+            const ok = window.confirm(
+              "Покидаете бой?\n\nБудет засчитано поражение. Наград за этот бой не будет (тропа/арена на сегодня могут закрыться).\n\nВыйти и принять поражение?",
+            );
+            if (!ok) return;
+            setState((s) => {
+              if (s.winner) return s;
+              return {
+                ...s,
+                winner: "enemy",
+                you: { ...s.you, hp: 0 },
+                log: ["Ты покинул бой — поражение", ...s.log].slice(0, 12),
+              };
+            });
+          }}
+        >
           {network?.exitLabel ? `← ${network.exitLabel}` : "← Меню"}
         </button>
         <div className="battle-bar-right">
@@ -2014,7 +2056,14 @@ export function Battle({
             )}
             <div className="battle-result-actions">
               <button type="button" className="primary large" onClick={onExit}>
-                В меню
+                {(() => {
+                  const won = state.winner === "you";
+                  if (typeof resultExitLabel === "function") {
+                    return resultExitLabel(won);
+                  }
+                  if (resultExitLabel) return resultExitLabel;
+                  return "В меню";
+                })()}
               </button>
               {allowRematch ? (
                 <button

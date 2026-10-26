@@ -12,6 +12,8 @@ type Props = {
   onBack: () => void;
   /** Бой с ботом уровня игрока ±1 */
   onFightBot: () => void;
+  /** Перед созданием/входом в комнату (бан за побеги). */
+  canStartPvp?: () => boolean;
   /** Живой PvP начался */
   onPvpStart: (ctx: {
     socket: PvpSocket;
@@ -42,6 +44,7 @@ export function MultiMenu({
   deck,
   onBack,
   onFightBot,
+  canStartPvp,
   onPvpStart,
 }: Props) {
   const [code, setCode] = useState("");
@@ -127,6 +130,7 @@ export function MultiMenu({
       setMessage("Собери колоду в кабинете");
       return;
     }
+    if (canStartPvp && !canStartPvp()) return;
     setBusy(true);
     setMessage(null);
     startedRef.current = false;
