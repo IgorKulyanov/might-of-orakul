@@ -168,8 +168,9 @@ export const ARENA_ROUND_REWARDS: Record<
 
 export function arenaFoeLevel(playerLevel: number, cleared: number): number {
   const lv = Math.max(1, Math.min(MAX_PLAYER_LEVEL, playerLevel));
-  // cleared = уже выигранных; следующий бой сложнее
-  return Math.max(1, Math.min(MAX_PLAYER_LEVEL, lv + cleared));
+  // cleared = уже выигранных; рост мягче (было +0…+4, стало +0…+2)
+  const bump = Math.max(0, Math.floor(cleared * 0.5));
+  return Math.max(1, Math.min(MAX_PLAYER_LEVEL, lv + bump));
 }
 
 export type ArenaBattleResult = {

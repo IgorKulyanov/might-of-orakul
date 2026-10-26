@@ -351,7 +351,7 @@ export function soloModesAll(fails: QaFail[], ok: string[]): void {
       }
       const yourDeck = botDeckForLevel(level, hero.faction);
       const foeDeck = botDeckForLevel(foeLv, getHero(foeId).faction);
-      if (yourDeck.length < 15 || yourDeck.length > DECK_SIZE) {
+      if (yourDeck.length < 8 || yourDeck.length > DECK_SIZE) {
         return `колода ${yourDeck.length}`;
       }
       let s = createBattle(

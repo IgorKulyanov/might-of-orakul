@@ -25,7 +25,7 @@ function cardTier(cardId: string): number {
   try {
     return getCard(cardId).unitLevel ?? 1;
   } catch {
-    return 1;
+    return 99;
   }
 }
 
@@ -34,7 +34,6 @@ function manaWeight(cardId: string, faction: Faction): number {
     const c = getCard(cardId);
     const cost = c.manaCost ?? {};
     let w = manaCostTotal(cost);
-    // Чужая мана для бота дороже / реже растёт
     for (const [f, n] of Object.entries(cost)) {
       if (f !== faction && (n ?? 0) > 0) w += (n ?? 0) * 1.5;
     }
@@ -44,17 +43,24 @@ function manaWeight(cardId: string, faction: Faction): number {
   }
 }
 
+/** Карты, которыми бот не имеет права давить игрока. */
+function botForbiddenCard(id: string, level: number): boolean {
+  // Камни маны — магазинный кит; боту только на очень высоком уровне
+  if (id === "mana_stones") return level < 35;
+  // «Доп. карта» (рамп добора) — не раньше середины/конца
+  if (id === "extra_card") return level < 18;
+  return false;
+}
+
 /**
  * Пул карт, доступных оракулу данного уровня:
  * своя школа + нейтрал, тир ≤ maxTier(level).
  */
-export function botPoolForLevel(
-  level: number,
-  school: School,
-): string[] {
+export function botPoolForLevel(level: number, school: School): string[] {
   const maxTier = maxTierForLevel(level);
   return CARDS.filter((c) => {
     if (c.kind !== "creature" && c.kind !== "spell") return false;
+    if (botForbiddenCard(c.id, level)) return false;
     const t = c.unitLevel ?? 1;
     if (t < 1 || t > maxTier) return false;
     if (c.school === school || c.school === "neutral") return true;
@@ -63,21 +69,20 @@ export function botPoolForLevel(
 }
 
 /**
- * Размер колоды бота: на старте короче, чтобы не «добивать» тиром III
- * (у тира I часто меньше 25 слотов с учётом лимита копий).
+ * Размер колоды бота: на старте короче, чтобы не «добивать» тиром.
  */
 export function botDeckSizeForLevel(level: number): number {
   const lv = Math.max(1, level);
   if (lv <= 3) return lv <= 1 ? 4 : lv === 2 ? 5 : 6;
   if (lv <= 5) return 10;
-  if (lv <= 7) return 14;
-  if (lv <= 14) return 20;
+  if (lv <= 7) return 12;
+  if (lv <= 11) return 16;
+  if (lv <= 17) return 20;
   return DECK_SIZE;
 }
 
 /**
- * Обучающая колода = старт школы (+1–2 копии своих существ).
- * Без нейтрального спама и без чужого тира — зеркало новичка.
+ * Обучающая колода = старт школы (+копии своих существ).
  */
 function fillDeckTutorial(faction: Faction, level: number): string[] {
   const target = botDeckSizeForLevel(level);
@@ -110,9 +115,8 @@ function fillDeckTutorial(faction: Faction, level: number): string[] {
 }
 
 /**
- * Колода бота «равного» уровня: только карты тира ≤ уровню оракула,
- * школа героя бота + нейтралы. Без чужих рас (иначе мёртвые карты / читы).
- * Ур. 1–3 — почти стартовая колода, чтобы первые бои были проходимы.
+ * Колода бота «равного» уровня: тир ≤ уровню, школа героя + нейтрал.
+ * Ур. 1–3 — почти стартовая колода.
  */
 export function botDeckForLevel(level: number, school?: School): string[] {
   const faction: Faction =
@@ -129,7 +133,8 @@ export function botDeckForLevel(level: number, school?: School): string[] {
     const fallback = CARDS.filter(
       (c) =>
         (c.unitLevel ?? 1) === 1 &&
-        (c.school === faction || c.school === "neutral"),
+        (c.school === faction || c.school === "neutral") &&
+        !botForbiddenCard(c.id, level),
     ).map((c) => c.id);
     return fillDeckAggressive(
       fallback.length ? fallback : ["hero_mana"],
@@ -140,9 +145,24 @@ export function botDeckForLevel(level: number, school?: School): string[] {
   return fillDeckAggressive(pool, level, faction);
 }
 
+function rampIdsForLevel(level: number, maxTier: number): string[] {
+  // Один «Доп. мана» на старте — без дабла и без «Доп. карты»
+  if (level <= 10) return ["hero_mana"];
+  if (level <= 17 || maxTier < 2) return ["hero_mana", "hero_mana"];
+  // extra_card уже отфильтруется forbidden < 18
+  return ["hero_mana", "hero_mana", "extra_card"];
+}
+
+function maxSpellSlots(level: number, target: number): number {
+  if (level <= 7) return Math.min(2, Math.floor(target * 0.2));
+  if (level <= 14) return Math.min(3, Math.floor(target * 0.22));
+  if (level <= 24) return Math.min(4, Math.floor(target * 0.25));
+  return Math.min(6, Math.floor(target * 0.28));
+}
+
 /**
- * Агрессивная колода: много дешёвых существ своей фракции + мана-рамп.
- * Заклинаний меньше, чтобы бот успевал забивать стол.
+ * Агрессивная колода: существа своей фракции + чуть рампа.
+ * Заклинаний мало — без спама камней/допа.
  */
 function fillDeckAggressive(
   pool: string[],
@@ -168,21 +188,23 @@ function fillDeckAggressive(
   const spells = pool
     .filter((id) => {
       try {
-        return getCard(id).kind === "spell";
+        if (getCard(id).kind !== "spell") return false;
+        if (botForbiddenCard(id, level)) return false;
+        // Рамп кладём отдельно, не из общего пула спеллов
+        if (id === "hero_mana" || id === "extra_card" || id === "mana_stones") {
+          return false;
+        }
+        return true;
       } catch {
         return false;
       }
     })
     .sort((a, b) => manaWeight(a, faction) - manaWeight(b, faction));
 
-  // На старте без «Доп. карты» (T2) — иначе новичок ловит рамп выше своего тира
-  const rampIds =
-    maxTier <= 1
-      ? ["hero_mana", "hero_mana"]
-      : ["hero_mana", "hero_mana", "extra_card"];
-  const ramp = rampIds.filter((id) => {
+  const ramp = rampIdsForLevel(level, maxTier).filter((id) => {
     try {
       getCard(id);
+      if (botForbiddenCard(id, level)) return false;
       return cardTier(id) <= maxTier;
     } catch {
       return false;
@@ -191,9 +213,9 @@ function fillDeckAggressive(
 
   const out: string[] = [];
   const counts: Record<string, number> = {};
-  /** Те же лимиты копий, что у игрока (не 3 и не 99). */
   const push = (id: string) => {
     if (out.length >= target) return false;
+    if (botForbiddenCard(id, level)) return false;
     if (cardTier(id) > maxTier) return false;
     const max = maxCopiesForCard(id);
     if ((counts[id] ?? 0) >= max) return false;
@@ -202,44 +224,60 @@ function fillDeckAggressive(
     return true;
   };
 
-  // ~70% существ, сначала дешёвые
-  const creatureSlots = Math.min(
-    Math.max(0, target - Math.min(4, ramp.length + 2)),
-    Math.max(Math.ceil(target * 0.65), Math.min(creatures.length * 2, target - 2)),
+  const spellBudget = maxSpellSlots(level, target);
+  const rampBudget = Math.min(ramp.length, level <= 10 ? 1 : 2);
+  const creatureSlots = Math.max(
+    1,
+    target - spellBudget - rampBudget,
   );
+
   let ci = 0;
   let guard = 0;
-  while (out.length < creatureSlots && creatures.length > 0 && guard < target * 80) {
+  while (
+    out.length < creatureSlots &&
+    creatures.length > 0 &&
+    guard < target * 80
+  ) {
     push(creatures[ci % creatures.length]!);
     ci++;
     guard++;
   }
 
-  for (const id of ramp) push(id);
+  let rampAdded = 0;
+  for (const id of ramp) {
+    if (rampAdded >= rampBudget) break;
+    if (push(id)) rampAdded++;
+  }
 
+  let spellsAdded = 0;
   let si = 0;
   guard = 0;
-  while (out.length < target && spells.length > 0 && guard < target * 80) {
-    push(spells[si % spells.length]!);
+  while (
+    out.length < target &&
+    spellsAdded < spellBudget &&
+    spells.length > 0 &&
+    guard < target * 80
+  ) {
+    if (push(spells[si % spells.length]!)) spellsAdded++;
     si++;
     guard++;
   }
 
+  // Добор только существами / стартом — не добиваем колоду спеллами
   guard = 0;
   while (out.length < target && creatures.length > 0 && guard < target * 80) {
     push(creatures[guard % creatures.length]!);
     guard++;
   }
 
-  guard = 0;
-  while (out.length < target && spells.length > 0 && guard < target * 80) {
-    push(spells[guard % spells.length]!);
-    guard++;
-  }
-
-  // Добираем стартом школы — всё ещё в рамках своего тира
   if (out.length < target) {
     for (const id of starterDeckForFaction(faction)) {
+      try {
+        // Финальный добор — только существа, иначе снова зальём спеллами
+        if (getCard(id).kind !== "creature") continue;
+      } catch {
+        continue;
+      }
       if (!push(id)) continue;
       if (out.length >= target) break;
     }
@@ -249,16 +287,15 @@ function fillDeckAggressive(
 }
 
 /**
- * Уровень бота «рядом»: на старте равный (иначе новичок сливает),
- * с 5-го — чуть выше.
+ * Уровень бота «рядом»: на старте равный, позже чуть выше.
  */
 export function botLevelNear(playerLevel: number): number {
   const lv = Math.max(1, Math.min(50, playerLevel));
-  if (lv <= 4) return lv;
+  if (lv <= 8) return lv;
   return Math.min(50, lv + 1);
 }
 
-/** Герой бота: другая раса при возможности, колода потом под него. */
+/** Герой бота: другая раса при возможности. */
 export function botHeroIdFor(playerHeroId: string, botLevel: number): string {
   const yours = getHero(playerHeroId).faction;
   const others = BASE_HEROES.filter((h) => h.faction !== yours);

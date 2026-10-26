@@ -1930,7 +1930,7 @@
       "kind": "spell",
       "manaCost": {},
       "text": "+1 маны каждой школе сразу.",
-      "rarity": "common",
+      "rarity": "epic",
       "premium": false,
       "art": "заклинания/mana_stones.jpg",
       "spellEffects": [
@@ -1940,7 +1940,7 @@
         }
       ],
       "priceGold": 2000,
-      "unitLevel": 1,
+      "unitLevel": 4,
       "priceDiamonds": 200
     },
     {
