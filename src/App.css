@@ -1722,27 +1722,43 @@ button {
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .hand-card-anchor.is-dragging {
   opacity: 0.35;
 }
 
-/* Пока тянем карту — не скроллим ленту руки (иначе на телефоне жест «съедается») */
-.battle.is-hand-dragging,
-.battle.is-hand-dragging .hand-zone,
-.battle.is-hand-dragging .hand {
+/*
+ * Телефон: вертикальный скролл .board и горизонтальный скролл руки
+ * съедают жест → pointercancel. На время драга глушим всё.
+ */
+html.is-hand-dragging,
+html.is-hand-dragging body {
   overflow: hidden !important;
-  touch-action: none;
-  overscroll-behavior: none;
+  touch-action: none !important;
+  overscroll-behavior: none !important;
+}
+
+html.is-hand-dragging .battle,
+html.is-hand-dragging .board,
+html.is-hand-dragging .hand-zone,
+html.is-hand-dragging .hand,
+html.is-hand-dragging .grave-zone,
+html.is-hand-dragging .grave-row {
+  overflow: hidden !important;
+  touch-action: none !important;
+  overscroll-behavior: none !important;
+  -webkit-overflow-scrolling: auto !important;
 }
 
 .hand-drag-ghost {
   position: fixed;
-  z-index: 90;
+  z-index: 400;
   pointer-events: none;
   transform: translate(-50%, -60%) scale(1.05);
   filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.55));
+  will-change: left, top;
 }
 
 .battle-hint-row {

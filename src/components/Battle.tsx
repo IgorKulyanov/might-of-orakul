@@ -278,13 +278,75 @@ export function Battle({
     y: number;
   } | null>(null);
   const handDragMoved = useRef(false);
-  const handDragStart = useRef<{ x: number; y: number; index: number } | null>(
-    null,
-  );
+  const handDragStart = useRef<{
+    x: number;
+    y: number;
+    index: number;
+    cardId: string;
+    pointerId: number;
+  } | null>(null);
+  const handDragUnbind = useRef<(() => void) | null>(null);
   const dropAfterSelectRef = useRef<{
     side: "you" | "enemy";
     slot: number;
   } | null>(null);
+
+  const clearHandDragLock = () => {
+    document.documentElement.classList.remove("is-hand-dragging");
+  };
+
+  const findBoardDropAt = (
+    x: number,
+    y: number,
+  ): { side: "you" | "enemy"; slot: number } | null => {
+    const el = document.elementFromPoint(x, y) as HTMLElement | null;
+    const hit = el?.closest?.("[data-board-drop]") as HTMLElement | null;
+    const fromHit = hit?.getAttribute("data-board-drop") || "";
+    if (fromHit) {
+      const [side, slotStr] = fromHit.split(":");
+      const slot = Number(slotStr);
+      if (
+        (side === "you" || side === "enemy") &&
+        Number.isFinite(slot) &&
+        slot >= 0 &&
+        slot < 5
+      ) {
+        return { side, slot };
+      }
+    }
+    // На телефоне палец часто мимо узкого слота — берём ближайший
+    let best: { side: "you" | "enemy"; slot: number; dist: number } | null =
+      null;
+    for (const node of document.querySelectorAll("[data-board-drop]")) {
+      const raw = node.getAttribute("data-board-drop") || "";
+      const [side, slotStr] = raw.split(":");
+      const slot = Number(slotStr);
+      if (
+        (side !== "you" && side !== "enemy") ||
+        !Number.isFinite(slot) ||
+        slot < 0 ||
+        slot > 4
+      ) {
+        continue;
+      }
+      const r = (node as HTMLElement).getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      const dist = (cx - x) * (cx - x) + (cy - y) * (cy - y);
+      const pad = Math.max(r.width, r.height) * 0.85;
+      if (dist > pad * pad) continue;
+      if (!best || dist < best.dist) best = { side, slot, dist };
+    }
+    return best ? { side: best.side, slot: best.slot } : null;
+  };
+
+  useEffect(() => {
+    return () => {
+      handDragUnbind.current?.();
+      handDragUnbind.current = null;
+      clearHandDragLock();
+    };
+  }, []);
   /** Подсказки первого боя */
   const [tutorialStep, setTutorialStep] = useState<number | null>(() =>
     hasSeenBattleTutorial() ? null : 0,
@@ -1654,7 +1716,7 @@ export function Battle({
 
   return (
     <div
-      className={`battle ${busy ? "is-busy" : ""} ${entered ? "is-entered" : ""} ${handDrag ? "is-hand-dragging" : ""}`}
+      className={`battle ${busy ? "is-busy" : ""} ${entered ? "is-entered" : ""}`}
     >
       <header className="battle-bar">
         <button
@@ -2141,95 +2203,93 @@ export function Battle({
                   onPointerDown={(e) => {
                     if (busy || state.winner || state.active !== "you") return;
                     if (e.button !== 0 && e.pointerType === "mouse") return;
-                    // Телефон иначе скроллит ленту руки вместо драга
                     e.preventDefault();
                     e.stopPropagation();
+                    handDragUnbind.current?.();
                     handDragMoved.current = false;
                     handDragStart.current = {
                       x: e.clientX,
                       y: e.clientY,
                       index: i,
-                    };
-                    try {
-                      (e.currentTarget as HTMLElement).setPointerCapture(
-                        e.pointerId,
-                      );
-                    } catch {
-                      /* ignore */
-                    }
-                  }}
-                  onPointerMove={(e) => {
-                    const start = handDragStart.current;
-                    if (!start || start.index !== i) return;
-                    const dx = e.clientX - start.x;
-                    const dy = e.clientY - start.y;
-                    if (!handDragMoved.current) {
-                      if (dx * dx + dy * dy < 36) return;
-                      handDragMoved.current = true;
-                      setGravePickIdx(null);
-                      setState(selectHand(state, i));
-                    }
-                    e.preventDefault();
-                    setHandDrag({
-                      index: i,
                       cardId: id,
-                      x: e.clientX,
-                      y: e.clientY,
-                    });
-                  }}
-                  onPointerUp={(e) => {
-                    const start = handDragStart.current;
-                    const moved = handDragMoved.current;
-                    const x = e.clientX;
-                    const y = e.clientY;
-                    handDragStart.current = null;
-                    handDragMoved.current = false;
-                    try {
-                      (e.currentTarget as HTMLElement).releasePointerCapture(
-                        e.pointerId,
-                      );
-                    } catch {
-                      /* ignore */
-                    }
-                    if (!start || start.index !== i) return;
-                    if (!moved) {
-                      setGravePickIdx(null);
-                      onHandClick(i);
+                      pointerId: e.pointerId,
+                    };
+                    let lastX = e.clientX;
+                    let lastY = e.clientY;
+                    // Сразу в DOM — до React-рендера, иначе iOS успевает скроллить
+                    document.documentElement.classList.add("is-hand-dragging");
+
+                    const finish = (ev: PointerEvent) => {
+                      const start = handDragStart.current;
+                      if (!start || start.pointerId !== ev.pointerId) return;
+                      const moved = handDragMoved.current;
+                      const x =
+                        Number.isFinite(ev.clientX) && ev.clientX !== 0
+                          ? ev.clientX
+                          : lastX;
+                      const y =
+                        Number.isFinite(ev.clientY) &&
+                        (ev.clientY !== 0 || lastY === 0)
+                          ? ev.clientY
+                          : lastY;
+                      handDragStart.current = null;
+                      handDragMoved.current = false;
+                      handDragUnbind.current?.();
+                      handDragUnbind.current = null;
+                      clearHandDragLock();
                       setHandDrag(null);
-                      return;
-                    }
-                    setHandDrag(null);
-                    const el = document.elementFromPoint(x, y) as HTMLElement | null;
-                    const drop = el?.closest?.(
-                      "[data-board-drop]",
-                    ) as HTMLElement | null;
-                    const raw = drop?.getAttribute("data-board-drop") || "";
-                    const [side, slotStr] = raw.split(":");
-                    const slot = Number(slotStr);
-                    if (
-                      (side === "you" || side === "enemy") &&
-                      Number.isFinite(slot) &&
-                      slot >= 0 &&
-                      slot < 5
-                    ) {
-                      dropAfterSelectRef.current = {
-                        side: side as "you" | "enemy",
-                        slot,
-                      };
-                      setState((s) => selectHand(s, start.index));
-                      return;
-                    }
-                    pushHint("Отпусти карту на подсвеченный слот поля");
-                  }}
-                  onPointerCancel={() => {
-                    handDragStart.current = null;
-                    handDragMoved.current = false;
-                    setHandDrag(null);
+                      if (!moved) {
+                        setGravePickIdx(null);
+                        onHandClick(start.index);
+                        return;
+                      }
+                      const drop = findBoardDropAt(x, y);
+                      if (drop) {
+                        dropAfterSelectRef.current = drop;
+                        setState((s) => selectHand(s, start.index));
+                        return;
+                      }
+                      pushHint("Отпусти карту на подсвеченный слот поля");
+                    };
+
+                    const onMove = (ev: PointerEvent) => {
+                      const start = handDragStart.current;
+                      if (!start || start.pointerId !== ev.pointerId) return;
+                      ev.preventDefault();
+                      lastX = ev.clientX;
+                      lastY = ev.clientY;
+                      const dx = ev.clientX - start.x;
+                      const dy = ev.clientY - start.y;
+                      if (!handDragMoved.current) {
+                        if (dx * dx + dy * dy < 25) return;
+                        handDragMoved.current = true;
+                        setGravePickIdx(null);
+                        setState((s) => selectHand(s, start.index));
+                      }
+                      setHandDrag({
+                        index: start.index,
+                        cardId: start.cardId,
+                        x: ev.clientX,
+                        y: ev.clientY,
+                      });
+                    };
+
+                    window.addEventListener("pointermove", onMove, {
+                      passive: false,
+                    });
+                    window.addEventListener("pointerup", finish);
+                    window.addEventListener("pointercancel", finish);
+                    handDragUnbind.current = () => {
+                      window.removeEventListener("pointermove", onMove);
+                      window.removeEventListener("pointerup", finish);
+                      window.removeEventListener("pointercancel", finish);
+                    };
                   }}
                 >
                   <CardView
                     cardId={id}
                     compact
+                    flippable={false}
                     selected={!busy && state.selectedHand === i}
                     manaCostOverride={battleManaCost(state, id)}
                   />
