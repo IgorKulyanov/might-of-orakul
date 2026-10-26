@@ -1,4 +1,4 @@
-import { useMemo, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useState, type DragEvent } from "react";
 import { CardView } from "./CardView";
 import {
   CARDS,
@@ -32,6 +32,8 @@ import {
 import type { OwnedState } from "../game/types";
 import { XpBar } from "./XpBar";
 
+type Tab = "oracle" | "deck";
+
 type Props = {
   owned: OwnedState;
   displayName?: string;
@@ -39,9 +41,9 @@ type Props = {
   onBack: () => void;
   /** Выбор / покупка облика оракула. */
   onChooseHero?: () => void;
+  /** Обучалка хаба: открыть вкладку колоды */
+  forcedTab?: Tab;
 };
-
-type Tab = "oracle" | "deck";
 type DragPayload = { cardId: string; from: "deck" | "case" };
 
 const DND_MIME = "application/x-orakul-card";
@@ -58,9 +60,14 @@ export function Cabinet({
   onChange,
   onBack,
   onChooseHero,
+  forcedTab,
 }: Props) {
   const [tab, setTab] = useState<Tab>("oracle");
   const [flash, setFlash] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (forcedTab) setTab(forcedTab);
+  }, [forcedTab]);
   const level = playerLevel(owned);
   const xp = owned.xp ?? 0;
   const xpNeed = xpToNextLevel(level);
@@ -328,7 +335,7 @@ export function Cabinet({
       )}
 
       {tab === "deck" && (
-        <div className="cabinet-cards">
+        <div className="cabinet-cards" data-tut="hub-deck-board">
           <p className="hint cabinet-transfer-hint">
             Колода до {DECK_SIZE} карт. Обычные — до{" "}
             <strong>2 копий</strong>, эпик/легенда — 1. В бою колода мешается
@@ -434,6 +441,7 @@ export function Cabinet({
 
           <section
             className={`cabinet-card-section cabinet-zone-case drop-zone ${dragOver === "case" ? "is-drop-target" : ""}`}
+            data-tut="hub-deck-case"
             onDragOver={(e) => {
               e.preventDefault();
               e.dataTransfer.dropEffect = "move";

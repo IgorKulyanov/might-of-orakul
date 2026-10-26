@@ -91,3 +91,13 @@ export function resetBattleTutorial(): void {
     /* ignore */
   }
 }
+
+/** Сброс и обучалки меню (магазин / колода / алмазы). */
+export function resetAllTutorials(): void {
+  resetBattleTutorial();
+  try {
+    localStorage.removeItem("orakul_hub_tutorial_v1");
+  } catch {
+    /* ignore */
+  }
+}

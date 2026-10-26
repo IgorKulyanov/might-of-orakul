@@ -52,7 +52,7 @@ const CASE_WIPE_FLAG = "arcane-duel-case-wipe-v4";
 const COPIES_FLAG = "arcane-duel-copies-v3";
 
 /** Подарок новичку: хватает на пару покупок, не на всю мету. */
-const START_GOLD = 250;
+const START_GOLD = 500;
 const START_DIAMONDS = 25;
 
 function starterIds(heroId: string): string[] {
@@ -832,7 +832,7 @@ export function applyBattleResult(
   };
 }
 
-/** Забрать награду дейлика (золото сразу, XP через grantXp). */
+/** Забрать награду дейлика (золото/алмазы сразу, XP через grantXp). */
 export function claimDailyQuest(
   owned: OwnedState,
   questId: DailyQuestId,
@@ -841,6 +841,7 @@ export function claimDailyQuest(
   ok: boolean;
   xp: number;
   gold: number;
+  diamonds: number;
   reason?: string;
 } {
   const { owned: withGold, claim } = claimDaily(owned, questId);
@@ -850,6 +851,7 @@ export function claimDailyQuest(
       ok: false,
       xp: 0,
       gold: 0,
+      diamonds: 0,
       reason: claim.reason,
     };
   }
@@ -868,6 +870,7 @@ export function claimDailyQuest(
     ok: true,
     xp: claim.xp,
     gold: claim.gold + granted.totalGold,
+    diamonds: claim.diamonds + granted.totalDiamonds,
   };
 }
 

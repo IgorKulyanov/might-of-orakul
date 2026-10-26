@@ -46,6 +46,8 @@ type Props = {
   onLogout: () => void;
   heroName: string;
   displayName: string;
+  gold?: number;
+  diamonds?: number;
 };
 
 export function SplashMenu({
@@ -61,6 +63,8 @@ export function SplashMenu({
   onLogout,
   heroName,
   displayName,
+  gold = 0,
+  diamonds = 0,
 }: Props) {
   const [index, setIndex] = useState(0);
   const [panel, setPanel] = useState<Panel>("root");
@@ -121,6 +125,10 @@ export function SplashMenu({
       </div>
 
       <div className="splash-top-right">
+        <div className="splash-wallet" data-tut="hub-wallet" title="Кошелёк">
+          <span className="wallet-chip gold">🪙 {gold}</span>
+          <span className="wallet-chip dia">💎 {diamonds}</span>
+        </div>
         <button
           type="button"
           className="splash-logout ghost"
@@ -266,17 +274,28 @@ export function SplashMenu({
               <button type="button" className="ghost large" onClick={onMulti}>
                 Мультибои
               </button>
-              <button type="button" className="ghost large" onClick={onCabinet}>
+              <button
+                type="button"
+                className="ghost large"
+                data-tut="hub-cabinet"
+                onClick={onCabinet}
+              >
                 Личный кабинет
               </button>
               <button
                 type="button"
                 className="ghost large"
+                data-tut="hub-shop"
                 onClick={onCollection}
               >
                 Магазин / колода
               </button>
-              <button type="button" className="ghost large" onClick={onDailies}>
+              <button
+                type="button"
+                className="ghost large"
+                data-tut="hub-dailies"
+                onClick={onDailies}
+              >
                 Ежедневные задания
               </button>
               {showDev && onDev ? (

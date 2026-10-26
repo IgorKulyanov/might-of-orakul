@@ -10,6 +10,7 @@ export type DailyQuest = {
   target: number;
   xp: number;
   gold: number;
+  diamonds: number;
 };
 
 export const DAILY_QUESTS: DailyQuest[] = [
@@ -19,6 +20,7 @@ export const DAILY_QUESTS: DailyQuest[] = [
     target: 1,
     xp: 160,
     gold: 55,
+    diamonds: 1,
   },
   {
     id: "win_3",
@@ -26,6 +28,7 @@ export const DAILY_QUESTS: DailyQuest[] = [
     target: 3,
     xp: 380,
     gold: 130,
+    diamonds: 2,
   },
   {
     id: "play_2",
@@ -33,6 +36,7 @@ export const DAILY_QUESTS: DailyQuest[] = [
     target: 2,
     xp: 120,
     gold: 35,
+    diamonds: 0,
   },
 ];
 
@@ -95,6 +99,7 @@ export type ClaimResult = {
   dailies: DailyState;
   xp: number;
   gold: number;
+  diamonds: number;
   reason?: string;
 };
 
@@ -107,19 +112,40 @@ export function claimDaily(
   if (!quest) {
     return {
       owned,
-      claim: { ok: false, dailies, xp: 0, gold: 0, reason: "Нет задания" },
+      claim: {
+        ok: false,
+        dailies,
+        xp: 0,
+        gold: 0,
+        diamonds: 0,
+        reason: "Нет задания",
+      },
     };
   }
   if (dailies.claimed.includes(questId)) {
     return {
       owned,
-      claim: { ok: false, dailies, xp: 0, gold: 0, reason: "Уже получено" },
+      claim: {
+        ok: false,
+        dailies,
+        xp: 0,
+        gold: 0,
+        diamonds: 0,
+        reason: "Уже получено",
+      },
     };
   }
   if ((dailies.progress[questId] ?? 0) < quest.target) {
     return {
       owned,
-      claim: { ok: false, dailies, xp: 0, gold: 0, reason: "Ещё не выполнено" },
+      claim: {
+        ok: false,
+        dailies,
+        xp: 0,
+        gold: 0,
+        diamonds: 0,
+        reason: "Ещё не выполнено",
+      },
     };
   }
   dailies.claimed = [...dailies.claimed, questId];
@@ -128,12 +154,14 @@ export function claimDaily(
     owned: {
       ...owned,
       gold: (owned.gold ?? 0) + quest.gold,
+      diamonds: (owned.diamonds ?? 0) + (quest.diamonds ?? 0),
     },
     claim: {
       ok: true,
       dailies,
       xp: quest.xp,
       gold: quest.gold,
+      diamonds: quest.diamonds ?? 0,
     },
   };
 }

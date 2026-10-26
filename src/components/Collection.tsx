@@ -33,10 +33,15 @@ import {
   goldForDiamonds,
 } from "../game/shop";
 
+type KindFilter = "all" | CardKind;
+type ShopTab = "cards" | "deck" | "currency";
+
 type Props = {
   owned: OwnedState;
   onChange: (o: OwnedState) => void;
   onBack: () => void;
+  /** Обучалка хаба: принудительно открыть вкладку */
+  forcedTab?: ShopTab;
 };
 
 const SCHOOLS: Array<School | "all"> = [
@@ -49,10 +54,7 @@ const SCHOOLS: Array<School | "all"> = [
   "neutral",
 ];
 
-type KindFilter = "all" | CardKind;
-type ShopTab = "cards" | "deck" | "currency";
-
-export function Collection({ owned, onChange, onBack }: Props) {
+export function Collection({ owned, onChange, onBack, forcedTab }: Props) {
   const deckId = owned.activeDeckId;
   const [deck, setDeck] = useState<string[]>(
     () => owned.decks[deckId] ?? [],
@@ -61,6 +63,10 @@ export function Collection({ owned, onChange, onBack }: Props) {
   const [kindFilter, setKindFilter] = useState<KindFilter>("all");
   const [tab, setTab] = useState<ShopTab>("cards");
   const [flash, setFlash] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (forcedTab) setTab(forcedTab);
+  }, [forcedTab]);
   const diaBalance = owned.diamonds ?? 0;
   const [exchangeAmt, setExchangeAmt] = useState(1);
 
@@ -229,6 +235,7 @@ export function Collection({ owned, onChange, onBack }: Props) {
           <button
             type="button"
             className={tab === "currency" ? "primary" : "ghost"}
+            data-tut="hub-shop-currency"
             onClick={() => setTab("currency")}
             title="Алмазы и золото"
           >
@@ -289,12 +296,22 @@ export function Collection({ owned, onChange, onBack }: Props) {
 
       {tab === "cards" && (
         <div className="grid">
-          {list.map((c) => {
+          {list.map((c, idx) => {
             const have = ownedCopies(owned, c.id);
             const locked = have <= 0;
             const inDeck = counts[c.id] ?? 0;
             const cap = maxCopiesForCard(c.id);
             const canBuyMore = canBuyAnotherCopy(owned, c.id);
+            const firstBuy =
+              canBuyMore &&
+              !list
+                .slice(0, idx)
+                .some((x) => canBuyAnotherCopy(owned, x.id));
+            const firstAdd =
+              !locked &&
+              !list
+                .slice(0, idx)
+                .some((x) => ownedCopies(owned, x.id) > 0);
             return (
               <div key={c.id} className="grid-item">
                 <CardView
@@ -315,7 +332,10 @@ export function Collection({ owned, onChange, onBack }: Props) {
                     {!locked && inDeck > 0 ? ` · в колоде ${inDeck}` : ""}
                   </div>
                   {canBuyMore ? (
-                    <div className="shop-meta">
+                    <div
+                      className="shop-meta"
+                      data-tut={firstBuy ? "hub-shop-buy" : undefined}
+                    >
                       <button
                         type="button"
                         className="primary"
@@ -335,7 +355,10 @@ export function Collection({ owned, onChange, onBack }: Props) {
                     </div>
                   ) : null}
                   {!locked && (
-                    <div className="shop-meta">
+                    <div
+                      className="shop-meta"
+                      data-tut={firstAdd ? "hub-shop-add" : undefined}
+                    >
                       <button
                         type="button"
                         className="primary"
@@ -506,7 +529,8 @@ export function Collection({ owned, onChange, onBack }: Props) {
       )}
 
       {tab === "currency" && (
-        <div className="currency-shop">
+        <div className="currency-shop" data-tut="hub-shop-packs">
+
           <section className="currency-panel exchange-panel">
             <h2>Обмен 💎 → 🪙</h2>
             <p className="hint">

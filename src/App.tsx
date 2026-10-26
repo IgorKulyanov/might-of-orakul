@@ -10,7 +10,13 @@ import { DevSandbox } from "./components/DevSandbox";
 import { HeroSelect } from "./components/HeroSelect";
 import { MultiMenu } from "./components/MultiMenu";
 import { OnboardingScreen } from "./components/OnboardingScreen";
+import { HubTutorial } from "./components/HubTutorial";
 import { SplashMenu } from "./components/SplashMenu";
+import {
+  hasSeenHubTutorial,
+  HUB_TUTORIAL_TIPS,
+  type HubTutorialScreen,
+} from "./game/hubTutorial";
 import {
   isDevToolsEnabled,
   resolveDevBattle,
@@ -170,6 +176,9 @@ export default function App() {
   const [arenaRound, setArenaRound] = useState(1);
   const [devSetup, setDevSetup] = useState<DevBattleSetup | null>(null);
   const [devToolsOn, setDevToolsOn] = useState(() => isDevToolsEnabled());
+  const [hubTutStep, setHubTutStep] = useState<number | null>(() =>
+    hasSeenHubTutorial() ? null : 0,
+  );
   const [pvpState, setPvpState] = useState<BattleState | null>(null);
   const [pvpSeat, setPvpSeat] = useState<PvpSeat>("host");
   const [pvpClock, setPvpClock] = useState<PvpClock>({
@@ -671,12 +680,24 @@ export default function App() {
   }
 
   if (screen === "collection") {
+    const hubTip =
+      hubTutStep != null ? HUB_TUTORIAL_TIPS[hubTutStep] : undefined;
     return (
-      <Collection
-        owned={owned}
-        onChange={updateOwned}
-        onBack={() => setScreen("menu")}
-      />
+      <>
+        <Collection
+          owned={owned}
+          onChange={updateOwned}
+          onBack={() => setScreen("menu")}
+          forcedTab={hubTip?.collectionTab}
+        />
+        {hubTutStep != null && (
+          <HubTutorial
+            step={hubTutStep}
+            onStep={setHubTutStep}
+            onNavigate={(s: HubTutorialScreen) => setScreen(s)}
+          />
+        )}
+      </>
     );
   }
 
@@ -696,40 +717,61 @@ export default function App() {
   }
 
   if (screen === "cabinet") {
+    const hubTip =
+      hubTutStep != null ? HUB_TUTORIAL_TIPS[hubTutStep] : undefined;
     return (
-      <Cabinet
-        owned={owned}
-        displayName={displayName}
-        onChange={updateOwned}
-        onBack={() => setScreen("menu")}
-        onChooseHero={() => setScreen("hero")}
-      />
+      <>
+        <Cabinet
+          owned={owned}
+          displayName={displayName}
+          onChange={updateOwned}
+          onBack={() => setScreen("menu")}
+          onChooseHero={() => setScreen("hero")}
+          forcedTab={hubTip?.cabinetTab}
+        />
+        {hubTutStep != null && (
+          <HubTutorial
+            step={hubTutStep}
+            onStep={setHubTutStep}
+            onNavigate={(s: HubTutorialScreen) => setScreen(s)}
+          />
+        )}
+      </>
     );
   }
 
   if (screen === "dailies") {
     return (
-      <div className="multi-screen">
-        <header className="page-bar">
-          <button
-            type="button"
-            className="ghost"
-            onClick={() => setScreen("menu")}
-          >
-            ← Меню
-          </button>
-          <h1>Задания</h1>
-          <span />
-        </header>
-        <DailyPanel
-          owned={owned}
-          onClaim={(id) => {
-            const res = claimDailyQuest(ownedRef.current, id);
-            if (res.ok) void persistOwned(res.owned);
-            return res;
-          }}
-        />
-      </div>
+      <>
+        <div className="multi-screen">
+          <header className="page-bar">
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => setScreen("menu")}
+            >
+              ← Меню
+            </button>
+            <h1>Задания</h1>
+            <span />
+          </header>
+          <DailyPanel
+            owned={owned}
+            onClaim={(id) => {
+              const res = claimDailyQuest(ownedRef.current, id);
+              if (res.ok) void persistOwned(res.owned);
+              return res;
+            }}
+          />
+        </div>
+        {hubTutStep != null && (
+          <HubTutorial
+            step={hubTutStep}
+            onStep={setHubTutStep}
+            onNavigate={(s: HubTutorialScreen) => setScreen(s)}
+          />
+        )}
+      </>
     );
   }
 
@@ -853,28 +895,39 @@ export default function App() {
   }
 
   return (
-    <SplashMenu
-      heroName={hero.name}
-      displayName={displayName}
-      showDev={devToolsOn}
-      onSolo={() => {
-        setCampaign(refreshCampaignDay(campaignRef.current));
-        setScreen("campaign");
-      }}
-      onArena={() => {
-        setArena(refreshArenaDay(arenaRef.current));
-        setScreen("arena");
-      }}
-      onMulti={() => setScreen("multi")}
-      onCabinet={() => setScreen("cabinet")}
-      onCollection={() => setScreen("collection")}
-      onDailies={() => setScreen("dailies")}
-      onDev={() => setScreen("dev")}
-      onEnableDev={() => {
-        setDevToolsEnabled(true);
-        setDevToolsOn(true);
-      }}
-      onLogout={logout}
-    />
+    <>
+      <SplashMenu
+        heroName={hero.name}
+        displayName={displayName}
+        gold={owned.gold ?? 0}
+        diamonds={owned.diamonds ?? 0}
+        showDev={devToolsOn}
+        onSolo={() => {
+          setCampaign(refreshCampaignDay(campaignRef.current));
+          setScreen("campaign");
+        }}
+        onArena={() => {
+          setArena(refreshArenaDay(arenaRef.current));
+          setScreen("arena");
+        }}
+        onMulti={() => setScreen("multi")}
+        onCabinet={() => setScreen("cabinet")}
+        onCollection={() => setScreen("collection")}
+        onDailies={() => setScreen("dailies")}
+        onDev={() => setScreen("dev")}
+        onEnableDev={() => {
+          setDevToolsEnabled(true);
+          setDevToolsOn(true);
+        }}
+        onLogout={logout}
+      />
+      {hubTutStep != null && (
+        <HubTutorial
+          step={hubTutStep}
+          onStep={setHubTutStep}
+          onNavigate={(s: HubTutorialScreen) => setScreen(s)}
+        />
+      )}
+    </>
   );
 }
