@@ -150,7 +150,8 @@ export function HeroSelect({ owned, onChange, onBack, onBattle }: Props) {
     level,
     hero?.tier,
   );
-  const myBase = BASE_HEROES.filter((h) => h.faction === home);
+  // Все базовые — чтобы можно было вернуть свою школу после бага смены расы
+  const myBase = BASE_HEROES;
   const myEpic = EPIC_HEROES.filter((h) => h.faction === home);
 
   return (
@@ -167,9 +168,9 @@ export function HeroSelect({ owned, onChange, onBack, onBattle }: Props) {
 
       <div className="hero-level-panel">
         <p className="hint hero-screen-hint">
-          Фракция <strong>{SCHOOL_LABEL[home]}</strong> зафиксирована при
-          создании. Можно сменить только облик: обычный ↔ эпик своей школы.
-          Ур. {level}, в бою <strong>{hp} HP</strong>.{" "}
+          Сейчас школа: <strong>{SCHOOL_LABEL[home]}</strong>. Базового оракула
+          можно сменить (колода станет стартовой новой школы). Эпик — только
+          своей школы. Ур. {level}, в бою <strong>{hp} HP</strong>.{" "}
           <span className="hero-wallet">
             {owned.gold ?? 0} 🪙 · {owned.diamonds ?? 0} 💎
           </span>
@@ -177,7 +178,7 @@ export function HeroSelect({ owned, onChange, onBack, onBattle }: Props) {
         <XpBar level={level} xp={xp} xpNeed={xpNeed} />
       </div>
 
-      <h2 className="hero-section-title">Твой оракул</h2>
+      <h2 className="hero-section-title">Базовые оракулы</h2>
       <div className="hero-grid hero-grid-lg">
         {myBase.map((h) => (
           <HeroCard
