@@ -15,7 +15,6 @@ import {
 import {
   EPIC_HERO_DIAMONDS,
   EPIC_HERO_GOLD,
-  FACTIONS,
   getHero,
   isEpicHero,
 } from "./heroes";
@@ -28,7 +27,6 @@ import {
   battleGoldPvp,
   grantXp,
   normalizeProgress,
-  STARTER_UNITS_BY_FACTION,
   starterCollectionForFaction,
   starterDeckForFaction,
   starterUnlockIdsForFaction,
@@ -273,48 +271,6 @@ function currentHeroFaction(owned: OwnedState): Faction {
   }
 }
 
-/** Старты чужой расы в purchased = прежний дом (так помечает смена оракула). */
-function inferFactionFromCards(owned: OwnedState): Faction | null {
-  const purchased = owned.purchased ?? [];
-  const unlocked = owned.unlocked ?? [];
-  const current = currentHeroFaction(owned);
-  const starterHits: Faction[] = [];
-  for (const f of FACTIONS) {
-    const [a, b] = STARTER_UNITS_BY_FACTION[f];
-    if (purchased.includes(a) || purchased.includes(b)) starterHits.push(f);
-  }
-  const foreign = starterHits.filter((f) => f !== current);
-  if (foreign.length === 1) return foreign[0]!;
-
-  const counts: Record<Faction, number> = {
-    water: 0,
-    hell: 0,
-    death: 0,
-    life: 0,
-    nature: 0,
-  };
-  for (const id of [...unlocked, ...purchased]) {
-    try {
-      const school = getCard(id).school;
-      if (school in counts) counts[school as Faction] += 1;
-    } catch {
-      /* нет карты */
-    }
-  }
-  let best: Faction | null = null;
-  let bestN = 0;
-  for (const f of FACTIONS) {
-    if (counts[f] > bestN) {
-      bestN = counts[f];
-      best = f;
-    }
-  }
-  if (best && best !== current && bestN >= 2 && bestN > counts[current]) {
-    return best;
-  }
-  return null;
-}
-
 function heroIdForFaction(owned: OwnedState, faction: Faction): string {
   const epic = `hero_${faction}_epic`;
   if (
@@ -326,7 +282,11 @@ function heroIdForFaction(owned: OwnedState, faction: Faction): string {
   return `hero_${faction}`;
 }
 
-/** Если сервер/сейв сменил расу, а в кейсе ещё старые карты — возвращаем дом. */
+/**
+ * Только синхронизация hero ↔ homeFaction.
+ * Раньше «угадывание» расы по картам кейса само меняло оракула
+ * (смерть → ад) — убрано.
+ */
 function repairOracleRace(owned: OwnedState): OwnedState {
   const blankOnboarding =
     !owned.homeFaction &&
@@ -334,9 +294,8 @@ function repairOracleRace(owned: OwnedState): OwnedState {
     (owned.level ?? 1) <= 1;
   if (blankOnboarding) return owned;
 
-  const inferred = inferFactionFromCards(owned);
   const heroF = currentHeroFaction(owned);
-  const faction = inferred ?? owned.homeFaction ?? heroF;
+  const faction = owned.homeFaction ?? heroF;
   const heroId = heroIdForFaction(owned, faction);
   if (
     owned.heroId === heroId &&
@@ -754,11 +713,14 @@ export function homeFactionOf(owned: OwnedState): Faction {
   return owned.homeFaction ?? fromHero;
 }
 
-/** Можно ли поставить этого оракула (своя фракция + открыт). */
+/** Можно ли поставить этого оракула (открыт; эпик — только своей фракции). */
 export function canSelectHero(owned: OwnedState, heroId: string): boolean {
   if (!isHeroUnlocked(owned, heroId)) return false;
   try {
-    return getHero(heroId).faction === homeFactionOf(owned);
+    const hero = getHero(heroId);
+    // Базовые — всегда (восстановление после бага смены расы / смена дома).
+    if (hero.tier === "base") return true;
+    return hero.faction === homeFactionOf(owned);
   } catch {
     return false;
   }
@@ -769,9 +731,16 @@ export function setHero(owned: OwnedState, heroId: string): OwnedState {
   const hero = getHero(heroId);
   const equippedF = currentHeroFaction(owned);
   const home = owned.homeFaction;
-  // Фракцию после создания не меняем — только если home совпадает с надетым оракулом.
-  // Если homeFaction врёт (смерть качали, в сейве вдруг nature) — не блокируем ремонт.
-  if (home && hero.faction !== home && equippedF === home) return owned;
+  // Эпик чужой фракции нельзя. Базового оракула другой школы — можно
+  // (иначе после бага «смерть→ад» игрок навсегда заперт в аде).
+  if (
+    home &&
+    hero.faction !== home &&
+    equippedF === home &&
+    hero.tier === "epic"
+  ) {
+    return owned;
+  }
   // Меняем расовый старт; купленное сохраняем. Чужие бесплатные старты — выкидываем.
   const unlocked = rebuildUnlocked(heroId, owned.unlocked, owned.purchased);
   let collection = scrubCollectionForHero(

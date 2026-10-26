@@ -120,13 +120,22 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
       ...(serverOwned?.unlockedHeroes ?? []),
     ]),
   ];
-  const heroId =
-    local.heroId && local.heroId !== "hero_life"
-      ? local.heroId
-      : (user.heroId ??
-        serverOwned?.heroId ??
-        local.heroId ??
-        "hero_life");
+  const serverHero =
+    user.heroId ?? serverOwned?.heroId ?? null;
+  const localHero = local.heroId ?? null;
+  // Локальный сейв главнее, НО если раса разошлась с аккаунтом на сервере —
+  // это след бага «угадай расу по кейсу»; тогда верим серверу/аккаунту.
+  let heroId =
+    localHero && localHero !== "hero_life"
+      ? localHero
+      : (serverHero ?? localHero ?? "hero_life");
+  if (
+    serverHero &&
+    localHero &&
+    getHeroSafeFaction(serverHero) !== getHeroSafeFaction(localHero)
+  ) {
+    heroId = serverHero;
+  }
   const homeFaction = getHeroSafeFaction(heroId);
   const merged: OwnedState = {
     ...local,
@@ -152,7 +161,6 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
     purchased: local.purchased,
   };
   const next = setHero(merged, heroId);
-  // Миграция 250→500 могла уже пройти в loadOwned; max с сервером сохраняем.
   saveOwned(next);
   return next;
 }
