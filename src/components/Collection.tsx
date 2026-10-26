@@ -621,7 +621,8 @@ export function Collection({ owned, onChange, onBack, forcedTab }: Props) {
           <section className="currency-panel">
             <h2>Купить 💎</h2>
             <p className="hint">
-              Алмазы — за «реальные» деньги (пока демо без оплаты).
+              Алмазы за реальные деньги — витрина. Оплата ещё не подключена:
+              нажатие пакет не выдаёт.
             </p>
             <div className="pack-grid">
               {DIAMOND_PACKS.map((pack) => (
@@ -630,8 +631,10 @@ export function Collection({ owned, onChange, onBack, forcedTab }: Props) {
                   type="button"
                   className="pack-card"
                   onClick={() => {
-                    onChange(buyDiamondPack(owned, pack.id));
-                    say(`+${pack.diamonds}💎 · ${pack.title}`);
+                    buyDiamondPack(owned, pack.id);
+                    say(
+                      `«${pack.title}» · ${pack.priceLabel} — оплата скоро, сейчас 💎 не начисляем`,
+                    );
                   }}
                 >
                   <strong>{pack.title}</strong>

@@ -52,6 +52,8 @@ const CASE_WIPE_FLAG = "arcane-duel-case-wipe-v4";
 const COPIES_FLAG = "arcane-duel-copies-v3";
 /** Одноразово: старый старт 250🪙 → минимум 500🪙 / 25💎. */
 const WALLET_V2_FLAG = "orakul-start-wallet-v2";
+/** Одноразово: откат бесплатных демо-пакетов 💎 у ранних аккаунтов. */
+const WALLET_V3_FLAG = "orakul-wallet-pack-fix-v1";
 
 /** Подарок новичку: хватает на пару покупок, не на всю мету. */
 export const START_GOLD = 500;
@@ -71,6 +73,36 @@ function applyStartWalletV2(owned: OwnedState): OwnedState {
     return owned;
   }
   return { ...owned, gold, diamonds };
+}
+
+/**
+ * Демо-кнопки «купить 💎» раньше сыпали пакеты без оплаты.
+ * У ранних игроков с раздутым кошельком — вернуть честный старт + апы.
+ */
+function applyWalletPackFix(owned: OwnedState): OwnedState {
+  try {
+    if (localStorage.getItem(WALLET_V3_FLAG) === "1") return owned;
+    localStorage.setItem(WALLET_V3_FLAG, "1");
+  } catch {
+    return owned;
+  }
+  const level = Math.max(1, Math.floor(owned.level ?? 1));
+  const dia = Number(owned.diamonds) || 0;
+  const gold = Number(owned.gold) || 0;
+  // Старт 25 + апы по 1; всё что ≥60 (минимальный пакет) на раннем уровне — мусор демо
+  const fairDia = START_DIAMONDS + Math.max(0, level - 1);
+  const fairGold = START_GOLD + Math.max(0, level - 1) * 50;
+  if (level > 12 && dia < 80) return owned;
+  if (dia < 60 && gold <= fairGold + 400) return owned;
+  return {
+    ...owned,
+    diamonds: Math.min(dia, fairDia),
+    gold: Math.min(gold, Math.max(fairGold, START_GOLD)),
+  };
+}
+
+function applyWalletMigrations(owned: OwnedState): OwnedState {
+  return applyWalletPackFix(applyStartWalletV2(owned));
 }
 
 function starterIds(heroId: string): string[] {
@@ -360,7 +392,7 @@ export function loadOwned(): OwnedState {
           };
           localStorage.setItem(CASE_WIPE_FLAG, "1");
           localStorage.setItem(COPIES_FLAG, "1");
-          const repaired = applyStartWalletV2(repairOracleRace(next));
+          const repaired = applyWalletMigrations(repairOracleRace(next));
           saveOwned(repaired);
           return repaired;
         }
@@ -397,7 +429,7 @@ export function loadOwned(): OwnedState {
             next.collection,
           );
         }
-        const repaired = applyStartWalletV2(repairOracleRace(next));
+        const repaired = applyWalletMigrations(repairOracleRace(next));
         saveOwned(repaired);
         return repaired;
       }
@@ -405,11 +437,12 @@ export function loadOwned(): OwnedState {
   } catch {
     /* ignore */
   }
-  const fresh = applyStartWalletV2(freshOwned());
+  const fresh = applyWalletMigrations(freshOwned());
   localStorage.setItem(CASE_WIPE_FLAG, "1");
   localStorage.setItem(COPIES_FLAG, "1");
   try {
     localStorage.setItem(WALLET_V2_FLAG, "1");
+    localStorage.setItem(WALLET_V3_FLAG, "1");
   } catch {
     /* ignore */
   }
@@ -493,18 +526,15 @@ export function buyCardWithDiamonds(
   return next;
 }
 
+/**
+ * Пакеты 💎 — витрина донат-магазина.
+ * Пока оплаты нет: ничего не выдаём (раньше демо сыпало алмазы бесплатно).
+ */
 export function buyDiamondPack(
   owned: OwnedState,
-  packId: string,
+  _packId: string,
 ): OwnedState {
-  const pack = DIAMOND_PACK_MAP[packId];
-  if (!pack) return owned;
-  const next: OwnedState = {
-    ...owned,
-    diamonds: (owned.diamonds ?? 0) + pack.diamonds,
-  };
-  saveOwned(next);
-  return next;
+  return owned;
 }
 
 export function exchangeDiamondsForGold(
