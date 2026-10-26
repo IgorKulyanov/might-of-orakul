@@ -2090,10 +2090,13 @@ button {
   .board-lane-center {
     grid-column: 1;
     grid-row: 1;
+    justify-self: center;
     flex-direction: column;
+    justify-content: center;
     align-items: center;
     gap: 0.28rem;
     width: 100%;
+    max-width: 100%;
   }
 
   .board-lane-side.right {
@@ -2122,12 +2125,14 @@ button {
     gap: 0.28rem;
   }
 
-  .board-lane-center .row {
+  .board-lane-center .row,
+  .board-lane-main > .row {
     order: 1;
     gap: clamp(0.12rem, 1.1vw, 0.28rem);
     width: max-content;
     max-width: 100%;
     margin: 0 auto;
+    justify-self: center;
   }
 
   .battle .end-turn-btn,

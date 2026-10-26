@@ -1653,68 +1653,72 @@ export function Battle({
           </div>
           <div className="board-lane-main">
             <div className="board-lane-side left" aria-hidden />
-            <div className={`row enemy-row ${phase === "enemy" ? "row-active" : ""}`}>
-              {state.enemy.slots.map((s, i) => {
-                const anim = enemyFx(i);
-                return (
-                  <div key={`eslot-${i}`} className="board-slot">
-                    {s ? (
-                      <BoardCard
-                        key={s.uid}
-                        creature={s}
-                        selected={
-                          !busy &&
-                          spellMode === "marionette" &&
-                          marionettePuppet === i
-                        }
-                        targetable={
-                          (!busy && attackTargets.has(String(i))) ||
-                          (!busy && spellMode === "enemy") ||
-                          (!busy && spellMode === "marionette") ||
-                          (!busy &&
-                            mermaidReady &&
+            <div className="board-lane-center">
+              <div
+                className={`row enemy-row ${phase === "enemy" ? "row-active" : ""}`}
+              >
+                {state.enemy.slots.map((s, i) => {
+                  const anim = enemyFx(i);
+                  return (
+                    <div key={`eslot-${i}`} className="board-slot">
+                      {s ? (
+                        <BoardCard
+                          key={s.uid}
+                          creature={s}
+                          selected={
+                            !busy &&
+                            spellMode === "marionette" &&
+                            marionettePuppet === i
+                          }
+                          targetable={
+                            (!busy && attackTargets.has(String(i))) ||
+                            (!busy && spellMode === "enemy") ||
+                            (!busy && spellMode === "marionette") ||
+                            (!busy &&
+                              mermaidReady &&
+                              state.selectedSlot != null &&
+                              i !== state.selectedSlot &&
+                              !isFemaleWarrior(s.cardId)) ||
+                            (!busy &&
+                              succubusReady &&
+                              state.selectedSlot != null &&
+                              i !== state.selectedSlot &&
+                              creatureGender(s.cardId) === "male") ||
+                            (!busy &&
+                              bansheeReady &&
+                              state.selectedSlot != null &&
+                              i !== state.selectedSlot) ||
+                            (!busy && balthazarReady && !!s) ||
+                            (!busy && balthSwapFrom != null && !!s)
+                          }
+                          lunge={anim.lunge}
+                          hit={anim.hit}
+                          playIn={false}
+                          heal={anim.heal}
+                          onClick={() => onEnemySlot(i)}
+                        />
+                      ) : (
+                        <EmptySlot
+                          label={
+                            !busy &&
                             state.selectedSlot != null &&
-                            i !== state.selectedSlot &&
-                            !isFemaleWarrior(s.cardId)) ||
-                          (!busy &&
-                            succubusReady &&
-                            state.selectedSlot != null &&
-                            i !== state.selectedSlot &&
-                            creatureGender(s.cardId) === "male") ||
-                          (!busy &&
-                            bansheeReady &&
-                            state.selectedSlot != null &&
-                            i !== state.selectedSlot) ||
-                          (!busy && balthazarReady && !!s) ||
-                          (!busy && balthSwapFrom != null && !!s)
-                        }
-                        lunge={anim.lunge}
-                        hit={anim.hit}
-                        playIn={false}
-                        heal={anim.heal}
-                        onClick={() => onEnemySlot(i)}
-                      />
-                    ) : (
-                      <EmptySlot
-                        label={
-                          !busy &&
-                          state.selectedSlot != null &&
-                          attackTargets.has("hero")
-                            ? "👤"
-                            : "·"
-                        }
-                        highlight={
-                          (!busy && spellMode === "enemy") ||
-                          (!busy &&
-                            state.selectedSlot != null &&
-                            attackTargets.has("hero"))
-                        }
-                        onClick={() => onEnemySlot(i)}
-                      />
-                    )}
-                  </div>
-                );
-              })}
+                            attackTargets.has("hero")
+                              ? "👤"
+                              : "·"
+                          }
+                          highlight={
+                            (!busy && spellMode === "enemy") ||
+                            (!busy &&
+                              state.selectedSlot != null &&
+                              attackTargets.has("hero"))
+                          }
+                          onClick={() => onEnemySlot(i)}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
             <div className="board-lane-side right">
               {renderLinger(state.enemy.activeSpells, "enemy")}
