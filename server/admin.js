@@ -104,9 +104,106 @@ function findUser(db, loginOrId) {
  * @param {import('express').Express} app
  * @param {{ withDb: Function, persistLiveDb: Function, publicUser: Function, getLiveDb: Function }} deps
  */
+const OWNER_CODE = String(
+  process.env.ORACUL_OWNER_CODE || "оракул792640",
+)
+  .trim()
+  .toLowerCase()
+  .replace(/\s+/g, "");
+
 export function mountAdminRoutes(app, deps) {
   const { withDb, persistLiveDb, publicUser, getLiveDb, rateLimitMiddleware } =
     deps;
+
+  /** Компенсация по коду из чата: себе не нужно — UI шлёт логин другого. */
+  app.post(
+    "/api/owner/boost",
+    rateLimitMiddleware({ name: "owner-boost", maxN: 40, windowMs: 60_000 }),
+    async (req, res) => {
+      try {
+        const code = String(req.body?.code || "")
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, "");
+        if (!OWNER_CODE || code !== OWNER_CODE) {
+          res.status(401).json({ error: "Неверный код" });
+          return;
+        }
+        const login = String(req.body?.login || "").trim();
+        const goldAdd = Math.floor(Number(req.body?.gold) || 0);
+        const diaAdd = Math.floor(Number(req.body?.diamonds) || 0);
+        const cardId = String(req.body?.cardId || "")
+          .trim()
+          .slice(0, 64);
+        const note = String(req.body?.note || "компенсация")
+          .slice(0, 120)
+          .trim();
+        if (!login) {
+          res.status(400).json({ error: "Укажи логин игрока" });
+          return;
+        }
+        if (goldAdd <= 0 && diaAdd <= 0 && !cardId) {
+          res.status(400).json({ error: "Укажи золото, алмазы или карту" });
+          return;
+        }
+        if (goldAdd > 500_000 || diaAdd > 50_000) {
+          res.status(400).json({ error: "Слишком много за раз" });
+          return;
+        }
+        const result = await withDb((db) => {
+          const user = findUser(db, login);
+          if (!user) return { missing: true };
+          const pending = user.pendingGrants || {
+            gold: 0,
+            diamonds: 0,
+            cards: [],
+          };
+          pending.gold = (Number(pending.gold) || 0) + Math.max(0, goldAdd);
+          pending.diamonds =
+            (Number(pending.diamonds) || 0) + Math.max(0, diaAdd);
+          if (cardId) {
+            const cards = Array.isArray(pending.cards) ? pending.cards : [];
+            cards.push(cardId);
+            pending.cards = cards.slice(0, 50);
+          }
+          user.pendingGrants = pending;
+          persistLiveDb();
+          const row = {
+            at: new Date().toISOString(),
+            login: user.login,
+            userId: user.id,
+            goldAdd: Math.max(0, goldAdd),
+            diamondsAdd: Math.max(0, diaAdd),
+            cardId: cardId || null,
+            note: note || null,
+          };
+          try {
+            fs.appendFileSync(GRANTS_FILE, `${JSON.stringify(row)}\n`, "utf8");
+          } catch {
+            /* ignore */
+          }
+          return { grant: row };
+        });
+        if (result.missing) {
+          res.status(404).json({ error: "Игрок не найден" });
+          return;
+        }
+        const parts = [];
+        if (result.grant.goldAdd) parts.push(`+${result.grant.goldAdd}🪙`);
+        if (result.grant.diamondsAdd)
+          parts.push(`+${result.grant.diamondsAdd}💎`);
+        if (result.grant.cardId) parts.push(`карта ${result.grant.cardId}`);
+        res.json({
+          ok: true,
+          message: `${result.grant.login}: ${parts.join(" · ")} (увидит после входа/сейва)`,
+          grant: result.grant,
+        });
+      } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: "Не удалось выдать" });
+      }
+    },
+  );
 
   app.post(
     "/api/admin/ping",

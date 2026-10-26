@@ -50,13 +50,18 @@ function flushPendingGrants(user) {
   if (!user?.pendingGrants) return;
   const g = Math.max(0, Math.floor(Number(user.pendingGrants.gold) || 0));
   const d = Math.max(0, Math.floor(Number(user.pendingGrants.diamonds) || 0));
-  if (g <= 0 && d <= 0) {
-    user.pendingGrants = { gold: 0, diamonds: 0 };
+  const cards = Array.isArray(user.pendingGrants.cards)
+    ? user.pendingGrants.cards.map((c) => String(c).slice(0, 64)).filter(Boolean)
+    : [];
+  if (g <= 0 && d <= 0 && cards.length === 0) {
+    user.pendingGrants = { gold: 0, diamonds: 0, cards: [] };
     return;
   }
   if (!user.owned || typeof user.owned !== "object") {
     user.owned = {
       unlocked: [],
+      purchased: [],
+      collection: {},
       decks: {},
       activeDeckId: "main",
       gold: 0,
@@ -73,7 +78,28 @@ function flushPendingGrants(user) {
     100_000,
     Math.max(0, (Number(user.owned.diamonds) || 0) + d),
   );
-  user.pendingGrants = { gold: 0, diamonds: 0 };
+  if (cards.length > 0) {
+    const unlocked = new Set(
+      Array.isArray(user.owned.unlocked) ? user.owned.unlocked : [],
+    );
+    const purchased = new Set(
+      Array.isArray(user.owned.purchased) ? user.owned.purchased : [],
+    );
+    const collection =
+      user.owned.collection && typeof user.owned.collection === "object"
+        ? { ...user.owned.collection }
+        : {};
+    for (const id of cards) {
+      unlocked.add(id);
+      purchased.add(id);
+      const have = Math.max(0, Math.floor(Number(collection[id]) || 0));
+      collection[id] = Math.min(3, have + 1);
+    }
+    user.owned.unlocked = [...unlocked].slice(0, 500);
+    user.owned.purchased = [...purchased].slice(0, 500);
+    user.owned.collection = collection;
+  }
+  user.pendingGrants = { gold: 0, diamonds: 0, cards: [] };
 }
 const MAX_BACKUPS = 20;
 /** Не плодить бэкап на каждый клик — иначе 1000 входов = 1000 копий и тормоз. */

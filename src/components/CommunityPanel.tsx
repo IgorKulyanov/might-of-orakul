@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { apiFeedback } from "../game/api";
 import { LobbyChatSocket, type ChatMessage } from "../game/chatClient";
+import { isOwnerBoostCode } from "../game/ownerCode";
 import { getToken } from "../game/session";
 
 type Tab = "chat" | "feedback";
-
-/** Секрет в чате → меню компенсации (не уходит в общий чат). */
-const OWNER_BOOST_CODES = new Set(["оракул792640"]);
 
 type Props = {
   open: boolean;
@@ -85,8 +83,7 @@ export function CommunityPanel({
   const sendChat = () => {
     const t = draft.trim();
     if (!t) return;
-    const code = t.toLowerCase().replace(/\s+/g, "");
-    if (OWNER_BOOST_CODES.has(code) && onOwnerBoostCode) {
+    if (isOwnerBoostCode(t) && onOwnerBoostCode) {
       setDraft("");
       setStatus(null);
       onClose();

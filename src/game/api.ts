@@ -236,4 +236,18 @@ export function apiAdminGrant(
   });
 }
 
+export function apiOwnerBoost(body: {
+  code: string;
+  login: string;
+  gold?: number;
+  diamonds?: number;
+  cardId?: string;
+  note?: string;
+}) {
+  return request<{ ok: boolean; message: string }>("/api/owner/boost", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export { API_URL };

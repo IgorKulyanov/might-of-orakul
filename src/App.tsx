@@ -137,6 +137,27 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
     heroId = serverHero;
   }
   const homeFaction = getHeroSafeFaction(heroId);
+  const collection = { ...(local.collection ?? {}) };
+  if (serverOwned?.collection && typeof serverOwned.collection === "object") {
+    for (const [id, n] of Object.entries(serverOwned.collection)) {
+      const a = Math.max(0, Math.floor(Number(collection[id]) || 0));
+      const b = Math.max(0, Math.floor(Number(n) || 0));
+      collection[id] = Math.max(a, b);
+    }
+  }
+  const unlocked = [
+    ...new Set([
+      ...(local.unlocked ?? []),
+      ...(serverOwned?.unlocked ?? []),
+      ...Object.keys(collection),
+    ]),
+  ];
+  const purchased = [
+    ...new Set([
+      ...(local.purchased ?? []),
+      ...(serverOwned?.purchased ?? []),
+    ]),
+  ];
   const merged: OwnedState = {
     ...local,
     // max: админ-гранты с сервера + локальный прогресс не теряем
@@ -155,10 +176,11 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
     heroId,
     homeFaction,
     unlockedHeroes,
-    unlocked: local.unlocked,
+    unlocked,
+    purchased,
+    collection,
     decks: local.decks,
     activeDeckId: local.activeDeckId ?? "starter",
-    purchased: local.purchased,
   };
   const next = setHero(merged, heroId);
   saveOwned(next);
