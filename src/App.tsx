@@ -152,6 +152,7 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
     purchased: local.purchased,
   };
   const next = setHero(merged, heroId);
+  // Миграция 250→500 могла уже пройти в loadOwned; max с сервером сохраняем.
   saveOwned(next);
   return next;
 }

@@ -50,10 +50,28 @@ const LEGACY_KEYS = [
 const CASE_WIPE_FLAG = "arcane-duel-case-wipe-v4";
 /** Одноразово: копии + старт из 4 карт (v3). */
 const COPIES_FLAG = "arcane-duel-copies-v3";
+/** Одноразово: старый старт 250🪙 → минимум 500🪙 / 25💎. */
+const WALLET_V2_FLAG = "orakul-start-wallet-v2";
 
 /** Подарок новичку: хватает на пару покупок, не на всю мету. */
-const START_GOLD = 500;
-const START_DIAMONDS = 25;
+export const START_GOLD = 500;
+export const START_DIAMONDS = 25;
+
+/** Догнать сейв до нового стартового кошелька (один раз). */
+function applyStartWalletV2(owned: OwnedState): OwnedState {
+  try {
+    if (localStorage.getItem(WALLET_V2_FLAG) === "1") return owned;
+    localStorage.setItem(WALLET_V2_FLAG, "1");
+  } catch {
+    return owned;
+  }
+  const gold = Math.max(Number(owned.gold) || 0, START_GOLD);
+  const diamonds = Math.max(Number(owned.diamonds) || 0, START_DIAMONDS);
+  if (gold === (owned.gold ?? 0) && diamonds === (owned.diamonds ?? 0)) {
+    return owned;
+  }
+  return { ...owned, gold, diamonds };
+}
 
 function starterIds(heroId: string): string[] {
   const faction = getHero(heroId).faction;
@@ -342,7 +360,7 @@ export function loadOwned(): OwnedState {
           };
           localStorage.setItem(CASE_WIPE_FLAG, "1");
           localStorage.setItem(COPIES_FLAG, "1");
-          const repaired = repairOracleRace(next);
+          const repaired = applyStartWalletV2(repairOracleRace(next));
           saveOwned(repaired);
           return repaired;
         }
@@ -379,7 +397,7 @@ export function loadOwned(): OwnedState {
             next.collection,
           );
         }
-        const repaired = repairOracleRace(next);
+        const repaired = applyStartWalletV2(repairOracleRace(next));
         saveOwned(repaired);
         return repaired;
       }
@@ -387,9 +405,14 @@ export function loadOwned(): OwnedState {
   } catch {
     /* ignore */
   }
-  const fresh = freshOwned();
+  const fresh = applyStartWalletV2(freshOwned());
   localStorage.setItem(CASE_WIPE_FLAG, "1");
   localStorage.setItem(COPIES_FLAG, "1");
+  try {
+    localStorage.setItem(WALLET_V2_FLAG, "1");
+  } catch {
+    /* ignore */
+  }
   saveOwned(fresh);
   return fresh;
 }
