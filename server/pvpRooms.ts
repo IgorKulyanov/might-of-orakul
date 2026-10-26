@@ -1,4 +1,4 @@
-import type { IncomingMessage, Server as HttpServer } from "node:http";
+import type { IncomingMessage } from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
 import { CARD_MAP } from "../src/game/cards.ts";
 import {
@@ -353,13 +353,10 @@ function gcRooms() {
 
 setInterval(gcRooms, 60_000).unref?.();
 
-export function attachPvp(
-  server: HttpServer,
-  authLookup: AuthLookup,
-): WebSocketServer {
+export function attachPvp(authLookup: AuthLookup): WebSocketServer {
+  // noServer: два WS на одном HTTP иначе бьются (чат ловил 400, PvP жил).
   const wss = new WebSocketServer({
-    server,
-    path: "/ws/pvp",
+    noServer: true,
     maxPayload: MAX_MSG_BYTES,
   });
 

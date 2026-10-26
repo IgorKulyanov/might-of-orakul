@@ -45,13 +45,34 @@ const authUser = (token: string) => {
   }
 };
 
-attachPvp(server, (token) => {
+const wssPvp = attachPvp((token) => {
   const u = authUser(token);
   if (!u) return null;
   return { id: u.id, login: u.login };
 });
 
-attachLobbyChat(server, authUser);
+const wssChat = attachLobbyChat(authUser);
+
+server.on("upgrade", (req, socket, head) => {
+  try {
+    const pathname = new URL(req.url || "/", "http://localhost").pathname;
+    if (pathname === "/ws/pvp") {
+      wssPvp.handleUpgrade(req, socket, head, (ws) => {
+        wssPvp.emit("connection", ws, req);
+      });
+      return;
+    }
+    if (pathname === "/ws/chat") {
+      wssChat.handleUpgrade(req, socket, head, (ws) => {
+        wssChat.emit("connection", ws, req);
+      });
+      return;
+    }
+  } catch (e) {
+    console.error("[orakul] ws upgrade:", e);
+  }
+  socket.destroy();
+});
 
 function tryListen(retriesLeft: number) {
   const onErr = (err: NodeJS.ErrnoException) => {

@@ -1,4 +1,4 @@
-import type { IncomingMessage, Server as HttpServer } from "node:http";
+import type { IncomingMessage } from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -162,13 +162,10 @@ export function pruneChatLog() {
 
 loadHistory();
 
-export function attachLobbyChat(
-  server: HttpServer,
-  authLookup: AuthLookup,
-): WebSocketServer {
+export function attachLobbyChat(authLookup: AuthLookup): WebSocketServer {
+  // noServer: общий upgrade-роутер в main.ts (иначе конфликт с /ws/pvp).
   const wss = new WebSocketServer({
-    server,
-    path: "/ws/chat",
+    noServer: true,
     maxPayload: 4096,
   });
 
