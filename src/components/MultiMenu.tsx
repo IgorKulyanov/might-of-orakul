@@ -229,30 +229,33 @@ export function MultiMenu({
   }
 
   return (
-    <div className="multi-screen" aria-label="Мультибои">
+    <div className="multi-screen" aria-label="Одиночный бой">
       <header className="page-bar">
         <button type="button" className="ghost" onClick={onBack}>
           ← Меню
         </button>
-        <h1>Мультибои</h1>
+        <h1>Одиночный бой</h1>
         <span />
       </header>
 
       <div className="multi-panel">
         <p className="hint">
-          Живой бой с другом: создай комнату, скинь код. Оба жмите «Готов».
-          Награды за дуэль выше, чем с ботом (больше XP и золота). Ход —
-          20 секунд; 5 пропусков = поражение; выход = сдача. Пока никого нет —
-          можно бить бота (±1 уровень).
+          Быстрый бой с ботом (±1 к твоему уровню) или дуэль с другом по коду.
+          В PvP награды выше; ход 20 сек, 5 пропусков = поражение, выход =
+          сдача.
         </p>
+
+        <button type="button" className="primary large" onClick={onFightBot}>
+          Бой с ботом (ур. ~{Math.min(50, playerLevel + 1)})
+        </button>
 
         <button
           type="button"
-          className="primary large"
+          className="ghost large"
           disabled={busy}
           onClick={() => enterRoom(randomCode())}
         >
-          Создать комнату
+          Создать комнату (PvP)
         </button>
 
         <label>
@@ -271,10 +274,6 @@ export function MultiMenu({
           onClick={() => enterRoom(code.trim())}
         >
           Войти по коду
-        </button>
-
-        <button type="button" className="ghost large" onClick={onFightBot}>
-          Бой с ботом (ур. ~{Math.min(50, playerLevel + 1)})
         </button>
 
         {message && <p className="hint">{message}</p>}

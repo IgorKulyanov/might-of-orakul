@@ -271,15 +271,15 @@ export function SplashMenu({
         <div className="splash-actions" data-panel={panel}>
           {panel === "root" ? (
             <>
+              <button type="button" className="primary large" onClick={onMulti}>
+                Одиночный бой
+              </button>
               <button
                 type="button"
-                className="primary large"
+                className="ghost large"
                 onClick={() => setPanel("solo")}
               >
-                Одиночная игра
-              </button>
-              <button type="button" className="ghost large" onClick={onMulti}>
-                Мультибои
+                Одиночная кампания
               </button>
               <button
                 type="button"
