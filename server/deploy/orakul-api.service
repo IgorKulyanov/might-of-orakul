@@ -8,7 +8,8 @@ WorkingDirectory=/opt/orakul/server
 Environment=NODE_ENV=production
 Environment=PORT=8787
 Environment=ORACUL_DATA_DIR=/var/lib/orakul/data
-ExecStart=/usr/bin/npm start
+Environment=PATH=/opt/orakul/server/node_modules/.bin:/usr/bin:/bin
+ExecStart=/usr/bin/npx tsx main.ts
 Restart=always
 RestartSec=3
 # Не даём процессу молча сдохнуть при OOM на мелком VPS
