@@ -13,7 +13,12 @@ import {
   normalizeArena,
 } from "./arena";
 import { applyArenaRules, type ArenaModId } from "./battleRules";
-import { botDeckForLevel, botHeroIdFor, botLevelNear } from "./botDeck";
+import {
+  botDeckForLevel,
+  botHeroIdFor,
+  botLevelNear,
+  maxTierForLevel,
+} from "./botDeck";
 import {
   applyCampaignLoss,
   applyCampaignWin,
@@ -303,6 +308,18 @@ export function campaignAll(fails: QaFail[], ok: string[]): void {
     const b = campaignFoeLevel(10, 15);
     if (b <= a) return `кривая ${a}…${b}`;
     if (b > 50) return "уровень бота > 50";
+    return null;
+  });
+
+  check("early bot stays on tier I", () => {
+    for (const lv of [1, 2, 5, 7] as const) {
+      const maxT = maxTierForLevel(lv);
+      const deck = botDeckForLevel(lv, "water");
+      const foul = deck.find((id) => (getCard(id).unitLevel ?? 1) > maxT);
+      if (foul) {
+        return `ур.${lv}: ${getCard(foul).name} T${getCard(foul).unitLevel}`;
+      }
+    }
     return null;
   });
 

@@ -145,18 +145,18 @@ export function canFightNode(state: CampaignState, node: number): boolean {
 }
 
 /**
- * Уровень бота на узле: под уровень игрока, но кривая жестокая.
- * Узел 1 ≈ игрок−1; узел 15 ≈ игрок+22 (кап 50) — пройти все адски сложно.
+ * Уровень бота на узле: первые бои обучающие, дальше кривая жёстче.
+ * Узел 1–3 ≈ игрок / чуть ниже; узел 15 ≈ игрок+20 (кап 50).
  */
 export function campaignFoeLevel(playerLevel: number, node: number): number {
   const lv = Math.max(1, Math.min(MAX_PLAYER_LEVEL, playerLevel));
   const n = Math.max(1, Math.min(CAMPAIGN_NODES, node));
-  /** Смещение сложности по узлу 1…15 */
+  /** Смещение: узлы 1–3 обучающие (≤ игрок), дальше разгон */
   const offset = [
-    -1, 0, 1, 2, 3, 5, 6, 8, 10, 12, 14, 16, 18, 20, 22,
+    -1, -1, -1, 0, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 20,
   ][n - 1]!;
   /** Шипы на вехах */
-  const spike = n === 5 ? 1 : n === 10 ? 2 : n === 15 ? 4 : 0;
+  const spike = n === 5 ? 1 : n === 10 ? 2 : n === 15 ? 3 : 0;
   return Math.max(1, Math.min(MAX_PLAYER_LEVEL, lv + offset + spike));
 }
 

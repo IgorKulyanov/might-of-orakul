@@ -179,7 +179,8 @@ export function CampaignMap({
             <p className="hint">
               Уровень врага ≈{" "}
               <strong>{campaignFoeLevel(level, previewNode)}</strong> (ты ур.{" "}
-              {level}). Чем дальше по тропе — тем жёстче колода и оракул.
+              {level}). Первые бои — разминка на картах твоего тира; дальше
+              колода и оракул становятся жёстче.
             </p>
             <p className="hint">
               За бой — только опыт. Золото и алмазы на квадратах{" "}

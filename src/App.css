@@ -2006,6 +2006,260 @@ button {
   }
 }
 
+/* —— Battle: телефон — десктоп выше не трогаем —— */
+@media (max-width: 720px) {
+  .battle {
+    --board-card-w: min(72px, calc((100vw - 1.4rem) / 5.45));
+    --board-card-h: calc(var(--board-card-w) * 1.5);
+    --hand-card-w: min(64px, calc((100vw - 1.2rem) / 7.35));
+    --hand-card-h: calc(var(--hand-card-w) * 1.5);
+    --linger-card-w: min(48px, 13vw);
+    --linger-card-h: calc(var(--linger-card-w) * 1.5);
+    --battle-footer-h: auto;
+    width: 100%;
+    max-width: 100vw;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    gap: 0.12rem;
+    padding: 0.2rem 0.28rem 0.22rem;
+    overflow-x: hidden;
+  }
+
+  .battle-bar {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .battle-bar-right {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.2rem;
+  }
+
+  .turn-pill,
+  .blood-frenzy-pill,
+  .pvp-timer-pill {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.4rem;
+  }
+
+  .pvp-timer-pill .pvp-timer-afk {
+    display: none;
+  }
+
+  .battle-hint-row {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    gap: 0.15rem;
+    padding: 0;
+  }
+
+  .battle .battle-log {
+    display: none;
+  }
+
+  .battle-hint {
+    font-size: 0.68rem;
+    line-height: 1.25;
+    -webkit-line-clamp: 2;
+    padding: 0.28rem 0.4rem;
+    border-radius: 8px;
+    background: rgba(8, 5, 3, 0.55);
+    border: 1px solid rgba(212, 163, 115, 0.18);
+  }
+
+  .board {
+    padding: 0.15rem 0.1rem;
+    gap: 0.2rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .board-lane-main {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    column-gap: 0;
+    row-gap: 0.2rem;
+    min-height: 0;
+  }
+
+  .board-lane-side.left {
+    display: none;
+  }
+
+  .board-lane-center {
+    grid-column: 1;
+    grid-row: 1;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.28rem;
+    width: 100%;
+  }
+
+  .board-lane-side.right {
+    grid-column: 1;
+    grid-row: 2;
+    justify-content: center;
+    min-height: 0;
+  }
+
+  .board-lane-side.right:not(:has(.linger-item)) {
+    display: none;
+  }
+
+  .board-lane-center .turn-actions {
+    position: static;
+    right: auto;
+    top: auto;
+    transform: none;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: stretch;
+    order: 2;
+    width: 100%;
+    max-width: 22rem;
+    gap: 0.28rem;
+  }
+
+  .board-lane-center .row {
+    order: 1;
+    gap: clamp(0.12rem, 1.1vw, 0.28rem);
+    width: max-content;
+    max-width: 100%;
+    margin: 0 auto;
+  }
+
+  .battle .end-turn-btn,
+  .battle .attack-all-btn {
+    min-width: 0;
+    width: auto;
+    flex: 1 1 8rem;
+    max-width: 11rem;
+    padding: 0.48rem 0.5rem;
+    font-size: 0.76rem;
+  }
+
+  .oracle-bar {
+    min-height: 0;
+    padding: 0.08rem 0;
+  }
+
+  .oracle-face {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .battle .hero {
+    min-width: 0;
+    min-height: 0;
+    padding: 0.2rem 0.4rem;
+    font-size: 0.7rem;
+  }
+
+  .battle .hero strong {
+    font-size: 0.75rem;
+  }
+
+  .battle .hero-sub {
+    font-size: 0.62rem;
+  }
+
+  .row-label,
+  .hand-label,
+  .grave-label {
+    font-size: 0.58rem;
+  }
+
+  .battle-footer {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    gap: 0.28rem;
+    padding: 0.1rem 0.1rem 0.05rem;
+    overflow: visible;
+  }
+
+  .hand-zone {
+    order: 1;
+    height: auto;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    justify-items: stretch;
+  }
+
+  .grave-zone {
+    order: 2;
+    height: auto;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    justify-items: stretch;
+  }
+
+  .battle .hand {
+    justify-content: flex-start;
+    justify-items: center;
+    margin: 0;
+    width: max-content;
+    max-width: 100%;
+    gap: 0.22rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .grave-row {
+    overflow-x: auto;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .board .linger-side {
+    height: auto;
+    max-height: none;
+    width: 100%;
+    border-left: none;
+    border-top: 1px dashed rgba(212, 163, 115, 0.28);
+    padding-left: 0;
+    padding-top: 0.2rem;
+    justify-content: center;
+  }
+
+  .linger-cards {
+    justify-content: center;
+    height: auto;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+}
+
+@media (max-width: 420px) {
+  .battle {
+    --board-card-w: min(64px, calc((100vw - 1.1rem) / 5.4));
+    --board-card-h: calc(var(--board-card-w) * 1.5);
+    --hand-card-w: min(56px, calc((100vw - 1rem) / 7.3));
+    --hand-card-h: calc(var(--hand-card-w) * 1.5);
+    --linger-card-w: min(42px, 12vw);
+    --linger-card-h: calc(var(--linger-card-w) * 1.5);
+    padding: 0.15rem 0.2rem 0.18rem;
+  }
+
+  .battle .end-turn-btn,
+  .battle .attack-all-btn {
+    flex: 1 1 7rem;
+    font-size: 0.72rem;
+    padding: 0.42rem 0.4rem;
+  }
+
+  .oracle-face {
+    width: 2.4rem;
+    height: 2.4rem;
+  }
+}
+
 .overlay {
   position: fixed;
   inset: 0;
@@ -4961,5 +5215,421 @@ button {
 
 .hero .orakul-level-badge {
   font-size: 0.68rem;
+}
+
+/* —— Магазин / кабинет: телефон (ПК-сетки выше без изменений) —— */
+@media (max-width: 720px) {
+  .collection,
+  .cabinet {
+    padding: 0.55rem 0.45rem 1rem;
+  }
+
+  .collection .page-bar,
+  .cabinet .page-bar {
+    gap: 0.35rem;
+  }
+
+  .collection h1,
+  .cabinet .page-bar h1 {
+    font-size: 1.05rem;
+  }
+
+  .tabs,
+  .filters {
+    gap: 0.3rem;
+  }
+
+  .tabs .chip,
+  .filters .chip,
+  .tabs button,
+  .filters button {
+    font-size: 0.72rem;
+    padding: 0.28rem 0.45rem;
+  }
+
+  .collection .grid,
+  .deck-pool-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.4rem;
+    margin-top: 0.55rem;
+  }
+
+  .collection .grid-item {
+    gap: 0.28rem;
+    min-width: 0;
+  }
+
+  .collection .grid-item .card {
+    --card-w: min(100px, calc((100vw - 1.4rem) / 3.25));
+    --card-h: calc(var(--card-w) * 1.55);
+    width: var(--card-w);
+    height: var(--card-h);
+  }
+
+  .collection .grid-item .card .card-name {
+    font-size: 0.58rem;
+  }
+
+  .collection .card-live-tag {
+    font-size: 0.58rem;
+    line-height: 1.25;
+  }
+
+  .collection .shop-meta {
+    gap: 0.22rem;
+  }
+
+  .collection .grid-meta button,
+  .collection .shop-meta .primary,
+  .collection .shop-meta .ghost {
+    width: 100%;
+    font-size: 0.65rem;
+    padding: 0.28rem 0.3rem;
+    min-height: 0;
+  }
+
+  .currency-shop {
+    margin: 0.5rem 0.25rem 1rem;
+    gap: 0.85rem;
+  }
+
+  .pack-grid {
+    max-width: none;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+  }
+
+  .pack-card {
+    padding: 0.7rem 0.75rem;
+  }
+
+  .pack-amount {
+    font-size: 1.1rem;
+  }
+
+  .pack-note {
+    font-size: 0.72rem;
+  }
+
+  .cabinet-cards {
+    padding: 0 0.25rem 1.25rem;
+    gap: 0.85rem;
+  }
+
+  .cabinet-zone-deck,
+  .cabinet-zone-case {
+    padding: 0.55rem 0.5rem 0.7rem;
+  }
+
+  .cabinet-card-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.4rem;
+    margin-top: 0.45rem;
+  }
+
+  .cabinet-card-item {
+    padding: 0.3rem;
+    gap: 0.22rem;
+    min-width: 0;
+    justify-items: center;
+  }
+
+  .cabinet-card-item .card.compact {
+    --card-w: min(92px, calc((100vw - 2rem) / 3.35));
+    --card-h: calc(var(--card-w) * 1.5);
+    width: var(--card-w);
+    height: var(--card-h);
+  }
+
+  .cabinet-card-item .card.compact .card-name {
+    font-size: 0.55rem;
+  }
+
+  .cabinet-card-meta {
+    width: 100%;
+    font-size: 0.62rem;
+    gap: 0.1rem;
+    text-align: center;
+  }
+
+  .cabinet-card-meta strong {
+    font-size: 0.68rem;
+    line-height: 1.2;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .cabinet-card-actions {
+    justify-content: center;
+    gap: 0.22rem;
+  }
+
+  .cabinet-card-actions .primary,
+  .cabinet-card-actions .ghost {
+    padding: 0.22rem 0.35rem;
+    font-size: 0.62rem;
+    flex: 1 1 auto;
+  }
+
+  .cabinet-section-head {
+    gap: 0.35rem;
+  }
+
+  .cabinet-section-actions .ghost,
+  .cabinet-section-actions .primary {
+    font-size: 0.68rem;
+    padding: 0.28rem 0.4rem;
+  }
+
+  .cabinet-oracle-showcase,
+  .cabinet-hero-strip,
+  .cabinet-progress {
+    margin-left: 0.25rem;
+    margin-right: 0.25rem;
+  }
+
+  .hero-grid,
+  .hero-grid-lg {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .orakul-portrait-wrap {
+    max-height: 160px;
+  }
+}
+
+@media (max-width: 420px) {
+  .collection .grid,
+  .deck-pool-grid,
+  .cabinet-card-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.3rem;
+  }
+
+  .collection .grid-item .card {
+    --card-w: min(96px, calc((100vw - 1.1rem) / 3.2));
+    --card-h: calc(var(--card-w) * 1.55);
+  }
+
+  .cabinet-card-item .card.compact {
+    --card-w: min(86px, calc((100vw - 1.6rem) / 3.3));
+    --card-h: calc(var(--card-w) * 1.5);
+  }
+
+  .pack-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-grid,
+  .hero-grid-lg {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* —— Весь UI на телефоне: мельче, но влезает (ПК без изменений) —— */
+@media (max-width: 720px) {
+  html {
+    font-size: 13.5px;
+  }
+
+  html,
+  body,
+  #root {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .primary,
+  .ghost,
+  .chip {
+    padding: 0.4rem 0.7rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+  }
+
+  .large {
+    padding: 0.55rem 0.9rem;
+    font-size: 0.92rem;
+  }
+
+  .page-bar,
+  .battle-bar {
+    gap: 0.3rem;
+    flex-wrap: wrap;
+  }
+
+  .page-bar h1,
+  .splash-brand {
+    line-height: 1.15;
+  }
+
+  .splash-content {
+    padding: 0.75rem 0.7rem 1rem;
+  }
+
+  .splash-actions {
+    gap: 0.4rem;
+  }
+
+  .splash-wallet {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.45rem;
+  }
+
+  .modal,
+  .overlay .modal {
+    min-width: 0;
+    width: min(100%, 22rem);
+    max-width: calc(100vw - 1rem);
+    padding: 0.85rem 0.9rem;
+    gap: 0.5rem;
+  }
+
+  .hint {
+    font-size: 0.78rem;
+    line-height: 1.35;
+  }
+
+  /* Бой — ещё плотнее */
+  .battle {
+    --board-card-w: min(62px, calc((100vw - 1.1rem) / 5.55));
+    --board-card-h: calc(var(--board-card-w) * 1.48);
+    --hand-card-w: min(54px, calc((100vw - 1rem) / 7.5));
+    --hand-card-h: calc(var(--hand-card-w) * 1.48);
+    --linger-card-w: min(40px, 11vw);
+    --linger-card-h: calc(var(--linger-card-w) * 1.48);
+    padding: 0.12rem 0.18rem 0.14rem;
+  }
+
+  .battle .end-turn-btn,
+  .battle .attack-all-btn {
+    padding: 0.38rem 0.4rem;
+    font-size: 0.7rem;
+    max-width: 9.5rem;
+  }
+
+  .oracle-face {
+    width: 2.35rem;
+    height: 2.35rem;
+  }
+
+  .battle .hero {
+    padding: 0.15rem 0.32rem;
+    font-size: 0.65rem;
+    min-width: 0;
+  }
+
+  .battle .hero strong {
+    font-size: 0.7rem;
+  }
+
+  /* Магазин / кабинет — 4 в ряд, мельче */
+  .collection .grid,
+  .deck-pool-grid,
+  .cabinet-card-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.28rem;
+  }
+
+  .collection .grid-item .card {
+    --card-w: min(78px, calc((100vw - 1.2rem) / 4.35));
+    --card-h: calc(var(--card-w) * 1.52);
+  }
+
+  .cabinet-card-item .card.compact {
+    --card-w: min(72px, calc((100vw - 1.6rem) / 4.4));
+    --card-h: calc(var(--card-w) * 1.5);
+  }
+
+  .cabinet-card-item {
+    padding: 0.22rem;
+  }
+
+  .cabinet-card-meta,
+  .collection .card-live-tag {
+    font-size: 0.55rem;
+  }
+
+  .cabinet-card-meta strong {
+    font-size: 0.6rem;
+  }
+
+  .cabinet-card-actions .primary,
+  .cabinet-card-actions .ghost,
+  .collection .grid-meta button,
+  .collection .shop-meta .primary,
+  .collection .shop-meta .ghost {
+    font-size: 0.58rem;
+    padding: 0.18rem 0.22rem;
+  }
+
+  .hero-grid,
+  .hero-grid-lg {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+
+  .orakul-portrait-wrap {
+    max-height: 120px;
+  }
+
+  .hero-card,
+  .hero-card-portrait {
+    padding: 0.4rem 0.45rem 0.55rem;
+    min-height: 0;
+  }
+
+  .campaign-screen {
+    padding-bottom: 0.4rem;
+  }
+
+  .campaign-preview-panel {
+    width: min(100%, 22rem);
+    max-width: calc(100vw - 1rem);
+    padding: 0.85rem;
+  }
+
+  .multi-menu,
+  .arena-hub,
+  .auth-screen {
+    padding: 0.55rem 0.55rem 1rem;
+  }
+}
+
+@media (max-width: 420px) {
+  html {
+    font-size: 12.5px;
+  }
+
+  .battle {
+    --board-card-w: min(56px, calc((100vw - 0.9rem) / 5.5));
+    --board-card-h: calc(var(--board-card-w) * 1.48);
+    --hand-card-w: min(48px, calc((100vw - 0.85rem) / 7.45));
+    --hand-card-h: calc(var(--hand-card-w) * 1.48);
+  }
+
+  .collection .grid,
+  .deck-pool-grid,
+  .cabinet-card-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.22rem;
+  }
+
+  .collection .grid-item .card {
+    --card-w: min(72px, calc((100vw - 1rem) / 4.3));
+    --card-h: calc(var(--card-w) * 1.52);
+  }
+
+  .cabinet-card-item .card.compact {
+    --card-w: min(66px, calc((100vw - 1.3rem) / 4.35));
+    --card-h: calc(var(--card-w) * 1.5);
+  }
+
+  .pack-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
