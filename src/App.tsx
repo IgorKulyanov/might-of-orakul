@@ -929,6 +929,8 @@ export default function App() {
           setDevToolsOn(true);
         }}
         onLogout={logout}
+        owned={owned}
+        onOwnedChange={updateOwned}
       />
       {hubTutStep != null && (
         <HubTutorial

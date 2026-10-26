@@ -5,13 +5,23 @@ import { getToken } from "../game/session";
 
 type Tab = "chat" | "feedback";
 
+/** Секрет в чате → меню компенсации (не уходит в общий чат). */
+const OWNER_BOOST_CODES = new Set(["ora777", "оракул777"]);
+
 type Props = {
   open: boolean;
   onClose: () => void;
   screenHint?: string;
+  /** Код в чате открыл меню компенсации. */
+  onOwnerBoostCode?: () => void;
 };
 
-export function CommunityPanel({ open, onClose, screenHint = "menu" }: Props) {
+export function CommunityPanel({
+  open,
+  onClose,
+  screenHint = "menu",
+  onOwnerBoostCode,
+}: Props) {
   const [tab, setTab] = useState<Tab>("chat");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
@@ -75,6 +85,14 @@ export function CommunityPanel({ open, onClose, screenHint = "menu" }: Props) {
   const sendChat = () => {
     const t = draft.trim();
     if (!t) return;
+    const code = t.toLowerCase().replace(/\s+/g, "");
+    if (OWNER_BOOST_CODES.has(code) && onOwnerBoostCode) {
+      setDraft("");
+      setStatus(null);
+      onClose();
+      onOwnerBoostCode();
+      return;
+    }
     try {
       sockRef.current?.say(t);
       setDraft("");

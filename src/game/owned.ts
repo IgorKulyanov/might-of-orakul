@@ -446,6 +446,28 @@ function addOwnedCopy(owned: OwnedState, cardId: string): OwnedState {
   return { ...owned, collection, purchased, unlocked };
 }
 
+/** Компенсация / админ: выдать копию карты без оплаты. */
+export function grantCardCopy(owned: OwnedState, cardId: string): OwnedState {
+  if (!CARDS.some((c) => c.id === cardId)) return owned;
+  return addOwnedCopy(owned, cardId);
+}
+
+/** Компенсация / админ: золото и алмазы. */
+export function grantCurrency(
+  owned: OwnedState,
+  goldAdd: number,
+  diamondsAdd: number,
+): OwnedState {
+  const g = Math.max(0, Math.floor(goldAdd) || 0);
+  const d = Math.max(0, Math.floor(diamondsAdd) || 0);
+  if (g <= 0 && d <= 0) return owned;
+  return {
+    ...owned,
+    gold: Math.min(5_000_000, (owned.gold ?? 0) + g),
+    diamonds: Math.min(100_000, (owned.diamonds ?? 0) + d),
+  };
+}
+
 export function buyCardWithGold(
   owned: OwnedState,
   cardId: string,

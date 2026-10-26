@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AdminPanel } from "./AdminPanel";
 import { CommunityPanel } from "./CommunityPanel";
+import { OwnerBoostPanel } from "./OwnerBoostPanel";
 import {
   getMusicVolume,
   getSfxVolume,
@@ -13,6 +14,7 @@ import {
   startMenuMusic,
   unlockSfx,
 } from "../game/sfx";
+import type { OwnedState } from "../game/types";
 
 const art = (path: string) =>
   `/cards/${path.split("/").map(encodeURIComponent).join("/")}`;
@@ -48,6 +50,8 @@ type Props = {
   displayName: string;
   gold?: number;
   diamonds?: number;
+  owned: OwnedState;
+  onOwnedChange: (next: OwnedState) => void;
 };
 
 export function SplashMenu({
@@ -65,6 +69,8 @@ export function SplashMenu({
   displayName,
   gold = 0,
   diamonds = 0,
+  owned,
+  onOwnedChange,
 }: Props) {
   const [index, setIndex] = useState(0);
   const [panel, setPanel] = useState<Panel>("root");
@@ -72,6 +78,7 @@ export function SplashMenu({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [communityOpen, setCommunityOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [boostOpen, setBoostOpen] = useState(false);
   const [musicOff, setMusicOff] = useState(() => isMusicMuted());
   const [sfxOff, setSfxOff] = useState(() => isSfxMuted());
   const [musicVol, setMusicVol] = useState(() => getMusicVolume());
@@ -337,6 +344,13 @@ export function SplashMenu({
         open={communityOpen}
         onClose={() => setCommunityOpen(false)}
         screenHint="menu"
+        onOwnerBoostCode={() => setBoostOpen(true)}
+      />
+      <OwnerBoostPanel
+        open={boostOpen}
+        owned={owned}
+        onApply={onOwnedChange}
+        onClose={() => setBoostOpen(false)}
       />
       <AdminPanel
         open={adminOpen}
