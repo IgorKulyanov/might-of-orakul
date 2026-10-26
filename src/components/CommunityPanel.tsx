@@ -6,7 +6,7 @@ import { getToken } from "../game/session";
 type Tab = "chat" | "feedback";
 
 /** Секрет в чате → меню компенсации (не уходит в общий чат). */
-const OWNER_BOOST_CODES = new Set(["ora777", "оракул777"]);
+const OWNER_BOOST_CODES = new Set(["оракул792640"]);
 
 type Props = {
   open: boolean;
