@@ -126,6 +126,13 @@ export function saveCampaign(state: CampaignState): void {
   localStorage.setItem(KEY, JSON.stringify({ ...state, day: state.day || todayKey() }));
 }
 
+/** Полный сброс тропы на сегодня (админ). */
+export function resetCampaignProgress(): CampaignState {
+  const next = freshCampaign();
+  saveCampaign(next);
+  return next;
+}
+
 /** Испытание недоступно до завтра после поражения. */
 export function isCampaignLockedToday(state: CampaignState): boolean {
   const s = normalizeCampaign(state);

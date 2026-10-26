@@ -36,7 +36,10 @@ import {
 } from "./game/arena";
 import {
   canEnterPvp,
+  clearPvpFleeLocal,
+  exportPvpFleeForSync,
   recordPvpFlee,
+  syncPvpFleeFromServer,
 } from "./game/pvpFleeBan";
 import { applyArenaRules } from "./game/battleRules";
 import {
@@ -45,6 +48,7 @@ import {
   campaignFoeLevel,
   refreshCampaignDay,
   loadCampaign,
+  resetCampaignProgress,
   type CampaignState,
 } from "./game/campaign";
 import {
@@ -192,6 +196,37 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
   return next;
 }
 
+/** Админ-флаги с сервера: сброс тропы / снятие бана PvP. */
+async function applyServerAdminFlags(
+  token: string,
+  user: ApiUser,
+  setCampaignState: (c: CampaignState) => void,
+): Promise<ApiUser> {
+  const patch: Parameters<typeof apiUpdateMe>[1] = {};
+  if (user.pendingClearPvpBan) {
+    clearPvpFleeLocal();
+    patch.clearPendingClearPvpBan = true;
+  } else if (user.pvpFlee) {
+    syncPvpFleeFromServer(user.pvpFlee);
+  }
+  if (user.pendingResetCampaign) {
+    setCampaignState(resetCampaignProgress());
+    patch.clearPendingResetCampaign = true;
+  }
+  // Всегда подстраховать сервер актуальным локальным баном (если строже)
+  const localFlee = exportPvpFleeForSync();
+  if (localFlee.fleeCount > 0 || localFlee.bannedUntil > Date.now()) {
+    patch.pvpFlee = localFlee;
+  }
+  if (Object.keys(patch).length === 0) return user;
+  try {
+    const { user: synced } = await apiUpdateMe(token, patch);
+    return synced;
+  } catch {
+    return user;
+  }
+}
+
 function getHeroSafeFaction(heroId: string) {
   try {
     return getHero(heroId).faction;
@@ -289,8 +324,13 @@ export default function App() {
           if (cancelled) return;
           setSession(res.token, res.user);
           setToken(res.token);
-          setUser(res.user);
-          setOwned(mergeOwnedFromServer(res.user));
+          const flagged = await applyServerAdminFlags(
+            res.token,
+            res.user,
+            setCampaign,
+          );
+          setUser(flagged);
+          setOwned(mergeOwnedFromServer(flagged));
           setBoot(false);
           return;
         } catch {
@@ -306,11 +346,16 @@ export default function App() {
       try {
         const { user: me } = await apiMe(existing);
         if (cancelled) return;
-        updateCachedUser(me);
         setToken(existing);
-        setUser(me);
+        const flagged = await applyServerAdminFlags(
+          existing,
+          me,
+          setCampaign,
+        );
+        updateCachedUser(flagged);
+        setUser(flagged);
         {
-          const next = mergeOwnedFromServer(me);
+          const next = mergeOwnedFromServer(flagged);
           setOwned(next);
           try {
             const { user: synced } = await apiUpdateMe(existing, {
@@ -389,13 +434,14 @@ export default function App() {
   const onAuthed = (t: string, u: ApiUser) => {
     setSession(t, u);
     setToken(t);
-    setUser(u);
-    const next = mergeOwnedFromServer(u);
-    setOwned(next);
     // Логин = жест пользователя → сразу запускаем музыку меню
     unlockSfx();
     void startMenuMusic();
     void (async () => {
+      const flagged = await applyServerAdminFlags(t, u, setCampaign);
+      setUser(flagged);
+      const next = mergeOwnedFromServer(flagged);
+      setOwned(next);
       try {
         const { user: synced } = await apiUpdateMe(t, {
           owned: next,
@@ -559,6 +605,12 @@ export default function App() {
       }
       pvpFledRef.current = true;
       const flee = recordPvpFlee();
+      const t = token ?? getToken();
+      if (t) {
+        void apiUpdateMe(t, { pvpFlee: exportPvpFleeForSync() }).catch(
+          () => undefined,
+        );
+      }
       try {
         pvpSocketRef.current?.leave();
       } catch {

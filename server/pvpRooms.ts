@@ -353,6 +353,29 @@ function gcRooms() {
 
 setInterval(gcRooms, 60_000).unref?.();
 
+export function getPvpLiveStats(): {
+  rooms: number;
+  players: number;
+  inBattle: number;
+  inLobby: number;
+} {
+  let roomsN = 0;
+  let inBattle = 0;
+  let inLobby = 0;
+  for (const room of rooms.values()) {
+    roomsN += 1;
+    const n = (room.host ? 1 : 0) + (room.guest ? 1 : 0);
+    if (room.battle && !room.endReason) inBattle += n;
+    else inLobby += n;
+  }
+  return {
+    rooms: roomsN,
+    players: inBattle + inLobby,
+    inBattle,
+    inLobby,
+  };
+}
+
 export function attachPvp(authLookup: AuthLookup): WebSocketServer {
   // noServer: два WS на одном HTTP иначе бьются (чат ловил 400, PvP жил).
   const wss = new WebSocketServer({

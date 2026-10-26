@@ -2,11 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  getChatOnlineCount,
   listChatMutes,
   muteChatUser,
   readTailJsonl,
   unmuteChatUser,
 } from "./lobbyChat.ts";
+import { getPvpLiveStats } from "./pvpRooms.ts";
 import { LIMITS, sanitizeDisplayName } from "./security.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -226,6 +228,111 @@ export function mountAdminRoutes(app, deps) {
     });
   });
 
+  app.get("/api/admin/stats", adminAuth, (_req, res) => {
+    const db = getLiveDb();
+    const now = Date.now();
+    const users = db.users;
+    const activeSince = (ms) =>
+      users.filter((u) => {
+        const t = Date.parse(u.lastLoginAt || u.createdAt || "");
+        return Number.isFinite(t) && now - t <= ms;
+      }).length;
+    const bannedPvp = users.filter(
+      (u) => Number(u.pvpFlee?.bannedUntil) > now,
+    ).length;
+    const pendingCampaign = users.filter((u) => u.pendingResetCampaign).length;
+    const pvp = getPvpLiveStats();
+    res.json({
+      ok: true,
+      registered: users.length,
+      dormant: users.filter((u) => u.dormant).length,
+      active15m: activeSince(15 * 60_000),
+      active1h: activeSince(60 * 60_000),
+      active24h: activeSince(24 * 60 * 60_000),
+      chatOnline: getChatOnlineCount(),
+      pvpRooms: pvp.rooms,
+      pvpPlayers: pvp.players,
+      pvpInBattle: pvp.inBattle,
+      pvpInLobby: pvp.inLobby,
+      bannedPvp,
+      pendingCampaignResets: pendingCampaign,
+      uptimeSec: Math.floor(process.uptime()),
+    });
+  });
+
+  /** Снять бан за побеги из PvP (сервер + флаг клиенту). */
+  app.post(
+    "/api/admin/clear-pvp-ban",
+    adminAuth,
+    rateLimitMiddleware({ name: "admin-unban", maxN: 40, windowMs: 60_000 }),
+    async (req, res) => {
+      try {
+        const login = String(req.body?.login || "").trim();
+        if (!login) {
+          res.status(400).json({ error: "Укажи логин" });
+          return;
+        }
+        const result = await withDb((db) => {
+          const user = findUser(db, login);
+          if (!user) return { missing: true };
+          user.pvpFlee = {
+            day: new Date().toISOString().slice(0, 10),
+            fleeCount: 0,
+            bannedUntil: 0,
+          };
+          user.pendingClearPvpBan = true;
+          persistLiveDb();
+          return { login: user.login };
+        });
+        if (result.missing) {
+          res.status(404).json({ error: "Игрок не найден" });
+          return;
+        }
+        res.json({
+          ok: true,
+          message: `Бан PvP снят: ${result.login} (сработает при следующем входе/сейве)`,
+        });
+      } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: "Не удалось снять бан" });
+      }
+    },
+  );
+
+  /** Сброс тропы игрока (клиент применит при /api/me). */
+  app.post(
+    "/api/admin/reset-campaign",
+    adminAuth,
+    rateLimitMiddleware({ name: "admin-reset-camp", maxN: 40, windowMs: 60_000 }),
+    async (req, res) => {
+      try {
+        const login = String(req.body?.login || "").trim();
+        if (!login) {
+          res.status(400).json({ error: "Укажи логин" });
+          return;
+        }
+        const result = await withDb((db) => {
+          const user = findUser(db, login);
+          if (!user) return { missing: true };
+          user.pendingResetCampaign = true;
+          persistLiveDb();
+          return { login: user.login };
+        });
+        if (result.missing) {
+          res.status(404).json({ error: "Игрок не найден" });
+          return;
+        }
+        res.json({
+          ok: true,
+          message: `Кампания сбросится у ${result.login} при следующем входе/обновлении`,
+        });
+      } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: "Не удалось сбросить кампанию" });
+      }
+    },
+  );
+
   app.get("/api/admin/users", adminAuth, (req, res) => {
     const q = String(req.query?.q || "")
       .trim()
@@ -240,9 +347,11 @@ export function mountAdminRoutes(app, deps) {
           u.id.includes(q),
       );
     }
+    const now = Date.now();
     const out = list.slice(0, 40).map((u) => {
       const pg = Number(u.pendingGrants?.gold) || 0;
       const pd = Number(u.pendingGrants?.diamonds) || 0;
+      const banUntil = Number(u.pvpFlee?.bannedUntil) || 0;
       return {
         id: u.id,
         login: u.login,
@@ -256,6 +365,9 @@ export function mountAdminRoutes(app, deps) {
         level: u.owned?.level ?? 1,
         chatMutedUntil:
           listChatMutes().find((m) => m.userId === u.id)?.until ?? null,
+        pvpBanned: banUntil > now,
+        pvpBannedUntil: banUntil > now ? banUntil : null,
+        pendingResetCampaign: Boolean(u.pendingResetCampaign),
       };
     });
     res.json({ users: out });

@@ -287,6 +287,10 @@ export function attachLobbyChat(authLookup: AuthLookup): WebSocketServer {
   return wss;
 }
 
+export function getChatOnlineCount(): number {
+  return clients.size;
+}
+
 export function muteChatUser(
   userId: string,
   ms: number,

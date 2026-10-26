@@ -323,6 +323,18 @@ function publicUser(u) {
     needsOnboarding: !u.displayName || !u.heroId,
     lastLoginAt: u.lastLoginAt ?? null,
     dormant: Boolean(u.dormant),
+    pendingResetCampaign: Boolean(u.pendingResetCampaign),
+    pendingClearPvpBan: Boolean(u.pendingClearPvpBan),
+    pvpFlee: u.pvpFlee
+      ? {
+          day: String(u.pvpFlee.day || ""),
+          fleeCount: Math.max(0, Math.floor(Number(u.pvpFlee.fleeCount) || 0)),
+          bannedUntil: Math.max(
+            0,
+            Math.floor(Number(u.pvpFlee.bannedUntil) || 0),
+          ),
+        }
+      : null,
   };
 }
 
@@ -630,6 +642,38 @@ app.put(
             const h = sanitizeHeroId(user.owned.heroId);
             if (h) user.heroId = h;
           }
+        }
+        if (body.clearPendingResetCampaign) {
+          user.pendingResetCampaign = false;
+        }
+        if (body.clearPendingClearPvpBan) {
+          user.pendingClearPvpBan = false;
+        }
+        if (body.pvpFlee && typeof body.pvpFlee === "object") {
+          const day = String(body.pvpFlee.day || "").slice(0, 16);
+          const fleeCount = Math.max(
+            0,
+            Math.min(100, Math.floor(Number(body.pvpFlee.fleeCount) || 0)),
+          );
+          const bannedUntil = Math.max(
+            0,
+            Math.floor(Number(body.pvpFlee.bannedUntil) || 0),
+          );
+          const prev = user.pvpFlee || {};
+          // Не даём клиенту сам снять бан: только поднять счётчик/срок
+          const nextCount = Math.max(
+            Number(prev.fleeCount) || 0,
+            fleeCount,
+          );
+          const nextBan = Math.max(
+            Number(prev.bannedUntil) || 0,
+            bannedUntil,
+          );
+          user.pvpFlee = {
+            day: day || prev.day || new Date().toISOString().slice(0, 10),
+            fleeCount: nextCount,
+            bannedUntil: nextBan,
+          };
         }
         // Поощрения админа поверх сейва клиента (чтобы локальный сейв не стёр бонус)
         flushPendingGrants(user);

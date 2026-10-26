@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  apiAdminClearPvpBan,
   apiAdminGrant,
   apiAdminInbox,
   apiAdminMute,
   apiAdminPing,
+  apiAdminResetCampaign,
+  apiAdminStats,
   apiAdminUnmute,
   apiAdminUsers,
   getAdminKey,
   setAdminKey,
 } from "../game/api";
+import { clearPvpFleeLocal } from "../game/pvpFleeBan";
+import { getCachedUser } from "../game/session";
 
 type Props = {
   open: boolean;
@@ -17,6 +22,14 @@ type Props = {
 
 type Inbox = Awaited<ReturnType<typeof apiAdminInbox>>;
 type UserRow = Awaited<ReturnType<typeof apiAdminUsers>>["users"][number];
+type Stats = Awaited<ReturnType<typeof apiAdminStats>>;
+
+function formatUptime(sec: number): string {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  if (h > 0) return `${h}ч ${m}м`;
+  return `${m}м`;
+}
 
 export function AdminPanel({ open, onClose }: Props) {
   const [keyInput, setKeyInput] = useState("");
@@ -24,6 +37,7 @@ export function AdminPanel({ open, onClose }: Props) {
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [inbox, setInbox] = useState<Inbox | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
   const [q, setQ] = useState("");
   const [users, setUsers] = useState<UserRow[]>([]);
   const [grantLogin, setGrantLogin] = useState("");
@@ -32,15 +46,21 @@ export function AdminPanel({ open, onClose }: Props) {
   const [grantNote, setGrantNote] = useState("поощрение");
   const [muteLogin, setMuteLogin] = useState("");
   const [muteMin, setMuteMin] = useState("60");
+  const [actionLogin, setActionLogin] = useState("");
 
-  const refresh = useCallback(async (adminKey: string) => {
-    const [box, list] = await Promise.all([
-      apiAdminInbox(adminKey),
-      apiAdminUsers(adminKey, q || undefined),
-    ]);
-    setInbox(box);
-    setUsers(list.users);
-  }, [q]);
+  const refresh = useCallback(
+    async (adminKey: string) => {
+      const [box, list, st] = await Promise.all([
+        apiAdminInbox(adminKey),
+        apiAdminUsers(adminKey, q || undefined),
+        apiAdminStats(adminKey),
+      ]);
+      setInbox(box);
+      setUsers(list.users);
+      setStats(st);
+    },
+    [q],
+  );
 
   useEffect(() => {
     if (!open || !key) return;
@@ -105,6 +125,62 @@ export function AdminPanel({ open, onClose }: Props) {
     }
   };
 
+  const doClearBan = async () => {
+    if (!key) return;
+    const login = actionLogin.trim();
+    if (!login) {
+      setStatus("Укажи логин");
+      return;
+    }
+    if (
+      !window.confirm(
+        `Снять бан PvP у «${login}»?\n\nДа — снять. Нет — отмена.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await apiAdminClearPvpBan(key, login);
+      const me = getCachedUser()?.login;
+      if (me && me.toLowerCase() === login.toLowerCase()) {
+        clearPvpFleeLocal();
+      }
+      setStatus(res.message);
+      await refresh(key);
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "Ошибка");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doResetCampaign = async () => {
+    if (!key) return;
+    const login = actionLogin.trim();
+    if (!login) {
+      setStatus("Укажи логин");
+      return;
+    }
+    if (
+      !window.confirm(
+        `Сбросить кампанию (тропу) у «${login}»?\n\nПрогресс тропы обнулится при следующем входе игрока.\n\nДа — сбросить. Нет — отмена.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await apiAdminResetCampaign(key, login);
+      setStatus(res.message);
+      await refresh(key);
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "Ошибка");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="community-overlay" role="dialog" aria-label="Админка">
       <div className="community-panel admin-panel">
@@ -144,10 +220,107 @@ export function AdminPanel({ open, onClose }: Props) {
           </>
         ) : (
           <>
+            <section className="admin-section">
+              <h3>Статистика</h3>
+              {stats ? (
+                <div className="admin-stats">
+                  <div className="admin-stat">
+                    <em>Зарегистрировано</em>
+                    <strong>{stats.registered}</strong>
+                  </div>
+                  <div className="admin-stat">
+                    <em>Активны 15 мин</em>
+                    <strong>{stats.active15m}</strong>
+                  </div>
+                  <div className="admin-stat">
+                    <em>Активны 1 ч</em>
+                    <strong>{stats.active1h}</strong>
+                  </div>
+                  <div className="admin-stat">
+                    <em>Активны 24 ч</em>
+                    <strong>{stats.active24h}</strong>
+                  </div>
+                  <div className="admin-stat">
+                    <em>В чате сейчас</em>
+                    <strong>{stats.chatOnline}</strong>
+                  </div>
+                  <div className="admin-stat">
+                    <em>В PvP</em>
+                    <strong>
+                      {stats.pvpPlayers}
+                      <span className="admin-stat-sub">
+                        {" "}
+                        (бой {stats.pvpInBattle} · лобби {stats.pvpInLobby} ·
+                        комнат {stats.pvpRooms})
+                      </span>
+                    </strong>
+                  </div>
+                  <div className="admin-stat">
+                    <em>Спящие / бан PvP</em>
+                    <strong>
+                      {stats.dormant} / {stats.bannedPvp}
+                    </strong>
+                  </div>
+                  <div className="admin-stat">
+                    <em>Аптайм API</em>
+                    <strong>{formatUptime(stats.uptimeSec)}</strong>
+                  </div>
+                </div>
+              ) : (
+                <p className="hint">Загрузка…</p>
+              )}
+              <button
+                type="button"
+                className="ghost"
+                disabled={busy || !key}
+                onClick={() => {
+                  if (!key) return;
+                  setBusy(true);
+                  void refresh(key)
+                    .catch((e) =>
+                      setStatus(e instanceof Error ? e.message : "Ошибка"),
+                    )
+                    .finally(() => setBusy(false));
+                }}
+              >
+                Обновить статистику
+              </button>
+            </section>
+
+            <section className="admin-section">
+              <h3>Действия по логину</h3>
+              <input
+                value={actionLogin}
+                placeholder="логин игрока"
+                onChange={(e) => setActionLogin(e.target.value)}
+              />
+              <div className="admin-row">
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={busy || !actionLogin.trim()}
+                  onClick={() => void doClearBan()}
+                >
+                  Снять бан PvP
+                </button>
+                <button
+                  type="button"
+                  className="ghost"
+                  disabled={busy || !actionLogin.trim()}
+                  onClick={() => void doResetCampaign()}
+                >
+                  Сбросить кампанию
+                </button>
+              </div>
+              <p className="hint">
+                Обе кнопки спрашивают «да / нет». Кампания сбросится у игрока
+                при следующем входе.
+              </p>
+            </section>
+
             <p className="community-hint">
               Поощряй золотом/алмазами, глуши чат, смотри жалобы и письма.
-              Игрок увидит валюту после следующего сейва/входа (сейв в{" "}
-              <code>owned</code>).
+              Игрок увидит валюту после следующего сейва/входа.
             </p>
 
             <section className="admin-section">
@@ -269,6 +442,7 @@ export function AdminPanel({ open, onClose }: Props) {
                     onClick={() => {
                       setGrantLogin(u.login);
                       setMuteLogin(u.login);
+                      setActionLogin(u.login);
                     }}
                   >
                     <strong>
@@ -277,10 +451,15 @@ export function AdminPanel({ open, onClose }: Props) {
                       {u.chatMutedUntil && u.chatMutedUntil > Date.now()
                         ? " · мут"
                         : ""}
+                      {u.pvpBanned ? " · бан PvP" : ""}
+                      {u.pendingResetCampaign ? " · сброс тропы" : ""}
                     </strong>
                     <span>
                       {u.displayName || "—"} · ур.{u.level} · {u.gold}🪙{" "}
                       {u.diamonds}💎
+                      {u.lastLoginAt
+                        ? ` · ${new Date(u.lastLoginAt).toLocaleString()}`
+                        : ""}
                     </span>
                   </button>
                 ))}
@@ -290,22 +469,26 @@ export function AdminPanel({ open, onClose }: Props) {
             <section className="admin-section">
               <h3>Входящие</h3>
               <div className="community-log admin-log">
-                {(inbox?.feedback as Array<{ login?: string; text?: string; at?: string }> | undefined)?.map(
-                  (f, i) => (
-                    <div key={`f-${i}`} className="community-msg">
-                      <strong>✉ {f.login}</strong>
-                      <span>{f.text}</span>
-                    </div>
-                  ),
-                )}
-                {(inbox?.reports as Array<{ byLogin?: string; reason?: string }> | undefined)?.map(
-                  (r, i) => (
-                    <div key={`r-${i}`} className="community-msg">
-                      <strong>⚠ жалоба от {r.byLogin}</strong>
-                      <span>{r.reason}</span>
-                    </div>
-                  ),
-                )}
+                {(
+                  inbox?.feedback as
+                    | Array<{ login?: string; text?: string; at?: string }>
+                    | undefined
+                )?.map((f, i) => (
+                  <div key={`f-${i}`} className="community-msg">
+                    <strong>✉ {f.login}</strong>
+                    <span>{f.text}</span>
+                  </div>
+                ))}
+                {(
+                  inbox?.reports as
+                    | Array<{ byLogin?: string; reason?: string }>
+                    | undefined
+                )?.map((r, i) => (
+                  <div key={`r-${i}`} className="community-msg">
+                    <strong>⚠ жалоба от {r.byLogin}</strong>
+                    <span>{r.reason}</span>
+                  </div>
+                ))}
                 {(inbox?.mutes || []).map((m) => (
                   <div key={m.userId} className="community-msg">
                     <strong>🔇 {m.login}</strong>

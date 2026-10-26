@@ -27,6 +27,13 @@ export type ApiUser = {
   needsOnboarding: boolean;
   lastLoginAt?: string | null;
   dormant?: boolean;
+  pendingResetCampaign?: boolean;
+  pendingClearPvpBan?: boolean;
+  pvpFlee?: {
+    day: string;
+    fleeCount: number;
+    bannedUntil: number;
+  } | null;
 };
 
 export type AuthResponse = {
@@ -105,6 +112,13 @@ export function apiUpdateMe(
     displayName?: string;
     heroId?: string;
     owned?: OwnedState;
+    clearPendingResetCampaign?: boolean;
+    clearPendingClearPvpBan?: boolean;
+    pvpFlee?: {
+      day: string;
+      fleeCount: number;
+      bannedUntil: number;
+    };
   },
 ) {
   return request<{ user: ApiUser }>("/api/me", {
@@ -248,6 +262,47 @@ export function apiOwnerBoost(body: {
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+export function apiAdminStats(adminKey: string) {
+  return adminRequest<{
+    ok: boolean;
+    registered: number;
+    dormant: number;
+    active15m: number;
+    active1h: number;
+    active24h: number;
+    chatOnline: number;
+    pvpRooms: number;
+    pvpPlayers: number;
+    pvpInBattle: number;
+    pvpInLobby: number;
+    bannedPvp: number;
+    pendingCampaignResets: number;
+    uptimeSec: number;
+  }>("/api/admin/stats", { adminKey });
+}
+
+export function apiAdminClearPvpBan(adminKey: string, login: string) {
+  return adminRequest<{ ok: boolean; message: string }>(
+    "/api/admin/clear-pvp-ban",
+    {
+      method: "POST",
+      adminKey,
+      body: JSON.stringify({ login }),
+    },
+  );
+}
+
+export function apiAdminResetCampaign(adminKey: string, login: string) {
+  return adminRequest<{ ok: boolean; message: string }>(
+    "/api/admin/reset-campaign",
+    {
+      method: "POST",
+      adminKey,
+      body: JSON.stringify({ login }),
+    },
+  );
 }
 
 export { API_URL };

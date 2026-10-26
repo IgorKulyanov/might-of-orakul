@@ -46,6 +46,38 @@ function save(s: PvpFleeState): void {
   }
 }
 
+/** Полный сброс локального бана (после команды админа). */
+export function clearPvpFleeLocal(): void {
+  save(fresh());
+}
+
+/** Подтянуть бан с сервера (берём более строгий). */
+export function syncPvpFleeFromServer(
+  server: Partial<PvpFleeState> | null | undefined,
+): void {
+  if (!server) return;
+  const local = loadPvpFlee();
+  const day = todayKey();
+  const serverDay = String(server.day || "");
+  if (serverDay && serverDay !== day) {
+    // чужой день на сервере — только локальный сегодня
+    return;
+  }
+  const fleeCount = Math.max(
+    local.fleeCount,
+    Math.max(0, Math.floor(Number(server.fleeCount) || 0)),
+  );
+  const bannedUntil = Math.max(
+    local.bannedUntil,
+    Math.max(0, Math.floor(Number(server.bannedUntil) || 0)),
+  );
+  save({ day, fleeCount, bannedUntil });
+}
+
+export function exportPvpFleeForSync(): PvpFleeState {
+  return loadPvpFlee();
+}
+
 export function pvpBanRemainingMs(): number {
   const s = loadPvpFlee();
   return Math.max(0, s.bannedUntil - Date.now());
