@@ -67,8 +67,11 @@ import {
   battleDeck,
   activeHeroId,
   applyBattleResult,
+  backupOwnedForLogin,
   claimDailyQuest,
+  hasOwnedProgress,
   loadOwned,
+  loadOwnedBackup,
   playerLevel,
   saveOwned,
   setHero,
@@ -76,6 +79,7 @@ import {
 import {
   clearSession,
   getCachedUser,
+  getLastLogin,
   getToken,
   setSession,
   updateCachedUser,
@@ -118,8 +122,61 @@ type Screen =
   | "multi"
   | "dailies";
 
+function richerDecks(
+  a: OwnedState["decks"] | undefined,
+  b: OwnedState["decks"] | undefined,
+): OwnedState["decks"] {
+  const ids = new Set([
+    ...Object.keys(a ?? {}),
+    ...Object.keys(b ?? {}),
+    "starter",
+  ]);
+  const out: OwnedState["decks"] = {};
+  for (const id of ids) {
+    const left = a?.[id] ?? [];
+    const right = b?.[id] ?? [];
+    out[id] = left.length >= right.length ? left : right;
+  }
+  return out;
+}
+
 function mergeOwnedFromServer(user: ApiUser): OwnedState {
-  const local = loadOwned();
+  const backup = user.login ? loadOwnedBackup(user.login) : null;
+  const localRaw = loadOwned();
+  // Бэкап по логину важнее «пустого» текущего сейва после сброса сервера
+  const local =
+    backup && hasOwnedProgress(backup) && !hasOwnedProgress(localRaw)
+      ? backup
+      : backup && hasOwnedProgress(backup)
+        ? {
+            ...localRaw,
+            gold: Math.max(Number(localRaw.gold) || 0, Number(backup.gold) || 0),
+            diamonds: Math.max(
+              Number(localRaw.diamonds) || 0,
+              Number(backup.diamonds) || 0,
+            ),
+            level: Math.max(Number(localRaw.level) || 1, Number(backup.level) || 1),
+            collection: {
+              ...(backup.collection ?? {}),
+              ...(localRaw.collection ?? {}),
+            },
+            decks: richerDecks(localRaw.decks, backup.decks),
+            purchased: [
+              ...new Set([
+                ...(backup.purchased ?? []),
+                ...(localRaw.purchased ?? []),
+              ]),
+            ],
+            unlockedHeroes: [
+              ...new Set([
+                ...(backup.unlockedHeroes ?? []),
+                ...(localRaw.unlockedHeroes ?? []),
+              ]),
+            ],
+            homeFaction: localRaw.homeFaction ?? backup.homeFaction,
+            heroId: localRaw.heroId ?? backup.heroId,
+          }
+        : localRaw;
   const serverOwned = user.owned;
   // Оракул/эпики/кейсы — локальный сейв главнее: иначе после покупки эпика
   // сервер со старым heroId откатывал облик на базового.
@@ -141,11 +198,15 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
   if (
     serverHero &&
     localHero &&
-    getHeroSafeFaction(serverHero) !== getHeroSafeFaction(localHero)
+    getHeroSafeFaction(serverHero) !== getHeroSafeFaction(localHero) &&
+    // Пустой аккаунт после wipe сервера не должен сбрасывать локальную расу
+    (Number(serverOwned?.level) || 1) > 1
   ) {
     heroId = serverHero;
   }
-  const homeFaction = getHeroSafeFaction(heroId);
+  const homeFaction =
+    local.homeFaction ??
+    (heroId ? getHeroSafeFaction(heroId) : undefined);
   const collection = { ...(local.collection ?? {}) };
   if (serverOwned?.collection && typeof serverOwned.collection === "object") {
     for (const [id, n] of Object.entries(serverOwned.collection)) {
@@ -167,6 +228,7 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
       ...(serverOwned?.purchased ?? []),
     ]),
   ];
+  const decks = richerDecks(local.decks, serverOwned?.decks);
   const merged: OwnedState = {
     ...local,
     // max: админ-гранты с сервера + локальный прогресс не теряем
@@ -188,11 +250,12 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
     unlocked,
     purchased,
     collection,
-    decks: local.decks,
-    activeDeckId: local.activeDeckId ?? "starter",
+    decks,
+    activeDeckId: local.activeDeckId ?? serverOwned?.activeDeckId ?? "starter",
   };
   const next = setHero(merged, heroId);
   saveOwned(next);
+  if (user.login) backupOwnedForLogin(user.login, next);
   return next;
 }
 
@@ -443,12 +506,21 @@ export default function App() {
       const next = mergeOwnedFromServer(flagged);
       setOwned(next);
       try {
+        // После wipe сервера register без имени → иначе снова онбординг и снос колоды
+        const needName = !flagged.displayName && hasOwnedProgress(next);
         const { user: synced } = await apiUpdateMe(t, {
           owned: next,
           heroId: next.heroId,
+          ...(needName
+            ? {
+                displayName:
+                  flagged.login || getLastLogin() || "Игрок",
+              }
+            : {}),
         });
         updateCachedUser(synced);
         setUser(synced);
+        if (synced.login) backupOwnedForLogin(synced.login, next);
       } catch {
         /* offline */
       }
@@ -664,9 +736,11 @@ export default function App() {
   }
 
   const alreadyHasOracle = Boolean(owned.homeFaction || user.heroId);
+  const localProgress = hasOwnedProgress(owned);
+  // Нельзя гнать в онбординг после «Восстановить» — beginWithHero сносит колоду
   if (
-    !user.displayName ||
-    (user.needsOnboarding && !alreadyHasOracle)
+    !localProgress &&
+    (!user.displayName || (user.needsOnboarding && !alreadyHasOracle))
   ) {
     return (
       <OnboardingScreen
@@ -678,7 +752,7 @@ export default function App() {
   }
 
   const hero = getHero(activeHeroId(owned));
-  const displayName = user.displayName;
+  const displayName = user.displayName ?? user.login ?? "Игрок";
   const level = playerLevel(owned);
   const foeLevel = botLevelNear(level);
 

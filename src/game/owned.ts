@@ -405,8 +405,56 @@ export function loadOwned(): OwnedState {
   return fresh;
 }
 
+const OWNED_BACKUP_PREFIX = "orakul-owned-backup:";
+
+/** Снимок сейва по логину — чтобы «Восстановить аккаунт» не обнулял колоду. */
+export function backupOwnedForLogin(login: string, state: OwnedState): void {
+  const key = login.trim().toLowerCase();
+  if (!key) return;
+  try {
+    localStorage.setItem(`${OWNED_BACKUP_PREFIX}${key}`, JSON.stringify(state));
+  } catch {
+    /* quota */
+  }
+}
+
+export function loadOwnedBackup(login: string): OwnedState | null {
+  const key = login.trim().toLowerCase();
+  if (!key) return null;
+  try {
+    const raw = localStorage.getItem(`${OWNED_BACKUP_PREFIX}${key}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as OwnedState;
+    if (!parsed?.decks) return null;
+    return withDefaults(parsed);
+  } catch {
+    return null;
+  }
+}
+
 export function saveOwned(state: OwnedState): void {
   localStorage.setItem(KEY, JSON.stringify(state));
+  try {
+    const login = localStorage.getItem("orakul-last-login");
+    if (login) backupOwnedForLogin(login, state);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Есть ли у локального сейва реальный прогресс (не свежий онбординг). */
+export function hasOwnedProgress(owned: OwnedState): boolean {
+  if (owned.homeFaction) return true;
+  if ((owned.level ?? 1) > 1) return true;
+  if ((owned.purchased?.length ?? 0) > 0) return true;
+  if ((owned.unlockedHeroes?.length ?? 0) > 0) return true;
+  const copies = Object.values(owned.collection ?? {}).reduce(
+    (s, n) => s + (Number(n) || 0),
+    0,
+  );
+  if (copies > 6) return true;
+  const deckLen = owned.decks?.[owned.activeDeckId ?? "starter"]?.length ?? 0;
+  return deckLen > MIN_DECK_SIZE;
 }
 
 export function ownedCopies(owned: OwnedState, cardId: string): number {
@@ -652,15 +700,17 @@ export function beginWithHero(
     };
   }
 
-  // Онбординг: чистый кейс выбранной школы (черновой localStorage часто уже life).
-  state = {
-    ...state,
-    unlocked: starterIds(heroId),
-    collection: starterCollectionForFaction(home),
-    purchased: [],
-    decks: { starter: [] },
-    activeDeckId: "starter",
-  };
+  // Онбординг с чистого листа. Если уже есть прогресс (восстановление) — не сносить.
+  if (!hasOwnedProgress(owned)) {
+    state = {
+      ...state,
+      unlocked: starterIds(heroId),
+      collection: starterCollectionForFaction(home),
+      purchased: [],
+      decks: { starter: [] },
+      activeDeckId: "starter",
+    };
+  }
   const next = setHero(state, heroId);
   if (next.heroId !== heroId) {
     return { owned, ok: false, reason: "Не удалось назначить оракула" };
@@ -771,10 +821,8 @@ export function setHero(owned: OwnedState, heroId: string): OwnedState {
     decks[id] = normalizeDeck(list ?? [], collection);
   }
   if (!decks.starter) decks.starter = [];
-  // Старт / пустая колода → стартовая колода школы
-  const needNewStarter =
-    !owned.homeFaction || (decks.starter?.length ?? 0) < MIN_DECK_SIZE;
-  if (needNewStarter) {
+  // Только если колода реально пустая/короткая — не затирать собранную при смене облика
+  if ((decks.starter?.length ?? 0) < MIN_DECK_SIZE) {
     decks.starter = normalizeDeck(
       starterDeckForFaction(hero.faction),
       collection,
