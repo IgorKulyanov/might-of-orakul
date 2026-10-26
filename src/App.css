@@ -1717,13 +1717,24 @@ button {
   font-weight: 700;
 }
 
-.hand-card-anchor {
+.hand-card-anchor,
+.hand-card-anchor * {
   touch-action: none;
   user-select: none;
+  -webkit-user-select: none;
 }
 
 .hand-card-anchor.is-dragging {
   opacity: 0.35;
+}
+
+/* Пока тянем карту — не скроллим ленту руки (иначе на телефоне жест «съедается») */
+.battle.is-hand-dragging,
+.battle.is-hand-dragging .hand-zone,
+.battle.is-hand-dragging .hand {
+  overflow: hidden !important;
+  touch-action: none;
+  overscroll-behavior: none;
 }
 
 .hand-drag-ghost {

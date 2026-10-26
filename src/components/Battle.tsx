@@ -1654,7 +1654,7 @@ export function Battle({
 
   return (
     <div
-      className={`battle ${busy ? "is-busy" : ""} ${entered ? "is-entered" : ""}`}
+      className={`battle ${busy ? "is-busy" : ""} ${entered ? "is-entered" : ""} ${handDrag ? "is-hand-dragging" : ""}`}
     >
       <header className="battle-bar">
         <button
@@ -2141,15 +2141,22 @@ export function Battle({
                   onPointerDown={(e) => {
                     if (busy || state.winner || state.active !== "you") return;
                     if (e.button !== 0 && e.pointerType === "mouse") return;
+                    // Телефон иначе скроллит ленту руки вместо драга
+                    e.preventDefault();
+                    e.stopPropagation();
                     handDragMoved.current = false;
                     handDragStart.current = {
                       x: e.clientX,
                       y: e.clientY,
                       index: i,
                     };
-                    (e.currentTarget as HTMLElement).setPointerCapture(
-                      e.pointerId,
-                    );
+                    try {
+                      (e.currentTarget as HTMLElement).setPointerCapture(
+                        e.pointerId,
+                      );
+                    } catch {
+                      /* ignore */
+                    }
                   }}
                   onPointerMove={(e) => {
                     const start = handDragStart.current;
@@ -2157,11 +2164,12 @@ export function Battle({
                     const dx = e.clientX - start.x;
                     const dy = e.clientY - start.y;
                     if (!handDragMoved.current) {
-                      if (dx * dx + dy * dy < 64) return;
+                      if (dx * dx + dy * dy < 36) return;
                       handDragMoved.current = true;
                       setGravePickIdx(null);
                       setState(selectHand(state, i));
                     }
+                    e.preventDefault();
                     setHandDrag({
                       index: i,
                       cardId: id,
@@ -2171,7 +2179,11 @@ export function Battle({
                   }}
                   onPointerUp={(e) => {
                     const start = handDragStart.current;
+                    const moved = handDragMoved.current;
+                    const x = e.clientX;
+                    const y = e.clientY;
                     handDragStart.current = null;
+                    handDragMoved.current = false;
                     try {
                       (e.currentTarget as HTMLElement).releasePointerCapture(
                         e.pointerId,
@@ -2180,21 +2192,18 @@ export function Battle({
                       /* ignore */
                     }
                     if (!start || start.index !== i) return;
-                    if (!handDragMoved.current) {
+                    if (!moved) {
                       setGravePickIdx(null);
                       onHandClick(i);
                       setHandDrag(null);
                       return;
                     }
-                    const el = document.elementFromPoint(
-                      e.clientX,
-                      e.clientY,
-                    ) as HTMLElement | null;
+                    setHandDrag(null);
+                    const el = document.elementFromPoint(x, y) as HTMLElement | null;
                     const drop = el?.closest?.(
                       "[data-board-drop]",
                     ) as HTMLElement | null;
                     const raw = drop?.getAttribute("data-board-drop") || "";
-                    setHandDrag(null);
                     const [side, slotStr] = raw.split(":");
                     const slot = Number(slotStr);
                     if (

@@ -294,6 +294,7 @@ export function CardView({
             aria-label={`Описание: ${c.name}`}
             draggable={false}
             onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={openDesc}
           >
             ↻
