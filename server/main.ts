@@ -1,6 +1,13 @@
 import http from "node:http";
 import { logAdminKeyHint } from "./admin.js";
-import { app, PORT, findByToken, getLiveDb, markDormantUsers } from "./index.js";
+import {
+  app,
+  PORT,
+  findByToken,
+  getLiveDb,
+  hydrateUsersFromRemote,
+  markDormantUsers,
+} from "./index.js";
 import { attachLobbyChat, pruneChatLog } from "./lobbyChat.ts";
 import { attachPvp } from "./pvpRooms.ts";
 
@@ -13,6 +20,8 @@ process.on("uncaughtException", (err) => {
 process.on("unhandledRejection", (reason) => {
   console.error("[orakul] unhandledRejection:", reason);
 });
+
+await hydrateUsersFromRemote();
 
 const server = http.createServer(app);
 server.keepAliveTimeout = 65_000;

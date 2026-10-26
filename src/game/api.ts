@@ -56,9 +56,16 @@ async function request<T>(
       "Нет связи с API. Проверь: окна СЕРВЕР-ДОМА и TUNNEL открыты, а VITE_API_URL = текущий URL туннеля (после смены URL нужен Redeploy).",
     );
   }
-  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
+  const data = (await res.json().catch(() => ({}))) as T & {
+    error?: string;
+    code?: string;
+  };
   if (!res.ok) {
-    throw new Error(data.error || `Ошибка ${res.status}`);
+    const err = new Error(data.error || `Ошибка ${res.status}`) as Error & {
+      code?: string;
+    };
+    if (data.code) err.code = data.code;
+    throw err;
   }
   return data;
 }

@@ -1,5 +1,5 @@
 # Render Blueprint: New → Blueprint → этот файл.
-# Бесплатный API+WebSocket для теста 10–20 друзей.
+# Бесплатный API+WebSocket + Key Value, чтобы аккаунты не исчезали после sleep.
 services:
   - type: web
     name: orakul-api
@@ -9,3 +9,15 @@ services:
     startCommand: npm start
     plan: free
     healthCheckPath: /api/health
+    envVars:
+      - key: REDIS_URL
+        fromService:
+          name: orakul-kv
+          type: keyvalue
+          property: connectionString
+
+  - type: keyvalue
+    name: orakul-kv
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []

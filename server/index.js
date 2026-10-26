@@ -7,6 +7,11 @@ import { fileURLToPath } from "node:url";
 import { v4 as uuid } from "uuid";
 import { mountAdminRoutes } from "./admin.js";
 import {
+  hasRemoteDb,
+  pullRemoteUsers,
+  pushRemoteUsers,
+} from "./remoteDb.js";
+import {
   checkLoginThrottle,
   clientIp,
   noteLoginFail,
@@ -230,6 +235,40 @@ function getLiveDb() {
 
 function persistLiveDb() {
   atomicWriteUsers(liveDb);
+  void pushRemoteUsers(liveDb);
+}
+
+/**
+ * После sleep/redeploy диск Render пустой — поднимаем аккаунты из Redis-зеркала.
+ * Вызывать до listen (см. main.ts).
+ */
+async function hydrateUsersFromRemote() {
+  const local = getLiveDb();
+  if (local.users.length > 0) {
+    // Локальная база жива — освежить зеркало на всякий случай.
+    void pushRemoteUsers(local);
+    return { restored: false, users: local.users.length, remote: hasRemoteDb() };
+  }
+  const remote = await pullRemoteUsers();
+  if (!remote || remote.users.length === 0) {
+    console.warn(
+      `[orakul] локально 0 аккаунтов` +
+        (hasRemoteDb()
+          ? ", Redis тоже пуст"
+          : " (REDIS_URL не задан — после sleep аккаунты пропадут)"),
+    );
+    return { restored: false, users: 0, remote: hasRemoteDb() };
+  }
+  liveDb = remote;
+  try {
+    atomicWriteUsers(liveDb, { skipBackup: true });
+  } catch (e) {
+    console.warn("[orakul] запись после Redis:", e.message);
+  }
+  console.warn(
+    `[orakul] восстановлено ${liveDb.users.length} акк. из Redis-зеркала`,
+  );
+  return { restored: true, users: liveDb.users.length, remote: true };
 }
 
 /** Очередь: все изменения users.json идут строго по одному. */
@@ -323,6 +362,7 @@ app.get("/api/health", (_req, res) => {
     ok: true,
     uptime: Math.floor(process.uptime()),
     users: getLiveDb().users.length,
+    remoteDb: hasRemoteDb(),
   });
 });
 
@@ -391,7 +431,11 @@ app.post(
       const found = getLiveDb().users.find((u) => u.login === login);
       if (!found) {
         noteLoginFail(throttle.key);
-        res.status(401).json({ error: "Неверный логин или пароль" });
+        res.status(401).json({
+          error:
+            "Аккаунт не найден. На бесплатном хосте база могла сброситься — нажми «Восстановить аккаунт» с тем же логином и паролем (прогресс в браузере сохранится).",
+          code: "ACCOUNT_MISSING",
+        });
         return;
       }
       const okPass = await bcrypt.compare(password, found.passwordHash);
@@ -627,4 +671,4 @@ app.use((err, _req, res, _next) => {
   }
 });
 
-export { app, PORT, findByToken, getLiveDb };
+export { app, PORT, findByToken, getLiveDb, hydrateUsersFromRemote };
