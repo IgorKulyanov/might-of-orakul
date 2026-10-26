@@ -228,6 +228,8 @@ export default function App() {
   const pvpSocketRef = useRef<PvpSocket | null>(null);
   /** Сбежал из PvP — без наград (даже утешительных). */
   const pvpFledRef = useRef(false);
+  /** Вышел из тропы/арены до конца — поражение без наград боя. */
+  const runForfeitRef = useRef(false);
   const pvpStateRef = useRef(pvpState);
   pvpStateRef.current = pvpState;
   const ownedRef = useRef(owned);
@@ -450,6 +452,8 @@ export default function App() {
     const isPvp = screenRef.current === "battle_pvp";
     const fledPvp = isPvp && pvpFledRef.current;
     if (fledPvp) pvpFledRef.current = false;
+    const runForfeit = runForfeitRef.current;
+    if (runForfeit) runForfeitRef.current = false;
 
     // Побег из PvP: ни XP, ни золота (анти-накрут вдвоём).
     if (fledPvp) {
@@ -460,6 +464,22 @@ export default function App() {
         goldReward: 0,
         diamondReward: 0,
         giftLine: "Побег из дуэли — без наград",
+      };
+    }
+
+    // Выход из тропы/арены: поражение в прогрессе, без XP/лута за бой.
+    if (runForfeit && (isCampaign || isArena)) {
+      if (isCampaign) setCampaign(applyCampaignLoss(campaignRef.current));
+      if (isArena) setArena(applyArenaLoss(arenaRef.current));
+      return {
+        won: false,
+        xpGained: 0,
+        gainedLevels: 0,
+        goldReward: 0,
+        diamondReward: 0,
+        giftLine: isArena
+          ? "Выход из боя — поражение, арена закрыта на сегодня"
+          : "Выход из боя — поражение, тропа закрыта на сегодня",
       };
     }
 
@@ -682,6 +702,13 @@ export default function App() {
           if (vsBot) return "К одиночному бою";
           return "В меню";
         }}
+        onForfeitExit={
+          vsCamp || vsArena
+            ? () => {
+                runForfeitRef.current = true;
+              }
+            : undefined
+        }
         onExit={() =>
           setScreen(
             vsCamp

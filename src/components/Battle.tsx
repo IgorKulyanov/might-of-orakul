@@ -123,6 +123,8 @@ type Props = {
   onExit: () => void;
   /** Верни награды — покажем в окне результата. */
   onBattleEnd?: (won: boolean) => BattleEndInfo | void;
+  /** Перед поражением из‑за выхода (тропа/арена). */
+  onForfeitExit?: () => void;
 };
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -210,6 +212,7 @@ export function Battle({
   externalState = null,
   onExit,
   onBattleEnd,
+  onForfeitExit,
 }: Props) {
   const bootBattle = () => {
     if (externalState) return externalState;
@@ -1551,6 +1554,7 @@ export function Battle({
               "Покидаете бой?\n\nБудет засчитано поражение. Наград за этот бой не будет (тропа/арена на сегодня могут закрыться).\n\nВыйти и принять поражение?",
             );
             if (!ok) return;
+            onForfeitExit?.();
             setState((s) => {
               if (s.winner) return s;
               return {
