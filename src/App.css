@@ -217,10 +217,10 @@ button {
 .splash-stage {
   position: absolute;
   inset: 0;
-  /* Запасной фон — школы по кругу */
+  /* Запасной фон — школы по кругу, как остальные слайды (contain) */
   background:
     #07090f
-    url("/splash-elements-v2.jpg?v=6") center center / cover no-repeat;
+    url("/splash-elements-v2.jpg?v=7") center center / contain no-repeat;
 }
 
 .splash-slide {
@@ -239,23 +239,16 @@ button {
   image-rendering: auto;
 }
 
-/* Широкая заставка стихий — на весь экран */
-.splash-slide.is-wide {
-  background-size: cover;
-  background-position: center center;
-}
-
 /*
- * Портреты (квадрат) на широком мониторе:
- * cover всегда режет либо голову, либо ноги.
- * contain — герой целиком, поля по бокам тёмные.
+ * Все слайды заставки (школы по кругу + портреты) — одинаковый размер.
+ * На широком мониторе contain: картинка целиком, поля тёмные.
  */
 .splash-slide.is-portrait {
   background-size: contain;
   background-position: center center;
 }
 
-/* На телефоне (высокий экран) cover ок — поля не нужны */
+/* На телефоне (высокий экран) — на весь экран */
 @media (max-aspect-ratio: 10/11) {
   .splash-slide.is-portrait {
     background-size: cover;

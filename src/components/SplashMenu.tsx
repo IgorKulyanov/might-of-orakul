@@ -22,7 +22,7 @@ import type { OwnedState } from "../game/types";
  * /archive/splash-elements-desktop.jpg
  */
 const SPLASH_SLIDES = [
-  "/splash-elements-v2.jpg?v=6",
+  "/splash-elements-v2.jpg?v=7",
   "/splash-slides/valkyrie-hi.png?v=2",
   "/splash-slides/kraken-hi.png?v=2",
   "/splash-slides/vampire-hi.png?v=2",
@@ -124,7 +124,7 @@ export function SplashMenu({
         {SPLASH_SLIDES.map((src, i) => (
           <div
             key={src}
-            className={`splash-slide ${i === 0 ? "is-wide" : "is-portrait"} ${i === index ? "is-on" : ""}`}
+            className={`splash-slide is-portrait ${i === index ? "is-on" : ""}`}
             style={{ backgroundImage: `url("${src}")` }}
           />
         ))}
