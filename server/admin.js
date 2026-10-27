@@ -274,6 +274,7 @@ export function mountAdminRoutes(app, deps) {
       pvpPlayers: pvp.players,
       pvpInBattle: pvp.inBattle,
       pvpInLobby: pvp.inLobby,
+      pvpInQueue: pvp.inQueue,
       bannedPvp,
       pendingCampaignResets: pendingCampaign,
       uptimeSec: Math.floor(process.uptime()),

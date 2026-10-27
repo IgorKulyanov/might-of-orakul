@@ -6,6 +6,7 @@ import {
   applySeatAction,
   forceWin,
   isSeatTurn,
+  PVP_MATCH_LEVEL_DELTA,
   PVP_MAX_TIMEOUTS,
   PVP_TURN_SEC,
   startPvpBattle,
@@ -50,6 +51,131 @@ const MAX_ROOMS = 200;
 const MAX_MSG_BYTES = 120_000;
 const ROOM_TTL_MS = 2 * 60 * 60 * 1000;
 const TURN_MS = PVP_TURN_SEC * 1000;
+
+type QueueEntry = SeatPlayer & { queuedAt: number };
+
+/** Очередь автопоиска живых соперников (±PVP_MATCH_LEVEL_DELTA). */
+const matchQueue: QueueEntry[] = [];
+
+function randomMatchCode() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let s = "Q";
+  for (let i = 0; i < 5; i++) {
+    s += alphabet[Math.floor(Math.random() * alphabet.length)]!;
+  }
+  return s;
+}
+
+function removeFromQueue(ws: WebSocket) {
+  for (let i = matchQueue.length - 1; i >= 0; i--) {
+    if (matchQueue[i]!.ws === ws) matchQueue.splice(i, 1);
+  }
+}
+
+function removeUserFromQueue(userId: string) {
+  for (let i = matchQueue.length - 1; i >= 0; i--) {
+    if (matchQueue[i]!.userId === userId) matchQueue.splice(i, 1);
+  }
+}
+
+function isWsOpen(ws: WebSocket) {
+  return ws.readyState === ws.OPEN;
+}
+
+function pruneQueue() {
+  for (let i = matchQueue.length - 1; i >= 0; i--) {
+    if (!isWsOpen(matchQueue[i]!.ws)) matchQueue.splice(i, 1);
+  }
+}
+
+function findMatchFor(entry: QueueEntry): QueueEntry | null {
+  pruneQueue();
+  let best: QueueEntry | null = null;
+  let bestScore = Infinity;
+  for (const other of matchQueue) {
+    if (other.ws === entry.ws) continue;
+    if (other.userId === entry.userId) continue;
+    if (!isWsOpen(other.ws)) continue;
+    const diff = Math.abs(other.level - entry.level);
+    if (diff > PVP_MATCH_LEVEL_DELTA) continue;
+    // Ближе по уровню важнее; при равенстве — кто дольше ждёт
+    const score = diff * 1000 - (Date.now() - other.queuedAt) / 1000;
+    if (score < bestScore) {
+      bestScore = score;
+      best = other;
+    }
+  }
+  return best;
+}
+
+function pairIntoRoom(a: QueueEntry, b: QueueEntry): Room | null {
+  removeFromQueue(a.ws);
+  removeFromQueue(b.ws);
+  // Случайный код, пока не свободен
+  let code = randomMatchCode();
+  let guard = 0;
+  while (rooms.has(code) && guard < 40) {
+    code = randomMatchCode();
+    guard++;
+  }
+  const room = getOrCreate(code);
+  if (!room) return null;
+  const host: SeatPlayer = {
+    ws: a.ws,
+    userId: a.userId,
+    name: a.name,
+    heroId: a.heroId,
+    deck: a.deck,
+    level: a.level,
+    ready: true,
+  };
+  const guest: SeatPlayer = {
+    ws: b.ws,
+    userId: b.userId,
+    name: b.name,
+    heroId: b.heroId,
+    deck: b.deck,
+    level: b.level,
+    ready: true,
+  };
+  room.host = host;
+  room.guest = guest;
+  room.battle = null;
+  room.timeouts = { host: 0, guest: 0 };
+  room.endReason = null;
+  return room;
+}
+
+/** Сокет → код комнаты (очередь матчит два разных connection). */
+const socketRoom = new Map<WebSocket, string>();
+
+function bindSocketRoom(ws: WebSocket, code: string | null) {
+  if (code) socketRoom.set(ws, code);
+  else socketRoom.delete(ws);
+}
+
+function tryMatchQueue(seed?: QueueEntry) {
+  pruneQueue();
+  const startWith = seed && matchQueue.includes(seed) ? seed : matchQueue[0];
+  if (!startWith) return null;
+  const partner = findMatchFor(startWith);
+  if (!partner) return null;
+  const room = pairIntoRoom(startWith, partner);
+  if (!room || !room.host || !room.guest) return null;
+  bindSocketRoom(room.host.ws, room.code);
+  bindSocketRoom(room.guest.ws, room.code);
+  broadcastLobby(room);
+  tryStart(room);
+  return room;
+}
+
+setInterval(() => {
+  pruneQueue();
+  // Повторные попытки на случай, если второй зашёл раньше и ждёт
+  for (const entry of [...matchQueue]) {
+    if (tryMatchQueue(entry)) break;
+  }
+}, 2000).unref?.();
 
 function send(ws: WebSocket, msg: PvpServerMsg) {
   if (ws.readyState === ws.OPEN) {
@@ -358,7 +484,9 @@ export function getPvpLiveStats(): {
   players: number;
   inBattle: number;
   inLobby: number;
+  inQueue: number;
 } {
+  pruneQueue();
   let roomsN = 0;
   let inBattle = 0;
   let inLobby = 0;
@@ -370,9 +498,10 @@ export function getPvpLiveStats(): {
   }
   return {
     rooms: roomsN,
-    players: inBattle + inLobby,
+    players: inBattle + inLobby + matchQueue.length,
     inBattle,
     inLobby,
+    inQueue: matchQueue.length,
   };
 }
 
@@ -384,8 +513,17 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
   });
 
   wss.on("connection", (ws: WebSocket, _req: IncomingMessage) => {
-    let joinedCode: string | null = null;
     const connId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    const leaveCurrentRoom = (reason: "leave" | "disconnect") => {
+      const code = socketRoom.get(ws) ?? null;
+      if (!code) return;
+      const room = rooms.get(code);
+      bindSocketRoom(ws, null);
+      if (!room) return;
+      const seat = seatOf(room, ws);
+      if (seat) detach(room, seat, reason);
+    };
 
     ws.on("message", (raw) => {
       const rl = rateLimit(`ws:${connId}`, 40, 5_000);
@@ -408,6 +546,70 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
         msg = JSON.parse(text) as PvpClientMsg;
       } catch {
         send(ws, { type: "error", message: "Битый пакет" });
+        return;
+      }
+
+      if (msg.type === "cancel_queue") {
+        removeFromQueue(ws);
+        send(ws, { type: "queue_cancelled" });
+        return;
+      }
+
+      if (msg.type === "queue") {
+        const user = authLookup(String(msg.token || ""));
+        if (!user) {
+          send(ws, { type: "error", message: "Нужен вход" });
+          return;
+        }
+        const qRl = rateLimit(`ws-queue:${user.id}`, 20, 60_000);
+        if (!qRl.ok) {
+          send(ws, { type: "error", message: "Слишком много поисков" });
+          return;
+        }
+        const deckCheck = validateDeck(msg.deck);
+        if (!deckCheck.ok) {
+          send(ws, { type: "error", message: deckCheck.error });
+          return;
+        }
+        const heroId =
+          sanitizeHeroId(msg.heroId) || sanitizeHeroId("hero_life")!;
+        const name =
+          sanitizeDisplayName(msg.name) ||
+          sanitizeDisplayName(user.login) ||
+          "Игрок";
+        if (name.length < 2) {
+          send(ws, { type: "error", message: "Короткое имя" });
+          return;
+        }
+
+        // Выйти из комнаты/старой очереди
+        leaveCurrentRoom("leave");
+        removeFromQueue(ws);
+        removeUserFromQueue(user.id);
+
+        const level = Math.max(
+          1,
+          Math.min(50, Math.floor(Number(msg.level) || 1)),
+        );
+        const entry: QueueEntry = {
+          ws,
+          userId: user.id,
+          name,
+          heroId,
+          deck: deckCheck.deck,
+          level,
+          ready: false,
+          queuedAt: Date.now(),
+        };
+        matchQueue.push(entry);
+        const delta = PVP_MATCH_LEVEL_DELTA;
+        send(ws, {
+          type: "queued",
+          levelMin: Math.max(1, level - delta),
+          levelMax: Math.min(50, level + delta),
+          delta,
+        });
+        tryMatchQueue(entry);
         return;
       }
 
@@ -450,12 +652,8 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           return;
         }
 
-        if (joinedCode) {
-          const old = rooms.get(joinedCode);
-          const oldSeat = old ? seatOf(old, ws) : null;
-          if (old && oldSeat) detach(old, oldSeat, "leave");
-          joinedCode = null;
-        }
+        removeFromQueue(ws);
+        leaveCurrentRoom("leave");
 
         const room = getOrCreate(code);
         if (!room) {
@@ -510,30 +708,32 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           send(ws, { type: "error", message: "Комната заполнена" });
           return;
         }
-        joinedCode = code;
+        bindSocketRoom(ws, code);
         broadcastLobby(room);
         return;
       }
 
+      const joinedCode = socketRoom.get(ws) ?? null;
       if (!joinedCode) {
         send(ws, { type: "error", message: "Сначала войди в комнату" });
         return;
       }
       const room = rooms.get(joinedCode);
       if (!room) {
+        bindSocketRoom(ws, null);
         send(ws, { type: "error", message: "Комната исчезла" });
         return;
       }
       const seat = seatOf(room, ws);
       if (!seat) {
+        bindSocketRoom(ws, null);
         send(ws, { type: "error", message: "Ты не в комнате" });
         return;
       }
       const me = seat === "host" ? room.host! : room.guest!;
 
       if (msg.type === "leave") {
-        detach(room, seat, "leave");
-        joinedCode = null;
+        leaveCurrentRoom("leave");
         return;
       }
 
@@ -597,14 +797,13 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
     });
 
     ws.on("close", () => {
-      if (!joinedCode) return;
-      const room = rooms.get(joinedCode);
-      if (!room) return;
-      const seat = seatOf(room, ws);
-      if (seat) detach(room, seat, "disconnect");
+      removeFromQueue(ws);
+      leaveCurrentRoom("disconnect");
     });
   });
 
-  console.log("[orakul] PvP WebSocket /ws/pvp (secured + turn timer)");
+  console.log(
+    "[orakul] PvP WebSocket /ws/pvp (secured + turn timer + matchmaking)",
+  );
   return wss;
 }

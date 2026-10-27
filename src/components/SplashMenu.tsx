@@ -272,7 +272,7 @@ export function SplashMenu({
           {panel === "root" ? (
             <>
               <button type="button" className="primary large" onClick={onMulti}>
-                Одиночный бой
+                Дуэль · найти соперника
               </button>
               <button
                 type="button"

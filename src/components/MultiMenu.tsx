@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { PvpSocket } from "../game/pvpClient";
-import type { PvpSeat, PvpServerMsg } from "../game/pvpProtocol";
+import {
+  PVP_MATCH_LEVEL_DELTA,
+  type PvpSeat,
+  type PvpServerMsg,
+} from "../game/pvpProtocol";
 import { getToken } from "../game/session";
 import type { BattleState } from "../game/types";
 
@@ -50,6 +54,10 @@ export function MultiMenu({
   const [code, setCode] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [searching, setSearching] = useState<{
+    levelMin: number;
+    levelMax: number;
+  } | null>(null);
   const [lobby, setLobby] = useState<{
     code: string;
     youAre: PvpSeat;
@@ -60,6 +68,8 @@ export function MultiMenu({
   } | null>(null);
   const socketRef = useRef<PvpSocket | null>(null);
   const startedRef = useRef(false);
+  const searchPulse = useRef(0);
+  const [, setTick] = useState(0);
 
   useEffect(() => {
     return () => {
@@ -68,13 +78,36 @@ export function MultiMenu({
     };
   }, []);
 
+  useEffect(() => {
+    if (!searching) return;
+    const id = window.setInterval(() => {
+      searchPulse.current += 1;
+      setTick((n) => n + 1);
+    }, 900);
+    return () => window.clearInterval(id);
+  }, [searching]);
+
   const handleMsg = (msg: PvpServerMsg) => {
     if (msg.type === "error") {
       setMessage(msg.message);
       setBusy(false);
+      setSearching(null);
+      return;
+    }
+    if (msg.type === "queued") {
+      setSearching({ levelMin: msg.levelMin, levelMax: msg.levelMax });
+      setBusy(false);
+      setMessage(null);
+      setLobby(null);
+      return;
+    }
+    if (msg.type === "queue_cancelled") {
+      setSearching(null);
+      setBusy(false);
       return;
     }
     if (msg.type === "lobby") {
+      setSearching(null);
       setLobby({
         code: msg.code,
         youAre: msg.youAre,
@@ -104,6 +137,7 @@ export function MultiMenu({
     }
     if (msg.type === "battle" && !startedRef.current) {
       startedRef.current = true;
+      setSearching(null);
       const sock = socketRef.current;
       if (!sock) return;
       onPvpStart({
@@ -120,7 +154,15 @@ export function MultiMenu({
     }
   };
 
-  const enterRoom = async (roomCode: string) => {
+  const ensureSocket = async () => {
+    socketRef.current?.leave();
+    const sock = new PvpSocket();
+    socketRef.current = sock;
+    await sock.connect(handleMsg);
+    return sock;
+  };
+
+  const findOpponent = async () => {
     const token = getToken();
     if (!token) {
       setMessage("Нужен вход");
@@ -135,10 +177,51 @@ export function MultiMenu({
     setMessage(null);
     startedRef.current = false;
     try {
-      socketRef.current?.leave();
-      const sock = new PvpSocket();
-      socketRef.current = sock;
-      await sock.connect(handleMsg);
+      const sock = await ensureSocket();
+      sock.queue({
+        token,
+        heroId,
+        deck,
+        name: displayName,
+        level: playerLevel,
+      });
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Ошибка связи");
+      setBusy(false);
+      setSearching(null);
+    }
+  };
+
+  const cancelSearch = () => {
+    try {
+      socketRef.current?.cancelQueue();
+    } catch {
+      /* ignore */
+    }
+    socketRef.current?.leave();
+    socketRef.current = null;
+    setSearching(null);
+    setBusy(false);
+    setMessage(null);
+  };
+
+  const enterRoom = async (roomCode: string) => {
+    const token = getToken();
+    if (!token) {
+      setMessage("Нужен вход");
+      return;
+    }
+    if (deck.length < 4) {
+      setMessage("Собери колоду в кабинете");
+      return;
+    }
+    if (canStartPvp && !canStartPvp()) return;
+    setBusy(true);
+    setMessage(null);
+    setSearching(null);
+    startedRef.current = false;
+    try {
+      const sock = await ensureSocket();
       sock.join({
         code: roomCode,
         token,
@@ -158,6 +241,7 @@ export function MultiMenu({
     socketRef.current = null;
     setLobby(null);
     setMessage(null);
+    setSearching(null);
     startedRef.current = false;
   };
 
@@ -168,6 +252,10 @@ export function MultiMenu({
       setMessage(err instanceof Error ? err.message : "Ошибка");
     }
   };
+
+  const levelLo = Math.max(1, playerLevel - PVP_MATCH_LEVEL_DELTA);
+  const levelHi = Math.min(50, playerLevel + PVP_MATCH_LEVEL_DELTA);
+  const dots = ".".repeat((searchPulse.current % 3) + 1);
 
   if (lobby) {
     const peerName =
@@ -232,6 +320,40 @@ export function MultiMenu({
     );
   }
 
+  if (searching) {
+    return (
+      <div className="multi-screen" aria-label="Поиск соперника">
+        <header className="page-bar">
+          <button type="button" className="ghost" onClick={cancelSearch}>
+            ← Отмена
+          </button>
+          <h1>Поиск</h1>
+          <span />
+        </header>
+        <div className="multi-panel multi-panel-search">
+          <p className="multi-search-title">Ищем живого оракула{dots}</p>
+          <p className="hint">
+            Уровни{" "}
+            <strong>
+              {searching.levelMin}–{searching.levelMax}
+            </strong>{" "}
+            (±{PVP_MATCH_LEVEL_DELTA} к твоему {playerLevel}). Как только
+            найдётся — бой начнётся сам.
+          </p>
+          <div className="multi-search-orb" aria-hidden>
+            <span />
+          </div>
+          <button type="button" className="ghost large" onClick={cancelSearch}>
+            Отменить поиск
+          </button>
+          <button type="button" className="ghost large" onClick={onFightBot}>
+            Пока сыграть с ботом
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="multi-screen" aria-label="Одиночный бой">
       <header className="page-bar">
@@ -244,14 +366,30 @@ export function MultiMenu({
 
       <div className="multi-panel">
         <p className="hint">
-          Быстрый бой с ботом (±1 к твоему уровню) или дуэль с другом по коду.
-          В PvP награды выше; ход 20 сек, 5 пропусков = поражение, выход =
-          сдача.
+          Главное — дуэль с живым игроком рядом по силе (ур. {levelLo}–
+          {levelHi}). Бот и комнаты по коду — запасные пути.
         </p>
+
+        <button
+          type="button"
+          className="cta-live large"
+          disabled={busy}
+          onClick={() => void findOpponent()}
+        >
+          <span className="cta-live-kicker">Онлайн</span>
+          <span className="cta-live-title">Найти соперника</span>
+          <span className="cta-live-sub">
+            ±{PVP_MATCH_LEVEL_DELTA} ур. · равный бой
+          </span>
+        </button>
 
         <button type="button" className="primary large" onClick={onFightBot}>
           Бой с ботом (ур. ~{Math.min(50, playerLevel + 1)})
         </button>
+
+        <div className="multi-divider" aria-hidden>
+          <span>или с другом</span>
+        </div>
 
         <button
           type="button"

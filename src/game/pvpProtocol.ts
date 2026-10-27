@@ -33,6 +33,9 @@ import { validateBattleCommit } from "./pvpValidate";
 export type { PvpSeat };
 export { flipBattle, isSeatTurn, viewForSeat };
 
+/** Разница уровней для автопоиска живого соперника. */
+export const PVP_MATCH_LEVEL_DELTA = 5;
+
 /** Клиент → сервер */
 export type PvpClientMsg =
   | {
@@ -44,6 +47,15 @@ export type PvpClientMsg =
       name: string;
       level: number;
     }
+  | {
+      type: "queue";
+      token: string;
+      heroId: string;
+      deck: string[];
+      name: string;
+      level: number;
+    }
+  | { type: "cancel_queue" }
   | { type: "ready" }
   | { type: "leave" }
   | { type: "action"; action: PvpAction };
@@ -81,6 +93,14 @@ export type PvpServerMsg =
     }
   | { type: "error"; message: string }
   | { type: "peer_left"; message: string }
+  | {
+      /** В очереди поиска: ищем соперника ±PVP_MATCH_LEVEL_DELTA уровней. */
+      type: "queued";
+      levelMin: number;
+      levelMax: number;
+      delta: number;
+    }
+  | { type: "queue_cancelled" }
   | {
       type: "ended";
       winnerSeat: PvpSeat | null;

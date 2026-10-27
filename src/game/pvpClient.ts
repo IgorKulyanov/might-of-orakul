@@ -32,6 +32,14 @@ export type PvpJoinPayload = {
   level: number;
 };
 
+export type PvpQueuePayload = {
+  token: string;
+  heroId: string;
+  deck: string[];
+  name: string;
+  level: number;
+};
+
 export class PvpSocket {
   private ws: WebSocket | null = null;
   private onMsg: ((m: PvpServerMsg) => void) | null = null;
@@ -73,11 +81,28 @@ export class PvpSocket {
     this.send({ type: "join", ...payload });
   }
 
+  queue(payload: PvpQueuePayload) {
+    this.send({ type: "queue", ...payload });
+  }
+
+  cancelQueue() {
+    try {
+      this.send({ type: "cancel_queue" });
+    } catch {
+      /* ignore */
+    }
+  }
+
   ready() {
     this.send({ type: "ready" });
   }
 
   leave() {
+    try {
+      this.send({ type: "cancel_queue" });
+    } catch {
+      /* ignore */
+    }
     try {
       this.send({ type: "leave" });
     } catch {
