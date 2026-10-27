@@ -53,6 +53,7 @@ export function CommunityPanel({
         }
         if (msg.type === "chat") {
           setMessages((prev) => [...prev.slice(-79), msg.message]);
+          setStatus(null);
         }
         if (msg.type === "error") setStatus(msg.message);
         if (msg.type === "ok") setStatus(msg.message);

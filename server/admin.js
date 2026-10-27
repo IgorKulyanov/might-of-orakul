@@ -8,6 +8,7 @@ import {
   readTailJsonl,
   unmuteChatUser,
 } from "./lobbyChat.ts";
+import { getPresenceStats } from "./presence.ts";
 import { getPvpLiveStats } from "./pvpRooms.ts";
 import { LIMITS, sanitizeDisplayName } from "./security.js";
 
@@ -237,19 +238,38 @@ export function mountAdminRoutes(app, deps) {
         const t = Date.parse(u.lastLoginAt || u.createdAt || "");
         return Number.isFinite(t) && now - t <= ms;
       }).length;
+    const registeredToday = users.filter((u) => {
+      const t = Date.parse(u.createdAt || "");
+      return Number.isFinite(t) && now - t <= 24 * 60 * 60_000;
+    }).length;
     const bannedPvp = users.filter(
       (u) => Number(u.pvpFlee?.bannedUntil) > now,
     ).length;
     const pendingCampaign = users.filter((u) => u.pendingResetCampaign).length;
     const pvp = getPvpLiveStats();
+    const presence = getPresenceStats(now);
+    const chatOnline = getChatOnlineCount();
+    /** В клиенте сейчас + кто в PvP/чате без пульса (перестраховка). */
+    const onlineNow = Math.max(presence.online, chatOnline, pvp.players);
     res.json({
       ok: true,
       registered: users.length,
+      registeredToday,
       dormant: users.filter((u) => u.dormant).length,
+      onlineNow,
+      onlineWho: presence.who,
+      screens: {
+        menu: presence.inMenu,
+        battle: presence.inBattle,
+        battlePvp: presence.inPvpClient,
+        cabinet: presence.inCabinet,
+        multi: presence.inMulti,
+        other: presence.inOther,
+      },
       active15m: activeSince(15 * 60_000),
       active1h: activeSince(60 * 60_000),
       active24h: activeSince(24 * 60 * 60_000),
-      chatOnline: getChatOnlineCount(),
+      chatOnline,
       pvpRooms: pvp.rooms,
       pvpPlayers: pvp.players,
       pvpInBattle: pvp.inBattle,

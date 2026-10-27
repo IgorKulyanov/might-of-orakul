@@ -60,7 +60,7 @@ async function request<T>(
     });
   } catch {
     throw new Error(
-      "Нет связи с API. Проверь: окна СЕРВЕР-ДОМА и TUNNEL открыты, а VITE_API_URL = текущий URL туннеля (после смены URL нужен Redeploy).",
+      "Нет связи с сервером. Обнови страницу. Если снова ошибка — сайт ещё смотрит на старый API (в Cloudflare нужен VITE_API_URL на https).",
     );
   }
   const data = (await res.json().catch(() => ({}))) as T & {
@@ -267,11 +267,34 @@ export function apiOwnerBoost(body: {
   });
 }
 
+export function apiPresence(token: string, screen: string) {
+  return request<{ ok: boolean; screen: string }>("/api/presence", {
+    method: "POST",
+    token,
+    body: JSON.stringify({ screen }),
+  });
+}
+
 export function apiAdminStats(adminKey: string) {
   return adminRequest<{
     ok: boolean;
     registered: number;
+    registeredToday: number;
     dormant: number;
+    onlineNow: number;
+    onlineWho: Array<{
+      login: string;
+      name: string;
+      screen: string;
+    }>;
+    screens: {
+      menu: number;
+      battle: number;
+      battlePvp: number;
+      cabinet: number;
+      multi: number;
+      other: number;
+    };
     active15m: number;
     active1h: number;
     active24h: number;

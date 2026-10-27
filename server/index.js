@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { v4 as uuid } from "uuid";
 import { mountAdminRoutes } from "./admin.js";
+import { touchPresence } from "./presence.ts";
 import {
   hasRemoteDb,
   pullRemoteUsers,
@@ -403,6 +404,32 @@ app.get("/api/health", (_req, res) => {
     remoteDb: hasRemoteDb(),
   });
 });
+
+/** Пульс «я в игре» — админка считает онлайн без записи на диск. */
+app.post(
+  "/api/presence",
+  auth,
+  rateLimitMiddleware({
+    name: "presence",
+    maxN: 60,
+    windowMs: 60_000,
+    keyFn: (req) => `presence:${req.user?.id || clientIp(req)}`,
+  }),
+  (req, res) => {
+    try {
+      const row = touchPresence({
+        userId: req.user.id,
+        login: req.user.login,
+        displayName: req.user.displayName,
+        screen: req.body?.screen,
+      });
+      res.json({ ok: true, screen: row.screen });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "presence fail" });
+    }
+  },
+);
 
 app.post(
   "/api/register",

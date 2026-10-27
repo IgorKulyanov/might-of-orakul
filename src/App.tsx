@@ -53,6 +53,7 @@ import {
 } from "./game/campaign";
 import {
   apiMe,
+  apiPresence,
   apiTelegramAuth,
   apiUpdateMe,
   type ApiUser,
@@ -342,6 +343,48 @@ export default function App() {
   arenaRoundRef.current = arenaRound;
   const screenRef = useRef(screen);
   screenRef.current = screen;
+
+  // Пульс «онлайн» для админки (раз в ~30с + при смене экрана).
+  useEffect(() => {
+    if (boot || !token) return;
+    const mapScreen = (s: Screen): string => {
+      if (s === "battle_pvp") return "battle_pvp";
+      if (
+        s === "battle" ||
+        s === "battle_bot" ||
+        s === "battle_campaign" ||
+        s === "battle_arena" ||
+        s === "battle_dev"
+      ) {
+        return "battle";
+      }
+      if (s === "multi") return "multi";
+      if (s === "cabinet" || s === "collection" || s === "hero") {
+        return "cabinet";
+      }
+      return "menu";
+    };
+    let cancelled = false;
+    const beat = () => {
+      if (cancelled || document.visibilityState === "hidden") return;
+      const t = token ?? getToken();
+      if (!t) return;
+      void apiPresence(t, mapScreen(screenRef.current)).catch(() => {
+        /* сеть/сон — не мешаем игре */
+      });
+    };
+    beat();
+    const id = window.setInterval(beat, 30_000);
+    const onVis = () => {
+      if (document.visibilityState === "visible") beat();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [boot, token, screen]);
 
   // Музыка меню по умолчанию ВКЛ до боя; mute уважается (не форсим play).
   useEffect(() => {

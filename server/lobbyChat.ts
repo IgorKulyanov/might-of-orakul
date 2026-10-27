@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocketServer, type WebSocket } from "ws";
+import { touchPresence } from "./presence.ts";
 import { rateLimit, sanitizeChatText, sanitizeDisplayName } from "./security.js";
 
 type AuthLookup = (
@@ -40,9 +41,12 @@ const HISTORY_MAX = 80;
 const MSG_MAX = 200;
 const CHAT_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const MAX_CLIENTS = 200;
+const PING_MS = 25_000;
 
 const history: ChatMsg[] = [];
 const clients = new Set<WebSocket>();
+/** Только после успешного hello — для «в чате сейчас». */
+const authedClients = new Set<WebSocket>();
 /** userId -> until ms */
 const mutes = new Map<string, number>();
 /** userId -> login (для админки) */
@@ -177,7 +181,34 @@ export function attachLobbyChat(authLookup: AuthLookup): WebSocketServer {
     }
 
     let user: { id: string; login: string; name: string } | null = null;
+    let alive = true;
     clients.add(ws);
+
+    // Держим сокет живым за nginx (иначе idle ~2 мин режет связь).
+    ws.on("pong", () => {
+      alive = true;
+    });
+    const pingTimer = setInterval(() => {
+      if (ws.readyState !== ws.OPEN) {
+        clearInterval(pingTimer);
+        return;
+      }
+      if (!alive) {
+        try {
+          ws.terminate();
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+      alive = false;
+      try {
+        ws.ping();
+      } catch {
+        /* ignore */
+      }
+    }, PING_MS);
+    pingTimer.unref?.();
 
     ws.on("message", (raw) => {
       const text = String(raw);
@@ -208,6 +239,17 @@ export function attachLobbyChat(authLookup: AuthLookup): WebSocketServer {
           sanitizeDisplayName(u.login) ||
           "Игрок";
         user = { id: u.id, login: u.login, name };
+        authedClients.add(ws);
+        try {
+          touchPresence({
+            userId: u.id,
+            login: u.login,
+            displayName: u.displayName,
+            screen: "menu",
+          });
+        } catch {
+          /* ignore */
+        }
         send(ws, { type: "history", messages: history.slice(-HISTORY_MAX) });
         return;
       }
@@ -279,7 +321,9 @@ export function attachLobbyChat(authLookup: AuthLookup): WebSocketServer {
       /* ignore */
     });
     ws.on("close", () => {
+      clearInterval(pingTimer);
       clients.delete(ws);
+      authedClients.delete(ws);
     });
   });
 
@@ -288,7 +332,7 @@ export function attachLobbyChat(authLookup: AuthLookup): WebSocketServer {
 }
 
 export function getChatOnlineCount(): number {
-  return clients.size;
+  return authedClients.size;
 }
 
 export function muteChatUser(

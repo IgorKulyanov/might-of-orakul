@@ -4575,6 +4575,15 @@ html.is-hand-dragging .grave-row {
   gap: 0.4rem;
 }
 
+.admin-stats-live .admin-stat-hi {
+  border-color: rgba(214, 184, 140, 0.45);
+  background: rgba(80, 48, 12, 0.35);
+}
+
+.admin-stats-live .admin-stat-hi strong {
+  font-size: 1.35rem;
+}
+
 .admin-stat {
   display: grid;
   gap: 0.12rem;
@@ -4601,6 +4610,41 @@ html.is-hand-dragging .grave-row {
   font-size: 0.7rem;
   font-weight: 500;
   opacity: 0.75;
+}
+
+.admin-online-list {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.admin-online-list > em {
+  font-style: normal;
+  font-size: 0.72rem;
+  opacity: 0.75;
+}
+
+.admin-online-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.2rem;
+  max-height: 140px;
+  overflow: auto;
+}
+
+.admin-online-list li button {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  text-align: left;
+  padding: 0.35rem 0.45rem;
+}
+
+.admin-online-list li span {
+  opacity: 0.65;
+  font-size: 0.75rem;
 }
 
 .admin-log {

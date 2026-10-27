@@ -71,7 +71,29 @@ export function AdminPanel({ open, onClose }: Props) {
       .finally(() => setBusy(false));
   }, [open, key, refresh]);
 
+  // Живая статистика, пока админка открыта.
+  useEffect(() => {
+    if (!open || !key) return;
+    const id = window.setInterval(() => {
+      void apiAdminStats(key)
+        .then((st) => setStats(st))
+        .catch(() => {
+          /* тихо — не спамим статусом */
+        });
+    }, 10_000);
+    return () => window.clearInterval(id);
+  }, [open, key]);
+
   if (!open) return null;
+
+  const screenLabel = (s: string) => {
+    if (s === "battle_pvp" || s === "battlePvp") return "PvP";
+    if (s === "battle") return "бой";
+    if (s === "multi") return "мульти";
+    if (s === "cabinet") return "кабинет";
+    if (s === "menu") return "меню";
+    return s;
+  };
 
   const unlock = async () => {
     setBusy(true);
@@ -221,51 +243,89 @@ export function AdminPanel({ open, onClose }: Props) {
         ) : (
           <>
             <section className="admin-section">
-              <h3>Статистика</h3>
+              <h3>Статистика · авто 10с</h3>
               {stats ? (
-                <div className="admin-stats">
-                  <div className="admin-stat">
-                    <em>Зарегистрировано</em>
-                    <strong>{stats.registered}</strong>
+                <>
+                  <div className="admin-stats admin-stats-live">
+                    <div className="admin-stat admin-stat-hi">
+                      <em>Сейчас в игре</em>
+                      <strong>{stats.onlineNow ?? 0}</strong>
+                    </div>
+                    <div className="admin-stat admin-stat-hi">
+                      <em>Всего аккаунтов</em>
+                      <strong>{stats.registered}</strong>
+                    </div>
+                    <div className="admin-stat">
+                      <em>Новые за 24ч</em>
+                      <strong>{stats.registeredToday ?? 0}</strong>
+                    </div>
+                    <div className="admin-stat">
+                      <em>В чате</em>
+                      <strong>{stats.chatOnline}</strong>
+                    </div>
+                    <div className="admin-stat">
+                      <em>PvP сейчас</em>
+                      <strong>
+                        {stats.pvpPlayers}
+                        <span className="admin-stat-sub">
+                          {" "}
+                          бой {stats.pvpInBattle} · лобби {stats.pvpInLobby} ·
+                          комнат {stats.pvpRooms}
+                        </span>
+                      </strong>
+                    </div>
+                    <div className="admin-stat">
+                      <em>Где онлайн</em>
+                      <strong className="admin-stat-sub">
+                        меню {stats.screens?.menu ?? 0} · бой{" "}
+                        {stats.screens?.battle ?? 0} · PvP{" "}
+                        {stats.screens?.battlePvp ?? 0} · кабинет{" "}
+                        {stats.screens?.cabinet ?? 0} · мульти{" "}
+                        {stats.screens?.multi ?? 0}
+                      </strong>
+                    </div>
+                    <div className="admin-stat">
+                      <em>Заходили 15м / 1ч / 24ч</em>
+                      <strong>
+                        {stats.active15m} / {stats.active1h} / {stats.active24h}
+                      </strong>
+                    </div>
+                    <div className="admin-stat">
+                      <em>Сон · бан PvP · аптайм</em>
+                      <strong>
+                        {stats.dormant} · {stats.bannedPvp} ·{" "}
+                        {formatUptime(stats.uptimeSec)}
+                      </strong>
+                    </div>
                   </div>
-                  <div className="admin-stat">
-                    <em>Активны 15 мин</em>
-                    <strong>{stats.active15m}</strong>
-                  </div>
-                  <div className="admin-stat">
-                    <em>Активны 1 ч</em>
-                    <strong>{stats.active1h}</strong>
-                  </div>
-                  <div className="admin-stat">
-                    <em>Активны 24 ч</em>
-                    <strong>{stats.active24h}</strong>
-                  </div>
-                  <div className="admin-stat">
-                    <em>В чате сейчас</em>
-                    <strong>{stats.chatOnline}</strong>
-                  </div>
-                  <div className="admin-stat">
-                    <em>В PvP</em>
-                    <strong>
-                      {stats.pvpPlayers}
-                      <span className="admin-stat-sub">
-                        {" "}
-                        (бой {stats.pvpInBattle} · лобби {stats.pvpInLobby} ·
-                        комнат {stats.pvpRooms})
-                      </span>
-                    </strong>
-                  </div>
-                  <div className="admin-stat">
-                    <em>Спящие / бан PvP</em>
-                    <strong>
-                      {stats.dormant} / {stats.bannedPvp}
-                    </strong>
-                  </div>
-                  <div className="admin-stat">
-                    <em>Аптайм API</em>
-                    <strong>{formatUptime(stats.uptimeSec)}</strong>
-                  </div>
-                </div>
+                  {(stats.onlineWho?.length ?? 0) > 0 ? (
+                    <div className="admin-online-list">
+                      <em>Онлайн сейчас</em>
+                      <ul>
+                        {stats.onlineWho.map((u) => (
+                          <li key={u.login}>
+                            <button
+                              type="button"
+                              className="ghost"
+                              onClick={() => {
+                                setGrantLogin(u.login);
+                                setMuteLogin(u.login);
+                                setActionLogin(u.login);
+                              }}
+                            >
+                              {u.name}
+                              <span>
+                                @{u.login} · {screenLabel(u.screen)}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <p className="hint">Сейчас никого онлайн (пульс пуст).</p>
+                  )}
+                </>
               ) : (
                 <p className="hint">Загрузка…</p>
               )}
@@ -283,7 +343,7 @@ export function AdminPanel({ open, onClose }: Props) {
                     .finally(() => setBusy(false));
                 }}
               >
-                Обновить статистику
+                Обновить сейчас
               </button>
             </section>
 
