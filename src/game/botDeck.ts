@@ -73,13 +73,14 @@ export function pickBotPersona(rng: () => number): BotPersona {
 
 /**
  * Макс. тир карт по уровню оракула (честный пул).
- * 1–7 → I; 8–17 → II; 18–27 → III; 28–39 → IV; 40+ → V.
+ * Чуть раньше тиры II–IV — иначе бот отстаёт от прокачанной колоды игрока.
+ * 1–5 → I; 6–14 → II; 15–24 → III; 25–36 → IV; 37+ → V.
  */
 export function maxTierForLevel(level: number): 1 | 2 | 3 | 4 | 5 {
-  if (level >= 40) return 5;
-  if (level >= 28) return 4;
-  if (level >= 18) return 3;
-  if (level >= 8) return 2;
+  if (level >= 37) return 5;
+  if (level >= 25) return 4;
+  if (level >= 15) return 3;
+  if (level >= 6) return 2;
   return 1;
 }
 
@@ -105,12 +106,28 @@ function manaWeight(cardId: string, faction: Faction): number {
   }
 }
 
+/** Сила карты за ману — бот набирает «жирные» для стоимости, не мусор. */
+function creatureValue(cardId: string, faction: Faction): number {
+  try {
+    const c = getCard(cardId);
+    const power =
+      (c.attack ?? 0) * 3.2 +
+      (c.health ?? 0) * 2.1 +
+      (c.unitLevel ?? 1) * 5 +
+      (c.onPlayHealHero ?? 0) * 1.5;
+    const cost = Math.max(1, manaWeight(cardId, faction));
+    return power / cost + (c.unitLevel ?? 1) * 0.35;
+  } catch {
+    return 0;
+  }
+}
+
 /** Карты, которыми бот не имеет права давить игрока. */
 function botForbiddenCard(id: string, level: number): boolean {
-  // Камни маны — магазинный кит; боту только на очень высоком уровне
-  if (id === "mana_stones") return level < 35;
-  // «Доп. карта» (рамп добора) — не раньше середины/конца
-  if (id === "extra_card") return level < 18;
+  // Камни маны — всё ещё не с низких уровней
+  if (id === "mana_stones") return level < 22;
+  // «Доп. карта» — раньше, чтобы бот не задыхался без добора
+  if (id === "extra_card") return level < 10;
   return false;
 }
 
@@ -153,15 +170,16 @@ export function botPoolForLevel(level: number, school: School): string[] {
 }
 
 /**
- * Размер колоды бота: на старте короче, чтобы не «добивать» тиром.
+ * Размер колоды бота: на старте чуть короче, дальше быстро догоняет игрока.
  */
 export function botDeckSizeForLevel(level: number): number {
   const lv = Math.max(1, level);
-  if (lv <= 3) return lv <= 1 ? 4 : lv === 2 ? 5 : 6;
-  if (lv <= 5) return 10;
-  if (lv <= 7) return 12;
-  if (lv <= 11) return 16;
-  if (lv <= 17) return 20;
+  if (lv <= 1) return 6;
+  if (lv === 2) return 8;
+  if (lv === 3) return 10;
+  if (lv <= 5) return 14;
+  if (lv <= 7) return 18;
+  if (lv <= 11) return 22;
   return DECK_SIZE;
 }
 
@@ -251,34 +269,39 @@ export function botDeckForLevel(
 }
 
 function rampIdsForLevel(level: number, maxTier: number): string[] {
-  // Один «Доп. мана» на старте — без дабла и без «Доп. карты»
-  if (level <= 10) return ["hero_mana"];
-  if (level <= 17 || maxTier < 2) return ["hero_mana", "hero_mana"];
-  // extra_card уже отфильтруется forbidden < 18
+  if (level <= 6) return ["hero_mana"];
+  if (level <= 12 || maxTier < 2) return ["hero_mana", "hero_mana"];
+  // extra_card отфильтруется forbidden < 10
   return ["hero_mana", "hero_mana", "extra_card"];
 }
 
 function maxSpellSlots(level: number, target: number, persona: BotPersona): number {
+  // Больше снятия/давления — бот не играет «только твари»
   let base =
-    level <= 7
-      ? Math.min(2, Math.floor(target * 0.2))
-      : level <= 14
-        ? Math.min(3, Math.floor(target * 0.22))
-        : level <= 24
-          ? Math.min(4, Math.floor(target * 0.25))
-          : Math.min(6, Math.floor(target * 0.28));
-  if (persona === "control") base = Math.min(base + 2, Math.floor(target * 0.4));
-  if (persona === "aggro" || persona === "swarm") base = Math.max(1, base - 1);
-  if (persona === "ramp") base = Math.max(1, base - 1);
+    level <= 5
+      ? Math.min(3, Math.floor(target * 0.24))
+      : level <= 12
+        ? Math.min(4, Math.floor(target * 0.28))
+        : level <= 22
+          ? Math.min(6, Math.floor(target * 0.3))
+          : Math.min(7, Math.floor(target * 0.32));
+  if (persona === "control") base = Math.min(base + 2, Math.floor(target * 0.42));
+  if (persona === "aggro" || persona === "swarm") base = Math.max(2, base - 1);
+  if (persona === "ramp") base = Math.max(2, base - 1);
   return base;
 }
 
+/**
+ * Меньше = раньше в колоду.
+ * База — высокая value; персона крутит кривую, не заменяет силу на мусор.
+ */
 function personaCreatureBias(
   cardId: string,
   faction: Faction,
   persona: BotPersona,
 ): number {
   const w = manaWeight(cardId, faction);
+  const val = creatureValue(cardId, faction);
   const t = cardTier(cardId);
   let atk = 0;
   let hp = 0;
@@ -289,17 +312,19 @@ function personaCreatureBias(
   } catch {
     /* ignore */
   }
+  // Чем выше value — тем раньше (меньше bias)
+  const base = 12 - val * 2.2;
   switch (persona) {
     case "aggro":
-      return w * 1.4 - atk * 0.8 + t * 0.3;
+      return base + w * 0.55 - atk * 0.9 + (w <= 3 ? -2 : 1);
     case "swarm":
-      return w * 1.8 - (w <= 2 ? 4 : 0);
+      return base + w * 0.9 - (w <= 2 ? 5 : 0);
     case "control":
-      return w * 0.55 - hp * 0.35 + t * 0.2;
+      return base + w * 0.25 - hp * 0.4 - t * 0.5;
     case "ramp":
-      return -t * 1.2 - w * 0.2 + (w <= 2 ? 3 : 0);
+      return base - t * 1.4 + (w <= 2 ? 2 : -w * 0.35);
     default:
-      return w + t * 0.15;
+      return base + w * 0.2 - t * 0.35;
   }
 }
 
@@ -358,6 +383,24 @@ function fillDeckAggressive(
   });
   const creatures = [...ownCreatures, ...offCreatures];
 
+  const spellImpact = (id: string): number => {
+    try {
+      const effects = getCard(id).spellEffects ?? [];
+      let s = 0;
+      for (const e of effects) {
+        if (e.type === "damage_unit") s += 6 + (e.amount ?? 0);
+        else if (e.type === "damage_hero") s += 5 + (e.amount ?? 0);
+        else if (e.type === "banish_unit" || e.type === "bounce_enemy_hand") s += 10;
+        else if (e.type === "poison") s += 8;
+        else if (e.type === "heal_hero") s += 3;
+        else if (e.type === "draw") s += 4;
+      }
+      return s - manaWeight(id, faction) * 0.4;
+    } catch {
+      return -99;
+    }
+  };
+
   let spells = pool
     .filter((id) => {
       try {
@@ -372,11 +415,15 @@ function fillDeckAggressive(
         return false;
       }
     })
-    .sort((a, b) => manaWeight(a, faction) - manaWeight(b, faction));
+    .sort(
+      (a, b) =>
+        spellImpact(b) - spellImpact(a) ||
+        manaWeight(a, faction) - manaWeight(b, faction),
+    );
   if (rng && spells.length > 1) {
     const jittered = spells.map((id) => ({
       id,
-      k: manaWeight(id, faction) + rng() * 3,
+      k: -spellImpact(id) + rng() * 2.5,
     }));
     jittered.sort((a, b) => a.k - b.k);
     spells = jittered.map((x) => x.id);
@@ -441,14 +488,19 @@ function fillDeckAggressive(
     guard++;
   }
 
+  // Ядро колоды — лучшие ~65% своей школы, не весь слабый хвост пула
+  const eliteOwn = ownCreatures.slice(
+    0,
+    Math.max(4, Math.ceil(ownCreatures.length * 0.65)),
+  );
   let ci = 0;
   guard = 0;
   while (
     out.length < creatureSlots &&
-    ownCreatures.length > 0 &&
+    eliteOwn.length > 0 &&
     guard < target * 80
   ) {
-    push(ownCreatures[ci % ownCreatures.length]!);
+    push(eliteOwn[ci % eliteOwn.length]!);
     ci++;
     guard++;
   }
@@ -507,12 +559,16 @@ function fillDeckAggressive(
 }
 
 /**
- * Уровень бота «рядом»: на старте равный, позже чуть выше.
+ * Уровень бота: с самого начала чуть выше, потом заметный зазор —
+ * иначе прокачанная колода игрока всегда давит «равного» бота.
  */
 export function botLevelNear(playerLevel: number): number {
   const lv = Math.max(1, Math.min(50, playerLevel));
-  if (lv <= 8) return lv;
-  return Math.min(50, lv + 1);
+  if (lv <= 3) return lv;
+  if (lv <= 7) return Math.min(50, lv + 1);
+  if (lv <= 14) return Math.min(50, lv + 2);
+  if (lv <= 24) return Math.min(50, lv + 2);
+  return Math.min(50, lv + 3);
 }
 
 /**

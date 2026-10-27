@@ -3728,31 +3728,32 @@ function aiSkill(
   persona: BattleState["aiPersona"] = "midrange",
 ) {
   const lv = Math.max(1, Math.min(50, level || 1));
-  let developUntil = lv <= 4 ? 2 : lv <= 8 ? 3 : 4;
-  let multiDrop = lv <= 5 ? 22 : lv <= 10 ? 34 : 44;
-  let tradeMul = lv <= 4 ? 0.65 : lv <= 8 ? 1 : lv <= 14 ? 1.2 : 1.35;
-  let flexMul = lv <= 4 ? 0.2 : lv <= 7 ? 0.55 : lv <= 12 ? 0.9 : 1.15;
-  let faceBias = 0;
-  let rampBias = 0;
-  let spellBias = 0;
+  // Раньше бот «учился» слишком медленно — из‑за этого не давил.
+  let developUntil = lv <= 2 ? 2 : lv <= 5 ? 3 : 4;
+  let multiDrop = lv <= 3 ? 28 : lv <= 8 ? 40 : 52;
+  let tradeMul = lv <= 3 ? 0.95 : lv <= 7 ? 1.15 : lv <= 14 ? 1.35 : 1.5;
+  let flexMul = lv <= 3 ? 0.55 : lv <= 6 ? 0.85 : lv <= 11 ? 1.1 : 1.3;
+  let faceBias = 4;
+  let rampBias = 4;
+  let spellBias = 6;
   if (persona === "aggro") {
     developUntil = Math.min(developUntil, 3);
-    multiDrop += 10;
-    tradeMul *= 0.85;
-    faceBias = 18;
+    multiDrop += 12;
+    tradeMul *= 0.9;
+    faceBias = 22;
   } else if (persona === "swarm") {
     developUntil = 4;
-    multiDrop += 16;
-    faceBias = 8;
+    multiDrop += 18;
+    faceBias = 10;
   } else if (persona === "control") {
-    tradeMul *= 1.2;
-    flexMul *= 1.1;
-    spellBias = 14;
-    faceBias = -6;
+    tradeMul *= 1.25;
+    flexMul *= 1.15;
+    spellBias = 20;
+    faceBias = -2;
   } else if (persona === "ramp") {
-    rampBias = 16;
+    rampBias = 22;
     developUntil = Math.max(2, developUntil - 1);
-    multiDrop -= 6;
+    multiDrop -= 4;
   }
   return {
     level: lv,
@@ -3763,11 +3764,16 @@ function aiSkill(
     faceBias,
     rampBias,
     spellBias,
-    /** Сложные флексы (могильщик, леший, вердикт…). */
-    advancedFlex: lv >= 8,
-    verdictOk: lv >= 12,
-    /** Насколько размываем «лучший» ход (ниже уровень — больше сюрпризов). */
-    choiceSlack: lv <= 5 ? 22 : lv <= 10 ? 14 : lv <= 18 ? 10 : 7,
+    /** Сложные флексы раньше — бот пользуется умениями. */
+    advancedFlex: lv >= 5,
+    verdictOk: lv >= 8,
+    /**
+     * Узкий разброс: разнообразие без тупых ходов.
+     * Раньше slack 14–22 делал бота «безопасным».
+     */
+    choiceSlack: lv <= 3 ? 8 : lv <= 8 ? 5 : lv <= 16 ? 3 : 2,
+    /** Softmax-температура: ниже = чаще лучший ход. */
+    choiceTemp: lv <= 3 ? 5 : lv <= 10 ? 3.2 : 2.2,
   };
 }
 
@@ -4489,7 +4495,7 @@ export function takeAiStep(
 
   if (!choices.length) return null;
   choices.sort((a, b) => b.score - a.score);
-  // Среди почти равных ходов — не всегда один и тот же «идеал»
+  // Среди почти равных — softmax к лучшему (не равномерный рандом)
   const top = choices[0]!.score;
   const near = choices.filter((c) => c.score >= top - skill.choiceSlack);
   const rng = aiStepRng(
@@ -4497,7 +4503,7 @@ export function takeAiStep(
     next.turn,
     near.length,
   );
-  // Летал / срочный блок линии — без лотереи среди «почти равных»
+  // Летал / срочный блок линии — без лотереи
   let forced: (typeof choices)[number] | undefined;
   if (mission.canLethal) {
     forced = choices.find((c) => {
@@ -4515,7 +4521,24 @@ export function takeAiStep(
         c.kind === "creature" && mission.openLanes.includes(c.slot),
     );
   }
-  const best = forced ?? near[Math.floor(rng() * near.length)]!;
+  let best = forced ?? near[0]!;
+  if (!forced && near.length > 1) {
+    const temp = Math.max(0.8, skill.choiceTemp);
+    let sum = 0;
+    const weights = near.map((c) => {
+      const w = Math.exp((c.score - top) / temp);
+      sum += w;
+      return w;
+    });
+    let r = rng() * sum;
+    for (let i = 0; i < near.length; i++) {
+      r -= weights[i]!;
+      if (r <= 0) {
+        best = near[i]!;
+        break;
+      }
+    }
+  }
 
   // ===== Исполнение =====
   if (best.kind === "ramp") {
