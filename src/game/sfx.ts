@@ -14,13 +14,20 @@ const SFX_VOL_KEY = "orakul-sfx-vol";
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 let sfxMuted = loadFlag(SFX_MUTE_KEY);
-/** Музыка: только на сессию (каждый заход — снова вкл., пока сам не выключишь). */
-let musicMuted = false;
+/** Музыка: только на сессию (каждый заход — выкл., пока сам не включишь). */
+let musicMuted = true;
 let musicVolume = loadNum(MUSIC_VOL_KEY, 0.7);
-let sfxVolume = loadNum(SFX_VOL_KEY, 0.8);
+/** По умолчанию звуки наполовину; дальше — что сохранил игрок. */
+let sfxVolume = loadNum(SFX_VOL_KEY, 0.5);
 
 try {
   localStorage.removeItem("orakul-music-muted");
+  // Один раз подтянуть дефолт 50% (старые сейвы часто были 0.8).
+  if (localStorage.getItem("orakul-audio-defaults-v2") !== "1") {
+    localStorage.setItem("orakul-audio-defaults-v2", "1");
+    localStorage.setItem(SFX_VOL_KEY, "0.5");
+    sfxVolume = 0.5;
+  }
 } catch {
   /* ignore */
 }
