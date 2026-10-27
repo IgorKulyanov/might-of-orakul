@@ -120,7 +120,7 @@ export function SplashMenu({
         {SPLASH_SLIDES.map((src, i) => (
           <div
             key={src}
-            className={`splash-slide ${i === index ? "is-on" : ""}`}
+            className={`splash-slide ${i === 0 ? "is-wide" : "is-portrait"} ${i === index ? "is-on" : ""}`}
             style={{ backgroundImage: `url("${src}")` }}
           />
         ))}

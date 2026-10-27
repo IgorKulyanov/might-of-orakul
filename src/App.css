@@ -239,6 +239,16 @@ button {
   image-rendering: auto;
 }
 
+/* Широкая заставка стихий — центр */
+.splash-slide.is-wide {
+  background-position: center center;
+}
+
+/* Портреты героев: якорь сверху, иначе на ПК отрезает голову */
+.splash-slide.is-portrait {
+  background-position: center top;
+}
+
 .splash-slide.is-on {
   opacity: 1;
   z-index: 1;
