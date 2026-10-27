@@ -340,6 +340,51 @@ function publicUser(u) {
   };
 }
 
+/**
+ * Пустышки: регистрация без ника и оракула.
+ * Свежие (<1ч) не трогаем — человек может выбирать школу.
+ * Старше maxAgeMs — удаляем, чтобы не засорять базу.
+ */
+export function pruneEmptyShellAccounts(maxAgeMs = 24 * 60 * 60 * 1000) {
+  const db = getLiveDb();
+  const now = Date.now();
+  const keep = [];
+  let removed = 0;
+  for (const u of db.users) {
+    const empty =
+      !sanitizeDisplayName(u.displayName) &&
+      !u.heroId &&
+      !u.owned?.homeFaction;
+    if (!empty) {
+      keep.push(u);
+      continue;
+    }
+    const created = Date.parse(u.createdAt || "") || 0;
+    const age = created ? now - created : maxAgeMs + 1;
+    if (age < 60 * 60 * 1000) {
+      keep.push(u);
+      continue;
+    }
+    if (age >= maxAgeMs) {
+      removed += 1;
+      continue;
+    }
+    keep.push(u);
+  }
+  if (removed > 0) {
+    db.users = keep;
+    try {
+      persistLiveDb();
+      console.log(
+        `[orakul] пустышки: удалено ${removed} акк. без ника/оракула (>${Math.round(maxAgeMs / 3600000)}ч)`,
+      );
+    } catch (e) {
+      console.warn("[orakul] prune empty persist fail:", e.message);
+    }
+  }
+  return removed;
+}
+
 /** Пометить спящих (90 дней без входа). Аккаунты НЕ удаляем. */
 export function markDormantUsers() {
   const db = getLiveDb();
@@ -660,7 +705,18 @@ app.put(
         if (!user) return null;
         if (typeof body.displayName === "string") {
           const name = sanitizeDisplayName(body.displayName);
-          if (name.length >= 2) user.displayName = name;
+          if (name.length >= 2) {
+            const nameKey = name.toLowerCase();
+            const taken = db.users.some(
+              (u) =>
+                u.id !== userId &&
+                sanitizeDisplayName(u.displayName).toLowerCase() === nameKey,
+            );
+            if (taken) {
+              return { nameTaken: true };
+            }
+            user.displayName = name;
+          }
         }
         if (typeof body.heroId === "string") {
           const h = sanitizeHeroId(body.heroId);
@@ -714,6 +770,13 @@ app.put(
         res.status(404).json({ error: "Не найден" });
         return;
       }
+      if (result.nameTaken) {
+        res.status(409).json({
+          error: "Такое имя оракула уже занято — выбери другое",
+          code: "NAME_TAKEN",
+        });
+        return;
+      }
       res.json({ user: result });
     } catch (e) {
       console.error(e);
@@ -763,4 +826,11 @@ app.use((err, _req, res, _next) => {
   }
 });
 
-export { app, PORT, findByToken, getLiveDb, hydrateUsersFromRemote };
+export {
+  app,
+  PORT,
+  findByToken,
+  getLiveDb,
+  hydrateUsersFromRemote,
+  pruneEmptyShellAccounts,
+};

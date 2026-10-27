@@ -7,6 +7,7 @@ import {
   getLiveDb,
   hydrateUsersFromRemote,
   markDormantUsers,
+  pruneEmptyShellAccounts,
 } from "./index.js";
 import { attachLobbyChat, pruneChatLog } from "./lobbyChat.ts";
 import { attachPvp } from "./pvpRooms.ts";
@@ -22,6 +23,11 @@ process.on("unhandledRejection", (reason) => {
 });
 
 await hydrateUsersFromRemote();
+try {
+  pruneEmptyShellAccounts();
+} catch (e) {
+  console.error("[orakul] prune empty on boot:", e);
+}
 
 const server = http.createServer(app);
 server.keepAliveTimeout = 65_000;
@@ -123,6 +129,14 @@ setInterval(() => {
     markDormantUsers();
   } catch (e) {
     console.error("[orakul] dormant fail:", e);
+  }
+}, 6 * 60 * 60 * 1000).unref?.();
+
+setInterval(() => {
+  try {
+    pruneEmptyShellAccounts();
+  } catch (e) {
+    console.error("[orakul] prune empty fail:", e);
   }
 }, 6 * 60 * 60 * 1000).unref?.();
 

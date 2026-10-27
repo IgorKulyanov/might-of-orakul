@@ -143,9 +143,52 @@ function richerDecks(
   return out;
 }
 
+/** Аккаунт ещё не прошёл создание оракула/ника. */
+function accountNeedsOnboarding(user: ApiUser): boolean {
+  if (user.needsOnboarding) return true;
+  if (!user.displayName) return true;
+  if (!user.heroId && !user.owned?.homeFaction) return true;
+  return false;
+}
+
+/**
+ * Чистый лист для онбординга: без homeFaction.
+ * Раньше setHero(hero_life) сам ставил школу «жизнь» → экран выбора скипался.
+ */
+function blankOnboardingOwned(): OwnedState {
+  const blank = clearActiveOwned();
+  const next: OwnedState = {
+    ...blank,
+    heroId: undefined,
+    homeFaction: undefined,
+    unlocked: [],
+    collection: {},
+    decks: { starter: [] },
+    purchased: [],
+    unlockedHeroes: [],
+    level: 1,
+    xp: 0,
+  };
+  saveOwned(next);
+  return next;
+}
+
 function mergeOwnedFromServer(user: ApiUser): OwnedState {
   const backup = user.login ? loadOwnedBackup(user.login) : null;
   const localRaw = loadOwned();
+
+  // Новый/пустой аккаунт: не тянуть чужой локальный сейв с этого ПК
+  // и не угадывать школу по hero_life по умолчанию.
+  if (accountNeedsOnboarding(user)) {
+    if (backup?.homeFaction && hasOwnedProgress(backup)) {
+      // Восстановление после сброса сервера — свой бэкап по логину
+      const restored = { ...backup };
+      saveOwned(restored);
+      return restored;
+    }
+    return blankOnboardingOwned();
+  }
+
   // Бэкап по логину важнее «пустого» текущего сейва после сброса сервера
   const local =
     backup && hasOwnedProgress(backup) && !hasOwnedProgress(localRaw)
@@ -207,9 +250,17 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
   ) {
     heroId = serverHero;
   }
+  // homeFaction только явный (свой/сервер) — НЕ выводить из hero_life по умолчанию
   const homeFaction =
     local.homeFaction ??
-    (heroId ? getHeroSafeFaction(heroId) : undefined);
+    serverOwned?.homeFaction ??
+    (serverHero ? getHeroSafeFaction(serverHero) : undefined) ??
+    (localHero && localHero !== "hero_life"
+      ? getHeroSafeFaction(localHero)
+      : undefined);
+  if (!homeFaction) {
+    return blankOnboardingOwned();
+  }
   const collection = { ...(local.collection ?? {}) };
   if (serverOwned?.collection && typeof serverOwned.collection === "object") {
     for (const [id, n] of Object.entries(serverOwned.collection)) {
@@ -628,18 +679,15 @@ export default function App() {
       const next = mergeOwnedFromServer(flagged);
       setOwned(next);
       try {
-        // После wipe сервера register без имени → иначе снова онбординг и снос колоды
-        const needName = !flagged.displayName && hasOwnedProgress(next);
-        // heroId на сервер — только после выбора школы, иначе онбординг скипается.
+        // Пустышку не «дозаполняем» логином как ником — идём в выбор оракула.
+        if (!next.homeFaction || accountNeedsOnboarding(flagged)) {
+          if (flagged.login) backupOwnedForLogin(flagged.login, next);
+          return;
+        }
+        // Готовый аккаунт: синк сейва. heroId — только если школа уже выбрана.
         const { user: synced } = await apiUpdateMe(t, {
           owned: next,
-          ...(next.homeFaction ? { heroId: next.heroId } : {}),
-          ...(needName
-            ? {
-                displayName:
-                  flagged.login || getLastLogin() || "Игрок",
-              }
-            : {}),
+          heroId: next.heroId,
         });
         updateCachedUser(synced);
         setUser(synced);
