@@ -223,7 +223,7 @@ button {
 .splash-slide {
   position: absolute;
   inset: 0;
-  /* Телефон (высокий экран): cover ок. ПК (широкий): cover режет края заставки. */
+  /* На весь экран (как на телефоне и на старом ПК-виде). */
   background-size: cover;
   background-repeat: no-repeat;
   background-position: center center;
@@ -238,14 +238,6 @@ button {
 .splash-slide.is-on {
   opacity: 1;
   z-index: 1;
-}
-
-/* Широкий монитор: показать заставку целиком, поля — тёмный фон сцены */
-@media (min-width: 900px) and (min-aspect-ratio: 5/4) {
-  .splash-slide {
-    background-size: contain;
-    background-position: center center;
-  }
 }
 
 /* Вуаль только у низа — арт сверху остаётся читаемым */
