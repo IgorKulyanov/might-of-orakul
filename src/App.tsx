@@ -71,6 +71,7 @@ import {
   applyBattleResult,
   backupOwnedForLogin,
   claimDailyQuest,
+  clearActiveOwned,
   hasOwnedProgress,
   loadOwned,
   loadOwnedBackup,
@@ -627,9 +628,10 @@ export default function App() {
       try {
         // После wipe сервера register без имени → иначе снова онбординг и снос колоды
         const needName = !flagged.displayName && hasOwnedProgress(next);
+        // heroId на сервер — только после выбора школы, иначе онбординг скипается.
         const { user: synced } = await apiUpdateMe(t, {
           owned: next,
-          heroId: next.heroId,
+          ...(next.homeFaction ? { heroId: next.heroId } : {}),
           ...(needName
             ? {
                 displayName:
@@ -648,6 +650,9 @@ export default function App() {
   };
 
   const logout = () => {
+    const login = user?.login || getLastLogin();
+    if (login) backupOwnedForLogin(login, ownedRef.current);
+    setOwned(clearActiveOwned());
     clearSession();
     setToken(null);
     setUser(null);
@@ -876,13 +881,9 @@ export default function App() {
     return <AuthScreen onAuthed={onAuthed} />;
   }
 
-  const alreadyHasOracle = Boolean(owned.homeFaction || user.heroId);
-  const localProgress = hasOwnedProgress(owned);
-  // Нельзя гнать в онбординг после «Восстановить» — beginWithHero сносит колоду
-  if (
-    !localProgress &&
-    (!user.displayName || (user.needsOnboarding && !alreadyHasOracle))
-  ) {
+  // Школа = homeFaction. Пока её нет — выбор из пяти оракулов.
+  // beginWithHero при восстановлении колоду не сносит (hasOwnedProgress).
+  if (!owned.homeFaction) {
     return (
       <OnboardingScreen
         owned={owned}

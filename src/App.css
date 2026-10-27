@@ -4980,6 +4980,7 @@ html.is-hand-dragging .grave-row {
 
 .onboard-oracle-grid-base {
   margin-top: 0.5rem;
+  margin-bottom: 1rem;
   align-items: stretch;
 }
 
@@ -5008,14 +5009,14 @@ html.is-hand-dragging .grave-row {
   box-shadow: 0 0 0 1px var(--accent), 0 10px 28px rgba(0, 0, 0, 0.4);
 }
 
-/* Крупный портрет без чёрных полей — картинка на весь кадр. */
+/* Портрет компактный — все 5 школ видны без «одного на весь экран». */
 .onboard-pick-lg .orakul-portrait-wrap {
   width: 100%;
   max-width: none;
   margin: 0;
   aspect-ratio: 3 / 4;
   height: auto;
-  max-height: min(58vh, 520px);
+  max-height: min(28vh, 280px);
   overflow: hidden;
   border-radius: 10px;
   background: transparent;
@@ -5092,7 +5093,7 @@ html.is-hand-dragging .grave-row {
   }
 
   .onboard-pick-lg .orakul-portrait-wrap {
-    max-height: min(50vh, 440px);
+    max-height: min(26vh, 240px);
   }
 }
 
@@ -5105,22 +5106,29 @@ html.is-hand-dragging .grave-row {
     width: 100%;
   }
 
+  /* Всегда минимум 2 колонки — иначе кажется, что оракул один. */
   .onboard-oracle-grid-base {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .onboard-pick-lg .orakul-portrait-wrap {
-    max-height: min(46vh, 400px);
+    max-height: min(22vh, 200px);
   }
 }
 
 @media (max-width: 420px) {
   .onboard-oracle-grid-base {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
   }
 
   .onboard-pick-lg .orakul-portrait-wrap {
-    max-height: min(52vh, 460px);
+    max-height: min(20vh, 180px);
+  }
+
+  .onboard-epic-later,
+  .onboard-epic-power {
+    font-size: 0.65rem;
   }
 }
 

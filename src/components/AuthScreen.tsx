@@ -16,6 +16,15 @@ export function AuthScreen({ onAuthed }: Props) {
   const [canRestore, setCanRestore] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  const switchMode = (next: "login" | "register") => {
+    setMode(next);
+    setError(null);
+    setCanRestore(false);
+    setPassword("");
+    // На одном ПК двое: регистрация — пустые поля (не логин первого).
+    setLogin(next === "login" ? getLastLogin() : "");
+  };
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -90,8 +99,9 @@ export function AuthScreen({ onAuthed }: Props) {
         </p>
         <h1>{mode === "login" ? "Вход" : "Регистрация"}</h1>
         <p className="hint">
-          Логин — латиницей (a–z, цифры), не имя оракула. Один аккаунт с
-          телефона и ПК. Если пишет «аккаунт не найден» — «Восстановить
+          Логин — латиницей (a–z, цифры), не имя оракула. Два человека на
+          одном компьютере — у каждого свой логин: выйди → «Регистрация» →
+          новый логин. Если пишет «аккаунт не найден» — «Восстановить
           аккаунт» тем же логином и паролем (прогресс в этом браузере
           сохранится).
         </p>
@@ -157,11 +167,9 @@ export function AuthScreen({ onAuthed }: Props) {
         <button
           type="button"
           className="ghost"
-          onClick={() => {
-            setMode(mode === "login" ? "register" : "login");
-            setError(null);
-            setCanRestore(false);
-          }}
+          onClick={() =>
+            switchMode(mode === "login" ? "register" : "login")
+          }
         >
           {mode === "login"
             ? "Нет аккаунта? Регистрация"

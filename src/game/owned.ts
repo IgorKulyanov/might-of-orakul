@@ -442,8 +442,33 @@ export function saveOwned(state: OwnedState): void {
   }
 }
 
+/** После выхода: активный сейв → свежий старт (бэкап по логину уже должен быть). */
+export function clearActiveOwned(): OwnedState {
+  const fresh = applyWalletMigrations(freshOwned());
+  try {
+    localStorage.setItem(KEY, JSON.stringify(fresh));
+    localStorage.setItem(CASE_WIPE_FLAG, "1");
+    localStorage.setItem(COPIES_FLAG, "1");
+    localStorage.setItem(WALLET_V2_FLAG, "1");
+    localStorage.setItem(WALLET_V3_FLAG, "1");
+  } catch {
+    /* ignore */
+  }
+  return fresh;
+}
+
 /** Есть ли у локального сейва реальный прогресс (не свежий онбординг). */
 export function hasOwnedProgress(owned: OwnedState): boolean {
+  // До выбора школы — всегда «чистый лист», даже со стартовой колодой life.
+  if (
+    !owned.homeFaction &&
+    (owned.heroId ?? "hero_life") === "hero_life" &&
+    (owned.level ?? 1) <= 1 &&
+    (owned.purchased?.length ?? 0) === 0 &&
+    (owned.unlockedHeroes?.length ?? 0) === 0
+  ) {
+    return false;
+  }
   if (owned.homeFaction) return true;
   if ((owned.level ?? 1) > 1) return true;
   if ((owned.purchased?.length ?? 0) > 0) return true;

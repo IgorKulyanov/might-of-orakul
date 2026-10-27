@@ -69,34 +69,11 @@ export function OnboardingScreen({
         <h1>Создание оракула</h1>
       </header>
       <p className="hint hero-screen-hint">
-        Выбери фракцию один раз. Эпик купишь позже в кабинете — под каждым
-        портретом написано, что он даст.
+        Выбери одну из пяти школ — потом сменить нельзя. Эпик купишь позже в
+        кабинете.
       </p>
 
       <form className="onboard-form" onSubmit={submit}>
-        <div className="onboard-name-row">
-          <label className="onboard-name">
-            Имя оракула
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={24}
-              minLength={2}
-              placeholder="Например: Астра"
-              required
-            />
-          </label>
-          <button
-            type="submit"
-            className="primary large onboard-ready"
-            disabled={busy}
-          >
-            {busy ? "…" : "Готово"}
-          </button>
-        </div>
-
-        {error && <p className="auth-error">{error}</p>}
-
         <div className="onboard-oracle-grid onboard-oracle-grid-base">
           {bases.map((h) => {
             const color = SCHOOL_COLOR[h.faction];
@@ -131,6 +108,29 @@ export function OnboardingScreen({
             );
           })}
         </div>
+
+        <div className="onboard-name-row">
+          <label className="onboard-name">
+            Имя оракула
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={24}
+              minLength={2}
+              placeholder="Например: Астра"
+              required
+            />
+          </label>
+          <button
+            type="submit"
+            className="primary large onboard-ready"
+            disabled={busy}
+          >
+            {busy ? "…" : "Готово"}
+          </button>
+        </div>
+
+        {error && <p className="auth-error">{error}</p>}
       </form>
     </div>
   );
