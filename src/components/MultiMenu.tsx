@@ -45,6 +45,8 @@ export function MultiMenu({
   const [code, setCode] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [busyHint, setBusyHint] = useState<string | null>(null);
+  const lobbyWaitRef = useRef<number | null>(null);
   const [searching, setSearching] = useState<{
     levelMin: number;
     levelMax: number;
@@ -62,8 +64,16 @@ export function MultiMenu({
   const searchPulse = useRef(0);
   const [, setTick] = useState(0);
 
+  const clearLobbyWait = () => {
+    if (lobbyWaitRef.current != null) {
+      window.clearTimeout(lobbyWaitRef.current);
+      lobbyWaitRef.current = null;
+    }
+  };
+
   useEffect(() => {
     return () => {
+      clearLobbyWait();
       socketRef.current?.leave();
       socketRef.current = null;
     };
@@ -80,24 +90,31 @@ export function MultiMenu({
 
   const handleMsg = (msg: PvpServerMsg) => {
     if (msg.type === "error") {
+      clearLobbyWait();
       setMessage(msg.message);
       setBusy(false);
+      setBusyHint(null);
       setSearching(null);
       return;
     }
     if (msg.type === "queued") {
+      clearLobbyWait();
       setSearching({ levelMin: msg.levelMin, levelMax: msg.levelMax });
       setBusy(false);
+      setBusyHint(null);
       setMessage(null);
       setLobby(null);
       return;
     }
     if (msg.type === "queue_cancelled") {
+      clearLobbyWait();
       setSearching(null);
       setBusy(false);
+      setBusyHint(null);
       return;
     }
     if (msg.type === "lobby") {
+      clearLobbyWait();
       setSearching(null);
       setLobby({
         code: msg.code,
@@ -108,6 +125,7 @@ export function MultiMenu({
         guestReady: msg.guestReady,
       });
       setBusy(false);
+      setBusyHint(null);
       setMessage(null);
       return;
     }
@@ -205,7 +223,7 @@ export function MultiMenu({
       return;
     }
     if (deck.length < 4) {
-      setMessage("Собери колоду в кабинете");
+      setMessage("Собери колоду в кабинете (минимум 4 карты)");
       return;
     }
     if (canStartPvp && !canStartPvp()) return;
@@ -213,12 +231,23 @@ export function MultiMenu({
       setMessage("Введи код комнаты");
       return;
     }
+    clearLobbyWait();
     setBusy(true);
+    setBusyHint(
+      mode === "create"
+        ? "Создаём комнату…"
+        : "Входим в комнату…",
+    );
     setMessage(null);
     setSearching(null);
     startedRef.current = false;
     try {
       const sock = await ensureSocket();
+      setBusyHint(
+        mode === "create"
+          ? "Ждём код от сервера…"
+          : "Ждём ответ сервера…",
+      );
       sock.join({
         mode,
         ...(mode === "join" ? { code: roomCode.trim() } : {}),
@@ -228,9 +257,24 @@ export function MultiMenu({
         name: displayName,
         level: playerLevel,
       });
+      lobbyWaitRef.current = window.setTimeout(() => {
+        setBusy(false);
+        setBusyHint(null);
+        setMessage(
+          "Сервер не ответил. Обнови страницу (Ctrl+F5) и попробуй снова.",
+        );
+        try {
+          socketRef.current?.leave();
+        } catch {
+          /* ignore */
+        }
+        socketRef.current = null;
+      }, 12_000);
     } catch (err) {
+      clearLobbyWait();
       setMessage(err instanceof Error ? err.message : "Ошибка связи");
       setBusy(false);
+      setBusyHint(null);
     }
   };
 
@@ -273,11 +317,26 @@ export function MultiMenu({
           <span />
         </header>
         <div className="multi-panel">
+          <p className="hint" style={{ textAlign: "center", marginBottom: 0 }}>
+            Код комнаты — скажи другу:
+          </p>
           <p className="multi-room-code" aria-label="Код комнаты">
             {lobby.code}
           </p>
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => {
+              void navigator.clipboard?.writeText(lobby.code).then(
+                () => setMessage("Код скопирован"),
+                () => setMessage(`Код: ${lobby.code}`),
+              );
+            }}
+          >
+            Скопировать код
+          </button>
           <p className="hint">
-            Скажи код другу. Ты —{" "}
+            Ты —{" "}
             <strong>{lobby.youAre === "host" ? "хост" : "гость"}</strong>.
             Когда оба нажмут «Готов» — начнётся бой.
           </p>
@@ -395,7 +454,9 @@ export function MultiMenu({
           disabled={busy}
           onClick={() => void enterRoom("create")}
         >
-          Создать комнату (PvP)
+          {busy && busyHint?.includes("Создаём")
+            ? busyHint
+            : "Создать комнату (PvP)"}
         </button>
 
         <label>
@@ -413,10 +474,13 @@ export function MultiMenu({
           disabled={busy || code.trim().length < 3}
           onClick={() => void enterRoom("join", code.trim())}
         >
-          Войти по коду
+          {busy && busyHint?.includes("Входим")
+            ? busyHint
+            : "Войти по коду"}
         </button>
 
-        {message && <p className="hint">{message}</p>}
+        {busyHint && <p className="multi-busy-hint">{busyHint}</p>}
+        {message && <p className="auth-error">{message}</p>}
       </div>
     </div>
   );

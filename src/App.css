@@ -4382,9 +4382,17 @@ html.is-hand-dragging .grave-row {
   margin: 0.25rem 0 0.75rem;
   text-align: center;
   font-family: var(--display);
-  font-size: clamp(1.8rem, 6vw, 2.6rem);
+  font-size: clamp(2.2rem, 8vw, 3.2rem);
   font-weight: 700;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.22em;
+  color: var(--gold, #e8c547);
+  user-select: all;
+}
+
+.multi-busy-hint {
+  margin: 0.75rem 0 0;
+  text-align: center;
+  font-weight: 600;
   color: var(--gold, #e8c547);
 }
 

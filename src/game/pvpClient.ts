@@ -55,8 +55,30 @@ export class PvpSocket {
       const url = resolveWsUrl();
       const ws = new WebSocket(url);
       this.ws = ws;
-      ws.onopen = () => resolve();
-      ws.onerror = () => reject(new Error("WebSocket: нет связи с сервером"));
+      let settled = false;
+      const timer = window.setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        try {
+          ws.close();
+        } catch {
+          /* ignore */
+        }
+        this.ws = null;
+        reject(new Error("Нет связи с сервером PvP (таймаут). Обнови страницу."));
+      }, 10_000);
+      ws.onopen = () => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timer);
+        resolve();
+      };
+      ws.onerror = () => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timer);
+        reject(new Error("WebSocket: нет связи с сервером"));
+      };
       ws.onmessage = (ev) => {
         try {
           const msg = JSON.parse(String(ev.data)) as PvpServerMsg;
