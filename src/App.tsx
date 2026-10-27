@@ -669,6 +669,11 @@ export default function App() {
       }
     }
 
+    let resultEyebrow: string | null = null;
+    let resultTitle: string | null = null;
+    let resultLead: string | null = null;
+    let celebration = false;
+
     if (isArena) {
       if (won) {
         const ar = applyArenaWin(
@@ -680,6 +685,19 @@ export default function App() {
         res = { ...res, owned: ar.owned };
         goldReward += ar.gold;
         diamondReward += ar.diamonds;
+        if (ar.arena.cleared >= ARENA_ROUNDS) {
+          celebration = true;
+          resultEyebrow = "Поздравляем!";
+          resultTitle = "Арена пройдена!";
+          const bits: string[] = [];
+          if (goldReward > 0) bits.push(`+${goldReward}🪙`);
+          if (diamondReward > 0) bits.push(`+${diamondReward}💎`);
+          if (res.xpGained > 0) bits.push(`+${res.xpGained} XP`);
+          resultLead = bits.length
+            ? `Ваша награда: ${bits.join(" · ")}`
+            : "Ваша награда уже у вас";
+          giftLine = "Все 5 боёв арены пройдены";
+        }
       } else {
         setArena(applyArenaLoss(arenaRef.current));
       }
@@ -700,6 +718,10 @@ export default function App() {
       goldReward,
       diamondReward,
       giftLine,
+      resultEyebrow,
+      resultTitle,
+      resultLead,
+      celebration,
     };
   };
 

@@ -86,6 +86,11 @@ type BattleEndInfo = {
   goldReward: number;
   diamondReward: number;
   giftLine?: string | null;
+  /** Праздничный заголовок (например полное прохождение арены). */
+  resultEyebrow?: string | null;
+  resultTitle?: string | null;
+  resultLead?: string | null;
+  celebration?: boolean;
 };
 
 type Props = {
@@ -2385,14 +2390,25 @@ export function Battle({
           <div
             className={`battle-result-panel ${
               state.winner === "you" ? "is-win" : "is-lose"
-            }`}
+            }${reward?.celebration ? " is-celebration" : ""}`}
           >
             <p className="battle-result-eyebrow">
-              {state.winner === "you" ? "Дуэль окончена" : "Дуэль проиграна"}
+              {reward?.resultEyebrow
+                ? reward.resultEyebrow
+                : state.winner === "you"
+                  ? "Дуэль окончена"
+                  : "Дуэль проиграна"}
             </p>
             <h2 className="battle-result-title">
-              {state.winner === "you" ? "Победа" : "Поражение"}
+              {reward?.resultTitle
+                ? reward.resultTitle
+                : state.winner === "you"
+                  ? "Победа"
+                  : "Поражение"}
             </h2>
+            {reward?.resultLead ? (
+              <p className="battle-result-lead">{reward.resultLead}</p>
+            ) : null}
             {reward && (
               <div className="battle-result-rewards" aria-label="Награды">
                 <div className="battle-reward-chip xp">
@@ -2427,7 +2443,9 @@ export function Battle({
                 )}
                 {reward.giftLine && (
                   <div className="battle-reward-chip gift">
-                    <span className="battle-reward-label">Дар</span>
+                    <span className="battle-reward-label">
+                      {reward.celebration ? "Итог" : "Дар"}
+                    </span>
                     <span className="battle-reward-value">
                       {reward.giftLine}
                     </span>
