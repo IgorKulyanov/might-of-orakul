@@ -217,7 +217,10 @@ button {
 .splash-stage {
   position: absolute;
   inset: 0;
-  background: #07090f;
+  /* Запасной фон, если слайд не подгрузился */
+  background:
+    #07090f
+    url("/splash-elements-desktop.jpg?v=2") center center / cover no-repeat;
 }
 
 .splash-slide {

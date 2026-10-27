@@ -16,15 +16,15 @@ import {
 } from "../game/sfx";
 import type { OwnedState } from "../game/types";
 
-/** Заставка стихий + кадры фракций (hi-res под мониторы). ?v= — сброс кэша. */
+/** Заставка + слайды (только ASCII в путях — кириллица в url() ломала фон). */
 const SPLASH_SLIDES = [
-  "/splash-elements-desktop.jpg?v=1",
-  "/splash-slides/валькирия-hi.png?v=1",
-  "/splash-slides/кракен-hi.png?v=1",
-  "/splash-slides/vampire-hi.png?v=1",
-  "/splash-slides/ent-hi.png?v=1",
-  "/splash-slides/инферно-hi.png?v=1",
-  "/splash-slides/тритон-hi.png?v=1",
+  "/splash-elements-desktop.jpg?v=2",
+  "/splash-slides/valkyrie-hi.png?v=2",
+  "/splash-slides/kraken-hi.png?v=2",
+  "/splash-slides/vampire-hi.png?v=2",
+  "/splash-slides/ent-hi.png?v=2",
+  "/splash-slides/inferno-hi.png?v=2",
+  "/splash-slides/triton-hi.png?v=2",
 ];
 
 const SLIDE_MS = 7000;
@@ -121,7 +121,7 @@ export function SplashMenu({
           <div
             key={src}
             className={`splash-slide ${i === index ? "is-on" : ""}`}
-            style={{ backgroundImage: `url(${src})` }}
+            style={{ backgroundImage: `url("${src}")` }}
           />
         ))}
         <div className="splash-veil" />
