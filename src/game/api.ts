@@ -1,11 +1,16 @@
 import type { OwnedState } from "./types";
 
 /**
- * Локально в браузере — пусто: Vite проксирует /api → :8787.
- * На хостинге задай VITE_API_URL (Render) — иначе /api на Pages не существует.
- * В скриптах без окна — VITE_API_URL или localhost.
+ * На pages.dev — тот же origin (Cloudflare Functions → VPS).
+ * Иначе VITE_API_URL / localhost. Игрокам sslip не нужен.
  */
-function resolveApiUrl(): string {
+export function getApiBase(): string {
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host.endsWith("pages.dev") || host.endsWith("orakul.pages.dev")) {
+      return "";
+    }
+  }
   const env = (import.meta.env.VITE_API_URL as string | undefined)?.replace(
     /\/$/,
     "",
@@ -15,7 +20,8 @@ function resolveApiUrl(): string {
   return "http://127.0.0.1:8787";
 }
 
-const API_URL = resolveApiUrl();
+/** @deprecated use getApiBase() — оставлено для старых импортов */
+const API_URL = typeof window === "undefined" ? getApiBase() : "";
 
 export type ApiUser = {
   id: string;
@@ -41,40 +47,69 @@ export type AuthResponse = {
   user: ApiUser;
 };
 
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 async function request<T>(
   path: string,
   opts: RequestInit & { token?: string | null } = {},
 ): Promise<T> {
   const { token, headers, ...rest } = opts;
-  let res: Response;
-  try {
-    res = await fetch(`${API_URL}${path}`, {
-      ...rest,
-      headers: {
-        "Content-Type": "application/json",
-        // localtunnel interstitial; harmless elsewhere
-        "Bypass-Tunnel-Reminder": "true",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...headers,
-      },
-    });
-  } catch {
-    throw new Error(
-      "Нет связи с сервером. Открой ссылку в Chrome → Инкогнито (или очисти кэш этого сайта). В Cloudflare ничего менять не нужно.",
-    );
-  }
-  const data = (await res.json().catch(() => ({}))) as T & {
-    error?: string;
-    code?: string;
+  const init: RequestInit = {
+    ...rest,
+    headers: {
+      "Content-Type": "application/json",
+      "Bypass-Tunnel-Reminder": "true",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...headers,
+    },
   };
-  if (!res.ok) {
-    const err = new Error(data.error || `Ошибка ${res.status}`) as Error & {
-      code?: string;
-    };
-    if (data.code) err.code = data.code;
-    throw err;
+
+  const base = getApiBase();
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(`${base}${path}`, init);
+      const data = (await res.json().catch(() => ({}))) as T & {
+        error?: string;
+        code?: string;
+      };
+      if (!res.ok) {
+        const err = new Error(data.error || `Ошибка ${res.status}`) as Error & {
+          code?: string;
+        };
+        if (data.code) err.code = data.code;
+        // 502 от прокси — ещё раз
+        if (res.status >= 502 && attempt < 2) {
+          await sleep(400 * (attempt + 1));
+          continue;
+        }
+        throw err;
+      }
+      return data;
+    } catch (e) {
+      lastErr = e;
+      if (
+        e instanceof Error &&
+        !(e instanceof TypeError) &&
+        !/Failed to fetch|NetworkError|Load failed|Network request failed/i.test(
+          e.message,
+        )
+      ) {
+        throw e;
+      }
+      if (attempt < 2) {
+        await sleep(400 * (attempt + 1));
+        continue;
+      }
+    }
   }
-  return data;
+  throw new Error(
+    lastErr instanceof Error && lastErr.message.startsWith("Ошибка")
+      ? lastErr.message
+      : "Нет связи с сервером. Подожди пару секунд и нажми ещё раз.",
+  );
 }
 
 export function apiRegister(login: string, password: string) {

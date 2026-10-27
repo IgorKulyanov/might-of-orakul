@@ -1,4 +1,4 @@
-import { API_URL } from "./api";
+import { getApiBase } from "./api";
 
 export type ChatMessage = {
   id: string;
@@ -15,28 +15,18 @@ type ServerMsg =
   | { type: "ok"; message: string };
 
 function resolveChatWsUrl(): string {
-  const env = (import.meta.env.VITE_API_URL as string | undefined)?.replace(
-    /\/$/,
-    "",
-  );
-  if (env) {
-    const u = new URL(env);
+  if (typeof window !== "undefined") {
+    const base = getApiBase();
+    if (!base) {
+      const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+      return `${proto}//${window.location.host}/ws/chat`;
+    }
+    const u = new URL(base);
     u.protocol = u.protocol === "https:" ? "wss:" : "ws:";
     u.pathname = "/ws/chat";
     u.search = "";
     u.hash = "";
     return u.toString();
-  }
-  if (typeof window !== "undefined") {
-    if (API_URL) {
-      const u = new URL(API_URL);
-      u.protocol = u.protocol === "https:" ? "wss:" : "ws:";
-      u.pathname = "/ws/chat";
-      return u.toString();
-    }
-    // Dev: Vite proxy /ws → :8787
-    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${proto}//${window.location.host}/ws/chat`;
   }
   return "ws://127.0.0.1:8787/ws/chat";
 }

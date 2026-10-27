@@ -4,22 +4,21 @@ import type {
   PvpServerMsg,
 } from "./pvpProtocol";
 
+import { getApiBase } from "./api";
+
 function resolveWsUrl(): string {
-  const env = (import.meta.env.VITE_API_URL as string | undefined)?.replace(
-    /\/$/,
-    "",
-  );
-  if (env) {
-    const u = new URL(env);
+  if (typeof window !== "undefined") {
+    const base = getApiBase();
+    if (!base) {
+      const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+      return `${proto}//${window.location.host}/ws/pvp`;
+    }
+    const u = new URL(base);
     u.protocol = u.protocol === "https:" ? "wss:" : "ws:";
     u.pathname = "/ws/pvp";
     u.search = "";
     u.hash = "";
     return u.toString();
-  }
-  if (typeof window !== "undefined") {
-    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${proto}//${window.location.host}/ws/pvp`;
   }
   return "ws://127.0.0.1:8787/ws/pvp";
 }
