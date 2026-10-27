@@ -1,5 +1,6 @@
 /** Same-origin /ws/* (чат, PvP) → VPS WebSocket. */
-const ORIGIN = "http://157.22.204.47:8787";
+/** Только 443: Workers не ходят на произвольные порты вроде 8787. */
+const ORIGIN = "https://157.22.204.47.sslip.io";
 
 export async function onRequest(context) {
   const incoming = new URL(context.request.url);
