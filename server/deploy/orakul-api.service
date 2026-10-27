@@ -8,6 +8,7 @@ WorkingDirectory=/opt/orakul/server
 Environment=NODE_ENV=production
 Environment=PORT=8787
 Environment=ORACUL_DATA_DIR=/var/lib/orakul/data
+# Ключ задаётся на VPS: Environment=ORACUL_ADMIN_KEY=...
 Environment=PATH=/opt/orakul/server/node_modules/.bin:/usr/bin:/bin
 ExecStart=/usr/bin/npx tsx main.ts
 Restart=always

@@ -36,7 +36,7 @@ export function resolveAdminKey() {
     fs.mkdirSync(DATA_DIR, { recursive: true });
     if (fs.existsSync(ADMIN_KEY_FILE)) {
       const existing = fs.readFileSync(ADMIN_KEY_FILE, "utf8").trim();
-      if (existing.length >= 12) return existing;
+      if (existing.length >= 4) return existing;
     }
     const generated = `ora_${Date.now().toString(36)}_${Math.random()
       .toString(36)
