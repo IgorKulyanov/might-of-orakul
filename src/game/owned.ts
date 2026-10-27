@@ -798,9 +798,10 @@ export function canSelectHero(owned: OwnedState, heroId: string): boolean {
 export function setHero(owned: OwnedState, heroId: string): OwnedState {
   if (!isHeroUnlocked(owned, heroId)) return owned;
   const hero = getHero(heroId);
-  const home = owned.homeFaction;
-  // Школу после онбординга не меняем — только облик внутри фракции.
-  if (home && hero.faction !== home) {
+  // Та же школа, что видит UI (homeFactionOf). Если в сейве homeFaction
+  // разъехался с надетым героем — клик «выбрать» больше не глотается впустую.
+  const home = homeFactionOf(owned);
+  if (hero.faction !== home) {
     return owned;
   }
   // Меняем расовый старт; купленное сохраняем. Чужие бесплатные старты — выкидываем.
@@ -831,7 +832,8 @@ export function setHero(owned: OwnedState, heroId: string): OwnedState {
   const next: OwnedState = {
     ...owned,
     heroId,
-    homeFaction: home ?? hero.faction,
+    // Чиним рассинхрон homeFaction ↔ герой (из‑за него выбор «не жмётся»).
+    homeFaction: hero.faction,
     unlocked: syncedUnlocked,
     collection,
     decks,

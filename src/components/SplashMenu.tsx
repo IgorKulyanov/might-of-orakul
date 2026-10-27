@@ -16,18 +16,15 @@ import {
 } from "../game/sfx";
 import type { OwnedState } from "../game/types";
 
-const art = (path: string) =>
-  `/cards/${path.split("/").map(encodeURIComponent).join("/")}`;
-
-/** Заставка стихий + кадры фракций. ?v= — сброс кэша браузера. */
+/** Заставка стихий + кадры фракций (hi-res под мониторы). ?v= — сброс кэша. */
 const SPLASH_SLIDES = [
-  "/splash-elements-v2.jpg?v=4",
-  art("жизнь/валькирия.png"),
-  art("вода/кракен.png"),
-  art("смерть/vampire.png"),
-  art("природа/ent.png"),
-  art("ад/инферно.png"),
-  art("вода/тритон.png"),
+  "/splash-elements-desktop.jpg?v=1",
+  "/splash-slides/валькирия-hi.png?v=1",
+  "/splash-slides/кракен-hi.png?v=1",
+  "/splash-slides/vampire-hi.png?v=1",
+  "/splash-slides/ent-hi.png?v=1",
+  "/splash-slides/инферно-hi.png?v=1",
+  "/splash-slides/тритон-hi.png?v=1",
 ];
 
 const SLIDE_MS = 7000;

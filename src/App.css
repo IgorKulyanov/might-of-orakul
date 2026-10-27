@@ -223,7 +223,7 @@ button {
 .splash-slide {
   position: absolute;
   inset: 0;
-  /* На весь экран (как на телефоне и на старом ПК-виде). */
+  /* На весь экран; картинки hi-res, без пикселей на мониторе. */
   background-size: cover;
   background-repeat: no-repeat;
   background-position: center center;
@@ -233,6 +233,7 @@ button {
   transition: opacity 1.4s ease;
   filter: none;
   will-change: opacity;
+  image-rendering: auto;
 }
 
 .splash-slide.is-on {
