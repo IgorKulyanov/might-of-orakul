@@ -520,27 +520,29 @@ export function Battle({
       return after;
     };
     if (isSpellCard) {
-      // Сначала спокойно появляется карта (~1.3с), потом эффект на столе.
-      const hold = Math.max(holdMs, 2200);
-      await sleep(1300);
+      // Сначала спокойно появляется карта, потом эффект на столе.
+      const hold = Math.max(holdMs, 3000);
+      await sleep(1600);
       apply();
-      await sleep(hold - 1300);
+      await sleep(hold - 1600);
       setFx(null);
-      await sleep(220);
+      await sleep(280);
       return;
     }
     if (instant) {
       apply();
-      await sleep(holdMs);
+      await sleep(Math.max(holdMs, 1200));
       setFx(null);
-      await sleep(180);
+      await sleep(220);
       return;
     }
-    await sleep(Math.floor(holdMs * 0.45));
+    const faceHit = !!nextFx.hitHero && nextFx.kind !== "heal";
+    const hold = faceHit ? Math.max(holdMs, 1800) : holdMs;
+    await sleep(Math.floor(hold * 0.4));
     apply();
-    await sleep(Math.floor(holdMs * 0.55));
+    await sleep(Math.floor(hold * 0.6));
     setFx(null);
-    await sleep(180);
+    await sleep(faceHit ? 320 : 200);
   };
 
   const isEnemyLog = (line: string) =>
@@ -780,8 +782,8 @@ export function Battle({
           900,
         );
       });
-      return;
-    }
+        return;
+      }
 
     // Маг жизни: +1 HP навсегда другому союзнику
     if (
@@ -1493,37 +1495,44 @@ export function Battle({
         const step = takeAiStep(s);
         if (!step) break;
         const isSpellCard = step.fx.kind === "spell" && !!step.fx.cardId;
+        const hitFace =
+          !!step.fx.hitHero &&
+          step.fx.kind !== "heal" &&
+          step.fx.side === "enemy";
+        // Дольше держим удар в оракула / спелл — иначе непонятно, отчего умер.
         const hold = isSpellCard
-          ? 2600
-          : step.fx.kind === "lunge"
-            ? 1050
-            : step.fx.kind === "play"
-              ? 1100
-              : step.fx.kind === "spell"
-                ? 1400
-                : 800;
+          ? 3400
+          : hitFace
+            ? 2200
+            : step.fx.kind === "lunge"
+              ? 1500
+              : step.fx.kind === "play"
+                ? 1300
+                : step.fx.kind === "spell"
+                  ? 1800
+                  : 1000;
         setFx(step.fx);
         playActionSfx(step.fx, s);
         if (isSpellCard) {
           // Карта сначала появляется, эффект — после анимации.
-          await sleep(1300);
+          await sleep(1600);
           before = s;
           s = step.state;
           stateRef.current = s;
           setState(s);
           playResultSfx(before, s);
-          await sleep(hold - 1300);
+          await sleep(Math.max(900, hold - 1600));
         } else {
-          await sleep(Math.floor(hold * 0.45));
+          await sleep(Math.floor(hold * 0.4));
           before = s;
           s = step.state;
           stateRef.current = s;
           setState(s);
           playResultSfx(before, s);
-          await sleep(Math.floor(hold * 0.55));
+          await sleep(Math.floor(hold * 0.6));
         }
         setFx(null);
-        await sleep(320);
+        await sleep(hitFace || isSpellCard ? 520 : 380);
         if (s.winner) break;
       }
 
@@ -1701,7 +1710,7 @@ export function Battle({
           spells.map((sp, i) => {
             const active = (sp.mode ?? "active") === "active";
             const card = getCard(sp.cardId);
-            return (
+  return (
               <div
                 key={sp.uid}
                 className={`linger-item ${active ? "is-active" : "is-echo"}`}
@@ -1794,8 +1803,8 @@ export function Battle({
               <span className="pvp-timer-afk">
                 {" "}
                 · AFK {network.yourTimeouts ?? 0}/{network.maxTimeouts ?? 5}
-              </span>
-            </div>
+          </span>
+        </div>
           ) : null}
           <div className={`turn-pill ${phase === "enemy" ? "enemy-phase" : ""}`}>
             {phase === "enemy" ? "Ход врага" : `Ход ${state.turn}`}
@@ -1840,7 +1849,7 @@ export function Battle({
           </div>
         </aside>
         <div className="battle-hint-stack">
-          <p className="battle-hint">{hint}</p>
+      <p className="battle-hint">{hint}</p>
           {(bansheeReady ||
             mermaidReady ||
             succubusReady ||
@@ -1887,15 +1896,15 @@ export function Battle({
 
       <div className="board">
         <div className="oracle-bar enemy-oracle-bar" data-tut="enemy-oracle">
-          <button
-            type="button"
+            <button
+              type="button"
             className={`oracle-block ${
               attackTargets.has("hero") ||
               (!busy &&
                 spellMode === "marionette" &&
                 marionettePuppet != null)
-                ? "targetable"
-                : ""
+                  ? "targetable"
+                  : ""
             } ${enemyHeroHit || enemyHeroHeal ? "is-hit" : ""}`}
             onClick={onEnemyHero}
           >
@@ -1905,7 +1914,7 @@ export function Battle({
                 alt={enemyHero.name}
                 draggable={false}
               />
-            </div>
+                  </div>
             <div className="hero enemy-hero">
               <strong>
                 {enemyHero.name}{" "}
@@ -1918,9 +1927,9 @@ export function Battle({
                 highlight={state.enemy.faction}
                 compact
               />
-            </div>
+                  </div>
           </button>
-        </div>
+                  </div>
 
         <div className="board-lane enemy-lane">
           <div className="row-label enemy-label">
@@ -2029,8 +2038,8 @@ export function Battle({
             <div className="board-lane-side left" aria-hidden />
             <div className="board-lane-center">
               <div className="turn-actions">
-                <button
-                  type="button"
+            <button
+              type="button"
                   className="primary end-turn-btn"
                   data-tut="end-turn"
                   disabled={!!state.winner || state.active !== "you" || busy}
@@ -2070,8 +2079,8 @@ export function Battle({
                           : ""
                       }`}
                       data-board-drop={`you:${i}`}
-                    >
-                      {s ? (
+            >
+              {s ? (
                         <BoardCard
                           key={s.uid}
                           creature={s}
@@ -2124,20 +2133,20 @@ export function Battle({
                           onClick={() => onYourSlot(i)}
                         />
                       )}
-                    </div>
+                  </div>
                   );
                 })}
-              </div>
-            </div>
+                  </div>
+                  </div>
             <div className="board-lane-side right">
               {renderLinger(state.you.activeSpells, "you")}
             </div>
-          </div>
         </div>
+      </div>
 
         <div className="oracle-bar you-oracle-bar" data-tut="you-oracle">
-          <button
-            type="button"
+        <button
+          type="button"
             className={`oracle-block ${youHeroHit ? "is-hit" : ""} ${
               mageReady ||
               (!busy &&
@@ -2172,7 +2181,7 @@ export function Battle({
                 />
               </div>
             </div>
-          </button>
+        </button>
         </div>
       </div>
 
@@ -2194,7 +2203,7 @@ export function Battle({
                   key={`grave-${entry.index}-${entry.cardId}`}
                   className={`grave-card-wrap ${selected ? "is-selected" : ""} ${pickable ? "is-pickable" : ""}`}
                 >
-                  <CardView
+          <CardView
                     cardId={entry.cardId}
                     compact
                     flippable={!pickable}
@@ -2327,8 +2336,8 @@ export function Battle({
                   }}
                 >
                   <CardView
-                    cardId={id}
-                    compact
+            cardId={id}
+            compact
                     selected={!busy && state.selectedHand === i}
                     manaCostOverride={battleManaCost(state, id)}
                   />
@@ -2433,10 +2442,10 @@ export function Battle({
                   if (resultExitLabel) return resultExitLabel;
                   return "В меню";
                 })()}
-              </button>
+            </button>
               {allowRematch ? (
-                <button
-                  type="button"
+            <button
+              type="button"
                   className="ghost large"
                   onClick={() => {
                     setPhase("you");
@@ -2448,9 +2457,9 @@ export function Battle({
                     void startBattleMusic();
                     setState(bootBattle());
                   }}
-                >
-                  Ещё раз
-                </button>
+            >
+              Ещё раз
+            </button>
               ) : null}
             </div>
           </div>

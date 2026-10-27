@@ -1050,12 +1050,12 @@ button {
 }
 
 .your-row .board-card-wrap.is-lunge {
-  animation: lunge-you 0.5s ease-in-out;
+  animation: lunge-you 0.85s ease-in-out;
   z-index: 6;
 }
 
 .enemy-row .board-card-wrap.is-lunge {
-  animation: lunge-enemy 0.5s ease-in-out;
+  animation: lunge-enemy 0.85s ease-in-out;
   z-index: 6;
 }
 
@@ -1491,7 +1491,7 @@ button {
 
 .oracle-block.is-hit .oracle-face,
 .oracle-block.is-hit .hero {
-  animation: hero-hit-flash 0.45s ease;
+  animation: hero-hit-flash 1.05s ease;
 }
 
 .oracle-block.targetable:hover .hero {

@@ -906,7 +906,7 @@
     },
     {
       "id": "mercenary",
-      "name": "Наёмник",
+      "name": "Золотой дракон",
       "school": "neutral",
       "kind": "creature",
       "manaCost": {
@@ -916,7 +916,7 @@
       "attack": 3,
       "health": 3,
       "attackPattern": "melee",
-      "text": "Нейтрал: жизнь+ад. Универсальный боец.",
+      "text": "Нейтрал: жизнь+ад. Золотой дракон — универсальный боец.",
       "rarity": "rare",
       "premium": false,
       "art": "нетральные существа/bot_00182_.png",
