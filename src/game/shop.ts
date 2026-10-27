@@ -13,7 +13,7 @@ export type GoldExchange = {
   gold: number;
 };
 
-/** Демо-пакеты «за реальные деньги» (без настоящей оплаты). */
+/** Пакеты 💎 за рубли (оплата через ЮKassa на сервере). */
 export const DIAMOND_PACKS: DiamondPack[] = [
   {
     id: "dia_60",

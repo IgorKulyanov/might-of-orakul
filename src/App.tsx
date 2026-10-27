@@ -53,6 +53,7 @@ import {
 } from "./game/campaign";
 import {
   apiMe,
+  apiPaymentOrder,
   apiPresence,
   apiTelegramAuth,
   apiUpdateMe,
@@ -500,6 +501,81 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+
+  // Возврат с ЮKassa (?paid=1&order=…) — дотянуть алмазы с сервера.
+  useEffect(() => {
+    if (boot) return;
+    const t = token ?? getToken();
+    if (!t) return;
+    let orderId: string | null = null;
+    try {
+      const q = new URLSearchParams(window.location.search);
+      if (q.get("paid") === "1") {
+        orderId = q.get("order");
+      }
+      if (!orderId) {
+        orderId = sessionStorage.getItem("orakul_pending_order");
+      }
+    } catch {
+      return;
+    }
+    if (!orderId) return;
+
+    let cancelled = false;
+    const cleanUrl = () => {
+      try {
+        const u = new URL(window.location.href);
+        if (u.searchParams.has("paid") || u.searchParams.has("order")) {
+          u.searchParams.delete("paid");
+          u.searchParams.delete("order");
+          window.history.replaceState({}, "", u.pathname + u.hash);
+        }
+        sessionStorage.removeItem("orakul_pending_order");
+      } catch {
+        /* ignore */
+      }
+    };
+
+    void (async () => {
+      for (let i = 0; i < 8; i++) {
+        if (cancelled) return;
+        try {
+          const { order } = await apiPaymentOrder(t, orderId!);
+          if (order?.status === "paid") {
+            const { user: me } = await apiMe(t);
+            if (cancelled) return;
+            updateCachedUser(me);
+            setUser(me);
+            setOwned(mergeOwnedFromServer(me));
+            cleanUrl();
+            window.alert(
+              `Оплата прошла! Начислено 💎 ${order.diamonds}. Приятной игры.`,
+            );
+            setScreen("collection");
+            return;
+          }
+          if (order?.status === "canceled") {
+            cleanUrl();
+            window.alert("Оплата отменена.");
+            return;
+          }
+        } catch {
+          /* retry */
+        }
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+      if (!cancelled) {
+        cleanUrl();
+        window.alert(
+          "Платёж ещё обрабатывается. Зайди в магазин через минуту — алмазы появятся после подтверждения ЮKassa.",
+        );
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [boot, token]);
 
   const persistOwned = async (next: OwnedState) => {
     saveOwned(next);
@@ -981,6 +1057,7 @@ export default function App() {
           onChange={updateOwned}
           onBack={() => setScreen("menu")}
           forcedTab={hubTip?.collectionTab}
+          authToken={token}
         />
         {hubTutStep != null && (
           <HubTutorial

@@ -9,6 +9,10 @@ Environment=NODE_ENV=production
 Environment=PORT=8787
 Environment=ORACUL_DATA_DIR=/var/lib/orakul/data
 # Ключ задаётся на VPS: Environment=ORACUL_ADMIN_KEY=...
+# ЮKassa (API из кабинета, не Telegram token):
+# Environment=YOOKASSA_SHOP_ID=...
+# Environment=YOOKASSA_SECRET_KEY=...
+# Environment=YOOKASSA_RETURN_URL=https://might-of-orakul.pages.dev/?paid=1
 Environment=PATH=/opt/orakul/server/node_modules/.bin:/usr/bin:/bin
 ExecStart=/usr/bin/npx tsx main.ts
 Restart=always

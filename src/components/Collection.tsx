@@ -15,10 +15,10 @@ import {
   UNIT_TIER_LABEL,
   starterDeckForFaction,
 } from "../game/progression";
+import { apiCreatePayment } from "../game/api";
 import {
   buyCardWithDiamonds,
   buyCardWithGold,
-  buyDiamondPack,
   canBuyAnotherCopy,
   exchangeDiamondsAmount,
   isUnlocked,
@@ -42,6 +42,8 @@ type Props = {
   onBack: () => void;
   /** Обучалка хаба: принудительно открыть вкладку */
   forcedTab?: ShopTab;
+  /** Токен сессии — для оплаты ЮKassa. */
+  authToken?: string | null;
 };
 
 const SCHOOLS: Array<School | "all"> = [
@@ -54,7 +56,13 @@ const SCHOOLS: Array<School | "all"> = [
   "neutral",
 ];
 
-export function Collection({ owned, onChange, onBack, forcedTab }: Props) {
+export function Collection({
+  owned,
+  onChange,
+  onBack,
+  forcedTab,
+  authToken = null,
+}: Props) {
   const deckId = owned.activeDeckId;
   const [deck, setDeck] = useState<string[]>(
     () => owned.decks[deckId] ?? [],
@@ -63,6 +71,7 @@ export function Collection({ owned, onChange, onBack, forcedTab }: Props) {
   const [kindFilter, setKindFilter] = useState<KindFilter>("all");
   const [tab, setTab] = useState<ShopTab>("cards");
   const [flash, setFlash] = useState<string | null>(null);
+  const [payBusy, setPayBusy] = useState<string | null>(null);
 
   useEffect(() => {
     if (forcedTab) setTab(forcedTab);
@@ -621,8 +630,8 @@ export function Collection({ owned, onChange, onBack, forcedTab }: Props) {
           <section className="currency-panel">
             <h2>Купить 💎</h2>
             <p className="hint">
-              Алмазы за реальные деньги — витрина. Оплата ещё не подключена:
-              нажатие пакет не выдаёт.
+              Оплата через ЮKassa (карта / СБП). После оплаты алмазы
+              появятся на аккаунте — обнови магазин или зайди снова.
             </p>
             <div className="pack-grid">
               {DIAMOND_PACKS.map((pack) => (
@@ -630,16 +639,45 @@ export function Collection({ owned, onChange, onBack, forcedTab }: Props) {
                   key={pack.id}
                   type="button"
                   className="pack-card"
+                  disabled={!!payBusy}
                   onClick={() => {
-                    buyDiamondPack(owned, pack.id);
-                    say(
-                      `«${pack.title}» · ${pack.priceLabel} — оплата скоро, сейчас 💎 не начисляем`,
+                    if (!authToken) {
+                      say("Нужен вход в аккаунт, чтобы купить алмазы");
+                      return;
+                    }
+                    const ok = window.confirm(
+                      `Купить «${pack.title}»?\n\n💎 ${pack.diamonds} за ${pack.priceLabel}\n\nОткроется безопасная оплата ЮKassa.`,
                     );
+                    if (!ok) return;
+                    setPayBusy(pack.id);
+                    say("Открываем оплату…");
+                    void apiCreatePayment(authToken, pack.id)
+                      .then((res) => {
+                        try {
+                          sessionStorage.setItem(
+                            "orakul_pending_order",
+                            res.orderId,
+                          );
+                        } catch {
+                          /* ignore */
+                        }
+                        window.location.assign(res.confirmationUrl);
+                      })
+                      .catch((e) => {
+                        say(
+                          e instanceof Error
+                            ? e.message
+                            : "Не удалось создать оплату",
+                        );
+                        setPayBusy(null);
+                      });
                   }}
                 >
                   <strong>{pack.title}</strong>
                   <span className="pack-amount">💎 {pack.diamonds}</span>
-                  <span className="pack-price">{pack.priceLabel}</span>
+                  <span className="pack-price">
+                    {payBusy === pack.id ? "…" : pack.priceLabel}
+                  </span>
                   <span className="pack-note">{pack.note}</span>
                 </button>
               ))}

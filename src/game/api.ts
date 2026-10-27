@@ -310,6 +310,58 @@ export function apiPresence(token: string, screen: string) {
   });
 }
 
+export function apiCreatePayment(
+  token: string,
+  packId: string,
+  contact?: { email?: string; phone?: string },
+) {
+  return request<{
+    ok: boolean;
+    orderId: string;
+    paymentId: string;
+    confirmationUrl: string;
+    amountRub: number;
+    diamonds: number;
+  }>("/api/payments/create", {
+    method: "POST",
+    token,
+    body: JSON.stringify({
+      packId,
+      email: contact?.email,
+      phone: contact?.phone,
+    }),
+  });
+}
+
+export function apiPaymentOrder(token: string, orderId: string) {
+  return request<{
+    ok: boolean;
+    order: {
+      orderId: string;
+      packId: string;
+      diamonds: number;
+      amountRub: number;
+      status: string;
+      paidAt: string | null;
+      createdAt: string;
+    } | null;
+  }>(`/api/payments/order/${encodeURIComponent(orderId)}`, { token });
+}
+
+export function apiPaymentPacks() {
+  return request<{
+    ok: boolean;
+    configured: boolean;
+    packs: Array<{
+      id: string;
+      title: string;
+      diamonds: number;
+      amountRub: number;
+      priceLabel: string;
+    }>;
+  }>("/api/payments/packs");
+}
+
 export function apiAdminStats(adminKey: string) {
   return adminRequest<{
     ok: boolean;

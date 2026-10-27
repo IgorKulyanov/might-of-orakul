@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { v4 as uuid } from "uuid";
 import { mountAdminRoutes } from "./admin.js";
+import { mountPaymentRoutes } from "./paymentsYookassa.js";
 import { touchPresence } from "./presence.ts";
 import {
   hasRemoteDb,
@@ -751,6 +752,14 @@ app.post(
     });
   },
 );
+
+mountPaymentRoutes(app, {
+  withDb,
+  persistLiveDb,
+  flushPendingGrants,
+  rateLimitMiddleware,
+  auth,
+});
 
 mountAdminRoutes(app, {
   withDb,
