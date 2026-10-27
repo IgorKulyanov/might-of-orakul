@@ -5,7 +5,7 @@ import type {
   ManaCost,
   School,
 } from "./types";
-import data from "../../КАРТЫ.json";
+import data from "../../КАРТЫ.json" with { type: "json" };
 import { UNIT_TIER_PRICE } from "./progression";
 
 function shopTier(card: CardDef): 1 | 2 | 3 | 4 | 5 {

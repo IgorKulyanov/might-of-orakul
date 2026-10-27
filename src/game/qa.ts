@@ -40,6 +40,7 @@ import {
   campaignAll,
   economyAll,
   progressIntegrity,
+  retailIntegrity,
   soloModesAll,
 } from "./qa-meta";
 import type {
@@ -1461,6 +1462,8 @@ export function runQa(opts?: { fuzzGames?: number }): QaReport {
   arenaAll(fails, ok);
   note("прогресс и раса");
   progressIntegrity(fails, ok);
+  note("ритейл: арт / привязки / PvP / витрина");
+  retailIntegrity(fails, ok);
   note("готово");
 
   const lines: string[] = [];

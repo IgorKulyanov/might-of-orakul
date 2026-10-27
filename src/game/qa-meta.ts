@@ -18,6 +18,7 @@ import {
   botHeroIdFor,
   botLevelNear,
   maxTierForLevel,
+  rollBotOpponent,
 } from "./botDeck";
 import {
   applyCampaignLoss,
@@ -39,7 +40,13 @@ import {
   endPlayerTurn,
   takeAiStep,
 } from "./engine";
-import { BASE_HEROES, EPIC_HEROES, getHero } from "./heroes";
+import { BASE_HEROES, EPIC_HEROES, FACTIONS, getHero, orakulArtUrl } from "./heroes";
+import { flipBattle } from "./pvpFlip";
+import { validateBattleCommit } from "./pvpValidate";
+import {
+  STARTER_DECK_BY_FACTION,
+  starterDeckForFaction,
+} from "./starterDecks";
 import {
   applyBattleResult,
   beginWithHero,
@@ -608,4 +615,125 @@ export function progressIntegrity(fails: QaFail[], ok: string[]): void {
   if (!fails.some((f) => f.area === "прогресс")) {
     ok.push(`прогресс: ${n} (старт расы, герои)`);
   } else ok.push(`прогресс: ${n} ок, есть FAIL`);
+}
+
+/**
+ * Ритейл-целостность: старты, бот-генератор, PvP flip/античит, витрина 💎.
+ * Файлы арта проверяет scripts/qa-game.ts (Node fs — вне бандла).
+ */
+export function retailIntegrity(fails: QaFail[], ok: string[]): void {
+  let n = 0;
+  const check = (name: string, fn: () => string | null) => {
+    try {
+      const bad = fn();
+      if (bad) fails.push({ area: "ритейл", detail: `${name}: ${bad}` });
+      else n += 1;
+    } catch (e) {
+      fails.push({ area: "ритейл", detail: `${name}: ${String(e)}` });
+    }
+  };
+
+  check("стартовые колоды валидны", () => {
+    for (const f of FACTIONS) {
+      const deck = starterDeckForFaction(f);
+      if (deck.length !== 4) return `${f}: длина ${deck.length}`;
+      for (const id of deck) {
+        try {
+          getCard(id);
+        } catch {
+          return `${f}: нет карты ${id}`;
+        }
+      }
+      if (!deck.includes("hero_mana")) return `${f}: нет hero_mana`;
+    }
+    if (Object.keys(STARTER_DECK_BY_FACTION).length !== 5) {
+      return "не 5 фракций";
+    }
+    return null;
+  });
+
+  check("бот-генератор разнообразие", () => {
+    const decks = new Set<string>();
+    const heroes = new Set<string>();
+    const personas = new Set<string>();
+    for (let i = 0; i < 24; i++) {
+      const m = rollBotOpponent("hero_life", 12, (1000 + i * 97) >>> 0);
+      decks.add(m.deck.slice().sort().join(","));
+      heroes.add(m.heroId);
+      personas.add(m.persona);
+      for (const id of m.deck) getCard(id);
+      if (m.deck.length < 8) return `короткая колода ур.12: ${m.deck.length}`;
+    }
+    if (decks.size < 8) return `мало уникальных колод: ${decks.size}`;
+    if (heroes.size < 2) return `мало героев: ${heroes.size}`;
+    if (personas.size < 3) return `мало персон: ${personas.size}`;
+    return null;
+  });
+
+  check("PvP flip + античит", () => {
+    const deck = botDeckForLevel(8, "water");
+    const s = createBattle(deck, deck, "hero_water", "hero_hell", "QA", 8, 8);
+    const flipped = flipBattle(s);
+    if (flipped.you.heroId !== s.enemy.heroId) return "flip hero";
+    if (flipped.enemy.heroId !== s.you.heroId) return "flip enemy hero";
+    // Легитимный commit: тот же стейт после «хода»
+    const okCommit = validateBattleCommit(s, s, "host");
+    if (!okCommit.ok) return `валидный commit отклонён: ${okCommit.error}`;
+    // Чит: HP бога
+    const god = structuredClone(s);
+    god.you.hp = 999;
+    god.you.maxHp = 999;
+    const bad = validateBattleCommit(s, god, "host");
+    if (bad.ok) return "god HP прошёл античит";
+    return null;
+  });
+
+  check("витрина 💎 id/алмазы согласованы", () => {
+    const ids = Object.keys(DIAMOND_PACK_MAP);
+    if (ids.length < 4) return `пакетов ${ids.length}`;
+    for (const p of Object.values(DIAMOND_PACK_MAP)) {
+      if (!p.id.startsWith("dia_")) return `странный id ${p.id}`;
+      if (p.diamonds < 1) return `${p.id}: diamonds`;
+      if (!/₽\d+/.test(p.priceLabel)) return `${p.id}: priceLabel`;
+    }
+    // Жёсткие ритейл-цены (клиент = сервер по контракту)
+    const expect: Record<string, number> = {
+      dia_60: 60,
+      dia_180: 180,
+      dia_500: 500,
+      dia_2000: 2000,
+    };
+    for (const [id, d] of Object.entries(expect)) {
+      if (DIAMOND_PACK_MAP[id]?.diamonds !== d) {
+        return `${id}: ждали ${d}💎`;
+      }
+    }
+    return null;
+  });
+
+  check("URL портретов оракулов", () => {
+    for (const h of [...BASE_HEROES, ...EPIC_HEROES]) {
+      const url = orakulArtUrl(h);
+      if (!url.includes("/cards/")) return `${h.id}: ${url}`;
+    }
+    return null;
+  });
+
+  check("бот колоды по уровням без дыр", () => {
+    for (const lv of [1, 3, 5, 10, 20, 35]) {
+      for (const f of FACTIONS) {
+        const deck = botDeckForLevel(lv, f);
+        if (!deck.length) return `пустая колода ${f}@${lv}`;
+        for (const id of deck) getCard(id);
+        const maxT = maxTierForLevel(lv);
+        const foul = deck.find((id) => (getCard(id).unitLevel ?? 1) > maxT);
+        if (foul) return `${f}@${lv}: тир ${getCard(foul).name}`;
+      }
+    }
+    return null;
+  });
+
+  if (!fails.some((f) => f.area === "ритейл")) {
+    ok.push(`ритейл: ${n} (старты, бот, PvP, витрина)`);
+  } else ok.push(`ритейл: ${n} ок, есть FAIL`);
 }

@@ -392,11 +392,7 @@ app.use((req, res, next) => {
   res.setHeader("Referrer-Policy", "no-referrer");
   next();
 });
-app.use(
-  "/api",
-  rateLimitMiddleware({ name: "api", maxN: 180, windowMs: 60_000 }),
-);
-
+/** Health без rate-limit — иначе мониторинг/QA ловят 429 после шторма. */
 app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
@@ -405,6 +401,11 @@ app.get("/api/health", (_req, res) => {
     remoteDb: hasRemoteDb(),
   });
 });
+
+app.use(
+  "/api",
+  rateLimitMiddleware({ name: "api", maxN: 180, windowMs: 60_000 }),
+);
 
 /** Пульс «я в игре» — админка считает онлайн без записи на диск. */
 app.post(
@@ -496,7 +497,8 @@ app.post(
       }
       const found = getLiveDb().users.find((u) => u.login === login);
       if (!found) {
-        noteLoginFail(throttle.key);
+        // Не троттлим IP за «нет аккаунта» — иначе брутфорс логинов
+        // и сброс хоста блокируют всех с одного Wi‑Fi.
         res.status(401).json({
           error:
             "Аккаунт не найден. На бесплатном хосте база могла сброситься — нажми «Восстановить аккаунт» с тем же логином и паролем (прогресс в браузере сохранится).",

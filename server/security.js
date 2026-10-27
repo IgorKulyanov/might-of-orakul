@@ -41,8 +41,14 @@ export function rateLimitMiddleware(opts) {
     windowMs = 60_000,
     keyFn = (req) => `${name}:${clientIp(req)}`,
   } = opts;
+  // QA/нагрузочный прогон с одного IP — иначе 8 рег/мин режут тест.
+  const relax =
+    process.env.ORACUL_QA_RELAX === "1"
+      ? Math.max(1, Number(process.env.ORACUL_QA_RELAX_MUL) || 80)
+      : 1;
+  const cap = Math.max(1, Math.floor(maxN * relax));
   return (req, res, next) => {
-    const r = rateLimit(keyFn(req), maxN, windowMs);
+    const r = rateLimit(keyFn(req), cap, windowMs);
     if (!r.ok) {
       res.status(429).json({
         error: "Слишком много запросов, подожди немного",
