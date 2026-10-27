@@ -6,7 +6,7 @@ import {
   apiVerifyEmail,
   type ApiUser,
 } from "../game/api";
-import { getLastLogin } from "../game/session";
+import { getLastLogin, setLastLogin } from "../game/session";
 import { startMenuMusic, unlockSfx } from "../game/sfx";
 
 type Props = {
@@ -26,11 +26,11 @@ export function AuthScreen({
   const [mode, setMode] = useState<Mode>(() =>
     forceVerifyLogin ? "verify" : "login",
   );
-  const [login, setLogin] = useState(
+  // Одно поле: почта (новые) или старый логин. Ник оракула — отдельно, после входа.
+  const [identity, setIdentity] = useState(
     () => forceVerifyLogin || getLastLogin(),
   );
   const [password, setPassword] = useState("");
-  const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [maskedEmail, setMaskedEmail] = useState<string | null>(
     () => forceVerifyEmail ?? null,
@@ -49,16 +49,19 @@ export function AuthScreen({
     setPassword("");
     setCode("");
     if (next === "register") {
-      setLogin("");
-      setEmail("");
+      setIdentity("");
       setMaskedEmail(null);
     } else if (next === "login") {
-      setLogin(getLastLogin());
+      setIdentity(getLastLogin());
     }
   };
 
-  const goVerify = (loginName: string, mailHint?: string | null, devCode?: string) => {
-    setLogin(loginName);
+  const goVerify = (
+    id: string,
+    mailHint?: string | null,
+    devCode?: string,
+  ) => {
+    setIdentity(id);
     setMaskedEmail(mailHint ?? null);
     setMode("verify");
     setCode(devCode ?? "");
@@ -67,6 +70,12 @@ export function AuthScreen({
         ? `Dev-режим: код ${devCode}`
         : `Код отправлен на ${mailHint || "почту"}. Проверь «Входящие» и «Спам».`,
     );
+  };
+
+  const finish = (token: string, user: ApiUser, remember: string) => {
+    const r = remember.trim();
+    if (r) setLastLogin(r);
+    onAuthed(token, user);
   };
 
   const submit = async (e: FormEvent) => {
@@ -78,18 +87,18 @@ export function AuthScreen({
     try {
       unlockSfx();
       void startMenuMusic();
-      const name = login.trim();
+      const id = identity.trim();
 
       if (mode === "verify") {
-        const res = await apiVerifyEmail(name, code.trim());
-        onAuthed(res.token, res.user);
+        const res = await apiVerifyEmail(id, code.trim());
+        finish(res.token, res.user, id.includes("@") ? id : getLastLogin() || id);
         return;
       }
 
       if (mode === "login") {
         try {
-          const res = await apiLogin(name, password);
-          onAuthed(res.token, res.user);
+          const res = await apiLogin(id, password);
+          finish(res.token, res.user, id);
           return;
         } catch (err) {
           const errCode =
@@ -99,7 +108,7 @@ export function AuthScreen({
           const msg = err instanceof Error ? err.message : "Ошибка";
           if (errCode === "EMAIL_NOT_VERIFIED") {
             goVerify(
-              name,
+              id,
               err && typeof err === "object" && "email" in err
                 ? String((err as { email?: string }).email || "")
                 : null,
@@ -115,13 +124,14 @@ export function AuthScreen({
         }
       }
 
-      const res = await apiRegister(name, password, email.trim());
+      // Регистрация: только почта + пароль. Ник — у оракула.
+      const res = await apiRegister(id, password);
       if (res.needsEmailVerify || res.user.needsEmailVerify) {
-        goVerify(name, res.user.email, res.devCode);
+        goVerify(id, res.user.email, res.devCode);
         if (res.mailWarning) setError(res.mailWarning);
         return;
       }
-      onAuthed(res.token, res.user);
+      finish(res.token, res.user, id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка");
     } finally {
@@ -133,7 +143,7 @@ export function AuthScreen({
     setError(null);
     setBusy(true);
     try {
-      const res = await apiResendEmailCode(login.trim());
+      const res = await apiResendEmailCode(identity.trim());
       setHint(
         res.devCode
           ? `Dev-режим: код ${res.devCode}`
@@ -153,23 +163,24 @@ export function AuthScreen({
     try {
       unlockSfx();
       void startMenuMusic();
-      if (!email.trim()) {
-        setError("Для восстановления укажи почту (поле появится после переключения на регистрацию) — или введи почту ниже и снова нажми.");
+      const id = identity.trim();
+      if (!id.includes("@")) {
+        setError("Для восстановления укажи почту в поле выше.");
         setMode("register");
         setBusy(false);
         return;
       }
-      const res = await apiRegister(login.trim(), password, email.trim());
+      const res = await apiRegister(id, password);
       setCanRestore(false);
       if (res.needsEmailVerify || res.user.needsEmailVerify) {
-        goVerify(login.trim(), res.user.email, res.devCode);
+        goVerify(id, res.user.email, res.devCode);
         return;
       }
-      onAuthed(res.token, res.user);
+      finish(res.token, res.user, id);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Ошибка";
-      if (/уже есть/i.test(msg)) {
-        setError("Логин снова занят — попробуй обычный вход.");
+      if (/занята|уже есть/i.test(msg)) {
+        setError("Почта снова занята — попробуй обычный вход.");
         setCanRestore(false);
         setMode("login");
       } else {
@@ -203,37 +214,23 @@ export function AuthScreen({
           {mode === "verify"
             ? `Введи 6 цифр из письма${maskedEmail ? ` (${maskedEmail})` : ""}.`
             : mode === "register"
-              ? "Логин — латиницей. Почта обязательна: без кода аккаунт не откроется. Два человека на одном ПК — у каждого свой логин."
-              : "Логин — латиницей, не имя оракула. Два человека на одном компьютере — выйди → регистрация → новый логин."}
+              ? "Почта и пароль. Ник оракула выберешь после входа. Два человека на одном ПК — у каждого своя почта."
+              : "Вход по почте. Старые аккаунты без почты — прежним логином. Ник оракула — не здесь."}
         </p>
         <form className="auth-form" onSubmit={submit}>
           {mode !== "verify" && (
             <label>
-              Логин
+              {mode === "register" ? "Почта" : "Почта или старый логин"}
               <input
-                autoComplete="username"
-                value={login}
-                onChange={(e) => setLogin(e.target.value)}
-                minLength={3}
+                type={mode === "register" ? "email" : "text"}
+                autoComplete={mode === "register" ? "email" : "username"}
+                value={identity}
+                onChange={(e) => setIdentity(e.target.value)}
                 required
-                placeholder="например igor_42"
+                placeholder={
+                  mode === "register" ? "you@mail.ru" : "you@mail.ru или старый_логин"
+                }
                 inputMode="email"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-              />
-            </label>
-          )}
-          {mode === "register" && (
-            <label>
-              Почта
-              <input
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="you@mail.ru"
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
@@ -273,7 +270,9 @@ export function AuthScreen({
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                onChange={(e) =>
+                  setCode(e.target.value.replace(/\D/g, "").slice(0, 8))
+                }
                 minLength={4}
                 maxLength={8}
                 required

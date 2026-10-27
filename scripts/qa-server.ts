@@ -141,17 +141,16 @@ async function securitySuite(base: string) {
   let n = 0;
 
   const short = await req(base, "POST", "/api/register", {
-    login: "ab",
+    email: "bad",
     password: "12",
   });
   if (short.status !== 400) {
-    fail("безопасность", `короткий логин/пароль → ${short.status}`);
+    fail("безопасность", `плохая почта/пароль → ${short.status}`);
   } else n += 1;
 
-  const login = `qa_sec_${Date.now()}`;
-  const email = `${login}@qa.local`;
+  const stamp = `qa_sec_${Date.now()}`;
+  const email = `${stamp}@qa.local`;
   const reg = await req(base, "POST", "/api/register", {
-    login,
     password: "secret99",
     email,
   });
@@ -160,9 +159,10 @@ async function securitySuite(base: string) {
     return;
   }
   n += 1;
+  const allocatedLogin = String(reg.json?.user?.login || stamp);
 
   const unverifiedLogin = await req(base, "POST", "/api/login", {
-    login,
+    email,
     password: "secret99",
   });
   if (unverifiedLogin.status !== 403) {
@@ -173,7 +173,7 @@ async function securitySuite(base: string) {
   } else n += 1;
 
   const verify = await req(base, "POST", "/api/verify-email", {
-    login,
+    email,
     code: reg.json.devCode,
   });
   if (verify.status !== 200 || !verify.json?.token) {
@@ -184,20 +184,28 @@ async function securitySuite(base: string) {
   const token = verify.json.token as string;
 
   const dup = await req(base, "POST", "/api/register", {
-    login,
     password: "secret99",
-    email: `other_${email}`,
+    email,
   });
   if (dup.status !== 409) {
-    fail("безопасность", `дубликат логина → ${dup.status}`);
+    fail("безопасность", `дубликат почты → ${dup.status}`);
   } else n += 1;
 
   const badPass = await req(base, "POST", "/api/login", {
-    login,
+    email,
     password: "wrong",
   });
   if (badPass.status !== 401) {
     fail("безопасность", `неверный пароль → ${badPass.status}`);
+  } else n += 1;
+
+  // Старый логин всё ещё открывает аккаунт
+  const legacyLogin = await req(base, "POST", "/api/login", {
+    login: allocatedLogin,
+    password: "secret99",
+  });
+  if (legacyLogin.status !== 200 || !legacyLogin.json?.token) {
+    fail("безопасность", `вход старым логином → ${legacyLogin.status}`);
   } else n += 1;
 
   const noAuth = await req(base, "GET", "/api/me");
@@ -211,7 +219,7 @@ async function securitySuite(base: string) {
   } else n += 1;
 
   const me = await req(base, "GET", "/api/me", undefined, token);
-  if (me.status !== 200 || me.json?.user?.login !== login) {
+  if (me.status !== 200 || me.json?.user?.login !== allocatedLogin) {
     fail("безопасность", `/me с токеном сломан`);
   } else n += 1;
 
@@ -258,18 +266,17 @@ async function securitySuite(base: string) {
 async function loadSuite(base: string, players: number) {
   note(`нагрузка ${players} игроков`);
   const stamp = Date.now().toString(36);
-  const logins = Array.from(
+  const emails = Array.from(
     { length: players },
-    (_, i) => `qa_load_${stamp}_${i}`,
+    (_, i) => `qa_load_${stamp}_${i}@qa${i}.local`,
   );
   const password = "loadtest1";
 
   const tReg0 = Date.now();
-  const regs = await mapPool(logins, 80, async (login, i) => {
+  const regs = await mapPool(emails, 80, async (email) => {
     const r = await req(base, "POST", "/api/register", {
-      login,
       password,
-      email: `${login}@qa${i}.local`,
+      email,
     });
     return r;
   });
@@ -277,7 +284,7 @@ async function loadSuite(base: string, players: number) {
   await mapPool(regs, 80, async (r, i) => {
     if (r.status !== 200 || !r.json?.devCode) return r;
     return req(base, "POST", "/api/verify-email", {
-      login: logins[i],
+      email: emails[i],
       code: r.json.devCode,
     });
   });
@@ -293,13 +300,13 @@ async function loadSuite(base: string, players: number) {
   }
 
   // Только успешно зарегистрированные — иначе login fail троттлит IP.
-  const regPairs = logins
-    .map((login, i) => ({ login, reg: regs[i]! }))
+  const regPairs = emails
+    .map((email, i) => ({ email, reg: regs[i]! }))
     .filter((p) => p.reg.status === 200 && p.reg.json?.token);
 
   const tLogin0 = Date.now();
-  const loginsRes = await mapPool(regPairs, 80, async ({ login }) => {
-    return req(base, "POST", "/api/login", { login, password });
+  const loginsRes = await mapPool(regPairs, 80, async ({ email }) => {
+    return req(base, "POST", "/api/login", { email, password });
   });
   const loginOk = loginsRes.filter((r) => r.status === 200 && r.json?.token);
   const loginMs = Date.now() - tLogin0;

@@ -95,7 +95,7 @@ curl -s http://127.0.0.1:8787/api/health
 Cloudflare Pages → проект **might-of-orakul** → Settings → Environment variables:
 
 ```
-VITE_API_URL=http://ТВОЙ_IP:8787
+VITE_API_URL=https://157.22.204.47.sslip.io
 ```
 
 (без `/` в конце) → Save → **Retry deployment**.
@@ -142,7 +142,7 @@ crontab -e
 - [ ] Куплен VPS Ubuntu, есть IP  
 - [ ] API слушает `:8787`, `/api/health` ок  
 - [ ] Залит `users.json`, в health верное число users  
-- [ ] В Cloudflare `VITE_API_URL` = `http://IP:8787`, redeploy  
+- [ ] В Cloudflare `VITE_API_URL` = `https://157.22.204.47.sslip.io` (именно https, без :8787), redeploy  
 - [ ] Вход старым логином/паролем работает  
 - [ ] Включён суточный backup.sh  
 - [ ] Free Render / домашний туннель выключены  

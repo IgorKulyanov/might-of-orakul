@@ -48,6 +48,33 @@ function maskEmail(email) {
   return `${e.slice(0, 2)}***${e.slice(at)}`;
 }
 
+/** Вход: почта (новые) или старый логин. */
+function findUserByLoginOrEmail(db, raw) {
+  const email = sanitizeEmail(raw);
+  if (email) {
+    const byEmail = db.users.find((u) => sanitizeEmail(u.email) === email);
+    if (byEmail) return byEmail;
+  }
+  const login = sanitizeLogin(raw);
+  if (login.length >= 3) {
+    return db.users.find((u) => u.login === login) || null;
+  }
+  return null;
+}
+
+/** Внутренний login из почты (для совместимости со старым кодом). */
+function allocateLoginFromEmail(db, email) {
+  const local = sanitizeLogin(String(email).split("@")[0] || "player") || "player";
+  let candidate = local.slice(0, 24);
+  if (!db.users.some((u) => u.login === candidate)) return candidate;
+  for (let i = 2; i < 10000; i++) {
+    const suffix = String(i);
+    candidate = `${local.slice(0, Math.max(1, 24 - suffix.length))}${suffix}`;
+    if (!db.users.some((u) => u.login === candidate)) return candidate;
+  }
+  return `p${Date.now().toString(36)}`.slice(0, 24);
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /** Для QA можно задать ORACUL_DATA_DIR — изолированная база, живые игроки не трогаются. */
 const DATA_DIR = process.env.ORACUL_DATA_DIR
@@ -511,19 +538,15 @@ app.post(
   rateLimitMiddleware({ name: "register", maxN: 8, windowMs: 60_000 }),
   async (req, res) => {
     try {
-      const login = sanitizeLogin(req.body?.login);
       const password = String(req.body?.password || "").slice(0, 72);
       const email = sanitizeEmail(req.body?.email);
-      if (login.length < 3 || password.length < 4) {
-        res.status(400).json({
-          error:
-            "Логин от 3 лат. букв/цифр (a-z, 0-9, _ - .), пароль от 4. Кириллица в логине срезается.",
-        });
+      if (password.length < 4) {
+        res.status(400).json({ error: "Пароль от 4 символов" });
         return;
       }
       if (!email) {
         res.status(400).json({
-          error: "Укажи рабочую почту — на неё придёт код подтверждения",
+          error: "Укажи рабочую почту — на неё придёт код, ею же входишь",
           code: "EMAIL_REQUIRED",
         });
         return;
@@ -540,16 +563,12 @@ app.post(
       const passwordHash = await bcrypt.hash(password, 10);
       const code = makeVerifyCode();
       const result = await withDb((db) => {
-        if (db.users.some((u) => u.login === login)) {
-          return { conflict: "login" };
-        }
         if (
-          db.users.some(
-            (u) => sanitizeEmail(u.email) === email && u.emailVerified,
-          )
+          db.users.some((u) => sanitizeEmail(u.email) === email)
         ) {
           return { conflict: "email" };
         }
+        const login = allocateLoginFromEmail(db, email);
         const user = {
           id: uuid(),
           login,
@@ -571,13 +590,9 @@ app.post(
         persistLiveDb();
         return { token: user.token, user: publicUser(user) };
       });
-      if (result.conflict === "login") {
-        res.status(409).json({ error: "Такой логин уже есть" });
-        return;
-      }
       if (result.conflict === "email") {
         res.status(409).json({
-          error: "Эта почта уже привязана к другому аккаунту",
+          error: "Эта почта уже занята — войди или укажи другую",
           code: "EMAIL_TAKEN",
         });
         return;
@@ -585,7 +600,6 @@ app.post(
 
       const sent = await sendVerifyEmail(email, code);
       if (!sent.ok) {
-        // Аккаунт уже создан — можно переслать код. Не откатываем.
         console.warn("[mail] register send fail:", sent.error);
       }
       res.json({
@@ -608,19 +622,21 @@ app.post(
   rateLimitMiddleware({ name: "login", maxN: 20, windowMs: 60_000 }),
   async (req, res) => {
     try {
-      const login = sanitizeLogin(req.body?.login);
+      // Почта (новые) или старый логин — одно поле
+      const identity = String(req.body?.email || req.body?.login || "").trim();
       const password = String(req.body?.password || "").slice(0, 72);
       const ip = clientIp(req);
-      const throttle = checkLoginThrottle(ip, login);
+      const throttleKey = sanitizeEmail(identity) || sanitizeLogin(identity) || "x";
+      const throttle = checkLoginThrottle(ip, throttleKey);
       if (!throttle.ok) {
         res.status(429).json({ error: throttle.error });
         return;
       }
-      const found = getLiveDb().users.find((u) => u.login === login);
+      const found = findUserByLoginOrEmail(getLiveDb(), identity);
       if (!found) {
         res.status(401).json({
           error:
-            "Аккаунт не найден. На бесплатном хосте база могла сброситься — нажми «Восстановить аккаунт» с тем же логином и паролем (прогресс в браузере сохранится).",
+            "Аккаунт не найден. Войди почтой (новые аккаунты) или старым логином. Если база сбрасывалась — «Восстановить».",
           code: "ACCOUNT_MISSING",
         });
         return;
@@ -628,7 +644,7 @@ app.post(
       const okPass = await bcrypt.compare(password, found.passwordHash);
       if (!okPass) {
         noteLoginFail(throttle.key);
-        res.status(401).json({ error: "Неверный логин или пароль" });
+        res.status(401).json({ error: "Неверный пароль" });
         return;
       }
       noteLoginOk(throttle.key);
@@ -644,16 +660,16 @@ app.post(
       }
 
       const result = await withDb((db) => {
-        const user = db.users.find((u) => u.login === login);
+        const user = findUserByLoginOrEmail(db, identity);
         if (!user) return null;
-        // Не ротируем token при каждом входе — иначе чат/вторая вкладка «вылетают».
+        // Не ротируем token — чат/вкладки не вылетают
         if (!user.token) user.token = uuid();
         touchSeen(user);
         persistLiveDb();
         return { token: user.token, user: publicUser(user) };
       });
       if (!result) {
-        res.status(401).json({ error: "Неверный логин или пароль" });
+        res.status(401).json({ error: "Неверный пароль" });
         return;
       }
       res.json(result);
@@ -669,16 +685,16 @@ app.post(
   rateLimitMiddleware({ name: "verify-email", maxN: 20, windowMs: 60_000 }),
   async (req, res) => {
     try {
-      const login = sanitizeLogin(req.body?.login);
+      const identity = String(req.body?.email || req.body?.login || "").trim();
       const code = String(req.body?.code || "")
         .replace(/\D/g, "")
         .slice(0, 8);
-      if (login.length < 3 || code.length < 4) {
-        res.status(400).json({ error: "Нужны логин и код из письма" });
+      if (!identity || code.length < 4) {
+        res.status(400).json({ error: "Нужны почта и код из письма" });
         return;
       }
       const result = await withDb((db) => {
-        const user = db.users.find((u) => u.login === login);
+        const user = findUserByLoginOrEmail(db, identity);
         if (!user) return { missing: true };
         if (userEmailVerified(user)) {
           if (!user.token) user.token = uuid();
@@ -724,9 +740,9 @@ app.post(
   rateLimitMiddleware({ name: "resend-email", maxN: 6, windowMs: 60_000 }),
   async (req, res) => {
     try {
-      const login = sanitizeLogin(req.body?.login);
-      if (login.length < 3) {
-        res.status(400).json({ error: "Укажи логин" });
+      const identity = String(req.body?.email || req.body?.login || "").trim();
+      if (!identity) {
+        res.status(400).json({ error: "Укажи почту" });
         return;
       }
       if (!mailConfigured()) {
@@ -736,7 +752,7 @@ app.post(
         });
         return;
       }
-      const found = getLiveDb().users.find((u) => u.login === login);
+      const found = findUserByLoginOrEmail(getLiveDb(), identity);
       if (!found || !found.email) {
         res.status(404).json({ error: "Аккаунт или почта не найдены" });
         return;
@@ -746,8 +762,9 @@ app.post(
         return;
       }
       const code = makeVerifyCode();
+      const uid = found.id;
       await withDb((db) => {
-        const user = db.users.find((u) => u.login === login);
+        const user = db.users.find((u) => u.id === uid);
         if (!user) return;
         user.emailVerifyCode = code;
         user.emailVerifyExpires = Date.now() + VERIFY_TTL_MS;

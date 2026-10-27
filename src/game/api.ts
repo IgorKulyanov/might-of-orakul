@@ -127,28 +127,30 @@ export type RegisterResponse = AuthResponse & {
   mailWarning?: string;
 };
 
-export function apiRegister(login: string, password: string, email: string) {
+/** Регистрация: почта + пароль (внутренний login сервер выдаёт сам). */
+export function apiRegister(email: string, password: string) {
   return request<RegisterResponse>("/api/register", {
     method: "POST",
-    body: JSON.stringify({ login, password, email }),
+    body: JSON.stringify({ email, password }),
   });
 }
 
-export function apiLogin(login: string, password: string) {
+/** Вход: почта или старый логин. */
+export function apiLogin(identity: string, password: string) {
   return request<AuthResponse>("/api/login", {
     method: "POST",
-    body: JSON.stringify({ login, password }),
+    body: JSON.stringify({ email: identity, login: identity, password }),
   });
 }
 
-export function apiVerifyEmail(login: string, code: string) {
+export function apiVerifyEmail(identity: string, code: string) {
   return request<AuthResponse>("/api/verify-email", {
     method: "POST",
-    body: JSON.stringify({ login, code }),
+    body: JSON.stringify({ email: identity, login: identity, code }),
   });
 }
 
-export function apiResendEmailCode(login: string) {
+export function apiResendEmailCode(identity: string) {
   return request<{
     ok: boolean;
     email?: string;
@@ -156,7 +158,7 @@ export function apiResendEmailCode(login: string) {
     devCode?: string;
   }>("/api/resend-email-code", {
     method: "POST",
-    body: JSON.stringify({ login }),
+    body: JSON.stringify({ email: identity, login: identity }),
   });
 }
 

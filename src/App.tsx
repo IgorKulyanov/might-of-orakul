@@ -933,10 +933,13 @@ export default function App() {
 
   // Сессия есть, но почта не подтверждена — снова экран кода (не пускаем в игру).
   if (user.needsEmailVerify) {
+    const remember = getLastLogin();
     return (
       <AuthScreen
         onAuthed={onAuthed}
-        forceVerifyLogin={user.login}
+        forceVerifyLogin={
+          remember.includes("@") ? remember : user.login
+        }
         forceVerifyEmail={user.email}
       />
     );

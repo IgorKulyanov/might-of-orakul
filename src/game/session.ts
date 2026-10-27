@@ -41,6 +41,9 @@ export function getCachedUser(): ApiUser | null {
 export function setSession(token: string, user: ApiUser): void {
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
+  // AuthScreen уже кладёт почту в last-login; не затираем её внутренним login.
+  const prev = getLastLogin();
+  if (prev.includes("@")) return;
   if (user?.login) setLastLogin(user.login);
 }
 
