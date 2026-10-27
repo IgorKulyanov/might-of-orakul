@@ -3722,22 +3722,64 @@ type AiMission = {
   foeBoardThreat: number;
 };
 
-/** Плавный скилл бота по уровню (не читы по HP/урону). */
-function aiSkill(level: number) {
+/** Плавный скилл бота по уровню (не читы по HP/урону) + уклон персоны. */
+function aiSkill(
+  level: number,
+  persona: BattleState["aiPersona"] = "midrange",
+) {
   const lv = Math.max(1, Math.min(50, level || 1));
+  let developUntil = lv <= 4 ? 2 : lv <= 8 ? 3 : 4;
+  let multiDrop = lv <= 5 ? 22 : lv <= 10 ? 34 : 44;
+  let tradeMul = lv <= 4 ? 0.65 : lv <= 8 ? 1 : lv <= 14 ? 1.2 : 1.35;
+  let flexMul = lv <= 4 ? 0.2 : lv <= 7 ? 0.55 : lv <= 12 ? 0.9 : 1.15;
+  let faceBias = 0;
+  let rampBias = 0;
+  let spellBias = 0;
+  if (persona === "aggro") {
+    developUntil = Math.min(developUntil, 3);
+    multiDrop += 10;
+    tradeMul *= 0.85;
+    faceBias = 18;
+  } else if (persona === "swarm") {
+    developUntil = 4;
+    multiDrop += 16;
+    faceBias = 8;
+  } else if (persona === "control") {
+    tradeMul *= 1.2;
+    flexMul *= 1.1;
+    spellBias = 14;
+    faceBias = -6;
+  } else if (persona === "ramp") {
+    rampBias = 16;
+    developUntil = Math.max(2, developUntil - 1);
+    multiDrop -= 6;
+  }
   return {
     level: lv,
-    /** До скольких юнитов на поле активно развиваем доску. */
-    developUntil: lv <= 4 ? 2 : lv <= 8 ? 3 : 4,
-    /** Бонус за «ещё одно существо после этого хода». */
-    multiDrop: lv <= 5 ? 22 : lv <= 10 ? 34 : 44,
-    /** Насколько важны трейды / снятие угроз. */
-    tradeMul: lv <= 4 ? 0.65 : lv <= 8 ? 1 : lv <= 14 ? 1.2 : 1.35,
-    /** Насколько ИИ любит умения юнитов. */
-    flexMul: lv <= 4 ? 0.2 : lv <= 7 ? 0.55 : lv <= 12 ? 0.9 : 1.15,
+    developUntil,
+    multiDrop,
+    tradeMul,
+    flexMul,
+    faceBias,
+    rampBias,
+    spellBias,
     /** Сложные флексы (могильщик, леший, вердикт…). */
     advancedFlex: lv >= 8,
     verdictOk: lv >= 12,
+    /** Насколько размываем «лучший» ход (ниже уровень — больше сюрпризов). */
+    choiceSlack: lv <= 5 ? 22 : lv <= 10 ? 14 : lv <= 18 ? 10 : 7,
+  };
+}
+
+/** Дешёвый LCG от seed боя + хода — стабильный разброс внутри матча. */
+function aiStepRng(seed: number, turn: number, nChoices: number): () => number {
+  let s =
+    ((seed >>> 0) ^ Math.imul(turn + 1, 9973) ^ Math.imul(nChoices + 1, 7919)) >>>
+    0;
+  if (!s) s = 1;
+  return () => {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    return s / 4294967296;
   };
 }
 
@@ -4007,7 +4049,7 @@ export function takeAiStep(
   const next = structuredClone(state) as BattleState;
   const me = next.enemy;
   const foe = next.you;
-  const skill = aiSkill(next.aiLevel ?? 1);
+  const skill = aiSkill(next.aiLevel ?? 1, next.aiPersona);
 
   const boardCount = me.slots.filter(Boolean).length;
   const emptySlots = 5 - boardCount;
@@ -4069,7 +4111,8 @@ export function takeAiStep(
         const sc =
           (effects.some((e) => e.type === "gain_mana_all") ? 35 : 18) -
           costN -
-          (mission.mustDefend ? 25 : 0);
+          (mission.mustDefend ? 25 : 0) +
+          skill.rampBias;
         choices.push({ kind: "ramp", hi, score: sc });
       }
     }
@@ -4141,10 +4184,11 @@ export function takeAiStep(
       if (need === "ally" && (ev.target == null || !me.slots[ev.target])) {
         continue;
       }
-      let sc = ev.score;
+      let sc = ev.score + skill.spellBias;
       const effects = card.spellEffects ?? [];
       if (effects.some((e) => e.type === "damage_hero")) {
-        sc += mission.canLethal || foe.hp <= 8 ? 40 : 10;
+        sc +=
+          (mission.canLethal || foe.hp <= 8 ? 40 : 10) + skill.faceBias * 0.5;
       }
       if (effects.some((e) => e.type === "heal_hero") && mission.mustDefend) {
         sc += 20;
@@ -4178,8 +4222,12 @@ export function takeAiStep(
 
   // --- Бой ---
   for (let i = 0; i < 5; i++) {
-    const sc = aiScoreCombatUnit(me, foe, i, mission, skill.tradeMul);
-    if (sc > -1e8) choices.push({ kind: "combat", slot: i, score: sc });
+    let sc = aiScoreCombatUnit(me, foe, i, mission, skill.tradeMul);
+    if (sc > -1e8) {
+      // Агро чаще бьёт в лицо, контроль — чаще трейдит
+      if (skill.faceBias) sc += skill.faceBias * 0.35;
+      choices.push({ kind: "combat", slot: i, score: sc });
+    }
   }
 
   // --- Умения юнитов (очки, не рандом) ---
@@ -4441,7 +4489,33 @@ export function takeAiStep(
 
   if (!choices.length) return null;
   choices.sort((a, b) => b.score - a.score);
-  const best = choices[0]!;
+  // Среди почти равных ходов — не всегда один и тот же «идеал»
+  const top = choices[0]!.score;
+  const near = choices.filter((c) => c.score >= top - skill.choiceSlack);
+  const rng = aiStepRng(
+    next.aiSeed ?? ((next.aiLevel ?? 1) * 1009 + next.turn),
+    next.turn,
+    near.length,
+  );
+  // Летал / срочный блок линии — без лотереи среди «почти равных»
+  let forced: (typeof choices)[number] | undefined;
+  if (mission.canLethal) {
+    forced = choices.find((c) => {
+      if (c.kind === "combat") return true;
+      if (c.kind !== "spell") return false;
+      const id = me.hand[c.hi];
+      if (!id) return false;
+      return (getCard(id).spellEffects ?? []).some(
+        (e) => e.type === "damage_hero",
+      );
+    });
+  } else if (mission.mustDefend) {
+    forced = choices.find(
+      (c) =>
+        c.kind === "creature" && mission.openLanes.includes(c.slot),
+    );
+  }
+  const best = forced ?? near[Math.floor(rng() * near.length)]!;
 
   // ===== Исполнение =====
   if (best.kind === "ramp") {

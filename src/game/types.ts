@@ -349,6 +349,18 @@ export interface BattleState {
    * Растёт тактика / умения / давление на доску — без читов по статам.
    */
   aiLevel?: number;
+  /**
+   * Стиль ИИ (агро / контроль / …) — разный приоритет ходов.
+   * Задаётся генератором соперника при старте боя.
+   */
+  aiPersona?:
+    | "aggro"
+    | "midrange"
+    | "control"
+    | "ramp"
+    | "swarm";
+  /** Seed боя: разброс среди почти равных ходов. */
+  aiSeed?: number;
 }
 
 export interface OwnedState {

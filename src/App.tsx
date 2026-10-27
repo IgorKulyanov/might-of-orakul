@@ -60,9 +60,9 @@ import {
   type ApiUser,
 } from "./game/api";
 import {
-  botDeckForLevel,
-  botHeroIdFor,
   botLevelNear,
+  freshBotSeed,
+  rollBotOpponent,
 } from "./game/botDeck";
 import { getHero } from "./game/heroes";
 import {
@@ -312,6 +312,8 @@ export default function App() {
   const [arena, setArena] = useState<ArenaState>(() => loadArena());
   const [arenaRound, setArenaRound] = useState(1);
   const [devSetup, setDevSetup] = useState<DevBattleSetup | null>(null);
+  /** Seed соперника: новый на вход в бой и на «Новая битва». */
+  const [botSeed, setBotSeed] = useState(() => freshBotSeed());
   const [devToolsOn, setDevToolsOn] = useState(() => isDevToolsEnabled());
   const [hubTutStep, setHubTutStep] = useState<number | null>(() =>
     hasSeenHubTutorial() ? null : 0,
@@ -932,11 +934,9 @@ export default function App() {
           ? foeLevel
           : level;
     const yourHero = activeHeroId(owned);
-    const foeHero =
-      vsBot || vsCamp || vsArena
-        ? botHeroIdFor(yourHero, foeLv)
-        : "hero_hell";
-    const foeSchool = getHero(foeHero).faction;
+    // Генератор: другой герой / персона / колода на каждый nonce
+    const bot = rollBotOpponent(yourHero, foeLv, botSeed);
+    const foeHero = bot.heroId;
     // Раунд из прогресса хаба (не из стейта кнопки — иначе гонка setState).
     const fightRound = vsArena ? arena.cleared + 1 : arenaRound;
     const arenaMods = vsArena
@@ -944,14 +944,20 @@ export default function App() {
       : null;
     return (
       <Battle
-        key={vsArena ? `arena-${arena.day}-${fightRound}` : undefined}
+        key={
+          vsArena
+            ? `arena-${arena.day}-${fightRound}-${botSeed}`
+            : `bot-${screen}-${botSeed}`
+        }
         yourDeck={battleDeck(owned)}
-        enemyDeck={botDeckForLevel(foeLv, foeSchool)}
+        enemyDeck={bot.deck}
         yourHeroId={yourHero}
         enemyHeroId={foeHero}
         yourName={displayName}
         yourLevel={level}
         enemyLevel={foeLv}
+        aiPersona={bot.persona}
+        aiSeed={bot.seed}
         prepareBattle={
           arenaMods
             ? (s) => applyArenaRules(s, arenaMods)
@@ -959,6 +965,15 @@ export default function App() {
         }
         allowRematch={!vsArena && !vsCamp}
         rematchLabel={vsBot ? "Новая битва" : "Ещё раз"}
+        onRematch={
+          vsBot
+            ? () => {
+                unlockSfx();
+                void startBattleMusic();
+                setBotSeed(freshBotSeed());
+              }
+            : undefined
+        }
         exitPolicy={vsCamp || vsArena ? "defeat" : "free"}
         resultExitLabel={(won) => {
           if (vsArena) {
@@ -1017,6 +1032,7 @@ export default function App() {
         onOpen={() => setCampaign(refreshCampaignDay(campaignRef.current))}
         onAcceptFight={(node) => {
           setCampaignNode(node);
+          setBotSeed(freshBotSeed());
           unlockSfx();
           void startBattleMusic();
           setScreen("battle_campaign");
@@ -1035,6 +1051,7 @@ export default function App() {
         onAcceptFight={(round) => {
           arenaRoundRef.current = round;
           setArenaRound(round);
+          setBotSeed(freshBotSeed());
           unlockSfx();
           void startBattleMusic();
           setScreen("battle_arena");
@@ -1189,6 +1206,7 @@ export default function App() {
         deck={battleDeck(owned)}
         onBack={() => setScreen("menu")}
         onFightBot={() => {
+          setBotSeed(freshBotSeed());
           unlockSfx();
           void startBattleMusic();
           setScreen("battle_bot");

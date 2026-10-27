@@ -10,6 +10,68 @@ import { starterDeckForFaction } from "./starterDecks";
 import type { Faction, School } from "./types";
 
 /**
+ * Стиль соперника: влияет на состав колоды и приоритеты ИИ.
+ * Каждый бой — свой, чтобы не было «одного и того же бота».
+ */
+export type BotPersona =
+  | "aggro"
+  | "midrange"
+  | "control"
+  | "ramp"
+  | "swarm";
+
+export const BOT_PERSONAS: BotPersona[] = [
+  "aggro",
+  "midrange",
+  "control",
+  "ramp",
+  "swarm",
+];
+
+export type BotDeckOpts = {
+  /** Seed боя — без него колода детерминирована (QA). */
+  seed?: number;
+  persona?: BotPersona;
+};
+
+export type BotMatch = {
+  seed: number;
+  persona: BotPersona;
+  heroId: string;
+  deck: string[];
+  level: number;
+};
+
+/** LCG: стабильный рандом от seed (один бой = одна колода). */
+export function makeBotRng(seed: number): () => number {
+  let s = (seed >>> 0) || 1;
+  return () => {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+}
+
+export function freshBotSeed(): number {
+  return (
+    (Date.now() ^ Math.floor(Math.random() * 0xffffffff) ^ 0x9e3779b9) >>> 0
+  );
+}
+
+function shuffleInPlace<T>(arr: T[], rng: () => number): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    const t = arr[i]!;
+    arr[i] = arr[j]!;
+    arr[j] = t;
+  }
+  return arr;
+}
+
+export function pickBotPersona(rng: () => number): BotPersona {
+  return BOT_PERSONAS[Math.floor(rng() * BOT_PERSONAS.length)]!;
+}
+
+/**
  * Макс. тир карт по уровню оракула (честный пул).
  * 1–7 → I; 8–17 → II; 18–27 → III; 28–39 → IV; 40+ → V.
  */
@@ -105,8 +167,13 @@ export function botDeckSizeForLevel(level: number): number {
 
 /**
  * Обучающая колода = старт школы (+копии своих существ).
+ * С seed — слегка перемешиваем порядок добора.
  */
-function fillDeckTutorial(faction: Faction, level: number): string[] {
+function fillDeckTutorial(
+  faction: Faction,
+  level: number,
+  rng?: () => number,
+): string[] {
   const target = botDeckSizeForLevel(level);
   const base = starterDeckForFaction(faction);
   const out: string[] = [...base];
@@ -120,6 +187,7 @@ function fillDeckTutorial(faction: Faction, level: number): string[] {
       return false;
     }
   });
+  if (rng && creatures.length > 1) shuffleInPlace(creatures, rng);
 
   let guard = 0;
   let i = 0;
@@ -133,21 +201,34 @@ function fillDeckTutorial(faction: Faction, level: number): string[] {
     i++;
     guard++;
   }
+  if (rng) shuffleInPlace(out, rng);
   return out.slice(0, target);
 }
 
 /**
  * Колода бота «равного» уровня: тир ≤ уровню, школа героя + нейтрал.
  * Ур. 1–3 — почти стартовая колода.
+ * Без seed — как раньше (детерминированно, для QA).
  */
-export function botDeckForLevel(level: number, school?: School): string[] {
+export function botDeckForLevel(
+  level: number,
+  school?: School,
+  opts?: BotDeckOpts,
+): string[] {
+  const rng = opts?.seed != null ? makeBotRng(opts.seed ^ 0xdecafbad) : undefined;
+  const persona = opts?.persona ?? (rng ? pickBotPersona(rng) : "midrange");
+
   const faction: Faction =
     school && school !== "neutral"
       ? school
-      : FACTIONS[Math.abs(level) % FACTIONS.length]!;
+      : FACTIONS[
+          opts?.seed != null
+            ? Math.floor(makeBotRng(opts.seed ^ 0x51)() * FACTIONS.length)
+            : Math.abs(level) % FACTIONS.length
+        ]!;
 
   if (level <= 3) {
-    return fillDeckTutorial(faction, level);
+    return fillDeckTutorial(faction, level, rng);
   }
 
   const pool = botPoolForLevel(level, faction);
@@ -162,9 +243,11 @@ export function botDeckForLevel(level: number, school?: School): string[] {
       fallback.length ? fallback : ["hero_mana"],
       level,
       faction,
+      persona,
+      rng,
     );
   }
-  return fillDeckAggressive(pool, level, faction);
+  return fillDeckAggressive(pool, level, faction, persona, rng);
 }
 
 function rampIdsForLevel(level: number, maxTier: number): string[] {
@@ -175,25 +258,65 @@ function rampIdsForLevel(level: number, maxTier: number): string[] {
   return ["hero_mana", "hero_mana", "extra_card"];
 }
 
-function maxSpellSlots(level: number, target: number): number {
-  if (level <= 7) return Math.min(2, Math.floor(target * 0.2));
-  if (level <= 14) return Math.min(3, Math.floor(target * 0.22));
-  if (level <= 24) return Math.min(4, Math.floor(target * 0.25));
-  return Math.min(6, Math.floor(target * 0.28));
+function maxSpellSlots(level: number, target: number, persona: BotPersona): number {
+  let base =
+    level <= 7
+      ? Math.min(2, Math.floor(target * 0.2))
+      : level <= 14
+        ? Math.min(3, Math.floor(target * 0.22))
+        : level <= 24
+          ? Math.min(4, Math.floor(target * 0.25))
+          : Math.min(6, Math.floor(target * 0.28));
+  if (persona === "control") base = Math.min(base + 2, Math.floor(target * 0.4));
+  if (persona === "aggro" || persona === "swarm") base = Math.max(1, base - 1);
+  if (persona === "ramp") base = Math.max(1, base - 1);
+  return base;
+}
+
+function personaCreatureBias(
+  cardId: string,
+  faction: Faction,
+  persona: BotPersona,
+): number {
+  const w = manaWeight(cardId, faction);
+  const t = cardTier(cardId);
+  let atk = 0;
+  let hp = 0;
+  try {
+    const c = getCard(cardId);
+    atk = c.attack ?? 0;
+    hp = c.health ?? 0;
+  } catch {
+    /* ignore */
+  }
+  switch (persona) {
+    case "aggro":
+      return w * 1.4 - atk * 0.8 + t * 0.3;
+    case "swarm":
+      return w * 1.8 - (w <= 2 ? 4 : 0);
+    case "control":
+      return w * 0.55 - hp * 0.35 + t * 0.2;
+    case "ramp":
+      return -t * 1.2 - w * 0.2 + (w <= 2 ? 3 : 0);
+    default:
+      return w + t * 0.15;
+  }
 }
 
 /**
- * Агрессивная колода: своя фракция + чуть рампа + плавный микс чужих школ.
- * Заклинаний мало — без спама камней/допа.
+ * Колода под персону: своя фракция + рамп + микс чужих школ.
+ * С rng — шаффл кандидатов, иначе старый детерминированный порядок.
  */
 function fillDeckAggressive(
   pool: string[],
   level: number,
   faction: Faction,
+  persona: BotPersona = "midrange",
+  rng?: () => number,
 ): string[] {
   const target = botDeckSizeForLevel(level);
   const maxTier = maxTierForLevel(level);
-  const allCreatures = pool
+  let allCreatures = pool
     .filter((id) => {
       try {
         return getCard(id).kind === "creature";
@@ -203,9 +326,21 @@ function fillDeckAggressive(
     })
     .sort(
       (a, b) =>
+        personaCreatureBias(a, faction, persona) -
+          personaCreatureBias(b, faction, persona) ||
         manaWeight(a, faction) - manaWeight(b, faction) ||
         cardTier(a) - cardTier(b),
     );
+
+  if (rng) {
+    // Лёгкий шаффл внутри «похожих» по стоимости — не одна и та же пачка
+    const jittered = allCreatures.map((id, i) => ({
+      id,
+      k: personaCreatureBias(id, faction, persona) + rng() * 2.4 + i * 0.001,
+    }));
+    jittered.sort((a, b) => a.k - b.k);
+    allCreatures = jittered.map((x) => x.id);
+  }
 
   const ownCreatures = allCreatures.filter((id) => {
     try {
@@ -221,19 +356,16 @@ function fillDeckAggressive(
       return false;
     }
   });
-  // Своя школа в приоритете; чужие — дешёвые/низкий тир
   const creatures = [...ownCreatures, ...offCreatures];
 
-  const spells = pool
+  let spells = pool
     .filter((id) => {
       try {
         if (getCard(id).kind !== "spell") return false;
         if (botForbiddenCard(id, level)) return false;
-        // Рамп кладём отдельно, не из общего пула спеллов
         if (id === "hero_mana" || id === "extra_card" || id === "mana_stones") {
           return false;
         }
-        // Чужие спеллы в колоду не тащим
         if (!isOwnOrNeutral(faction, getCard(id).school)) return false;
         return true;
       } catch {
@@ -241,8 +373,16 @@ function fillDeckAggressive(
       }
     })
     .sort((a, b) => manaWeight(a, faction) - manaWeight(b, faction));
+  if (rng && spells.length > 1) {
+    const jittered = spells.map((id) => ({
+      id,
+      k: manaWeight(id, faction) + rng() * 3,
+    }));
+    jittered.sort((a, b) => a.k - b.k);
+    spells = jittered.map((x) => x.id);
+  }
 
-  const ramp = rampIdsForLevel(level, maxTier).filter((id) => {
+  let ramp = rampIdsForLevel(level, maxTier).filter((id) => {
     try {
       getCard(id);
       if (botForbiddenCard(id, level)) return false;
@@ -251,6 +391,12 @@ function fillDeckAggressive(
       return false;
     }
   });
+  if (persona === "ramp" && level >= 8) {
+    ramp = [...ramp, "hero_mana"].filter((id) => !botForbiddenCard(id, level));
+  }
+  if (persona === "aggro" || persona === "swarm") {
+    ramp = ramp.slice(0, 1);
+  }
 
   const out: string[] = [];
   const counts: Record<string, number> = {};
@@ -265,18 +411,22 @@ function fillDeckAggressive(
     return true;
   };
 
-  const spellBudget = maxSpellSlots(level, target);
-  const rampBudget = Math.min(ramp.length, level <= 10 ? 1 : 2);
-  const creatureSlots = Math.max(
-    1,
-    target - spellBudget - rampBudget,
+  const spellBudget = maxSpellSlots(level, target, persona);
+  let rampBudget = Math.min(
+    ramp.length,
+    persona === "ramp" ? (level <= 10 ? 2 : 3) : level <= 10 ? 1 : 2,
   );
+  if (persona === "aggro") rampBudget = Math.min(rampBudget, 1);
+
+  const creatureSlots = Math.max(1, target - spellBudget - rampBudget);
+  let offRatio = offFactionMixRatio(level);
+  if (persona === "control") offRatio *= 0.7;
+  if (persona === "swarm") offRatio *= 1.15;
   const offBudget = Math.min(
     offCreatures.length,
-    Math.floor(creatureSlots * offFactionMixRatio(level)),
+    Math.floor(creatureSlots * offRatio),
   );
 
-  // Сначала чуть чужих школ (интерес / разнообразие), потом своя
   let offAdded = 0;
   let oi = 0;
   let guard = 0;
@@ -302,7 +452,6 @@ function fillDeckAggressive(
     ci++;
     guard++;
   }
-  // Добор существами из общего списка, если своей школы мало
   ci = 0;
   guard = 0;
   while (
@@ -335,7 +484,6 @@ function fillDeckAggressive(
     guard++;
   }
 
-  // Добор только существами / стартом — не добиваем колоду спеллами
   guard = 0;
   while (out.length < target && creatures.length > 0 && guard < target * 80) {
     push(creatures[guard % creatures.length]!);
@@ -345,7 +493,6 @@ function fillDeckAggressive(
   if (out.length < target) {
     for (const id of starterDeckForFaction(faction)) {
       try {
-        // Финальный добор — только существа, иначе снова зальём спеллами
         if (getCard(id).kind !== "creature") continue;
       } catch {
         continue;
@@ -355,6 +502,7 @@ function fillDeckAggressive(
     }
   }
 
+  if (rng) shuffleInPlace(out, rng);
   return out.slice(0, target);
 }
 
@@ -367,10 +515,39 @@ export function botLevelNear(playerLevel: number): number {
   return Math.min(50, lv + 1);
 }
 
-/** Герой бота: другая раса при возможности. */
-export function botHeroIdFor(playerHeroId: string, botLevel: number): string {
+/**
+ * Герой бота: другая раса при возможности.
+ * Без seed — детерминированно (QA); с seed — случайный другой оракул.
+ */
+export function botHeroIdFor(
+  playerHeroId: string,
+  botLevel: number,
+  seed?: number,
+): string {
   const yours = getHero(playerHeroId).faction;
   const others = BASE_HEROES.filter((h) => h.faction !== yours);
   const list = others.length ? others : BASE_HEROES;
-  return list[Math.abs(botLevel + playerHeroId.length) % list.length]!.id;
+  if (seed == null) {
+    return list[Math.abs(botLevel + playerHeroId.length) % list.length]!.id;
+  }
+  const rng = makeBotRng(seed ^ 0xb01dface);
+  // Иногда (высокий уровень) — эпик той же чужой школы, если есть в BASE
+  return list[Math.floor(rng() * list.length)]!.id;
+}
+
+/**
+ * Полный соперник на один бой: герой + персона + колода.
+ * Новый seed → другой характер и набор карт.
+ */
+export function rollBotOpponent(
+  playerHeroId: string,
+  botLevel: number,
+  seed = freshBotSeed(),
+): BotMatch {
+  const rng = makeBotRng(seed);
+  const persona = pickBotPersona(rng);
+  const heroId = botHeroIdFor(playerHeroId, botLevel, seed);
+  const school = getHero(heroId).faction;
+  const deck = botDeckForLevel(botLevel, school, { seed, persona });
+  return { seed, persona, heroId, deck, level: botLevel };
 }

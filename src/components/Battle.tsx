@@ -115,6 +115,15 @@ type Props = {
   resultExitLabel?: string | ((won: boolean) => string);
   /** Подпись кнопки реванша (по умолчанию «Ещё раз»). */
   rematchLabel?: string;
+  /** Стиль ИИ (из генератора соперника). */
+  aiPersona?: BattleState["aiPersona"];
+  /** Seed боя для разброса ходов ИИ. */
+  aiSeed?: number;
+  /**
+   * Реванш с новым соперником: родитель обновляет колоду/ключ.
+   * Если нет — просто перезапуск с теми же пропами.
+   */
+  onRematch?: () => void;
   /** Сетевой бой: стейт с сервера + отправка действий. */
   network?: {
     sendAction: (action: PvpAction) => void;
@@ -216,6 +225,9 @@ export function Battle({
   exitPolicy = "free",
   resultExitLabel,
   rematchLabel = "Ещё раз",
+  aiPersona,
+  aiSeed,
+  onRematch,
   network,
   externalState = null,
   onExit,
@@ -233,6 +245,8 @@ export function Battle({
       yourLevel,
       enemyLevel,
     );
+    if (aiPersona) raw.aiPersona = aiPersona;
+    if (aiSeed != null) raw.aiSeed = aiSeed;
     return prepareBattle ? prepareBattle(raw) : raw;
   };
   const [state, setState] = useState<BattleState>(() => bootBattle());
@@ -2459,6 +2473,10 @@ export function Battle({
                   type="button"
                   className="primary large"
                   onClick={() => {
+                    if (onRematch) {
+                      onRematch();
+                      return;
+                    }
                     setPhase("you");
                     setFx(null);
                     setReward(null);
