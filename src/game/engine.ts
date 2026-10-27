@@ -5,9 +5,16 @@ import {
   isFemaleWarrior,
   manaCostTotal,
 } from "./cards";
-import { emptyMana, getHero } from "./heroes";
+import { getHero } from "./heroes";
 import { heavySpellCost } from "./battleRules";
-import { addMana, canPay, growMana, manaSchoolOf, payMana } from "./mana";
+import {
+  addMana,
+  canPay,
+  growMana,
+  manaSchoolOf,
+  payMana,
+  startingManaPool,
+} from "./mana";
 import {
   hasDeathScytheGift,
   natureGiftHp,
@@ -286,9 +293,8 @@ function makePlayer(
   const hero = getHero(heroId);
   const deck = shuffle(deckIds);
   const hand = deck.splice(0, 4);
-  const mana = emptyMana();
   const bonus = opts?.startManaBonus ?? 0;
-  mana[hero.faction] = 1 + bonus;
+  const mana = startingManaPool(hero.faction, bonus);
   const maxHp = opts?.maxHp ?? hero.maxHp;
   return {
     id,

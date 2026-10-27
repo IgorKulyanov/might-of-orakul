@@ -28,17 +28,36 @@ export function manaSchoolOf(
   return FACTIONS[0]!;
 }
 
-/** Своя фракция +1 каждый ход; чужие +1 на чётных ходах (2,4,6…). */
-export function growMana(p: PlayerState, turn: number, cap = 10): void {
-  const own = manaSchoolOf(p);
-  const schools = FACTIONS.length ? FACTIONS : [own];
-  for (const f of schools) {
+/**
+ * Старт боя (в духе Orions): все школы с базы 2, своя чуть сильнее.
+ * bonus — уровень / эпик / дар воды и т.п. (только на свою школу).
+ */
+export function startingManaPool(
+  own: Faction,
+  bonus = 0,
+  cap = 10,
+): ManaPool {
+  const pool: ManaPool = {
+    water: 0,
+    hell: 0,
+    death: 0,
+    life: 0,
+    nature: 0,
+  };
+  for (const f of FACTIONS) {
+    // База 2 у всех → сразу можно чужие дешёвые карты, не только «свою».
+    pool[f] = 2;
+  }
+  const ownExtra = 1 + Math.max(0, Math.floor(bonus));
+  pool[own] = Math.min(cap, (pool[own] ?? 0) + ownExtra);
+  return pool;
+}
+
+/** Каждая школа +1 в начале своего хода (как в Orions). */
+export function growMana(p: PlayerState, _turn: number, cap = 10): void {
+  for (const f of FACTIONS) {
     const cur = Number(p.mana[f]) || 0;
-    if (f === own) {
-      p.mana[f] = Math.min(cap, cur + 1);
-    } else if (turn % 2 === 0) {
-      p.mana[f] = Math.min(cap, cur + 1);
-    }
+    p.mana[f] = Math.min(cap, cur + 1);
   }
 }
 
