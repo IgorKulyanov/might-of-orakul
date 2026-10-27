@@ -60,7 +60,7 @@ async function request<T>(
     });
   } catch {
     throw new Error(
-      "Нет связи с сервером. Обнови страницу. Если снова ошибка — сайт ещё смотрит на старый API (в Cloudflare нужен VITE_API_URL на https).",
+      "Нет связи с сервером. Открой ссылку в Chrome → Инкогнито (или очисти кэш этого сайта). В Cloudflare ничего менять не нужно.",
     );
   }
   const data = (await res.json().catch(() => ({}))) as T & {
