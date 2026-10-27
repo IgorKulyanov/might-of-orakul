@@ -826,11 +826,4 @@ app.use((err, _req, res, _next) => {
   }
 });
 
-export {
-  app,
-  PORT,
-  findByToken,
-  getLiveDb,
-  hydrateUsersFromRemote,
-  pruneEmptyShellAccounts,
-};
+export { app, PORT, findByToken, getLiveDb, hydrateUsersFromRemote };
