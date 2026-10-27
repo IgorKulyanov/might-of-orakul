@@ -26,6 +26,7 @@ import {
   saveDeck,
 } from "../game/owned";
 import type { CardKind, OwnedState, School } from "../game/types";
+import { USER_AGREEMENT_URL } from "../game/legal";
 import {
   DIAMOND_PACKS,
   EXCHANGE_QUICK_AMOUNTS,
@@ -632,6 +633,16 @@ export function Collection({
             <p className="hint">
               Оплата через ЮKassa (карта / СБП). После оплаты алмазы
               появятся на аккаунте — обнови магазин или зайди снова.
+              Оплачивая, вы принимаете{" "}
+              <a
+                href={USER_AGREEMENT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                пользовательское соглашение
+              </a>{" "}
+              (лицензия на ресурс, возврат после зачисления — по правилам
+              соглашения).
             </p>
             <div className="pack-grid">
               {DIAMOND_PACKS.map((pack) => (
@@ -646,7 +657,7 @@ export function Collection({
                       return;
                     }
                     const ok = window.confirm(
-                      `Купить «${pack.title}»?\n\n💎 ${pack.diamonds} за ${pack.priceLabel}\n\nОткроется безопасная оплата ЮKassa.`,
+                      `Купить «${pack.title}»?\n\n💎 ${pack.diamonds} за ${pack.priceLabel}\n\nОткроется ЮKassa. Оплата = согласие с пользовательским соглашением; после зачисления алмазов возврат по общему правилу не производится.`,
                     );
                     if (!ok) return;
                     setPayBusy(pack.id);

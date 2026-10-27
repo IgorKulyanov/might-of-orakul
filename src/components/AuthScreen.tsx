@@ -6,6 +6,7 @@ import {
   apiVerifyEmail,
   type ApiUser,
 } from "../game/api";
+import { USER_AGREEMENT_URL } from "../game/legal";
 import { getLastLogin, setLastLogin } from "../game/session";
 import { startMenuMusic, unlockSfx } from "../game/sfx";
 
@@ -40,6 +41,7 @@ export function AuthScreen({
   const [hint, setHint] = useState<string | null>(null);
   const [canRestore, setCanRestore] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const switchMode = (next: Mode) => {
     setMode(next);
@@ -51,6 +53,7 @@ export function AuthScreen({
     if (next === "register") {
       setIdentity("");
       setMaskedEmail(null);
+      setAcceptedTerms(false);
     } else if (next === "login") {
       setIdentity(getLastLogin());
     }
@@ -125,6 +128,10 @@ export function AuthScreen({
       }
 
       // Регистрация: только почта + пароль. Ник — у оракула.
+      if (!acceptedTerms) {
+        setError("Нужно принять пользовательское соглашение");
+        return;
+      }
       const res = await apiRegister(id, password);
       if (res.needsEmailVerify || res.user.needsEmailVerify) {
         goVerify(id, res.user.email, res.devCode);
@@ -281,9 +288,47 @@ export function AuthScreen({
               />
             </label>
           )}
+          {mode === "register" && (
+            <label className="auth-terms">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                required
+              />
+              <span>
+                Принимаю{" "}
+                <a
+                  href={USER_AGREEMENT_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  пользовательское соглашение
+                </a>
+              </span>
+            </label>
+          )}
+          {mode === "login" && (
+            <p className="hint auth-terms-hint">
+              Входя, вы принимаете{" "}
+              <a
+                href={USER_AGREEMENT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                соглашение
+              </a>
+              .
+            </p>
+          )}
           {hint && <p className="hint">{hint}</p>}
           {error && <p className="auth-error">{error}</p>}
-          <button type="submit" className="primary large" disabled={busy}>
+          <button
+            type="submit"
+            className="primary large"
+            disabled={busy || (mode === "register" && !acceptedTerms)}
+          >
             {busy
               ? "…"
               : mode === "login"

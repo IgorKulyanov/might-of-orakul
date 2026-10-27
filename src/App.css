@@ -4604,6 +4604,35 @@ html.is-hand-dragging .grave-row {
   font-size: 0.9rem;
 }
 
+.auth-terms {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.55rem;
+  align-items: start;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.auth-terms input {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-top: 0.15rem;
+  padding: 0;
+  accent-color: #c4a574;
+}
+
+.auth-terms a,
+.auth-terms-hint a,
+.currency-panel .hint a {
+  color: #c4a574;
+}
+
+.auth-terms-hint {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
 .auth-card h1,
 .onboard-screen h1,
 .multi-screen h1 {
