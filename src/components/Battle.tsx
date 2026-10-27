@@ -108,6 +108,8 @@ type Props = {
   exitPolicy?: "free" | "defeat";
   /** Подпись кнопки после боя (или от победы/поражения). */
   resultExitLabel?: string | ((won: boolean) => string);
+  /** Подпись кнопки реванша (по умолчанию «Ещё раз»). */
+  rematchLabel?: string;
   /** Сетевой бой: стейт с сервера + отправка действий. */
   network?: {
     sendAction: (action: PvpAction) => void;
@@ -208,6 +210,7 @@ export function Battle({
   allowRematch = true,
   exitPolicy = "free",
   resultExitLabel,
+  rematchLabel = "Ещё раз",
   network,
   externalState = null,
   onExit,
@@ -2433,20 +2436,10 @@ export function Battle({
               </div>
             )}
             <div className="battle-result-actions">
-              <button type="button" className="primary large" onClick={onExit}>
-                {(() => {
-                  const won = state.winner === "you";
-                  if (typeof resultExitLabel === "function") {
-                    return resultExitLabel(won);
-                  }
-                  if (resultExitLabel) return resultExitLabel;
-                  return "В меню";
-                })()}
-            </button>
               {allowRematch ? (
-            <button
-              type="button"
-                  className="ghost large"
+                <button
+                  type="button"
+                  className="primary large"
                   onClick={() => {
                     setPhase("you");
                     setFx(null);
@@ -2457,10 +2450,24 @@ export function Battle({
                     void startBattleMusic();
                     setState(bootBattle());
                   }}
-            >
-              Ещё раз
-            </button>
+                >
+                  {rematchLabel}
+                </button>
               ) : null}
+              <button
+                type="button"
+                className={allowRematch ? "ghost large" : "primary large"}
+                onClick={onExit}
+              >
+                {(() => {
+                  const won = state.winner === "you";
+                  if (typeof resultExitLabel === "function") {
+                    return resultExitLabel(won);
+                  }
+                  if (resultExitLabel) return resultExitLabel;
+                  return "В меню";
+                })()}
+              </button>
             </div>
           </div>
         </div>

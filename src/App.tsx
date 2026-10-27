@@ -859,6 +859,7 @@ export default function App() {
             : undefined
         }
         allowRematch={!vsArena && !vsCamp}
+        rematchLabel={vsBot ? "Новая битва" : "Ещё раз"}
         exitPolicy={vsCamp || vsArena ? "defeat" : "free"}
         resultExitLabel={(won) => {
           if (vsArena) {
@@ -868,7 +869,7 @@ export default function App() {
             return "В меню арены";
           }
           if (vsCamp) return "К карте тропы";
-          if (vsBot) return "К одиночному бою";
+          if (vsBot) return "Выйти";
           return "В меню";
         }}
         onForfeitExit={
