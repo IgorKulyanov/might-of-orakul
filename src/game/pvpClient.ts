@@ -24,7 +24,8 @@ function resolveWsUrl(): string {
 }
 
 export type PvpJoinPayload = {
-  code: string;
+  mode?: "create" | "join";
+  code?: string;
   token: string;
   heroId: string;
   deck: string[];

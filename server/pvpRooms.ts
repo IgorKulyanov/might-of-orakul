@@ -627,15 +627,7 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           });
           return;
         }
-        const code = String(msg.code || "")
-          .trim()
-          .toUpperCase()
-          .replace(/[^A-Z0-9]/g, "")
-          .slice(0, 8);
-        if (code.length < 3) {
-          send(ws, { type: "error", message: "Код комнаты слишком короткий" });
-          return;
-        }
+        const mode = msg.mode === "create" ? "create" : "join";
         const deckCheck = validateDeck(msg.deck);
         if (!deckCheck.ok) {
           send(ws, { type: "error", message: deckCheck.error });
@@ -655,14 +647,46 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
         removeFromQueue(ws);
         leaveCurrentRoom("leave");
 
-        const room = getOrCreate(code);
-        if (!room) {
-          send(ws, {
-            type: "error",
-            message: "Сервер переполнен, попробуй позже",
-          });
-          return;
+        let code: string;
+        let room: Room | null;
+        if (mode === "create") {
+          code = randomMatchCode();
+          let guard = 0;
+          while (rooms.has(code) && guard < 40) {
+            code = randomMatchCode();
+            guard++;
+          }
+          room = getOrCreate(code);
+          if (!room) {
+            send(ws, {
+              type: "error",
+              message: "Сервер переполнен, попробуй позже",
+            });
+            return;
+          }
+        } else {
+          code = String(msg.code || "")
+            .trim()
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "")
+            .slice(0, 8);
+          if (code.length < 3) {
+            send(ws, {
+              type: "error",
+              message: "Код комнаты слишком короткий",
+            });
+            return;
+          }
+          room = rooms.get(code) ?? null;
+          if (!room) {
+            send(ws, {
+              type: "error",
+              message: "Комната не найдена. Проверь код или создай свою.",
+            });
+            return;
+          }
         }
+
         if (room.battle && !winnerSeat(room.battle)) {
           send(ws, { type: "error", message: "Бой в этой комнате уже идёт" });
           return;

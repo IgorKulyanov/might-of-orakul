@@ -32,15 +32,6 @@ type Props = {
   }) => void;
 };
 
-function randomCode() {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let s = "";
-  for (let i = 0; i < 6; i++) {
-    s += alphabet[Math.floor(Math.random() * alphabet.length)]!;
-  }
-  return s;
-}
-
 export function MultiMenu({
   playerLevel,
   heroId,
@@ -138,7 +129,9 @@ export function MultiMenu({
     if (msg.type === "battle" && !startedRef.current) {
       startedRef.current = true;
       setSearching(null);
+      // Отдаём сокет в бой — иначе unmount MultiMenu вызовет leave() и оборвёт PvP.
       const sock = socketRef.current;
+      socketRef.current = null;
       if (!sock) return;
       onPvpStart({
         socket: sock,
@@ -205,7 +198,7 @@ export function MultiMenu({
     setMessage(null);
   };
 
-  const enterRoom = async (roomCode: string) => {
+  const enterRoom = async (mode: "create" | "join", roomCode = "") => {
     const token = getToken();
     if (!token) {
       setMessage("Нужен вход");
@@ -216,6 +209,10 @@ export function MultiMenu({
       return;
     }
     if (canStartPvp && !canStartPvp()) return;
+    if (mode === "join" && roomCode.trim().length < 3) {
+      setMessage("Введи код комнаты");
+      return;
+    }
     setBusy(true);
     setMessage(null);
     setSearching(null);
@@ -223,7 +220,8 @@ export function MultiMenu({
     try {
       const sock = await ensureSocket();
       sock.join({
-        code: roomCode,
+        mode,
+        ...(mode === "join" ? { code: roomCode.trim() } : {}),
         token,
         heroId,
         deck,
@@ -395,7 +393,7 @@ export function MultiMenu({
           type="button"
           className="ghost large"
           disabled={busy}
-          onClick={() => enterRoom(randomCode())}
+          onClick={() => void enterRoom("create")}
         >
           Создать комнату (PvP)
         </button>
@@ -413,7 +411,7 @@ export function MultiMenu({
           type="button"
           className="ghost large"
           disabled={busy || code.trim().length < 3}
-          onClick={() => enterRoom(code.trim())}
+          onClick={() => void enterRoom("join", code.trim())}
         >
           Войти по коду
         </button>

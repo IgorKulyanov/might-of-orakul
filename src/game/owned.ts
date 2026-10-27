@@ -736,7 +736,9 @@ export function beginWithHero(
       activeDeckId: "starter",
     };
   }
-  const next = setHero(state, heroId);
+  // Сначала ставим целевого героя: иначе homeFactionOf цепляется за старый
+  // hero_life и setHero отклоняет новую школу.
+  const next = setHero({ ...state, heroId }, heroId);
   if (next.heroId !== heroId) {
     return { owned, ok: false, reason: "Не удалось назначить оракула" };
   }

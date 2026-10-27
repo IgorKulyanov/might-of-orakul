@@ -644,6 +644,9 @@ function spellsAll(fails: QaFail[], ok: string[]): void {
           break;
         case "poison":
           if (!s.enemy.slots[0]!.statuses.some((st) => st.type === "poison")) bad = "яд не наложился";
+          else if (!s.enemy.activeSpells.some((sp) => sp.kind === "poison" && sp.casterSide === "you")) {
+            bad = "яд не висит на поле кастера";
+          }
           break;
         case "shield":
           if (!s.you.slots[0]!.statuses.some((st) => st.type === "shield")) bad = "щит не наложился";
@@ -856,6 +859,34 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
     s = attackWith(s, 0, 0);
     if ((s.you.slots[0]?.health ?? 0) < 4) {
       return `лич HP после удара ${s.you.slots[0]?.health}`;
+    }
+    return null;
+  });
+
+  assert("poison returns to hand when target dies", () => {
+    let s = createBattle(
+      ["poison", "banish", "skeleton", "zombie"],
+      ["tank", "skeleton", "zombie", "hero_mana"],
+      "hero_death",
+      "hero_hell",
+      "QA",
+      5,
+      5,
+    );
+    s.you.mana = { ...s.you.mana, death: 10 };
+    s.enemy.slots[0] = dummy("tank", "t1", 5);
+    s = playCard(s, s.you.hand.indexOf("poison"), 0);
+    if (!s.enemy.slots[0]?.statuses.some((st) => st.type === "poison")) {
+      return "яд не наложился";
+    }
+    if (s.you.hand.includes("poison")) return "яд ещё в руке, пока действует";
+    s = playCard(s, s.you.hand.indexOf("banish"), 0);
+    if (s.enemy.slots[0]) return "цель не убрана";
+    if (!s.you.hand.includes("poison")) {
+      return `яд не вернулся в руку (рука=${s.you.hand.join(",")}; сброс врага=${s.enemy.graveyard.join(",")}; свой=${s.you.graveyard.join(",")})`;
+    }
+    if (s.enemy.graveyard.includes("poison")) {
+      return "яд ушёл в сброс врага";
     }
     return null;
   });

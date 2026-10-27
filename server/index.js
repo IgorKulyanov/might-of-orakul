@@ -721,34 +721,18 @@ app.put(
 );
 
 /**
- * Комната мульти: код для друзей.
- * Пока нет живого матчмейкинга — клиент может запустить бота ур. ±1.
+ * Устаревший HTTP-заглушка. Живые комнаты — только WebSocket /ws/pvp
+ * (create/join в MultiMenu). Оставлен для старых клиентов/QA.
  */
 app.post(
   "/api/rooms",
   auth,
   rateLimitMiddleware({ name: "rooms", maxN: 30, windowMs: 60_000 }),
-  (req, res) => {
-    const code = String(req.body?.code || "")
-      .trim()
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, "")
-      .slice(0, 8);
-    const roomId = code || uuid().slice(0, 6).toUpperCase();
-    const playerLevel = Math.max(
-      1,
-      Math.min(50, Math.floor(Number(req.body?.level) || 1)),
-    );
-    res.json({
-      roomId,
-      status: "waiting",
-      botFallback: true,
-      suggestedBotLevel: Math.max(
-        1,
-        playerLevel + (playerLevel % 2 === 0 ? -1 : 1),
-      ),
-      message:
-        "Комната готова. Открой «Ждать соперника» — живой бой по WebSocket.",
+  (_req, res) => {
+    res.status(410).json({
+      error:
+        "Создай комнату в игре: «Создать комнату (PvP)» — живой бой по WebSocket.",
+      useWebSocket: "/ws/pvp",
     });
   },
 );

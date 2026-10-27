@@ -378,6 +378,28 @@ function findUnitByUid(
   return null;
 }
 
+/**
+ * Снять длящееся заклинание → кастеру.
+ * untilCleared (яд): в руку; иначе в сброс кастера.
+ * Раньше яд висел на жертве и уходил в сброс врага.
+ */
+function reclaimLingeringSpell(
+  state: BattleState,
+  sp: LingeringSpell,
+  boardFallback: PlayerState,
+): void {
+  const caster =
+    sp.casterSide === "you" || sp.casterSide === "enemy"
+      ? state[sp.casterSide]
+      : boardFallback;
+  const untilCleared = sp.turnsLeft == null;
+  if (untilCleared && caster.hand.length < 7) {
+    caster.hand.push(sp.cardId);
+  } else {
+    caster.graveyard.push(sp.cardId);
+  }
+}
+
 function pruneLingering(state: BattleState): void {
   for (const side of ["you", "enemy"] as const) {
     const p = state[side];
@@ -391,43 +413,43 @@ function pruneLingering(state: BattleState): void {
       if (sp.targetUid) {
         const live = findUnitByUid(state, sp.targetUid);
         if (!live) {
-          p.graveyard.push(sp.cardId);
+          reclaimLingeringSpell(state, sp, p);
           continue;
         }
         if (sp.kind === "poison") {
           if (!live.unit.statuses.some((st) => st.type === "poison")) {
-            p.graveyard.push(sp.cardId);
+            reclaimLingeringSpell(state, sp, p);
             continue;
           }
         }
         if (sp.kind === "shield") {
           if (!live.unit.statuses.some((st) => st.type === "shield")) {
-            p.graveyard.push(sp.cardId);
+            reclaimLingeringSpell(state, sp, p);
             continue;
           }
         }
         if (sp.kind === "guardian") {
           if (!sp.guardianUid) {
-            p.graveyard.push(sp.cardId);
+            reclaimLingeringSpell(state, sp, p);
             continue;
           }
           const tank = findUnitByUid(state, sp.guardianUid);
           if (!tank) {
             live.unit.guardedByUid = undefined;
-            p.graveyard.push(sp.cardId);
+            reclaimLingeringSpell(state, sp, p);
             continue;
           }
         }
         if (sp.kind === "traitor") {
           if (!live.unit.statuses.some((st) => st.type === "traitor")) {
-            p.graveyard.push(sp.cardId);
+            reclaimLingeringSpell(state, sp, p);
             continue;
           }
         }
       }
       if (sp.turnsLeft != null && sp.turnsLeft <= 0) {
         clearSpellEffectsOnBoard(state, sp);
-        p.graveyard.push(sp.cardId);
+        reclaimLingeringSpell(state, sp, p);
         continue;
       }
       keep.push(sp);
@@ -1374,11 +1396,11 @@ function applySpellEffects(
         const u = caster.slots[targetSlot]!;
         const had = u.statuses.some((st) => st.type === "poison");
         u.statuses = u.statuses.filter((st) => st.type !== "poison");
-        // снять висящий яд кастера/любого, целящийся в этого юнита
+        // снять висящий яд — карта обратно кастеру яда
         for (const side of [caster, foe]) {
           side.activeSpells = side.activeSpells.filter((sp) => {
             if (sp.kind === "poison" && sp.targetUid === u.uid) {
-              side.graveyard.push(sp.cardId);
+              reclaimLingeringSpell(state, sp, side);
               return false;
             }
             return true;
@@ -1406,12 +1428,12 @@ function applySpellEffects(
               (s) => s && s.uid === sp.targetUid && s.statuses.some((st) => st.type === "poison"),
             );
             if (!still && caster.slots.some((s) => s?.uid === sp.targetUid)) {
-              side.graveyard.push(sp.cardId);
+              reclaimLingeringSpell(state, sp, side);
               return false;
             }
             // если цель наша и яд снят
             if (caster.slots.some((s) => s?.uid === sp.targetUid)) {
-              side.graveyard.push(sp.cardId);
+              reclaimLingeringSpell(state, sp, side);
               return false;
             }
             return true;
@@ -1803,7 +1825,7 @@ function clearBondsForUnit(state: BattleState, unitUid: string): void {
         (sp.kind === "guardian" || sp.kind === "traitor" || sp.kind === "poison" || sp.kind === "shield") &&
         (sp.targetUid === unitUid || sp.guardianUid === unitUid)
       ) {
-        p.graveyard.push(sp.cardId);
+        reclaimLingeringSpell(state, sp, p);
         return false;
       }
       return true;
@@ -3060,6 +3082,7 @@ function tickUnitStatuses(p: PlayerState, log: string[]): void {
         log.unshift(`${getCard(s.cardId).name}: вышел из «домика»`);
         p.activeSpells = p.activeSpells.filter((sp) => {
           if (sp.kind === "bunker" && sp.targetUid === s.uid) {
+            // бункер висит на своей стороне = кастер
             p.graveyard.push(sp.cardId);
             return false;
           }

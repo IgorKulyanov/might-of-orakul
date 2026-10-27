@@ -40,7 +40,9 @@ export const PVP_MATCH_LEVEL_DELTA = 5;
 export type PvpClientMsg =
   | {
       type: "join";
-      code: string;
+      /** create — новая комната (код с сервера); join — только существующая */
+      mode?: "create" | "join";
+      code?: string;
       token: string;
       heroId: string;
       deck: string[];
