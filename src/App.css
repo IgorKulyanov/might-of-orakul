@@ -239,14 +239,28 @@ button {
   image-rendering: auto;
 }
 
-/* Широкая заставка стихий — центр */
+/* Широкая заставка стихий — на весь экран */
 .splash-slide.is-wide {
+  background-size: cover;
   background-position: center center;
 }
 
-/* Портреты героев: якорь сверху, иначе на ПК отрезает голову */
+/*
+ * Портреты (квадрат) на широком мониторе:
+ * cover всегда режет либо голову, либо ноги.
+ * contain — герой целиком, поля по бокам тёмные.
+ */
 .splash-slide.is-portrait {
-  background-position: center top;
+  background-size: contain;
+  background-position: center center;
+}
+
+/* На телефоне (высокий экран) cover ок — поля не нужны */
+@media (max-aspect-ratio: 10/11) {
+  .splash-slide.is-portrait {
+    background-size: cover;
+    background-position: center center;
+  }
 }
 
 .splash-slide.is-on {
