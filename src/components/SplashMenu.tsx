@@ -16,9 +16,13 @@ import {
 } from "../game/sfx";
 import type { OwnedState } from "../game/types";
 
-/** Заставка + слайды (только ASCII в путях — кириллица в url() ломала фон). */
+/**
+ * Заставка + слайды (ASCII в путях).
+ * Первый кадр — школы по кругу (оригинал). Новая «колонки» лежит в архиве:
+ * /archive/splash-elements-desktop.jpg
+ */
 const SPLASH_SLIDES = [
-  "/splash-elements-desktop.jpg?v=2",
+  "/splash-elements-v2.jpg?v=6",
   "/splash-slides/valkyrie-hi.png?v=2",
   "/splash-slides/kraken-hi.png?v=2",
   "/splash-slides/vampire-hi.png?v=2",

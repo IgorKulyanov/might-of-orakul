@@ -217,10 +217,10 @@ button {
 .splash-stage {
   position: absolute;
   inset: 0;
-  /* Запасной фон, если слайд не подгрузился */
+  /* Запасной фон — школы по кругу */
   background:
     #07090f
-    url("/splash-elements-desktop.jpg?v=2") center center / cover no-repeat;
+    url("/splash-elements-v2.jpg?v=6") center center / cover no-repeat;
 }
 
 .splash-slide {
