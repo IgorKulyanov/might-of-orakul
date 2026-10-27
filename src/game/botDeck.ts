@@ -53,18 +53,40 @@ function botForbiddenCard(id: string, level: number): boolean {
 }
 
 /**
+ * Сколько колоды можно забить чужими школами (0…~0.32).
+ * Растёт плавно — не ломает раннюю игру.
+ */
+export function offFactionMixRatio(level: number): number {
+  const lv = Math.max(1, level);
+  if (lv <= 4) return 0;
+  if (lv <= 7) return 0.1;
+  if (lv <= 11) return 0.18;
+  if (lv <= 17) return 0.24;
+  if (lv <= 27) return 0.3;
+  return 0.32;
+}
+
+function isOwnOrNeutral(school: School, cardSchool: School): boolean {
+  return cardSchool === school || cardSchool === "neutral";
+}
+
+/**
  * Пул карт, доступных оракулу данного уровня:
- * своя школа + нейтрал, тир ≤ maxTier(level).
+ * своя школа + нейтрал; с ур.5+ — постепенно чужие школы (тир ≤ maxTier).
  */
 export function botPoolForLevel(level: number, school: School): string[] {
   const maxTier = maxTierForLevel(level);
+  const allowOff = offFactionMixRatio(level) > 0;
   return CARDS.filter((c) => {
     if (c.kind !== "creature" && c.kind !== "spell") return false;
     if (botForbiddenCard(c.id, level)) return false;
     const t = c.unitLevel ?? 1;
     if (t < 1 || t > maxTier) return false;
-    if (c.school === school || c.school === "neutral") return true;
-    return false;
+    if (isOwnOrNeutral(school, c.school)) return true;
+    // Чужие школы: только существа (без чужого спама спеллов) и не выше тира II рано
+    if (!allowOff || c.kind !== "creature") return false;
+    if (level < 12 && t > 2) return false;
+    return true;
   }).map((c) => c.id);
 }
 
@@ -161,7 +183,7 @@ function maxSpellSlots(level: number, target: number): number {
 }
 
 /**
- * Агрессивная колода: существа своей фракции + чуть рампа.
+ * Агрессивная колода: своя фракция + чуть рампа + плавный микс чужих школ.
  * Заклинаний мало — без спама камней/допа.
  */
 function fillDeckAggressive(
@@ -171,7 +193,7 @@ function fillDeckAggressive(
 ): string[] {
   const target = botDeckSizeForLevel(level);
   const maxTier = maxTierForLevel(level);
-  const creatures = pool
+  const allCreatures = pool
     .filter((id) => {
       try {
         return getCard(id).kind === "creature";
@@ -185,6 +207,23 @@ function fillDeckAggressive(
         cardTier(a) - cardTier(b),
     );
 
+  const ownCreatures = allCreatures.filter((id) => {
+    try {
+      return isOwnOrNeutral(faction, getCard(id).school);
+    } catch {
+      return false;
+    }
+  });
+  const offCreatures = allCreatures.filter((id) => {
+    try {
+      return !isOwnOrNeutral(faction, getCard(id).school);
+    } catch {
+      return false;
+    }
+  });
+  // Своя школа в приоритете; чужие — дешёвые/низкий тир
+  const creatures = [...ownCreatures, ...offCreatures];
+
   const spells = pool
     .filter((id) => {
       try {
@@ -194,6 +233,8 @@ function fillDeckAggressive(
         if (id === "hero_mana" || id === "extra_card" || id === "mana_stones") {
           return false;
         }
+        // Чужие спеллы в колоду не тащим
+        if (!isOwnOrNeutral(faction, getCard(id).school)) return false;
         return true;
       } catch {
         return false;
@@ -230,9 +271,40 @@ function fillDeckAggressive(
     1,
     target - spellBudget - rampBudget,
   );
+  const offBudget = Math.min(
+    offCreatures.length,
+    Math.floor(creatureSlots * offFactionMixRatio(level)),
+  );
+
+  // Сначала чуть чужих школ (интерес / разнообразие), потом своя
+  let offAdded = 0;
+  let oi = 0;
+  let guard = 0;
+  while (
+    offAdded < offBudget &&
+    offCreatures.length > 0 &&
+    out.length < creatureSlots &&
+    guard < target * 40
+  ) {
+    if (push(offCreatures[oi % offCreatures.length]!)) offAdded++;
+    oi++;
+    guard++;
+  }
 
   let ci = 0;
-  let guard = 0;
+  guard = 0;
+  while (
+    out.length < creatureSlots &&
+    ownCreatures.length > 0 &&
+    guard < target * 80
+  ) {
+    push(ownCreatures[ci % ownCreatures.length]!);
+    ci++;
+    guard++;
+  }
+  // Добор существами из общего списка, если своей школы мало
+  ci = 0;
+  guard = 0;
   while (
     out.length < creatureSlots &&
     creatures.length > 0 &&

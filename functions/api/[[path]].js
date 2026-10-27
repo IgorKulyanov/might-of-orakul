@@ -7,20 +7,50 @@ export async function onRequest(context) {
   const target = new URL(
     incoming.pathname + incoming.search,
     ORIGIN,
-  );
-  try {
-    return await fetch(
-      new Request(target.toString(), context.request),
-    );
-  } catch (e) {
-    return new Response(
-      JSON.stringify({
-        error: "Сервер временно недоступен, нажми ещё раз через пару секунд",
-      }),
-      {
-        status: 502,
-        headers: { "Content-Type": "application/json; charset=utf-8" },
-      },
-    );
+  ).toString();
+
+  // Тело POST можно прочитать один раз — клонируем запрос на каждую попытку.
+  const raw = context.request;
+  const bodyBuf =
+    raw.method !== "GET" && raw.method !== "HEAD"
+      ? await raw.arrayBuffer()
+      : null;
+
+  let lastErr = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const init = {
+        method: raw.method,
+        headers: raw.headers,
+        redirect: raw.redirect,
+      };
+      if (bodyBuf) init.body = bodyBuf;
+      const res = await fetch(target, init);
+      // Кратковременный 502/504 nginx при рестарте API — ещё раз
+      if (res.status >= 502 && attempt < 2) {
+        await new Promise((r) => setTimeout(r, 350 * (attempt + 1)));
+        continue;
+      }
+      return res;
+    } catch (e) {
+      lastErr = e;
+      if (attempt < 2) {
+        await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+        continue;
+      }
+    }
   }
+
+  return new Response(
+    JSON.stringify({
+      error:
+        lastErr?.message?.includes("payment")
+          ? "Оплата не ответила, нажми ещё раз"
+          : "Сервер временно недоступен, нажми ещё раз через пару секунд",
+    }),
+    {
+      status: 502,
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+    },
+  );
 }

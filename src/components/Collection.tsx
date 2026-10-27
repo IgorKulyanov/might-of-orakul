@@ -650,7 +650,7 @@ export function Collection({
                     );
                     if (!ok) return;
                     setPayBusy(pack.id);
-                    say("Открываем оплату…");
+                    say("Открываем ЮKassa… подожди до минуты, не жми снова");
                     void apiCreatePayment(authToken, pack.id)
                       .then((res) => {
                         try {
@@ -661,13 +661,14 @@ export function Collection({
                         } catch {
                           /* ignore */
                         }
+                        say("Переходим на оплату…");
                         window.location.assign(res.confirmationUrl);
                       })
                       .catch((e) => {
                         say(
                           e instanceof Error
                             ? e.message
-                            : "Не удалось создать оплату",
+                            : "Не удалось создать оплату — нажми ещё раз",
                         );
                         setPayBusy(null);
                       });

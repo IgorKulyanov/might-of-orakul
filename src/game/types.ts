@@ -344,6 +344,11 @@ export interface BattleState {
    * за гибель своего юнита школы death (не чаще раза за ход).
    */
   deathGiftStamp?: Partial<Record<"you" | "enemy", number>>;
+  /**
+   * Уровень ИИ-соперника (как enemyLevel при старте).
+   * Растёт тактика / умения / давление на доску — без читов по статам.
+   */
+  aiLevel?: number;
 }
 
 export interface OwnedState {

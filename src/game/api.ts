@@ -310,27 +310,45 @@ export function apiPresence(token: string, screen: string) {
   });
 }
 
-export function apiCreatePayment(
+export async function apiCreatePayment(
   token: string,
   packId: string,
   contact?: { email?: string; phone?: string },
 ) {
-  return request<{
+  type PayRes = {
     ok: boolean;
     orderId: string;
     paymentId: string;
     confirmationUrl: string;
     amountRub: number;
     diamonds: number;
-  }>("/api/payments/create", {
-    method: "POST",
-    token,
-    body: JSON.stringify({
-      packId,
-      email: contact?.email,
-      phone: contact?.phone,
-    }),
+  };
+  const body = JSON.stringify({
+    packId,
+    email: contact?.email,
+    phone: contact?.phone,
   });
+  // Оплата чувствительна к холодному sslip/прокси — больше попыток, без ложной паники.
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      return await request<PayRes>("/api/payments/create", {
+        method: "POST",
+        token,
+        body,
+      });
+    } catch (e) {
+      lastErr = e;
+      const msg = e instanceof Error ? e.message : "";
+      const retryable =
+        /502|503|504|недост|связь|ЮKassa долго|нажми ещё|временно/i.test(msg);
+      if (!retryable || attempt >= 3) break;
+      await sleep(700 * (attempt + 1));
+    }
+  }
+  throw lastErr instanceof Error
+    ? lastErr
+    : new Error("Не удалось открыть оплату — нажми ещё раз");
 }
 
 export function apiPaymentOrder(token: string, orderId: string) {

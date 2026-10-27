@@ -107,11 +107,25 @@ async function ykRequest(method, pathName, body, idempotenceKey) {
   if (idempotenceKey) {
     headers["Idempotence-Key"] = String(idempotenceKey).slice(0, 64);
   }
-  const res = await fetch(`${YK_API}${pathName}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let res;
+  try {
+    res = await fetch(`${YK_API}${pathName}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(25000),
+    });
+  } catch (e) {
+    const timedOut =
+      e?.name === "TimeoutError" ||
+      e?.name === "AbortError" ||
+      /aborted|timeout/i.test(String(e?.message || e));
+    throw new Error(
+      timedOut
+        ? "ЮKassa долго не отвечает — нажми оплату ещё раз"
+        : e?.message || "Нет связи с ЮKassa",
+    );
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const msg =

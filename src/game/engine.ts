@@ -3,6 +3,7 @@ import {
   formatManaCost,
   getCard,
   isFemaleWarrior,
+  manaCostTotal,
 } from "./cards";
 import { emptyMana, getHero } from "./heroes";
 import { heavySpellCost } from "./battleRules";
@@ -211,7 +212,7 @@ function restoreSurvivors(p: PlayerState): void {
     s.attack = base.atk;
     const poisoned = s.statuses.some((st) => st.type === "poison");
     if (!poisoned) {
-      s.health = base.hp;
+    s.health = base.hp;
     } else {
       // яд держит раны, но не выше текущей базы
       s.health = Math.min(s.health, base.hp);
@@ -261,7 +262,7 @@ function tickPoison(
     } else if (steady) {
       s.statuses = s.statuses.filter((st) => st.type !== "poison");
       s.statuses.push({ type: "poison", amount: dmg, steady: true });
-      log.unshift(
+    log.unshift(
         `${getCard(s.cardId).name}: яд −${dmg} → ${s.health} HP (постоянно −${dmg})`,
       );
     } else {
@@ -523,6 +524,7 @@ export function createBattle(
     enemy,
     calmTurnsLeft: 0,
     bloodFrenzy: 0,
+    aiLevel: enemyLevel,
     log: [
       `Оракулы: ${yourName} (${youHero.name}, ур.${yourLevel}, ${youHp} HP${youNatureNote}${youWaterNote}${youDeathNote}) vs ${enemyHero.name} (ур.${enemyLevel}, ${enemyHp} HP).`,
       `🩸 Буйство крови после ${BLOOD_FRENZY_AFTER_TURNS} циклов или когда колоды иссякнут.`,
@@ -593,8 +595,8 @@ function draw(p: PlayerState, n = 1, state?: BattleState): void {
         p.deck = shuffle(p.graveyard);
         p.graveyard = [];
       } else {
-        continue;
-      }
+      continue;
+    }
     }
     // Рука полна (7) → карта с колоды сгорает в грейв, в руке не появляется
     if (p.hand.length >= 7) {
@@ -1220,8 +1222,8 @@ function applySpellEffects(
           log.unshift(
             `${caster.name}: ${getCard(u.cardId).name} невосприимчив к заклинаниям`,
           );
-          break;
-        }
+        break;
+    }
         const dealt = dealToCreature(u, eff.amount, log);
         log.unshift(
           `${caster.name}: ${getCard(u.cardId).name} получает ${dealt} → ${u.health} HP`,
@@ -3265,7 +3267,7 @@ function beginTurn(
       if (s) s.canAttack = false;
     });
   } else {
-    refreshCanAttack(p);
+  refreshCanAttack(p);
   }
 }
 
@@ -3687,14 +3689,47 @@ type AiMission = {
   openLanes: number[];
   canLethal: boolean;
   mustDefend: boolean;
+  /** Суммарная «угроза» доски игрока — снимать сильные карты. */
+  foeBoardThreat: number;
 };
+
+/** Плавный скилл бота по уровню (не читы по HP/урону). */
+function aiSkill(level: number) {
+  const lv = Math.max(1, Math.min(50, level || 1));
+  return {
+    level: lv,
+    /** До скольких юнитов на поле активно развиваем доску. */
+    developUntil: lv <= 4 ? 2 : lv <= 8 ? 3 : 4,
+    /** Бонус за «ещё одно существо после этого хода». */
+    multiDrop: lv <= 5 ? 22 : lv <= 10 ? 34 : 44,
+    /** Насколько важны трейды / снятие угроз. */
+    tradeMul: lv <= 4 ? 0.65 : lv <= 8 ? 1 : lv <= 14 ? 1.2 : 1.35,
+    /** Насколько ИИ любит умения юнитов. */
+    flexMul: lv <= 4 ? 0.2 : lv <= 7 ? 0.55 : lv <= 12 ? 0.9 : 1.15,
+    /** Сложные флексы (могильщик, леший, вердикт…). */
+    advancedFlex: lv >= 8,
+    verdictOk: lv >= 12,
+  };
+}
+
+function aiThreatOf(u: CreatureInstance): number {
+  let t = u.attack * 3 + u.health;
+  if (abilityOf(u.cardId, u) === "vampire_grow") t += 18;
+  const pat = patternOf(u.cardId);
+  if (pat === "melee" || pat === "melee_lane3" || pat === "lane_cleave3") t += 8;
+  if (pat === "aoe_all" || pat === "cleave3") t += 10;
+  if (u.attack >= 4) t += 8;
+  return t;
+}
 
 function aiComputeMission(me: PlayerState, foe: PlayerState): AiMission {
   const openLanes: number[] = [];
   let incoming = 0;
+  let foeBoardThreat = 0;
   for (let i = 0; i < 5; i++) {
     const e = foe.slots[i];
     if (!e) continue;
+    foeBoardThreat += aiThreatOf(e);
     const pat = patternOf(e.cardId);
     if (
       (pat === "melee" ||
@@ -3746,7 +3781,7 @@ function aiComputeMission(me: PlayerState, foe: PlayerState): AiMission {
     openLanes.length > 0 &&
     (incoming >= me.hp || me.hp - incoming <= 6 || incoming >= 5);
 
-  return { faceNow, incoming, openLanes, canLethal, mustDefend };
+  return { faceNow, incoming, openLanes, canLethal, mustDefend, foeBoardThreat };
 }
 
 /** Насколько выгодно поставить карту в этот слот. */
@@ -3820,6 +3855,7 @@ function aiPickStrikeTarget(
   atk: CreatureInstance,
   allowHero: boolean,
   mission: AiMission,
+  tradeMul = 1,
 ): number | "hero" | null {
   type Cand = { t: number | "hero"; sc: number };
   const cands: Cand[] = [];
@@ -3832,6 +3868,10 @@ function aiPickStrikeTarget(
     if (!foe.slots.some(Boolean)) sc += 20;
     // Убиваем оракула важнее мелкого трейда
     sc += Math.max(0, 12 - foe.hp);
+    // Если на доске сильные угрозы — не чипать лицо мелочью
+    if (!mission.canLethal && mission.foeBoardThreat >= 18 && atk.attack < 3) {
+      sc -= 25;
+    }
     cands.push({ t: "hero", sc });
   }
 
@@ -3840,8 +3880,9 @@ function aiPickStrikeTarget(
     if (!t || !canPhysicallyAttack(atk.cardId, t.cardId, t)) continue;
     let sc = 0;
     const kill = atk.attack >= t.health;
-    if (kill) sc += 16 + t.attack * 5 + t.health;
-    else sc += Math.min(atk.attack, t.health) + t.attack * 2;
+    const threat = aiThreatOf(t);
+    if (kill) sc += (18 + t.attack * 6 + t.health + threat * 0.5) * tradeMul;
+    else sc += (Math.min(atk.attack, t.health) + t.attack * 2.5 + threat * 0.25) * tradeMul;
 
     if (abilityOf(t.cardId, t) === "vampire_grow") sc += 30;
     const tPat = patternOf(t.cardId);
@@ -3849,7 +3890,7 @@ function aiPickStrikeTarget(
       // Снять угрозу с нашего оракула
       sc += me.slots[i] ? 10 : 22;
     }
-    if (t.attack >= 4) sc += 12;
+    if (t.attack >= 4) sc += 14 * tradeMul;
     if (mission.canLethal) sc -= 50; // при летали — в лицо
     if (foe.hp <= atk.attack && kill && t.attack <= 2) sc -= 15;
     cands.push({ t: i, sc });
@@ -3865,6 +3906,7 @@ function aiScoreCombatUnit(
   foe: PlayerState,
   fromSlot: number,
   mission: AiMission,
+  tradeMul = 1,
 ): number {
   const atk = me.slots[fromSlot];
   if (!atk || !atk.canAttack) return -1e9;
@@ -3880,9 +3922,13 @@ function aiScoreCombatUnit(
       if (foe.hp <= atk.attack) score += 200;
       else if (mission.canLethal) score += 120;
       else if (foe.hp <= atk.attack * 2) score += 35;
+      // Чип в лицо слабее, чем снятие жирной угрозы другим юнитом
+      if (!mission.canLethal && mission.foeBoardThreat >= 20 && atk.attack <= 2) {
+        score -= 18;
+      }
     } else {
       const kill = atk.attack >= block.health;
-      score = kill ? 30 + block.attack * 4 : 8 + atk.attack;
+      score = (kill ? 34 + block.attack * 5 + aiThreatOf(block) * 0.4 : 8 + atk.attack) * tradeMul;
       if (abilityOf(block.cardId, block) === "vampire_grow") score += 25;
       if (mission.openLanes.includes(fromSlot)) score += 15;
     }
@@ -3897,18 +3943,20 @@ function aiScoreCombatUnit(
     } else {
       const t = foe.slots[lane]!;
       score =
-        (atk.attack >= t.health ? 28 + t.attack * 4 : 10 + atk.attack) +
+        (atk.attack >= t.health ? 32 + t.attack * 5 + aiThreatOf(t) * 0.35 : 10 + atk.attack) *
+          tradeMul +
         (abilityOf(t.cardId, t) === "vampire_grow" ? 25 : 0);
     }
   } else if (pat === "ranged" || pat === "cleave3" || pat === "aoe_all") {
-    const pick = aiPickStrikeTarget(me, foe, atk, true, mission);
+    const pick = aiPickStrikeTarget(me, foe, atk, true, mission, tradeMul);
     if (pick === "hero" || pick == null) {
       score = 55 + atk.attack * 5 + (foe.hp <= atk.attack ? 200 : 0);
       if (mission.canLethal) score += 100;
     } else {
       const t = foe.slots[pick]!;
       score =
-        (atk.attack >= t.health ? 26 + t.attack * 4 : 10 + atk.attack) +
+        (atk.attack >= t.health ? 30 + t.attack * 5 + aiThreatOf(t) * 0.4 : 10 + atk.attack) *
+          tradeMul +
         (abilityOf(t.cardId, t) === "vampire_grow" ? 25 : 0);
       if (mission.canLethal) score -= 40;
     }
@@ -3930,6 +3978,7 @@ export function takeAiStep(
   const next = structuredClone(state) as BattleState;
   const me = next.enemy;
   const foe = next.you;
+  const skill = aiSkill(next.aiLevel ?? 1);
 
   const boardCount = me.slots.filter(Boolean).length;
   const emptySlots = 5 - boardCount;
@@ -3946,11 +3995,24 @@ export function takeAiStep(
     return false;
   };
 
+  type AiFlex =
+    | { type: "angel_buff"; toSlot: number }
+    | { type: "mage_buff"; toSlot: number }
+    | { type: "mage_oracle" }
+    | { type: "sleep"; toSlot: number }
+    | { type: "summon"; toSlot: number; cardId: string }
+    | { type: "paladin_shield"; toSlot: number }
+    | { type: "gravedigger"; toSlot: number; graveIndex: number }
+    | { type: "leshy"; side: "ally" | "foe"; toSlot: number }
+    | { type: "arbiter" }
+    | { type: "balthazar"; a: number; b: number };
+
   type AiChoice =
     | { kind: "ramp"; hi: number; score: number }
     | { kind: "creature"; hi: number; slot: number; score: number }
     | { kind: "spell"; hi: number; target: number | null; score: number }
-    | { kind: "combat"; slot: number; score: number };
+    | { kind: "combat"; slot: number; score: number }
+    | { kind: "flex"; slot: number; score: number; flex: AiFlex };
 
   const choices: AiChoice[] = [];
 
@@ -3960,7 +4022,7 @@ export function takeAiStep(
     !mission.canLethal &&
     !(mission.mustDefend && canAffordCreature())
   ) {
-    const thin = boardCount < 3;
+    const thin = boardCount < skill.developUntil;
     const needRamp = thin || !canAffordCreature();
     if (needRamp) {
       for (let hi = 0; hi < me.hand.length; hi++) {
@@ -3984,9 +4046,9 @@ export function takeAiStep(
     }
   }
 
-  // --- Существа: блок / давление на оракула ---
+  // --- Существа: развиваем доску / блок / давление ---
   if (!mission.canLethal || mission.mustDefend) {
-    const develop = boardCount < 3 && !mission.mustDefend;
+    const develop = boardCount < skill.developUntil && !mission.mustDefend;
     for (let hi = 0; hi < me.hand.length; hi++) {
       const card = getCard(me.hand[hi]!);
       if (card.kind !== "creature") continue;
@@ -3999,28 +4061,36 @@ export function takeAiStep(
         (card.unitLevel ?? 1) * 4 +
         (card.onPlayHealHero ?? 0);
       let leftAfford = 0;
-      if (develop) {
-        const trial: Record<Faction, number> = { ...me.mana };
-        for (const f of ["water", "hell", "death", "life", "nature"] as const) {
-          const need = cost[f] ?? 0;
-          if (need) trial[f] = (trial[f] ?? 0) - need;
-        }
-        for (let j = 0; j < me.hand.length; j++) {
-          if (j === hi) continue;
-          const c2 = getCard(me.hand[j]!);
-          if (c2.kind !== "creature") continue;
-          if (canPay(trial, c2.manaCost ?? {})) leftAfford += 1;
-        }
+      const trial: Record<Faction, number> = { ...me.mana };
+      for (const f of ["water", "hell", "death", "life", "nature"] as const) {
+        const need = cost[f] ?? 0;
+        if (need) trial[f] = (trial[f] ?? 0) - need;
       }
+      for (let j = 0; j < me.hand.length; j++) {
+        if (j === hi) continue;
+        const c2 = getCard(me.hand[j]!);
+        if (c2.kind !== "creature") continue;
+        if (canPay(trial, c2.manaCost ?? {})) leftAfford += 1;
+      }
+      const multi =
+        leftAfford > 0 && emptySlots > 1
+          ? skill.multiDrop + leftAfford * 8
+          : 0;
+      const thinBonus =
+        boardCount < skill.developUntil
+          ? (skill.developUntil - boardCount) * 16
+          : 0;
       const base = develop
-        ? leftAfford * 28 + power * 0.3 - costN * 5
-        : power - costN + 8;
+        ? multi + thinBonus + power * 0.45 - costN * 3
+        : power - costN + 10 + multi * 0.55 + thinBonus * 0.5;
       for (let slot = 0; slot < 5; slot++) {
         if (me.slots[slot]) continue;
         const pos = aiScoreCreatureSlot(me, foe, me.hand[hi]!, slot, mission);
-        let sc = base + pos * (develop ? 0.7 : 1.25);
+        let sc = base + pos * (develop ? 0.85 : 1.25);
         if (mission.mustDefend && mission.openLanes.includes(slot)) sc += 55;
         if (mission.canLethal) sc -= 100;
+        // Пока доска жидкая — существо важнее слабого чипа в лицо
+        if (develop && !mission.canLethal) sc += 12;
         choices.push({ kind: "creature", hi, slot, score: sc });
       }
     }
@@ -4050,6 +4120,18 @@ export function takeAiStep(
       if (effects.some((e) => e.type === "heal_hero") && mission.mustDefend) {
         sc += 20;
       }
+      // Снятие сильных карт спеллом
+      if (
+        effects.some(
+          (e) =>
+            e.type === "damage_unit" ||
+            e.type === "banish_unit" ||
+            e.type === "bounce_enemy_hand" ||
+            e.type === "poison",
+        )
+      ) {
+        sc += Math.min(18, mission.foeBoardThreat * 0.15) * skill.tradeMul;
+      }
       if (mission.canLethal && !effects.some((e) => e.type === "damage_hero")) {
         sc -= 25;
       }
@@ -4067,8 +4149,265 @@ export function takeAiStep(
 
   // --- Бой ---
   for (let i = 0; i < 5; i++) {
-    const sc = aiScoreCombatUnit(me, foe, i, mission);
+    const sc = aiScoreCombatUnit(me, foe, i, mission, skill.tradeMul);
     if (sc > -1e8) choices.push({ kind: "combat", slot: i, score: sc });
+  }
+
+  // --- Умения юнитов (очки, не рандом) ---
+  if (!mission.canLethal) {
+    const fm = skill.flexMul;
+    for (let i = 0; i < 5; i++) {
+      const atk = me.slots[i];
+      if (!atk || !atk.canAttack) continue;
+      if (atk.statuses.some((st) => st.type === "traitor")) continue;
+      const ab = abilityOf(atk.cardId, atk);
+
+      if (ab === "angel_heal") {
+        let best = -1;
+        let bestMiss = 0;
+        for (let j = 0; j < 5; j++) {
+          if (j === i || !me.slots[j]) continue;
+          const t = me.slots[j]!;
+          const miss = effectiveBase(t).hp - t.health;
+          const want = miss > 0 ? miss + t.attack : t.attack * 0.3;
+          if (want > bestMiss) {
+            bestMiss = want;
+            best = j;
+          }
+        }
+        if (best >= 0) {
+          choices.push({
+            kind: "flex",
+            slot: i,
+            score: (14 + bestMiss * 2 + (me.hp <= 12 ? 8 : 0)) * fm,
+            flex: { type: "angel_buff", toSlot: best },
+          });
+        }
+      }
+
+      if (ab === "mage_flex") {
+        let best = -1;
+        let bestSc = -1;
+        for (let j = 0; j < 5; j++) {
+          if (j === i || !me.slots[j]) continue;
+          const t = me.slots[j]!;
+          const sc =
+            t.attack * 2 +
+            (t.health < effectiveBase(t).hp ? 8 : 0) +
+            (mission.openLanes.includes(j) ? 6 : 0);
+          if (sc > bestSc) {
+            bestSc = sc;
+            best = j;
+          }
+        }
+        if (best >= 0) {
+          choices.push({
+            kind: "flex",
+            slot: i,
+            score: (12 + bestSc) * fm,
+            flex: { type: "mage_buff", toSlot: best },
+          });
+        }
+        if (mission.mustDefend || me.hp <= 12) {
+          choices.push({
+            kind: "flex",
+            slot: i,
+            score: (16 + (14 - Math.min(14, me.hp))) * fm,
+            flex: { type: "mage_oracle" },
+          });
+        }
+      }
+
+      if (ab === "banshee_flex" || ab === "mermaid_flex" || ab === "succubus_flex") {
+        let sleepT = -1;
+        let sleepSc = -1;
+        for (let j = 0; j < 5; j++) {
+          const s = foe.slots[j];
+          if (!s) continue;
+          if (ab === "mermaid_flex" && isFemaleWarrior(s.cardId)) continue;
+          if (ab === "succubus_flex" && creatureGender(s.cardId) !== "male") {
+            continue;
+          }
+          let sc = aiThreatOf(s);
+          if (abilityOf(s.cardId, s) === "vampire_grow") sc += 16;
+          if (mission.openLanes.includes(j)) sc += 14;
+          if (s.canAttack) sc += 8;
+          if (sc > sleepSc) {
+            sleepSc = sc;
+            sleepT = j;
+          }
+        }
+        if (sleepT >= 0) {
+          choices.push({
+            kind: "flex",
+            slot: i,
+            score: (18 + sleepSc * 0.85) * fm * skill.tradeMul,
+            flex: { type: "sleep", toSlot: sleepT },
+          });
+        }
+      }
+
+      if (ab === "triton_flex" || ab === "necro_flex" || ab === "hornet_queen_flex") {
+        const cardId =
+          ab === "triton_flex"
+            ? "aquilite"
+            : ab === "necro_flex"
+              ? "skeleton"
+              : "hornet_warrior";
+        const empty =
+          mission.openLanes.find((s) => !me.slots[s]) ??
+          me.slots.findIndex((s) => !s);
+        if (empty >= 0 && !me.slots[empty]) {
+          const sc =
+            (22 +
+              (mission.openLanes.includes(empty) ? 28 : 0) +
+              (boardCount < skill.developUntil ? 14 : 0)) *
+            fm;
+          choices.push({
+            kind: "flex",
+            slot: i,
+            score: sc,
+            flex: { type: "summon", toSlot: empty, cardId },
+          });
+        }
+      }
+
+      if (ab === "paladin_flex" && skill.advancedFlex) {
+        let best = -1;
+        let bestSc = -1;
+        for (let j = 0; j < 5; j++) {
+          if (j === i || !me.slots[j]) continue;
+          const t = me.slots[j]!;
+          if (t.statuses.some((st) => st.type === "shield")) continue;
+          const sc = aiThreatOf(t) + (mission.openLanes.includes(j) ? 10 : 0);
+          if (sc > bestSc) {
+            bestSc = sc;
+            best = j;
+          }
+        }
+        if (best >= 0) {
+          choices.push({
+            kind: "flex",
+            slot: i,
+            score: (14 + bestSc * 0.5) * fm,
+            flex: { type: "paladin_shield", toSlot: best },
+          });
+        }
+      }
+
+      if (ab === "gravedigger_flex" && skill.advancedFlex) {
+        const empty =
+          mission.openLanes.find((s) => !me.slots[s]) ??
+          me.slots.findIndex((s) => !s);
+        const graves = recentGraveCreatures(me.graveyard, 5);
+        if (empty >= 0 && !me.slots[empty] && graves.length) {
+          const pick = [...graves].sort(
+            (a, b) =>
+              manaCostTotal(getCard(b.cardId).manaCost ?? {}) -
+              manaCostTotal(getCard(a.cardId).manaCost ?? {}),
+          )[0]!;
+          choices.push({
+            kind: "flex",
+            slot: i,
+            score: (24 + (mission.openLanes.includes(empty) ? 20 : 8)) * fm,
+            flex: {
+              type: "gravedigger",
+              toSlot: empty,
+              graveIndex: pick.index,
+            },
+          });
+        }
+      }
+
+      if (ab === "leshy_flex" && skill.advancedFlex) {
+        for (let j = 0; j < 5; j++) {
+          const t = foe.slots[j];
+          if (!t) continue;
+          // Толстый танк с низким ATK → стеклянная пушка, проще снять
+          if (t.health >= t.attack + 3 && t.health >= 4) {
+            choices.push({
+              kind: "flex",
+              slot: i,
+              score: (16 + t.health * 2) * fm * skill.tradeMul,
+              flex: { type: "leshy", side: "foe", toSlot: j },
+            });
+          }
+        }
+        for (let j = 0; j < 5; j++) {
+          if (j === i || !me.slots[j]) continue;
+          const t = me.slots[j]!;
+          // Своя стеклянная пушка → танк
+          if (t.attack >= t.health + 2 && t.attack >= 3) {
+            choices.push({
+              kind: "flex",
+              slot: i,
+              score: (12 + t.attack) * fm,
+              flex: { type: "leshy", side: "ally", toSlot: j },
+            });
+          }
+        }
+      }
+
+      if (ab === "arbiter_flex" && skill.verdictOk) {
+        let foePow = 0;
+        let myPow = 0;
+        let foeN = 0;
+        for (const s of foe.slots) {
+          if (!s) continue;
+          foeN++;
+          foePow += s.attack + s.health;
+        }
+        for (const s of me.slots) {
+          if (!s) continue;
+          myPow += s.attack + s.health;
+        }
+        if (foeN >= 3 && foePow > myPow + 4) {
+          choices.push({
+            kind: "flex",
+            slot: i,
+            score: (20 + (foePow - myPow)) * fm,
+            flex: { type: "arbiter" },
+          });
+        }
+      }
+
+      if (ab === "balthazar_flex" && skill.advancedFlex) {
+        // Вытащить угрозу на открытую линию / убрать с опасной
+        for (let a = 0; a < 5; a++) {
+          for (let b = a + 1; b < 5; b++) {
+            if (!foe.slots[a] || !foe.slots[b]) continue;
+            const ua = foe.slots[a]!;
+            const ub = foe.slots[b]!;
+            let sc = 0;
+            // Сильный милишник в закрытой линии ↔ слабый в открытой
+            if (
+              mission.openLanes.includes(a) &&
+              ub.attack > ua.attack &&
+              (patternOf(ub.cardId) === "melee" ||
+                patternOf(ub.cardId) === "melee_lane3")
+            ) {
+              sc += ub.attack * 3;
+            }
+            if (
+              mission.openLanes.includes(b) &&
+              ua.attack > ub.attack &&
+              (patternOf(ua.cardId) === "melee" ||
+                patternOf(ua.cardId) === "melee_lane3")
+            ) {
+              sc += ua.attack * 3;
+            }
+            if (sc >= 9) {
+              choices.push({
+                kind: "flex",
+                slot: i,
+                score: (10 + sc) * fm,
+                flex: { type: "balthazar", a, b },
+              });
+            }
+          }
+        }
+      }
+    }
   }
 
   if (!choices.length) return null;
@@ -4144,213 +4483,255 @@ export function takeAiStep(
     };
   }
 
+  if (best.kind === "flex") {
+    const i = best.slot;
+    const atk = me.slots[i];
+    if (!atk || !atk.canAttack) return null;
+    const flex = best.flex;
+    const name = getCard(atk.cardId).name;
+
+    if (flex.type === "angel_buff") {
+      const t = me.slots[flex.toSlot];
+      if (!t) return null;
+      t.permAttack += 1;
+      t.permHealth += 1;
+      t.attack += 1;
+      t.health += 1;
+      atk.canAttack = false;
+      next.log.unshift(
+        `Соперник: ${name} +1/+1 на ${getCard(t.cardId).name}`,
+      );
+      next.log = next.log.slice(0, 10);
+      return {
+        state: next,
+        fx: {
+          side: "enemy",
+          kind: "heal",
+          fromSlot: i,
+          toSlot: flex.toSlot,
+        },
+      };
+    }
+
+    if (flex.type === "mage_buff") {
+      const t = me.slots[flex.toSlot];
+      if (!t) return null;
+      t.permHealth += 1;
+      t.health += 1;
+      atk.canAttack = false;
+      next.log.unshift(
+        `Соперник: ${name} +1 HP на ${getCard(t.cardId).name}`,
+      );
+      next.log = next.log.slice(0, 10);
+      return {
+        state: next,
+        fx: {
+          side: "enemy",
+          kind: "heal",
+          fromSlot: i,
+          toSlot: flex.toSlot,
+        },
+      };
+    }
+
+    if (flex.type === "mage_oracle") {
+      me.maxHp += 1;
+      me.hp += 1;
+      atk.canAttack = false;
+      next.log.unshift(
+        `Соперник: ${name} +1 HP оракулу → ${me.hp}/${me.maxHp}`,
+      );
+      next.log = next.log.slice(0, 10);
+      return {
+        state: next,
+        fx: {
+          side: "enemy",
+          kind: "heal",
+          fromSlot: i,
+          hitHero: true,
+        },
+      };
+    }
+
+    if (flex.type === "sleep") {
+      const t = foe.slots[flex.toSlot];
+      if (!t) return null;
+      putToSleep(t, next.log, name);
+      atk.canAttack = false;
+      next.log = next.log.slice(0, 10);
+      return {
+        state: next,
+        fx: {
+          side: "enemy",
+          kind: "spell",
+          fromSlot: i,
+          toSlot: flex.toSlot,
+          cardId: atk.cardId,
+        },
+      };
+    }
+
+    if (flex.type === "summon") {
+      if (me.slots[flex.toSlot]) return null;
+      me.slots[flex.toSlot] = spawnCreature(flex.cardId, next.rules);
+      atk.canAttack = false;
+      syncBoardAuras(me, next.log);
+      next.log.unshift(
+        `Соперник: ${name} призывает ${getCard(flex.cardId).name}`,
+      );
+      next.log = next.log.slice(0, 10);
+      return {
+        state: next,
+        fx: {
+          side: "enemy",
+          kind: "play",
+          fromSlot: i,
+          toSlot: flex.toSlot,
+          cardId: flex.cardId,
+        },
+      };
+    }
+
+    if (flex.type === "paladin_shield") {
+      const t = me.slots[flex.toSlot];
+      if (!t) return null;
+      t.statuses = t.statuses.filter((st) => st.type !== "shield");
+      t.statuses.push({ type: "shield", amount: 2 });
+      atk.canAttack = false;
+      next.log.unshift(
+        `Соперник: ${name} даёт щит ${getCard(t.cardId).name}`,
+      );
+      next.log = next.log.slice(0, 10);
+      return {
+        state: next,
+        fx: {
+          side: "enemy",
+          kind: "heal",
+          fromSlot: i,
+          toSlot: flex.toSlot,
+        },
+      };
+    }
+
+    if (flex.type === "gravedigger") {
+      if (me.slots[flex.toSlot]) return null;
+      const visible = recentGraveCreatures(me.graveyard, 5);
+      const pick = visible.find((e) => e.index === flex.graveIndex);
+      if (!pick) return null;
+      const cardId = me.graveyard.splice(pick.index, 1)[0]!;
+      me.slots[flex.toSlot] = spawnCreature(cardId, next.rules);
+      atk.canAttack = false;
+      syncBoardAuras(me, next.log);
+      next.log.unshift(
+        `Соперник: ${name} поднимает ${getCard(cardId).name}`,
+      );
+      next.log = next.log.slice(0, 10);
+      return {
+        state: next,
+        fx: {
+          side: "enemy",
+          kind: "play",
+          fromSlot: i,
+          toSlot: flex.toSlot,
+          cardId,
+        },
+      };
+    }
+
+    if (flex.type === "leshy") {
+      const owner = flex.side === "ally" ? me : foe;
+      const target = owner.slots[flex.toSlot];
+      if (!target || (flex.side === "ally" && flex.toSlot === i)) return null;
+      const before = `${target.attack}/${target.health}`;
+      const ba = target.baseAttack;
+      target.baseAttack = target.baseHealth;
+      target.baseHealth = ba;
+      const pa = target.permAttack;
+      target.permAttack = target.permHealth;
+      target.permHealth = pa;
+      const base = effectiveBase(target);
+      target.attack = base.atk;
+      target.health = base.hp;
+      atk.canAttack = false;
+      next.log.unshift(
+        `Соперник: ${name} меняет статы ${getCard(target.cardId).name}: ${before} → ${target.attack}/${target.health}`,
+      );
+      next.log = next.log.slice(0, 10);
+      if (target.health <= 0) {
+        removeIfDead(owner, flex.toSlot, next.log, next);
+      }
+      checkWinner(next);
+      return {
+        state: next,
+        fx: {
+          side: "enemy",
+          kind: "spell",
+          fromSlot: i,
+          toSlot: flex.toSlot,
+          cardId: atk.cardId,
+        },
+      };
+    }
+
+    if (flex.type === "arbiter") {
+      const skipUid = atk.uid;
+      let n = 0;
+      for (const side of [me, foe]) {
+        for (const u of side.slots) {
+          if (!u || u.uid === skipUid) continue;
+          smashToOneOne(u);
+          n++;
+        }
+      }
+      atk.canAttack = false;
+      next.log.unshift(
+        n > 0
+          ? `Соперник: Вердикт ${name} — ${n} существ стали 1/1`
+          : `Соперник: Вердикт ${name}`,
+      );
+      next.log = next.log.slice(0, 10);
+      return {
+        state: next,
+        fx: {
+          side: "enemy",
+          kind: "spell",
+          fromSlot: i,
+          cardId: atk.cardId,
+        },
+      };
+    }
+
+    if (flex.type === "balthazar") {
+      const a = foe.slots[flex.a];
+      const b = foe.slots[flex.b];
+      if (!a || !b) return null;
+      foe.slots[flex.a] = b;
+      foe.slots[flex.b] = a;
+      atk.canAttack = false;
+      next.log.unshift(
+        `Соперник: ${name} меняет ${getCard(a.cardId).name} ↔ ${getCard(b.cardId).name}`,
+      );
+      next.log = next.log.slice(0, 10);
+      return {
+        state: next,
+        fx: {
+          side: "enemy",
+          kind: "spell",
+          fromSlot: i,
+          cardId: atk.cardId,
+        },
+      };
+    }
+
+    return null;
+  }
+
   // combat
   {
     const i = best.slot;
     const atk = me.slots[i];
     if (!atk || !atk.canAttack) return null;
     const lethalFocus = mission.canLethal;
-
-    // Флексы — только если не добиваем оракула
-    if (!lethalFocus) {
-      if (abilityOf(atk.cardId, atk) === "angel_heal") {
-        const ally = me.slots.findIndex(
-          (s, idx) => !!s && idx !== i && s.health < effectiveBase(s).hp,
-        );
-        const anyAlly = me.slots.findIndex((s, idx) => !!s && idx !== i);
-        const healTarget = ally >= 0 ? ally : anyAlly;
-        if (healTarget >= 0 && me.hp > foe.hp && Math.random() < 0.35) {
-          const t = me.slots[healTarget]!;
-          t.permAttack += 1;
-          t.permHealth += 1;
-          t.attack += 1;
-          t.health += 1;
-          atk.canAttack = false;
-          next.log.unshift(
-            `Соперник: ${getCard(atk.cardId).name} +1/+1 на ${getCard(t.cardId).name}`,
-          );
-          next.log = next.log.slice(0, 10);
-          return {
-            state: next,
-            fx: {
-              side: "enemy",
-              kind: "heal",
-              fromSlot: i,
-              toSlot: healTarget,
-            },
-          };
-        }
-      }
-
-      if (abilityOf(atk.cardId, atk) === "mage_flex" && Math.random() < 0.35) {
-        const hurtAlly = me.slots.findIndex(
-          (s, idx) => !!s && idx !== i && s.health < effectiveBase(s).hp,
-        );
-        const anyAlly = me.slots.findIndex((s, idx) => !!s && idx !== i);
-        const buffTarget = hurtAlly >= 0 ? hurtAlly : anyAlly;
-        if (buffTarget >= 0 && Math.random() < 0.5) {
-          const t = me.slots[buffTarget]!;
-          t.permHealth += 1;
-          t.health += 1;
-          atk.canAttack = false;
-          next.log.unshift(
-            `Соперник: ${getCard(atk.cardId).name} +1 HP на ${getCard(t.cardId).name}`,
-          );
-          next.log = next.log.slice(0, 10);
-          return {
-            state: next,
-            fx: {
-              side: "enemy",
-              kind: "heal",
-              fromSlot: i,
-              toSlot: buffTarget,
-            },
-          };
-        }
-        if (mission.mustDefend || me.hp <= 10) {
-          me.maxHp += 1;
-          me.hp += 1;
-          atk.canAttack = false;
-          next.log.unshift(
-            `Соперник: ${getCard(atk.cardId).name} +1 HP оракулу → ${me.hp}/${me.maxHp}`,
-          );
-          next.log = next.log.slice(0, 10);
-          return {
-            state: next,
-            fx: {
-              side: "enemy",
-              kind: "heal",
-              fromSlot: i,
-              hitHero: true,
-            },
-          };
-        }
-      }
-
-      if (abilityOf(atk.cardId, atk) === "banshee_flex" && Math.random() < 0.4) {
-        let sleepT = -1;
-        let sleepSc = -1;
-        for (let j = 0; j < 5; j++) {
-          const s = foe.slots[j];
-          if (!s) continue;
-          let sc = s.attack * 3;
-          if (abilityOf(s.cardId, s) === "vampire_grow") sc += 20;
-          if (mission.openLanes.includes(j)) sc += 15;
-          if (sc > sleepSc) {
-            sleepSc = sc;
-            sleepT = j;
-          }
-        }
-        if (sleepT >= 0) {
-          putToSleep(foe.slots[sleepT]!, next.log, getCard(atk.cardId).name);
-          atk.canAttack = false;
-          next.log = next.log.slice(0, 10);
-          return {
-            state: next,
-            fx: {
-              side: "enemy",
-              kind: "spell",
-              fromSlot: i,
-              toSlot: sleepT,
-              cardId: atk.cardId,
-            },
-          };
-        }
-      }
-
-      if (abilityOf(atk.cardId, atk) === "triton_flex") {
-        const empty = mission.openLanes[0] ?? me.slots.findIndex((s) => !s);
-        if (empty >= 0 && !me.slots[empty] && Math.random() < 0.4) {
-          me.slots[empty] = spawnCreature("aquilite", next.rules);
-          atk.canAttack = false;
-          next.log.unshift(
-            `Соперник: ${getCard(atk.cardId).name} призывает Акулита`,
-          );
-          next.log = next.log.slice(0, 10);
-          return {
-            state: next,
-            fx: {
-              side: "enemy",
-              kind: "play",
-              fromSlot: i,
-              toSlot: empty,
-              cardId: "aquilite",
-            },
-          };
-        }
-      }
-
-      if (abilityOf(atk.cardId, atk) === "necro_flex") {
-        const empty = mission.openLanes[0] ?? me.slots.findIndex((s) => !s);
-        if (empty >= 0 && !me.slots[empty] && Math.random() < 0.45) {
-          me.slots[empty] = spawnCreature("skeleton", next.rules);
-          atk.canAttack = false;
-          syncBoardAuras(me, next.log);
-          next.log.unshift(
-            `Соперник: ${getCard(atk.cardId).name} призывает Скелета`,
-          );
-          next.log = next.log.slice(0, 10);
-          return {
-            state: next,
-            fx: {
-              side: "enemy",
-              kind: "play",
-              fromSlot: i,
-              toSlot: empty,
-              cardId: "skeleton",
-            },
-          };
-        }
-      }
-
-      if (
-        abilityOf(atk.cardId, atk) === "mermaid_flex" &&
-        Math.random() < 0.35
-      ) {
-        const sleepT = foe.slots.findIndex(
-          (s) => s && !isFemaleWarrior(s.cardId),
-        );
-        if (sleepT >= 0) {
-          putToSleep(foe.slots[sleepT]!, next.log, getCard(atk.cardId).name);
-          atk.canAttack = false;
-          next.log = next.log.slice(0, 10);
-          return {
-            state: next,
-            fx: {
-              side: "enemy",
-              kind: "spell",
-              fromSlot: i,
-              toSlot: sleepT,
-              cardId: atk.cardId,
-            },
-          };
-        }
-      }
-
-      if (
-        abilityOf(atk.cardId, atk) === "succubus_flex" &&
-        Math.random() < 0.35
-      ) {
-        const sleepT = foe.slots.findIndex(
-          (s) => s && creatureGender(s.cardId) === "male",
-        );
-        if (sleepT >= 0) {
-          putToSleep(foe.slots[sleepT]!, next.log, getCard(atk.cardId).name);
-          atk.canAttack = false;
-          next.log = next.log.slice(0, 10);
-          return {
-            state: next,
-            fx: {
-              side: "enemy",
-              kind: "spell",
-              fromSlot: i,
-              toSlot: sleepT,
-              cardId: atk.cardId,
-            },
-          };
-        }
-      }
-    }
 
     const pattern = patternOf(atk.cardId);
     let hitSlots: number[] = [];
@@ -4359,7 +4740,6 @@ export function takeAiStep(
     if (pattern === "melee") {
       const block = foe.slots[i];
       if (block && canPhysicallyAttack(atk.cardId, block.cardId, block)) {
-        // При летали и открытых других линиях всё равно бьём блокер, если не в лицо
         meleeStrike(me, foe, i, i, next.log, next);
         hitSlots = [i];
       } else if (!block) {
@@ -4398,7 +4778,14 @@ export function takeAiStep(
         hitHero = true;
       }
     } else if (pattern === "ranged") {
-      const pick = aiPickStrikeTarget(me, foe, atk, true, mission);
+      const pick = aiPickStrikeTarget(
+        me,
+        foe,
+        atk,
+        true,
+        mission,
+        skill.tradeMul,
+      );
       if (pick === "hero" || pick == null) {
         foe.hp -= atk.attack;
         atk.canAttack = false;
