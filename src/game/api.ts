@@ -30,6 +30,9 @@ export type ApiUser = {
   heroId: string | null;
   telegramId: string | null;
   owned: OwnedState | null;
+  email?: string | null;
+  emailVerified?: boolean;
+  needsEmailVerify?: boolean;
   needsOnboarding: boolean;
   lastLoginAt?: string | null;
   dormant?: boolean;
@@ -78,8 +81,14 @@ async function request<T>(
       if (!res.ok) {
         const err = new Error(data.error || `Ошибка ${res.status}`) as Error & {
           code?: string;
+          email?: string;
+          login?: string;
         };
         if (data.code) err.code = data.code;
+        if ("email" in data && data.email) err.email = String(data.email);
+        if ("login" in data && (data as { login?: string }).login) {
+          err.login = String((data as { login?: string }).login);
+        }
         // 502 от прокси — ещё раз
         if (res.status >= 502 && attempt < 2) {
           await sleep(400 * (attempt + 1));
@@ -112,10 +121,16 @@ async function request<T>(
   );
 }
 
-export function apiRegister(login: string, password: string) {
-  return request<AuthResponse>("/api/register", {
+export type RegisterResponse = AuthResponse & {
+  needsEmailVerify?: boolean;
+  devCode?: string;
+  mailWarning?: string;
+};
+
+export function apiRegister(login: string, password: string, email: string) {
+  return request<RegisterResponse>("/api/register", {
     method: "POST",
-    body: JSON.stringify({ login, password }),
+    body: JSON.stringify({ login, password, email }),
   });
 }
 
@@ -123,6 +138,25 @@ export function apiLogin(login: string, password: string) {
   return request<AuthResponse>("/api/login", {
     method: "POST",
     body: JSON.stringify({ login, password }),
+  });
+}
+
+export function apiVerifyEmail(login: string, code: string) {
+  return request<AuthResponse>("/api/verify-email", {
+    method: "POST",
+    body: JSON.stringify({ login, code }),
+  });
+}
+
+export function apiResendEmailCode(login: string) {
+  return request<{
+    ok: boolean;
+    email?: string;
+    alreadyVerified?: boolean;
+    devCode?: string;
+  }>("/api/resend-email-code", {
+    method: "POST",
+    body: JSON.stringify({ login }),
   });
 }
 

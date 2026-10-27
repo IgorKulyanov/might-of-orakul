@@ -931,6 +931,17 @@ export default function App() {
     return <AuthScreen onAuthed={onAuthed} />;
   }
 
+  // Сессия есть, но почта не подтверждена — снова экран кода (не пускаем в игру).
+  if (user.needsEmailVerify) {
+    return (
+      <AuthScreen
+        onAuthed={onAuthed}
+        forceVerifyLogin={user.login}
+        forceVerifyEmail={user.email}
+      />
+    );
+  }
+
   // Школа = homeFaction. Пока её нет — выбор из пяти оракулов.
   // beginWithHero при восстановлении колоду не сносит (hasOwnedProgress).
   if (!owned.homeFaction) {

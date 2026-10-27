@@ -121,6 +121,8 @@ function startServer(port: number, dataDir: string): ChildProcess {
       ORACUL_DATA_DIR: dataDir,
       ORACUL_QA_RELAX: "1",
       ORACUL_QA_RELAX_MUL: "250",
+      ORACUL_MAIL_DEV: "1",
+      MAIL_FROM: "Orakul QA <qa@localhost>",
     },
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
@@ -147,20 +149,44 @@ async function securitySuite(base: string) {
   } else n += 1;
 
   const login = `qa_sec_${Date.now()}`;
+  const email = `${login}@qa.local`;
   const reg = await req(base, "POST", "/api/register", {
     login,
     password: "secret99",
+    email,
   });
-  if (reg.status !== 200 || !reg.json?.token) {
+  if (reg.status !== 200 || !reg.json?.token || !reg.json?.devCode) {
     fail("безопасность", `регистрация: ${reg.status} ${reg.raw}`);
     return;
   }
   n += 1;
-  const token = reg.json.token as string;
+
+  const unverifiedLogin = await req(base, "POST", "/api/login", {
+    login,
+    password: "secret99",
+  });
+  if (unverifiedLogin.status !== 403) {
+    fail(
+      "безопасность",
+      `вход без verify → ${unverifiedLogin.status} (ждали 403)`,
+    );
+  } else n += 1;
+
+  const verify = await req(base, "POST", "/api/verify-email", {
+    login,
+    code: reg.json.devCode,
+  });
+  if (verify.status !== 200 || !verify.json?.token) {
+    fail("безопасность", `verify-email: ${verify.status} ${verify.raw}`);
+    return;
+  }
+  n += 1;
+  const token = verify.json.token as string;
 
   const dup = await req(base, "POST", "/api/register", {
     login,
     password: "secret99",
+    email: `other_${email}`,
   });
   if (dup.status !== 409) {
     fail("безопасность", `дубликат логина → ${dup.status}`);
@@ -239,9 +265,21 @@ async function loadSuite(base: string, players: number) {
   const password = "loadtest1";
 
   const tReg0 = Date.now();
-  const regs = await mapPool(logins, 80, async (login) => {
-    const r = await req(base, "POST", "/api/register", { login, password });
+  const regs = await mapPool(logins, 80, async (login, i) => {
+    const r = await req(base, "POST", "/api/register", {
+      login,
+      password,
+      email: `${login}@qa${i}.local`,
+    });
     return r;
+  });
+  // После register нужен verify — иначе login 403
+  await mapPool(regs, 80, async (r, i) => {
+    if (r.status !== 200 || !r.json?.devCode) return r;
+    return req(base, "POST", "/api/verify-email", {
+      login: logins[i],
+      code: r.json.devCode,
+    });
   });
   const regOk = regs.filter((r) => r.status === 200 && r.json?.token);
   const regMs = Date.now() - tReg0;

@@ -1,51 +1,112 @@
 import { useState, type FormEvent } from "react";
-import { apiLogin, apiRegister, type ApiUser } from "../game/api";
+import {
+  apiLogin,
+  apiRegister,
+  apiResendEmailCode,
+  apiVerifyEmail,
+  type ApiUser,
+} from "../game/api";
 import { getLastLogin } from "../game/session";
 import { startMenuMusic, unlockSfx } from "../game/sfx";
 
 type Props = {
   onAuthed: (token: string, user: ApiUser) => void;
+  /** Уже вошли, но почта не подтверждена — сразу экран кода. */
+  forceVerifyLogin?: string;
+  forceVerifyEmail?: string | null;
 };
 
-export function AuthScreen({ onAuthed }: Props) {
-  const [mode, setMode] = useState<"login" | "register">("login");
-  const [login, setLogin] = useState(() => getLastLogin());
+type Mode = "login" | "register" | "verify";
+
+export function AuthScreen({
+  onAuthed,
+  forceVerifyLogin,
+  forceVerifyEmail,
+}: Props) {
+  const [mode, setMode] = useState<Mode>(() =>
+    forceVerifyLogin ? "verify" : "login",
+  );
+  const [login, setLogin] = useState(
+    () => forceVerifyLogin || getLastLogin(),
+  );
   const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [maskedEmail, setMaskedEmail] = useState<string | null>(
+    () => forceVerifyEmail ?? null,
+  );
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
   const [canRestore, setCanRestore] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const switchMode = (next: "login" | "register") => {
+  const switchMode = (next: Mode) => {
     setMode(next);
     setError(null);
+    setHint(null);
     setCanRestore(false);
     setPassword("");
-    // На одном ПК двое: регистрация — пустые поля (не логин первого).
-    setLogin(next === "login" ? getLastLogin() : "");
+    setCode("");
+    if (next === "register") {
+      setLogin("");
+      setEmail("");
+      setMaskedEmail(null);
+    } else if (next === "login") {
+      setLogin(getLastLogin());
+    }
+  };
+
+  const goVerify = (loginName: string, mailHint?: string | null, devCode?: string) => {
+    setLogin(loginName);
+    setMaskedEmail(mailHint ?? null);
+    setMode("verify");
+    setCode(devCode ?? "");
+    setHint(
+      devCode
+        ? `Dev-режим: код ${devCode}`
+        : `Код отправлен на ${mailHint || "почту"}. Проверь «Входящие» и «Спам».`,
+    );
   };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+    setHint(null);
     setCanRestore(false);
     setBusy(true);
     try {
       unlockSfx();
       void startMenuMusic();
       const name = login.trim();
+
+      if (mode === "verify") {
+        const res = await apiVerifyEmail(name, code.trim());
+        onAuthed(res.token, res.user);
+        return;
+      }
+
       if (mode === "login") {
         try {
           const res = await apiLogin(name, password);
           onAuthed(res.token, res.user);
           return;
         } catch (err) {
-          const code =
+          const errCode =
             err && typeof err === "object" && "code" in err
               ? String((err as { code?: string }).code || "")
               : "";
           const msg = err instanceof Error ? err.message : "Ошибка";
-          if (code === "ACCOUNT_MISSING" || /не найден|сброс/i.test(msg)) {
+          if (errCode === "EMAIL_NOT_VERIFIED") {
+            goVerify(
+              name,
+              err && typeof err === "object" && "email" in err
+                ? String((err as { email?: string }).email || "")
+                : null,
+            );
+            return;
+          }
+          if (errCode === "ACCOUNT_MISSING" || /не найден|сброс/i.test(msg)) {
             setCanRestore(true);
             setError(msg);
             return;
@@ -53,8 +114,32 @@ export function AuthScreen({ onAuthed }: Props) {
           throw err;
         }
       }
-      const res = await apiRegister(name, password);
+
+      const res = await apiRegister(name, password, email.trim());
+      if (res.needsEmailVerify || res.user.needsEmailVerify) {
+        goVerify(name, res.user.email, res.devCode);
+        if (res.mailWarning) setError(res.mailWarning);
+        return;
+      }
       onAuthed(res.token, res.user);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ошибка");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resend = async () => {
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await apiResendEmailCode(login.trim());
+      setHint(
+        res.devCode
+          ? `Dev-режим: код ${res.devCode}`
+          : `Код снова отправлен на ${res.email || maskedEmail || "почту"}`,
+      );
+      if (res.devCode) setCode(res.devCode);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка");
     } finally {
@@ -68,8 +153,18 @@ export function AuthScreen({ onAuthed }: Props) {
     try {
       unlockSfx();
       void startMenuMusic();
-      const res = await apiRegister(login.trim(), password);
+      if (!email.trim()) {
+        setError("Для восстановления укажи почту (поле появится после переключения на регистрацию) — или введи почту ниже и снова нажми.");
+        setMode("register");
+        setBusy(false);
+        return;
+      }
+      const res = await apiRegister(login.trim(), password, email.trim());
       setCanRestore(false);
+      if (res.needsEmailVerify || res.user.needsEmailVerify) {
+        goVerify(login.trim(), res.user.email, res.devCode);
+        return;
+      }
       onAuthed(res.token, res.user);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Ошибка";
@@ -97,62 +192,117 @@ export function AuthScreen({ onAuthed }: Props) {
         <p className="splash-eyebrow">
           <span>Might of Orakul</span>
         </p>
-        <h1>{mode === "login" ? "Вход" : "Регистрация"}</h1>
+        <h1>
+          {mode === "login"
+            ? "Вход"
+            : mode === "verify"
+              ? "Код с почты"
+              : "Регистрация"}
+        </h1>
         <p className="hint">
-          Логин — латиницей (a–z, цифры), не имя оракула. Два человека на
-          одном компьютере — у каждого свой логин: выйди → «Регистрация» →
-          новый логин. Если пишет «аккаунт не найден» — «Восстановить
-          аккаунт» тем же логином и паролем (прогресс в этом браузере
-          сохранится).
+          {mode === "verify"
+            ? `Введи 6 цифр из письма${maskedEmail ? ` (${maskedEmail})` : ""}.`
+            : mode === "register"
+              ? "Логин — латиницей. Почта обязательна: без кода аккаунт не откроется. Два человека на одном ПК — у каждого свой логин."
+              : "Логин — латиницей, не имя оракула. Два человека на одном компьютере — выйди → регистрация → новый логин."}
         </p>
         <form className="auth-form" onSubmit={submit}>
-          <label>
-            Логин
-            <input
-              autoComplete="username"
-              value={login}
-              onChange={(e) => setLogin(e.target.value)}
-              minLength={3}
-              required
-              placeholder="например igor_42"
-              inputMode="email"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-            />
-          </label>
-          <label>
-            Пароль
-            <div className="auth-password-row">
+          {mode !== "verify" && (
+            <label>
+              Логин
               <input
-                type={showPassword ? "text" : "password"}
-                autoComplete={
-                  mode === "login" ? "current-password" : "new-password"
-                }
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                minLength={4}
+                autoComplete="username"
+                value={login}
+                onChange={(e) => setLogin(e.target.value)}
+                minLength={3}
                 required
+                placeholder="например igor_42"
+                inputMode="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
               />
-              <button
-                type="button"
-                className="ghost auth-password-toggle"
-                onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
-                title={showPassword ? "Скрыть пароль" : "Показать пароль"}
-              >
-                {showPassword ? "🙈" : "👁"}
-              </button>
-            </div>
-          </label>
+            </label>
+          )}
+          {mode === "register" && (
+            <label>
+              Почта
+              <input
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="you@mail.ru"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+              />
+            </label>
+          )}
+          {mode !== "verify" && (
+            <label>
+              Пароль
+              <div className="auth-password-row">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  autoComplete={
+                    mode === "login" ? "current-password" : "new-password"
+                  }
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  minLength={4}
+                  required
+                />
+                <button
+                  type="button"
+                  className="ghost auth-password-toggle"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
+                  title={showPassword ? "Скрыть пароль" : "Показать пароль"}
+                >
+                  {showPassword ? "🙈" : "👁"}
+                </button>
+              </div>
+            </label>
+          )}
+          {mode === "verify" && (
+            <label>
+              Код из письма
+              <input
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                minLength={4}
+                maxLength={8}
+                required
+                placeholder="123456"
+                autoFocus
+              />
+            </label>
+          )}
+          {hint && <p className="hint">{hint}</p>}
           {error && <p className="auth-error">{error}</p>}
           <button type="submit" className="primary large" disabled={busy}>
             {busy
               ? "…"
               : mode === "login"
                 ? "Войти"
-                : "Создать аккаунт"}
+                : mode === "verify"
+                  ? "Подтвердить"
+                  : "Создать аккаунт"}
           </button>
+          {mode === "verify" && (
+            <button
+              type="button"
+              className="ghost large"
+              disabled={busy}
+              onClick={() => void resend()}
+            >
+              Выслать код ещё раз
+            </button>
+          )}
           {canRestore && (
             <button
               type="button"
@@ -164,17 +314,27 @@ export function AuthScreen({ onAuthed }: Props) {
             </button>
           )}
         </form>
-        <button
-          type="button"
-          className="ghost"
-          onClick={() =>
-            switchMode(mode === "login" ? "register" : "login")
-          }
-        >
-          {mode === "login"
-            ? "Нет аккаунта? Регистрация"
-            : "Уже есть аккаунт? Вход"}
-        </button>
+        {mode === "verify" ? (
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => switchMode("login")}
+          >
+            Назад ко входу
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="ghost"
+            onClick={() =>
+              switchMode(mode === "login" ? "register" : "login")
+            }
+          >
+            {mode === "login"
+              ? "Нет аккаунта? Регистрация"
+              : "Уже есть аккаунт? Вход"}
+          </button>
+        )}
       </div>
     </div>
   );

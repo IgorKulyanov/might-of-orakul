@@ -14,6 +14,13 @@ import {
   pushRemoteUsers,
 } from "./remoteDb.js";
 import {
+  mailConfigured,
+  mailDevMode,
+  makeVerifyCode,
+  sanitizeEmail,
+  sendVerifyEmail,
+} from "./mail.js";
+import {
   checkLoginThrottle,
   clientIp,
   noteLoginFail,
@@ -25,6 +32,21 @@ import {
   sanitizeLogin,
   sanitizeOwned,
 } from "./security.js";
+
+const VERIFY_TTL_MS = 15 * 60 * 1000;
+
+function userEmailVerified(u) {
+  // Старые аккаунты без почты — дед: не ломаем вход
+  if (!u.email) return true;
+  return Boolean(u.emailVerified);
+}
+
+function maskEmail(email) {
+  const e = String(email || "");
+  const at = e.indexOf("@");
+  if (at < 2) return e ? "***" : null;
+  return `${e.slice(0, 2)}***${e.slice(at)}`;
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /** Для QA можно задать ORACUL_DATA_DIR — изолированная база, живые игроки не трогаются. */
@@ -315,6 +337,7 @@ function withDb(fn) {
 }
 
 function publicUser(u) {
+  const verified = userEmailVerified(u);
   return {
     id: u.id,
     login: u.login,
@@ -322,6 +345,9 @@ function publicUser(u) {
     heroId: u.heroId ?? null,
     telegramId: u.telegramId ?? null,
     owned: u.owned ?? null,
+    email: maskEmail(u.email),
+    emailVerified: verified,
+    needsEmailVerify: Boolean(u.email) && !verified,
     needsOnboarding: !u.displayName || !u.heroId,
     lastLoginAt: u.lastLoginAt ?? null,
     dormant: Boolean(u.dormant),
@@ -444,6 +470,8 @@ app.get("/api/health", (_req, res) => {
     uptime: Math.floor(process.uptime()),
     users: getLiveDb().users.length,
     remoteDb: hasRemoteDb(),
+    mail: mailConfigured(),
+    mailDev: mailDevMode(),
   });
 });
 
@@ -485,6 +513,7 @@ app.post(
     try {
       const login = sanitizeLogin(req.body?.login);
       const password = String(req.body?.password || "").slice(0, 72);
+      const email = sanitizeEmail(req.body?.email);
       if (login.length < 3 || password.length < 4) {
         res.status(400).json({
           error:
@@ -492,17 +521,44 @@ app.post(
         });
         return;
       }
-      // bcrypt вне очереди — иначе 1000 регистраций встанут в один ряд на минуты.
+      if (!email) {
+        res.status(400).json({
+          error: "Укажи рабочую почту — на неё придёт код подтверждения",
+          code: "EMAIL_REQUIRED",
+        });
+        return;
+      }
+      if (!mailConfigured()) {
+        res.status(503).json({
+          error:
+            "Регистрация по почте временно недоступна: на сервере не настроен MAIL_FROM + Resend/SMTP",
+          code: "MAIL_NOT_CONFIGURED",
+        });
+        return;
+      }
+
       const passwordHash = await bcrypt.hash(password, 10);
+      const code = makeVerifyCode();
       const result = await withDb((db) => {
         if (db.users.some((u) => u.login === login)) {
-          return { conflict: true };
+          return { conflict: "login" };
+        }
+        if (
+          db.users.some(
+            (u) => sanitizeEmail(u.email) === email && u.emailVerified,
+          )
+        ) {
+          return { conflict: "email" };
         }
         const user = {
           id: uuid(),
           login,
           passwordHash,
           token: uuid(),
+          email,
+          emailVerified: false,
+          emailVerifyCode: code,
+          emailVerifyExpires: Date.now() + VERIFY_TTL_MS,
           displayName: null,
           heroId: null,
           telegramId: null,
@@ -515,11 +571,31 @@ app.post(
         persistLiveDb();
         return { token: user.token, user: publicUser(user) };
       });
-      if (result.conflict) {
+      if (result.conflict === "login") {
         res.status(409).json({ error: "Такой логин уже есть" });
         return;
       }
-      res.json(result);
+      if (result.conflict === "email") {
+        res.status(409).json({
+          error: "Эта почта уже привязана к другому аккаунту",
+          code: "EMAIL_TAKEN",
+        });
+        return;
+      }
+
+      const sent = await sendVerifyEmail(email, code);
+      if (!sent.ok) {
+        // Аккаунт уже создан — можно переслать код. Не откатываем.
+        console.warn("[mail] register send fail:", sent.error);
+      }
+      res.json({
+        ...result,
+        needsEmailVerify: true,
+        ...(sent.devCode ? { devCode: sent.devCode } : {}),
+        ...(sent.ok
+          ? {}
+          : { mailWarning: sent.error || "Письмо не ушло — нажми «Выслать код»" }),
+      });
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: "Ошибка регистрации" });
@@ -542,8 +618,6 @@ app.post(
       }
       const found = getLiveDb().users.find((u) => u.login === login);
       if (!found) {
-        // Не троттлим IP за «нет аккаунта» — иначе брутфорс логинов
-        // и сброс хоста блокируют всех с одного Wi‑Fi.
         res.status(401).json({
           error:
             "Аккаунт не найден. На бесплатном хосте база могла сброситься — нажми «Восстановить аккаунт» с тем же логином и паролем (прогресс в браузере сохранится).",
@@ -558,10 +632,22 @@ app.post(
         return;
       }
       noteLoginOk(throttle.key);
+
+      if (found.email && !userEmailVerified(found)) {
+        res.status(403).json({
+          error: "Подтверди почту кодом из письма",
+          code: "EMAIL_NOT_VERIFIED",
+          email: maskEmail(found.email),
+          login: found.login,
+        });
+        return;
+      }
+
       const result = await withDb((db) => {
         const user = db.users.find((u) => u.login === login);
         if (!user) return null;
-        user.token = uuid();
+        // Не ротируем token при каждом входе — иначе чат/вторая вкладка «вылетают».
+        if (!user.token) user.token = uuid();
         touchSeen(user);
         persistLiveDb();
         return { token: user.token, user: publicUser(user) };
@@ -574,6 +660,112 @@ app.post(
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: "Ошибка входа" });
+    }
+  },
+);
+
+app.post(
+  "/api/verify-email",
+  rateLimitMiddleware({ name: "verify-email", maxN: 20, windowMs: 60_000 }),
+  async (req, res) => {
+    try {
+      const login = sanitizeLogin(req.body?.login);
+      const code = String(req.body?.code || "")
+        .replace(/\D/g, "")
+        .slice(0, 8);
+      if (login.length < 3 || code.length < 4) {
+        res.status(400).json({ error: "Нужны логин и код из письма" });
+        return;
+      }
+      const result = await withDb((db) => {
+        const user = db.users.find((u) => u.login === login);
+        if (!user) return { missing: true };
+        if (userEmailVerified(user)) {
+          if (!user.token) user.token = uuid();
+          persistLiveDb();
+          return { token: user.token, user: publicUser(user) };
+        }
+        if (
+          !user.emailVerifyCode ||
+          String(user.emailVerifyCode) !== code ||
+          Number(user.emailVerifyExpires || 0) < Date.now()
+        ) {
+          return { badCode: true };
+        }
+        user.emailVerified = true;
+        user.emailVerifyCode = null;
+        user.emailVerifyExpires = 0;
+        if (!user.token) user.token = uuid();
+        touchSeen(user);
+        persistLiveDb();
+        return { token: user.token, user: publicUser(user) };
+      });
+      if (result.missing) {
+        res.status(404).json({ error: "Аккаунт не найден" });
+        return;
+      }
+      if (result.badCode) {
+        res.status(400).json({
+          error: "Неверный или просроченный код",
+          code: "BAD_CODE",
+        });
+        return;
+      }
+      res.json(result);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Ошибка подтверждения" });
+    }
+  },
+);
+
+app.post(
+  "/api/resend-email-code",
+  rateLimitMiddleware({ name: "resend-email", maxN: 6, windowMs: 60_000 }),
+  async (req, res) => {
+    try {
+      const login = sanitizeLogin(req.body?.login);
+      if (login.length < 3) {
+        res.status(400).json({ error: "Укажи логин" });
+        return;
+      }
+      if (!mailConfigured()) {
+        res.status(503).json({
+          error: "Почта на сервере не настроена",
+          code: "MAIL_NOT_CONFIGURED",
+        });
+        return;
+      }
+      const found = getLiveDb().users.find((u) => u.login === login);
+      if (!found || !found.email) {
+        res.status(404).json({ error: "Аккаунт или почта не найдены" });
+        return;
+      }
+      if (userEmailVerified(found)) {
+        res.json({ ok: true, alreadyVerified: true });
+        return;
+      }
+      const code = makeVerifyCode();
+      await withDb((db) => {
+        const user = db.users.find((u) => u.login === login);
+        if (!user) return;
+        user.emailVerifyCode = code;
+        user.emailVerifyExpires = Date.now() + VERIFY_TTL_MS;
+        persistLiveDb();
+      });
+      const sent = await sendVerifyEmail(found.email, code);
+      if (!sent.ok) {
+        res.status(502).json({ error: sent.error || "Не удалось отправить" });
+        return;
+      }
+      res.json({
+        ok: true,
+        email: maskEmail(found.email),
+        ...(sent.devCode ? { devCode: sent.devCode } : {}),
+      });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Ошибка отправки кода" });
     }
   },
 );

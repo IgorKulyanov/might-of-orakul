@@ -15,6 +15,8 @@ FILES = [
     ("server/index.js", "/opt/orakul/server/index.js"),
     ("server/security.js", "/opt/orakul/server/security.js"),
     ("server/main.ts", "/opt/orakul/server/main.ts"),
+    ("server/mail.js", "/opt/orakul/server/mail.js"),
+    ("server/package.json", "/opt/orakul/server/package.json"),
     ("src/game/cards.ts", "/opt/orakul/src/game/cards.ts"),
     ("src/game/botDeck.ts", "/opt/orakul/src/game/botDeck.ts"),
     ("src/game/engine.ts", "/opt/orakul/src/game/engine.ts"),
@@ -66,18 +68,26 @@ def main() -> None:
                 sftp.put(str(ROOT / rel), remote)
                 print("uploaded", rel)
             sftp.close()
+            run(
+                t,
+                "cd /opt/orakul/server && npm install --omit=dev 2>&1 | tail -n 15",
+            )
+            # Пока нет боевой почты — DEV-коды (см. EMAIL-AUTH.md). Не трогаем, если drop-in уже есть.
+            run(
+                t,
+                "mkdir -p /etc/systemd/system/orakul-api.service.d; "
+                "if [ ! -f /etc/systemd/system/orakul-api.service.d/mail.conf ]; then "
+                "printf '%s\\n' '[Service]' "
+                "'Environment=ORACUL_MAIL_DEV=1' "
+                "'Environment=MAIL_FROM=Might of Orakul <noreply@localhost>' "
+                "> /etc/systemd/system/orakul-api.service.d/mail.conf; "
+                "echo 'created mail.conf DEV'; else echo 'mail.conf exists'; fi; "
+                "systemctl daemon-reload",
+            )
             run(t, "systemctl restart orakul-api; sleep 3; systemctl is-active orakul-api")
             run(t, "journalctl -u orakul-api -n 20 --no-pager")
             run(t, "curl -sS -m 8 http://127.0.0.1:8787/api/health; echo")
             run(t, "curl -sS -m 8 http://127.0.0.1:8787/api/payments/packs; echo")
-            run(
-                t,
-                "curl -sS -m 8 -o /tmp/wh.json -w %{http_code} -X POST "
-                "http://127.0.0.1:8787/api/payments/yookassa/webhook "
-                "-H 'Content-Type: application/json' "
-                "-d '{\"event\":\"payment.waiting_for_capture\",\"object\":{}}'; "
-                "echo; cat /tmp/wh.json; echo",
-            )
             t.close()
             print("DEPLOY_OK")
             return
