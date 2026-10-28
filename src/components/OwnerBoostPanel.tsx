@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
 import { apiOwnerBoost } from "../game/api";
 import { CARDS, sortCatalogCards } from "../game/cards";
+import { ownedCopies } from "../game/owned";
 import {
-  grantCardCopy,
-  grantCurrency,
-  ownedCopies,
-} from "../game/owned";
-import { OWNER_BOOST_CODE } from "../game/ownerCode";
+  loadOwnerBoostCode,
+  saveOwnerBoostCode,
+} from "../game/ownerCode";
+import { getCachedUser } from "../game/session";
 import type { OwnedState } from "../game/types";
 
 type Props = {
@@ -18,9 +18,10 @@ type Props = {
 
 type Target = "self" | "other";
 
-export function OwnerBoostPanel({ open, owned, onApply, onClose }: Props) {
+export function OwnerBoostPanel({ open, owned, onClose }: Props) {
   const [target, setTarget] = useState<Target>("self");
   const [otherLogin, setOtherLogin] = useState("");
+  const [code, setCode] = useState(() => loadOwnerBoostCode());
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -38,45 +39,46 @@ export function OwnerBoostPanel({ open, owned, onApply, onClose }: Props) {
 
   if (!open) return null;
 
+  const selfLogin = getCachedUser()?.login || "";
   const otherOk = otherLogin.trim().length >= 3;
+  const codeOk = code.trim().length >= 4;
+  const canAct =
+    codeOk && (target === "self" ? selfLogin.length >= 2 : otherOk);
 
-  const giveSelf = (gold: number, dia: number) => {
-    const next = grantCurrency(owned, gold, dia);
-    onApply(next);
-    setStatus(`Себе: +${gold}🪙 +${dia}💎`);
-  };
-
-  const giveSelfCard = (cardId: string, name: string) => {
-    const before = ownedCopies(owned, cardId);
-    const next = grantCardCopy(owned, cardId);
-    const after = ownedCopies(next, cardId);
-    if (after <= before) {
-      setStatus(`${name}: уже максимум копий`);
-      return;
-    }
-    onApply(next);
-    setStatus(`Себе: ${name} ×${after}`);
-  };
-
-  const giveOther = async (payload: {
+  const grant = async (payload: {
     gold?: number;
     diamonds?: number;
     cardId?: string;
   }) => {
-    if (!otherOk) {
-      setStatus("Сначала введи логин игрока");
+    if (!codeOk) {
+      setStatus("Введи секретный код владельца");
+      return;
+    }
+    const login =
+      target === "self" ? selfLogin : otherLogin.trim();
+    if (!login) {
+      setStatus(
+        target === "self"
+          ? "Нужен вход в аккаунт"
+          : "Сначала введи логин игрока",
+      );
       return;
     }
     setBusy(true);
     setStatus(null);
+    saveOwnerBoostCode(code);
     try {
       const res = await apiOwnerBoost({
-        code: OWNER_BOOST_CODE,
-        login: otherLogin.trim(),
+        code: code.trim(),
+        login,
         ...payload,
         note: "компенсация",
       });
-      setStatus(res.message);
+      setStatus(
+        target === "self"
+          ? `${res.message} — обнови сейв / перезайди, чтобы увидеть.`
+          : res.message,
+      );
     } catch (e) {
       setStatus(e instanceof Error ? e.message : "Ошибка");
     } finally {
@@ -93,6 +95,21 @@ export function OwnerBoostPanel({ open, owned, onApply, onClose }: Props) {
             ✕
           </button>
         </header>
+
+        <p className="community-hint">
+          Код не хранится в игре — только на сервере. Локальная «накрутка себе»
+          без сервера отключена.
+        </p>
+        <label className="admin-section">
+          Секретный код
+          <input
+            type="password"
+            autoComplete="off"
+            value={code}
+            placeholder="код владельца"
+            onChange={(e) => setCode(e.target.value)}
+          />
+        </label>
 
         <div className="admin-row">
           <button
@@ -128,7 +145,7 @@ export function OwnerBoostPanel({ open, owned, onApply, onClose }: Props) {
           </>
         ) : (
           <p className="community-hint">
-            На этот аккаунт в браузере — сразу в магазине и колоде.
+            На аккаунт «{selfLogin || "…"}» — через сервер (pending grant).
           </p>
         )}
 
@@ -138,36 +155,24 @@ export function OwnerBoostPanel({ open, owned, onApply, onClose }: Props) {
             <button
               type="button"
               className="primary"
-              disabled={busy || (target === "other" && !otherOk)}
-              onClick={() =>
-                target === "self"
-                  ? giveSelf(500, 0)
-                  : void giveOther({ gold: 500 })
-              }
+              disabled={busy || !canAct}
+              onClick={() => void grant({ gold: 500 })}
             >
               +500 🪙
             </button>
             <button
               type="button"
               className="primary"
-              disabled={busy || (target === "other" && !otherOk)}
-              onClick={() =>
-                target === "self"
-                  ? giveSelf(0, 25)
-                  : void giveOther({ diamonds: 25 })
-              }
+              disabled={busy || !canAct}
+              onClick={() => void grant({ diamonds: 25 })}
             >
               +25 💎
             </button>
             <button
               type="button"
               className="ghost"
-              disabled={busy || (target === "other" && !otherOk)}
-              onClick={() =>
-                target === "self"
-                  ? giveSelf(2000, 50)
-                  : void giveOther({ gold: 2000, diamonds: 50 })
-              }
+              disabled={busy || !canAct}
+              onClick={() => void grant({ gold: 2000, diamonds: 50 })}
             >
               +2000🪙 +50💎
             </button>
@@ -189,12 +194,8 @@ export function OwnerBoostPanel({ open, owned, onApply, onClose }: Props) {
                   type="button"
                   key={c.id}
                   className="admin-user"
-                  disabled={busy || (target === "other" && !otherOk)}
-                  onClick={() =>
-                    target === "self"
-                      ? giveSelfCard(c.id, c.name)
-                      : void giveOther({ cardId: c.id })
-                  }
+                  disabled={busy || !canAct}
+                  onClick={() => void grant({ cardId: c.id })}
                 >
                   <strong>{c.name}</strong>
                   <span>

@@ -14,6 +14,9 @@ ROOT = Path(__file__).resolve().parents[1]
 FILES = [
     ("server/index.js", "/opt/orakul/server/index.js"),
     ("server/security.js", "/opt/orakul/server/security.js"),
+    ("server/admin.js", "/opt/orakul/server/admin.js"),
+    ("server/lobbyChat.ts", "/opt/orakul/server/lobbyChat.ts"),
+    ("server/pvpRooms.ts", "/opt/orakul/server/pvpRooms.ts"),
     ("server/main.ts", "/opt/orakul/server/main.ts"),
     ("server/mail.js", "/opt/orakul/server/mail.js"),
     ("server/package.json", "/opt/orakul/server/package.json"),
@@ -82,6 +85,13 @@ def main() -> None:
                 "'Environment=MAIL_FROM=Might of Orakul <noreply@localhost>' "
                 "> /etc/systemd/system/orakul-api.service.d/mail.conf; "
                 "echo 'created mail.conf DEV'; else echo 'mail.conf exists'; fi; "
+                # Код компенсации — только на сервере (не в git-клиенте).
+                "if [ ! -f /etc/systemd/system/orakul-api.service.d/owner.conf ]; then "
+                "printf '%s\\n' '[Service]' "
+                "'Environment=ORACUL_OWNER_CODE=оракул792640' "
+                "> /etc/systemd/system/orakul-api.service.d/owner.conf; "
+                "chmod 600 /etc/systemd/system/orakul-api.service.d/owner.conf; "
+                "echo 'created owner.conf'; else echo 'owner.conf exists'; fi; "
                 "systemctl daemon-reload",
             )
             run(t, "systemctl restart orakul-api; sleep 3; systemctl is-active orakul-api")

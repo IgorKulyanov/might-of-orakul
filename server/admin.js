@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +12,13 @@ import {
 import { getPresenceStats } from "./presence.ts";
 import { getPvpLiveStats } from "./pvpRooms.ts";
 import { LIMITS, sanitizeDisplayName } from "./security.js";
+
+function safeEqualStr(a, b) {
+  // Сравниваем хеши — длина секрета не светится по early-return.
+  const ha = crypto.createHash("sha256").update(String(a || ""), "utf8").digest();
+  const hb = crypto.createHash("sha256").update(String(b || ""), "utf8").digest();
+  return crypto.timingSafeEqual(ha, hb);
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = process.env.ORACUL_DATA_DIR
@@ -74,12 +82,9 @@ export function adminAuth(req, res, next) {
     res.status(403).json({ error: "Админка выключена (задай ORACUL_ADMIN_KEY)" });
     return;
   }
-  const got =
-    req.headers["x-admin-key"] ||
-    req.body?.adminKey ||
-    req.query?.adminKey ||
-    "";
-  if (String(got) !== key) {
+  // Только заголовок / body — не query (иначе ключ светится в логах прокси).
+  const got = req.headers["x-admin-key"] || req.body?.adminKey || "";
+  if (!safeEqualStr(got, key)) {
     res.status(401).json({ error: "Неверный ключ админки" });
     return;
   }
@@ -107,9 +112,8 @@ function findUser(db, loginOrId) {
  * @param {import('express').Express} app
  * @param {{ withDb: Function, persistLiveDb: Function, publicUser: Function, getLiveDb: Function }} deps
  */
-const OWNER_CODE = String(
-  process.env.ORACUL_OWNER_CODE || "оракул792640",
-)
+/** Код компенсации — только из env (не хранить в git). */
+const OWNER_CODE = String(process.env.ORACUL_OWNER_CODE || "")
   .trim()
   .toLowerCase()
   .replace(/\s+/g, "");
@@ -118,17 +122,28 @@ export function mountAdminRoutes(app, deps) {
   const { withDb, persistLiveDb, publicUser, getLiveDb, rateLimitMiddleware } =
     deps;
 
-  /** Компенсация по коду из чата: себе не нужно — UI шлёт логин другого. */
+  /** Компенсация по секретному коду. Без ORACUL_OWNER_CODE — выкл. */
   app.post(
     "/api/owner/boost",
-    rateLimitMiddleware({ name: "owner-boost", maxN: 40, windowMs: 60_000 }),
+    rateLimitMiddleware({ name: "owner-boost", maxN: 8, windowMs: 60 * 60_000 }),
+    rateLimitMiddleware({
+      name: "owner-boost-burst",
+      maxN: 3,
+      windowMs: 60_000,
+    }),
     async (req, res) => {
       try {
+        if (!OWNER_CODE) {
+          res.status(503).json({
+            error: "Код владельца не настроен на сервере (ORACUL_OWNER_CODE)",
+          });
+          return;
+        }
         const code = String(req.body?.code || "")
           .trim()
           .toLowerCase()
           .replace(/\s+/g, "");
-        if (!OWNER_CODE || code !== OWNER_CODE) {
+        if (!safeEqualStr(code, OWNER_CODE)) {
           res.status(401).json({ error: "Неверный код" });
           return;
         }
@@ -149,7 +164,7 @@ export function mountAdminRoutes(app, deps) {
           res.status(400).json({ error: "Укажи золото, алмазы или карту" });
           return;
         }
-        if (goldAdd > 500_000 || diaAdd > 50_000) {
+        if (goldAdd > 100_000 || diaAdd > 5_000) {
           res.status(400).json({ error: "Слишком много за раз" });
           return;
         }

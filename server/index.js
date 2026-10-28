@@ -482,12 +482,15 @@ function auth(req, res, next) {
 
 const app = express();
 app.disable("x-powered-by");
+// За nginx / Cloudflare — реальный IP для rate-limit
+app.set("trust proxy", 1);
 app.use(cors({ origin: true, credentials: true }));
-app.use(express.json({ limit: "512kb" }));
+app.use(express.json({ limit: "256kb" }));
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("X-XSS-Protection", "0");
   next();
 });
 /** Health без rate-limit — иначе мониторинг/QA ловят 429 после шторма. */

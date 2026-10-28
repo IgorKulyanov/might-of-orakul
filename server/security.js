@@ -130,11 +130,14 @@ export function sanitizeOwned(raw, prev) {
   next.level = clampInt(next.level, 1, MAX_LEVEL, base.level ?? 1);
   next.xp = clampInt(next.xp, 0, MAX_XP, base.xp ?? 0);
 
-  // Анти-телепорт валюты одним запросом (покупка пакета алмазов укладывается)
+  // Анти-накрутка: клиент не может резко накинуть валюту.
+  // Алмазы с ЮKassa/админки приходят через pendingGrants ПОСЛЕ sanitizeOwned.
   const prevGold = Number(base.gold) || 0;
   const prevDia = Number(base.diamonds) || 0;
-  if (next.gold > prevGold + 50_000) next.gold = prevGold + 50_000;
-  if (next.diamonds > prevDia + 2_000) next.diamonds = prevDia + 2_000;
+  // Обмен 💎→🪙 и награды боя — до ~5–10к за сейв; 15к с запасом.
+  if (next.gold > prevGold + 15_000) next.gold = prevGold + 15_000;
+  // Дейлики/арена/апы — единицы алмазов. +40/сейв режет «телепорт пакета» с клиента.
+  if (next.diamonds > prevDia + 40) next.diamonds = prevDia + 40;
 
   if (typeof next.heroId === "string") {
     const h = sanitizeHeroId(next.heroId);

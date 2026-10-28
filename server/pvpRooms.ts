@@ -512,8 +512,24 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
     maxPayload: MAX_MSG_BYTES,
   });
 
-  wss.on("connection", (ws: WebSocket, _req: IncomingMessage) => {
+  wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
     const connId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const ip =
+      String(req.headers["x-forwarded-for"] || "")
+        .split(",")[0]
+        .trim() ||
+      req.socket.remoteAddress ||
+      "unknown";
+    const connRl = rateLimit(`pvp-conn:${ip}`, 12, 60_000);
+    if (!connRl.ok) {
+      send(ws, { type: "error", message: "Слишком много подключений к PvP" });
+      try {
+        ws.close();
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
 
     const leaveCurrentRoom = (reason: "leave" | "disconnect") => {
       const code = socketRoom.get(ws) ?? null;

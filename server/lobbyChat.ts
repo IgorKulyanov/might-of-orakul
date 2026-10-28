@@ -42,6 +42,8 @@ const MSG_MAX = 200;
 const CHAT_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const MAX_CLIENTS = 200;
 const PING_MS = 25_000;
+const HELLO_TIMEOUT_MS = 8_000;
+const MAX_CONN_PER_IP = 8;
 
 const history: ChatMsg[] = [];
 const clients = new Set<WebSocket>();
@@ -173,16 +175,44 @@ export function attachLobbyChat(authLookup: AuthLookup): WebSocketServer {
     maxPayload: 4096,
   });
 
-  wss.on("connection", (ws: WebSocket, _req: IncomingMessage) => {
+  wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
     if (clients.size >= MAX_CLIENTS) {
       send(ws, { type: "error", message: "Чат переполнен, зайди позже" });
       ws.close();
       return;
     }
 
+    const ip =
+      String(req.headers["x-forwarded-for"] || "")
+        .split(",")[0]
+        .trim() ||
+      req.socket.remoteAddress ||
+      "unknown";
+    const connRl = rateLimit(`chat-conn:${ip}`, MAX_CONN_PER_IP, 60_000);
+    if (!connRl.ok) {
+      send(ws, { type: "error", message: "Слишком много подключений" });
+      ws.close();
+      return;
+    }
+
     let user: { id: string; login: string; name: string } | null = null;
     let alive = true;
+    let lastText = "";
+    let lastTextAt = 0;
     clients.add(ws);
+
+    // Без hello — выкидываем (не держим «зомби» для DoS).
+    const helloTimer = setTimeout(() => {
+      if (!user && ws.readyState === ws.OPEN) {
+        send(ws, { type: "error", message: "Нет авторизации в чате" });
+        try {
+          ws.close();
+        } catch {
+          /* ignore */
+        }
+      }
+    }, HELLO_TIMEOUT_MS);
+    helloTimer.unref?.();
 
     // Держим сокет живым за nginx (иначе idle ~2 мин режет связь).
     ws.on("pong", () => {
@@ -211,6 +241,11 @@ export function attachLobbyChat(authLookup: AuthLookup): WebSocketServer {
     pingTimer.unref?.();
 
     ws.on("message", (raw) => {
+      const packRl = rateLimit(`chat-pack:${ip}`, 40, 10_000);
+      if (!packRl.ok) {
+        send(ws, { type: "error", message: "Слишком много пакетов" });
+        return;
+      }
       const text = String(raw);
       if (text.length > 4000) {
         send(ws, { type: "error", message: "Слишком длинное сообщение" });
@@ -239,6 +274,7 @@ export function attachLobbyChat(authLookup: AuthLookup): WebSocketServer {
           sanitizeDisplayName(u.login) ||
           "Игрок";
         user = { id: u.id, login: u.login, name };
+        clearTimeout(helloTimer);
         authedClients.add(ws);
         try {
           touchPresence({
@@ -290,9 +326,14 @@ export function attachLobbyChat(authLookup: AuthLookup): WebSocketServer {
           send(ws, { type: "error", message: "Ты в муте чата" });
           return;
         }
-        const rl = rateLimit(`chat-say:${user.id}`, 8, 20_000);
+        const rl = rateLimit(`chat-say:${user.id}`, 6, 20_000);
         if (!rl.ok) {
           send(ws, { type: "error", message: "Пиши помедленнее" });
+          return;
+        }
+        const ipSay = rateLimit(`chat-say-ip:${ip}`, 20, 60_000);
+        if (!ipSay.ok) {
+          send(ws, { type: "error", message: "Слишком много сообщений с сети" });
           return;
         }
         const body = sanitizeChatText(msg.text, MSG_MAX);
@@ -301,10 +342,17 @@ export function attachLobbyChat(authLookup: AuthLookup): WebSocketServer {
           return;
         }
         // Грубая защита от ссылок-спама
-        if (/https?:\/\/|www\./i.test(body)) {
+        if (/https?:\/\/|www\./i.test(body) || /t\.me\/|discord\.gg/i.test(body)) {
           send(ws, { type: "error", message: "Ссылки в чате запрещены" });
           return;
         }
+        const now = Date.now();
+        if (body === lastText && now - lastTextAt < 30_000) {
+          send(ws, { type: "error", message: "Не повторяй одно и то же" });
+          return;
+        }
+        lastText = body;
+        lastTextAt = now;
         const chatMsg: ChatMsg = {
           id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
           at: Date.now(),
@@ -321,6 +369,7 @@ export function attachLobbyChat(authLookup: AuthLookup): WebSocketServer {
       /* ignore */
     });
     ws.on("close", () => {
+      clearTimeout(helloTimer);
       clearInterval(pingTimer);
       clients.delete(ws);
       authedClients.delete(ws);
