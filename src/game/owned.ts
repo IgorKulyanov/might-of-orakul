@@ -273,13 +273,15 @@ function currentHeroFaction(owned: OwnedState): Faction {
 
 function heroIdForFaction(owned: OwnedState, faction: Faction): string {
   const epic = `hero_${faction}_epic`;
-  if (
-    (owned.unlockedHeroes ?? []).includes(epic) ||
-    owned.heroId === epic
-  ) {
-    return epic;
+  const base = `hero_${faction}`;
+  const current = owned.heroId ?? "";
+  try {
+    if (getHero(current).faction === faction) return current;
+  } catch {
+    /* сломанный id — ниже подставим по фракции */
   }
-  return `hero_${faction}`;
+  if ((owned.unlockedHeroes ?? []).includes(epic)) return epic;
+  return base;
 }
 
 /**
@@ -287,7 +289,7 @@ function heroIdForFaction(owned: OwnedState, faction: Faction): string {
  * Раньше «угадывание» расы по картам кейса само меняло оракула
  * (смерть → ад) — убрано.
  */
-function repairOracleRace(owned: OwnedState): OwnedState {
+export function repairOracleRace(owned: OwnedState): OwnedState {
   const blankOnboarding =
     !owned.homeFaction &&
     (owned.heroId ?? "hero_life") === "hero_life" &&

@@ -59,6 +59,8 @@ import {
   exchangeDiamondsAmount,
   exchangeDiamondsForGold,
   homeFactionOf,
+  repairOracleRace,
+  setHero,
 } from "./owned";
 import { battleGold, battleXp, grantXp } from "./progression";
 import {
@@ -187,6 +189,45 @@ export function economyAll(fails: QaFail[], ok: string[]): void {
     if (own.owned.heroId !== "hero_death_epic") return "эпик не надет";
     if (homeFactionOf(own.owned) !== "death") return "homeFaction слетел";
     if (canSelectHero(own.owned, "hero_nature")) return "можно выбрать чужую расу";
+    const back = setHero(own.owned, "hero_death");
+    if (back.heroId !== "hero_death") return "нельзя надеть обычную смерть";
+    const repaired = repairOracleRace(back);
+    if (repaired.heroId !== "hero_death") {
+      return `обычную смерть подменили на ${repaired.heroId}`;
+    }
+    return null;
+  });
+
+  check("base death start mana is not epic", () => {
+    const deck = botDeckForLevel(1, "death");
+    const base = createBattle(
+      deck,
+      deck,
+      "hero_death",
+      "hero_hell",
+      "QA",
+      1,
+      1,
+    );
+    const epic = createBattle(
+      deck,
+      deck,
+      "hero_death_epic",
+      "hero_hell",
+      "QA",
+      1,
+      1,
+    );
+    const b = base.you.mana.death ?? 0;
+    const e = epic.you.mana.death ?? 0;
+    if (b !== 3) return `обычная смерть старт ${b}, ждали 3`;
+    if (e !== 4) return `эпик смерти старт ${e}, ждали 4`;
+    for (const f of FACTIONS) {
+      if (f === "death") continue;
+      if ((base.you.mana[f] ?? 0) !== 2) {
+        return `обычная смерть ${f}=${base.you.mana[f]}, ждали 2`;
+      }
+    }
     return null;
   });
 
