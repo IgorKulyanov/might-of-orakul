@@ -285,6 +285,7 @@ export function Battle({
   const enemyHero = getHero(state.enemy.heroId);
   const [fx, setFx] = useState<BattleFx | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pvpAwaiting, setPvpAwaiting] = useState(false);
   const [phase, setPhase] = useState<"you" | "enemy">(() =>
     externalState?.active === "enemy" ? "enemy" : "you",
   );
@@ -435,6 +436,11 @@ export function Battle({
       setDiceUi("prompt");
       return;
     }
+    if (network.turnEndsAt) {
+      diceDoneRef.current = true;
+      setDiceUi("hidden");
+      return;
+    }
     if (network.youRolled && network.openingLocked) {
       setDiceUi("wait");
       return;
@@ -448,6 +454,7 @@ export function Battle({
     network?.youRolled,
     network?.openingLocked,
     network?.openingDice,
+    network?.turnEndsAt,
   ]);
 
   useEffect(() => {
@@ -469,21 +476,18 @@ export function Battle({
 
   useEffect(() => {
     if (!externalState) return;
-    const echoOwnTurn =
+    const keepBusy =
       lock.current &&
-      stateRef.current.active === "you" &&
       externalState.active === "you" &&
-      !externalState.winner &&
-      !stateRef.current.winner;
+      !externalState.winner;
     stateRef.current = externalState;
     setState(externalState);
     setPhase(externalState.active === "you" ? "you" : "enemy");
-    // Не сбрасывать busy по эху своего хода — иначе можно ходить поверх анимации.
-    if (echoOwnTurn) return;
-    if (externalState.active !== "you" || externalState.winner) {
-      setBusy(false);
-      lock.current = false;
-    }
+    setPvpAwaiting(false);
+    // Стол всегда с сервера. Busy не сбрасываем посреди своей анимации.
+    if (keepBusy) return;
+    setBusy(false);
+    lock.current = false;
   }, [externalState]);
 
   useLayoutEffect(() => {
@@ -535,7 +539,7 @@ export function Battle({
 
   useEffect(() => {
     if (!state.winner || rewarded.current) return;
-    if (network && !network.ended && !externalState?.winner) return;
+    if (network && !network.ended) return;
     rewarded.current = true;
     const won = state.winner === "you";
     try {
@@ -557,11 +561,15 @@ export function Battle({
       window.clearTimeout(fallback);
       reveal();
     });
-  }, [state.winner, network, network?.ended, externalState?.winner]);
+  }, [state.winner, network?.ended]);
 
   const pvpHold = Boolean(network && diceUi !== "hidden");
   const actionBlocked =
-    busy || pvpHold || !!state.winner || state.active !== "you";
+    busy ||
+    pvpAwaiting ||
+    pvpHold ||
+    !!state.winner ||
+    state.active !== "you";
 
   const spellMode = spellTargetMode(state);
   const attackTargets = useMemo(() => {
@@ -1577,6 +1585,18 @@ export function Battle({
       sfxTurn();
 
       if (networkRef.current) {
+        setPvpAwaiting(true);
+        setPhase("enemy");
+        setState((s) => {
+          const next = {
+            ...s,
+            active: "enemy" as const,
+            selectedHand: null,
+            selectedSlot: null,
+          };
+          stateRef.current = next;
+          return next;
+        });
         networkRef.current.sendAction({ kind: "endTurn" });
         await sleep(400);
         return;
@@ -2147,9 +2167,6 @@ export function Battle({
                   onClick={onEndTurn}
                 >
                   Конец хода
-                  {network && turnLeftSec != null && state.active === "you"
-                    ? ` · ${turnLeftSec}с`
-                    : ""}
                 </button>
                 <button
                   type="button"

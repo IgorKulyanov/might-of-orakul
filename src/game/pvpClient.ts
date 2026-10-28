@@ -93,11 +93,8 @@ export class PvpSocket {
         this.ws = null;
         if (this.closedByUser) return;
         this.onMsg?.({
-          type: "ended",
-          winnerSeat: null,
-          youWon: false,
-          reason: "disconnect",
-          message: "Связь оборвалась — поражение",
+          type: "error",
+          message: "Связь оборвалась. Обнови страницу.",
         });
       };
     });

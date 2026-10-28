@@ -2645,7 +2645,7 @@ html.is-hand-dragging .grave-row {
   background: rgba(0, 0, 0, 0.65);
   display: grid;
   place-items: center;
-  z-index: 20;
+  z-index: 200;
 }
 
 .modal {
@@ -3297,6 +3297,7 @@ html.is-hand-dragging .grave-row {
   padding: 1rem;
   background: rgba(6, 8, 14, 0.92);
   animation: battle-result-veil 0.7s ease both;
+  z-index: 220;
 }
 
 .battle-result-overlay.is-win {
