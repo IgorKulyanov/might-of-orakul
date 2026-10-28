@@ -43,6 +43,7 @@ import {
   retailIntegrity,
   soloModesAll,
 } from "./qa-meta";
+import { pvpDuelAll } from "./qa-pvp";
 import type {
   BattleState,
   CreatureAbility,
@@ -1497,6 +1498,8 @@ export function runQa(opts?: { fuzzGames?: number }): QaReport {
   progressIntegrity(fails, ok);
   note("ритейл: арт / привязки / PvP / витрина");
   retailIntegrity(fails, ok);
+  note("PvP дуэль с двух мест");
+  pvpDuelAll(fails, ok);
   note("готово");
 
   const lines: string[] = [];

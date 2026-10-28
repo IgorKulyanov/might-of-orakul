@@ -850,6 +850,12 @@ export function retailIntegrity(fails: QaFail[], ok: string[]): void {
     t = applySeatAction(t, "host", { kind: "endTurn" });
     if (t.active !== "enemy") return `гость первым: после хоста active=${t.active}`;
     if (t.turn !== 2) return `гость первым: round turn=${t.turn}`;
+    try {
+      applySeatAction(s, "host", { kind: "commitState", state: s });
+      return "снимок стола принят";
+    } catch {
+      /* ок */
+    }
     return null;
   });
 

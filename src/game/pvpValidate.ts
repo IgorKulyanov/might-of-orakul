@@ -5,7 +5,7 @@ const FACTIONS: Faction[] = ["water", "hell", "death", "life", "nature"];
 
 /**
  * Анти-чит для снимка стейта: режем «бог-режим».
- * Полная серверная симуляция всех flex — цель; это страховка пока UI шлёт commitState.
+ * Запасная проверка снимка. Боевой PvP снимок больше не принимает — только типизированный ход.
  */
 export function validateBattleCommit(
   prevHost: BattleState,

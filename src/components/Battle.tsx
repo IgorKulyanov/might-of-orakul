@@ -612,14 +612,19 @@ export function Battle({
         setFx(null);
         return stateRef.current;
       }
+      if (networkRef.current && after.winner) {
+        after = { ...after, winner: null };
+      }
       stateRef.current = after;
       setState(after);
       playResultSfx(before, after);
       if (networkRef.current) {
+        if (!netAction) {
+          console.error("[battle] PvP без типизированного хода");
+          return after;
+        }
         try {
-          networkRef.current.sendAction(
-            netAction ?? { kind: "commitState", state: after },
-          );
+          networkRef.current.sendAction(netAction);
         } catch (e) {
           console.error("[battle] net send fail:", e);
         }
@@ -707,6 +712,7 @@ export function Battle({
               return playCard(s, idx, null);
             },
             1400,
+            { kind: "playCard", handIndex: i, slotIndex: null },
           );
         });
         return;
@@ -783,6 +789,12 @@ export function Battle({
               slot: i,
             }),
           1600,
+          {
+            kind: "marionette",
+            handIndex: hand,
+            puppetSlot: puppet,
+            target: { kind: "ally_unit", slot: i },
+          },
         );
       });
       return;
@@ -819,6 +831,7 @@ export function Battle({
           },
           (s) => playGuardianBond(s, hand, tank, i),
           1400,
+          { kind: "guardianBond", handIndex: hand, tankSlot: tank, wardSlot: i },
         );
       });
       return;
@@ -852,6 +865,7 @@ export function Battle({
           },
           (s) => playCard(s, hand, i),
           1400,
+          { kind: "playCard", handIndex: hand, slotIndex: i },
         );
       });
       return;
@@ -868,6 +882,7 @@ export function Battle({
             { side: "you", kind: "play", toSlot: i, cardId: state.you.hand[hand] },
             (s) => playCard(s, hand, i),
             850,
+            { kind: "playCard", handIndex: hand, slotIndex: i },
           );
         });
         return;
@@ -887,6 +902,7 @@ export function Battle({
           { side: "you", kind: "heal", fromSlot: from, toSlot: i },
           (s) => healWithAngel(s, from, i),
           900,
+          { kind: "healAngel", fromSlot: from, toSlot: i },
         );
       });
         return;
@@ -905,6 +921,7 @@ export function Battle({
           { side: "you", kind: "heal", fromSlot: from, toSlot: i },
           (s) => buffWithMage(s, from, i),
           900,
+          { kind: "buffMage", fromSlot: from, toSlot: i },
         );
       });
       return;
@@ -923,6 +940,7 @@ export function Battle({
           { side: "you", kind: "heal", fromSlot: from, toSlot: i },
           (s) => shieldWithPaladin(s, from, i),
           900,
+          { kind: "shieldPaladin", fromSlot: from, toSlot: i },
         );
       });
       return;
@@ -948,6 +966,7 @@ export function Battle({
           },
           (s) => swapStatsWithLeshy(s, from, "you", i),
           900,
+          { kind: "swapLeshy", fromSlot: from, side: "you", toSlot: i },
         );
       });
       return;
@@ -971,6 +990,7 @@ export function Battle({
           },
           (s) => moveUnitToEmptySlot(s, from, i),
           850,
+          { kind: "moveUnit", fromSlot: from, toSlot: i },
         );
       });
       return;
@@ -994,6 +1014,7 @@ export function Battle({
           },
           (s) => summonAquiliteWithTriton(s, from, i),
           900,
+          { kind: "summonAquilite", fromSlot: from, toSlot: i },
         );
       });
       return;
@@ -1017,6 +1038,7 @@ export function Battle({
           },
           (s) => summonSkeletonWithNecro(s, from, i),
           900,
+          { kind: "summonSkeleton", fromSlot: from, toSlot: i },
         );
       });
       return;
@@ -1040,6 +1062,7 @@ export function Battle({
           },
           (s) => summonHornetWithQueen(s, from, i),
           900,
+          { kind: "summonHornet", fromSlot: from, toSlot: i },
         );
       });
       return;
@@ -1071,6 +1094,12 @@ export function Battle({
           },
           (s) => reviveWithGravedigger(s, from, i, gyIdx),
           900,
+          {
+            kind: "reviveGravedigger",
+            fromSlot: from,
+            graveIndex: gyIdx,
+            toSlot: i,
+          },
         );
       });
       return;
@@ -1093,6 +1122,7 @@ export function Battle({
           },
           (s) => verdictWithArbiter(s, i),
           1100,
+          { kind: "verdictArbiter", fromSlot: i },
         );
       });
       return;
@@ -1109,6 +1139,7 @@ export function Battle({
           { side: "you", kind: "heal", fromSlot: i, toSlot: i },
           (s) => buffWithMage(s, i, i),
           900,
+          { kind: "buffMage", fromSlot: i, toSlot: i },
         );
       });
       return;
@@ -1138,7 +1169,11 @@ export function Battle({
   const faceEnemyHero = (from: number) => {
     const preview = attackFxPreview(state, from, "hero");
     void runLocked(async () => {
-      await playFx(preview, (s) => attackWith(s, from, "hero"), 1000);
+      await playFx(preview, (s) => attackWith(s, from, "hero"), 1000, {
+        kind: "attack",
+        fromSlot: from,
+        target: "hero",
+      });
     });
   };
 
@@ -1188,6 +1223,12 @@ export function Battle({
               slot: i,
             }),
           1600,
+          {
+            kind: "marionette",
+            handIndex: hand,
+            puppetSlot: puppet,
+            target: { kind: "enemy_unit", slot: i },
+          },
         );
       });
       return;
@@ -1206,6 +1247,7 @@ export function Battle({
           },
           (s) => playCard(s, hand, i),
           1400,
+          { kind: "playCard", handIndex: hand, slotIndex: i },
         );
       });
       return;
@@ -1238,6 +1280,7 @@ export function Battle({
           },
           (s) => sleepWithMermaid(s, from, i),
           900,
+          { kind: "sleepMermaid", fromSlot: from, toSlot: i },
         );
       });
       return;
@@ -1261,6 +1304,7 @@ export function Battle({
           },
           (s) => sleepWithSuccubus(s, from, i),
           900,
+          { kind: "sleepSuccubus", fromSlot: from, toSlot: i },
         );
       });
       return;
@@ -1279,6 +1323,7 @@ export function Battle({
           },
           (s) => stunWithBanshee(s, from, i),
           900,
+          { kind: "stunBanshee", fromSlot: from, toSlot: i },
         );
       });
       return;
@@ -1297,6 +1342,7 @@ export function Battle({
           },
           (s) => swapStatsWithLeshy(s, from, "enemy", i),
           900,
+          { kind: "swapLeshy", fromSlot: from, side: "enemy", toSlot: i },
         );
       });
       return;
@@ -1321,6 +1367,7 @@ export function Battle({
           },
           (s) => sleepWithMermaid(s, from, i),
           900,
+          { kind: "sleepMermaid", fromSlot: from, toSlot: i },
         );
       });
       return;
@@ -1343,6 +1390,7 @@ export function Battle({
           },
           (s) => sleepWithSuccubus(s, from, i),
           900,
+          { kind: "sleepSuccubus", fromSlot: from, toSlot: i },
         );
       });
       return;
@@ -1359,6 +1407,7 @@ export function Battle({
           },
           (s) => stunWithBanshee(s, from, i),
           900,
+          { kind: "stunBanshee", fromSlot: from, toSlot: i },
         );
       });
       return;
@@ -1380,6 +1429,7 @@ export function Battle({
           },
           (s) => swapStatsWithLeshy(s, from, "enemy", i),
           900,
+          { kind: "swapLeshy", fromSlot: from, side: "enemy", toSlot: i },
         );
       });
       return;
@@ -1420,6 +1470,7 @@ export function Battle({
             },
             (s) => swapEnemyWithBalthazar(s, from, a, i),
             900,
+            { kind: "swapBalthazar", fromSlot: from, a, b: i },
           );
         });
         return;
@@ -1430,7 +1481,11 @@ export function Battle({
     if (attackTargets.has(String(i)) && enemyUnit) {
       const preview = attackFxPreview(state, from, i);
       void runLocked(async () => {
-        await playFx(preview, (s) => attackWith(s, from, i), 1000);
+        await playFx(preview, (s) => attackWith(s, from, i), 1000, {
+          kind: "attack",
+          fromSlot: from,
+          target: i,
+        });
       });
       return;
     }
@@ -1473,6 +1528,12 @@ export function Battle({
           },
           (s) => playMarionette(s, hand, puppet, { kind: "enemy_hero" }),
           1600,
+          {
+            kind: "marionette",
+            handIndex: hand,
+            puppetSlot: puppet,
+            target: { kind: "enemy_hero" },
+          },
         );
       });
       return;
@@ -1514,6 +1575,12 @@ export function Battle({
           },
           (s) => playMarionette(s, hand, puppet, { kind: "ally_hero" }),
           1600,
+          {
+            kind: "marionette",
+            handIndex: hand,
+            puppetSlot: puppet,
+            target: { kind: "ally_hero" },
+          },
         );
       });
       return;
@@ -1528,6 +1595,7 @@ export function Battle({
         { side: "you", kind: "heal", fromSlot: from, hitHero: true },
         (s) => buffWithMage(s, from, "hero"),
         900,
+        { kind: "buffMage", fromSlot: from, toSlot: "hero" },
       );
     });
   };
@@ -1558,7 +1626,12 @@ export function Battle({
         playActionSfx(preview, s);
         await sleep(320);
         const before = s;
-        s = attackWith(s, i, target);
+        const after = attackWith(s, i, target);
+        const over = Boolean(after.winner) || after.enemy.hp <= 0;
+        s =
+          networkRef.current && after.winner
+            ? { ...after, winner: null }
+            : after;
         stateRef.current = s;
         setState(s);
         playResultSfx(before, s);
@@ -1571,7 +1644,7 @@ export function Battle({
         }
         setFx(null);
         await sleep(180);
-        if (s.winner) break;
+        if (over) break;
       }
     });
   };
@@ -2489,7 +2562,7 @@ export function Battle({
         </div>
       )}
 
-      {showResult && state.winner && (
+      {showResult && state.winner && (!network || network.ended) && (
         <div
           className={`overlay battle-result-overlay ${
             state.winner === "you" ? "is-win" : "is-lose"

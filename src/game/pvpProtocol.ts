@@ -29,8 +29,6 @@ import {
   viewForSeat,
   type PvpSeat,
 } from "./pvpFlip";
-import { validateBattleCommit } from "./pvpValidate";
-
 export type { PvpSeat };
 export { flipBattle, isSeatTurn, viewForSeat };
 
@@ -166,7 +164,7 @@ export type PvpAction =
   | { kind: "playCard"; handIndex: number; slotIndex: number | null }
   | { kind: "attack"; fromSlot: number; target: AttackTarget }
   | { kind: "healAngel"; fromSlot: number; toSlot: number }
-  | { kind: "buffMage"; fromSlot: number; toSlot: number }
+  | { kind: "buffMage"; fromSlot: number; toSlot: number | "hero" }
   | { kind: "moveUnit"; fromSlot: number; toSlot: number }
   | { kind: "shieldPaladin"; fromSlot: number; toSlot: number }
   | {
@@ -236,8 +234,8 @@ export function applyPvpAction(
       return reviveWithGravedigger(
         viewedAsYou,
         action.fromSlot,
-        action.graveIndex,
         action.toSlot,
+        action.graveIndex,
       );
     case "summonAquilite":
       return summonAquiliteWithTriton(
@@ -289,6 +287,8 @@ export function applyPvpAction(
         action.tankSlot,
         action.wardSlot,
       );
+    case "commitState":
+      throw new Error("Снимок стола не принимается — ходи действием");
     default:
       return viewedAsYou;
   }
@@ -301,12 +301,7 @@ export function applySeatAction(
   action: PvpAction,
 ): BattleState {
   if (action.kind === "commitState") {
-    // Снимок с клиента — только после анти-чит проверки (бог-режим режется).
-    const check = validateBattleCommit(hostFrame, action.state, seat);
-    if (!check.ok) {
-      throw new Error(check.error);
-    }
-    return check.host;
+    throw new Error("Снимок стола не принимается — ходи действием");
   }
   if (!isSeatTurn(hostFrame, seat)) return hostFrame;
   if (seat === "host") {
