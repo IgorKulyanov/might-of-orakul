@@ -219,7 +219,7 @@ export function Cabinet({
         <h1>Личный кабинет</h1>
         <div className="wallet-row">
           <span className="wallet-chip gold" title="Золото">
-            🪙 {owned.gold ?? 0}
+            зол. {owned.gold ?? 0}
           </span>
           <span className="wallet-chip dia" title="Кристаллы">
             💎 {owned.diamonds ?? 0}

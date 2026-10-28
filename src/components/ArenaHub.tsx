@@ -173,7 +173,7 @@ export function ArenaHub({
           <p className="arena-win-loot">
             Награды арены за забег (уже в кошельке, по боям):{" "}
             <strong>
-              🪙
+              зол.
               {Object.values(ARENA_ROUND_REWARDS).reduce((s, r) => s + r.gold, 0)}
             </strong>
             {" · "}
@@ -284,7 +284,7 @@ export function ArenaHub({
                   >
                     <span className="arena-reward-round">Бой {r}</span>
                     <span className="arena-reward-loot">
-                      🪙{row.gold}
+                      зол.{row.gold}
                       {row.diamonds > 0 ? ` · 💎${row.diamonds}` : ""}
                     </span>
                     <em>
@@ -295,11 +295,11 @@ export function ArenaHub({
               })}
             </ul>
             <p className="arena-reward-total">
-              Забег целиком: 🪙430 · 💎8
+              Забег целиком: зол. 430 · 💎8
               {reward ? (
                 <>
                   <br />
-                  За этот бой: 🪙{reward.gold}
+                  За этот бой: зол.{reward.gold}
                   {reward.diamonds > 0 ? ` · 💎${reward.diamonds}` : ""}
                 </>
               ) : null}

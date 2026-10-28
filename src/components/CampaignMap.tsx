@@ -152,7 +152,7 @@ export function CampaignMap({
             >
               <strong>{m}</strong>
               <span>
-                {r.gold > 0 ? `🪙${r.gold}` : ""}
+                {r.gold > 0 ? `зол.${r.gold}` : ""}
                 {r.gold > 0 && r.diamonds > 0 ? " · " : ""}
                 {r.diamonds > 0 ? `💎${r.diamonds}` : ""}
               </span>

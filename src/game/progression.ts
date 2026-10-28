@@ -53,14 +53,14 @@ export function startManaBonus(level: number): number {
 
 export type LevelUpReward = { gold: number; diamonds: number };
 
-/** Подарок за каждый новый уровень: фиксированно 50🪙 и 1💎. */
+/** Подарок за каждый новый уровень: фиксированно 50зол. и 1💎. */
 export function levelUpReward(_newLevel: number): LevelUpReward {
   return { gold: 50, diamonds: 1 };
 }
 
 /**
  * Золото за бой — как drip в HS/Snap: копит медленно.
- * ~5 побед/день ≈ 55–70🪙; легенду (T5) не купить за вечер.
+ * ~5 побед/день ≈ 55–70зол.; легенду (T5) не купить за вечер.
  */
 export function battleGold(won: boolean, playerLevel: number): number {
   const lv = Math.max(1, playerLevel);

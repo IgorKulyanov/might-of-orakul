@@ -107,7 +107,7 @@ function HeroCard({
           <div className="hero-buy-row">
             <div className="hero-buy-col">
               <span className="hero-buy-label">
-                {EPIC_HERO_GOLD.toLocaleString("ru-RU")} 🪙
+                {EPIC_HERO_GOLD.toLocaleString("ru-RU")} зол.
               </span>
               <button
                 type="button"
@@ -171,7 +171,7 @@ export function HeroSelect({ owned, onChange, onBack, onBattle }: Props) {
           нельзя. Можно надеть базового или эпик <em>своей</em> школы. Ур.{" "}
           {level}, в бою <strong>{hp} HP</strong>.{" "}
           <span className="hero-wallet">
-            {owned.gold ?? 0} 🪙 · {owned.diamonds ?? 0} 💎
+            {owned.gold ?? 0} зол. · {owned.diamonds ?? 0} 💎
           </span>
         </p>
         <XpBar level={level} xp={xp} xpNeed={xpNeed} />

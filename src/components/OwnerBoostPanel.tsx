@@ -158,7 +158,7 @@ export function OwnerBoostPanel({ open, owned, onClose }: Props) {
               disabled={busy || !canAct}
               onClick={() => void grant({ gold: 500 })}
             >
-              +500 🪙
+              +500 зол.
             </button>
             <button
               type="button"
@@ -174,7 +174,7 @@ export function OwnerBoostPanel({ open, owned, onClose }: Props) {
               disabled={busy || !canAct}
               onClick={() => void grant({ gold: 2000, diamonds: 50 })}
             >
-              +2000🪙 +50💎
+              +2000 зол. +50💎
             </button>
           </div>
         </section>
@@ -203,7 +203,7 @@ export function OwnerBoostPanel({ open, owned, onClose }: Props) {
                       ? `есть ${have}`
                       : `выдать → ${otherLogin.trim() || "…"}`}
                     {" · "}
-                    {c.priceGold ?? 0}🪙
+                    {c.priceGold ?? 0}зол.
                     {c.priceDiamonds ? ` / ${c.priceDiamonds}💎` : ""}
                   </span>
                 </button>
