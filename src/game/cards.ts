@@ -66,7 +66,7 @@ export function manaCostTotal(cost: ManaCost): number {
 }
 
 /** Сброс CDN/браузерного кэша картинок карт после замены арта. */
-const CARD_ART_CACHE = "4";
+const CARD_ART_CACHE = "5";
 
 export function cardArtUrl(card: CardDef): string {
   const art = card.art ?? `${card.id}.png`;
