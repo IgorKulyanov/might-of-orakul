@@ -109,6 +109,9 @@ type PvpClock = {
   endMessage: string | null;
   openingDice: SeatOpeningDice | null;
   openingLocked: boolean;
+  needRoll: boolean;
+  youRolled: boolean;
+  foeRolled: boolean;
 };
 
 type Screen =
@@ -383,8 +386,12 @@ export default function App() {
     endMessage: null,
     openingDice: null,
     openingLocked: false,
+    needRoll: false,
+    youRolled: false,
+    foeRolled: false,
   });
   const pvpSocketRef = useRef<PvpSocket | null>(null);
+  const pvpSettledRef = useRef(false);
   /** Сбежал из PvP — без наград (даже утешительных). */
   const pvpFledRef = useRef(false);
   /** Вышел из тропы/арены до конца — поражение без наград боя. */
@@ -877,6 +884,7 @@ export default function App() {
         return;
       }
       pvpFledRef.current = true;
+      pvpSettledRef.current = true;
       const flee = recordPvpFlee();
       const t = token ?? getToken();
       if (t) {
@@ -922,6 +930,9 @@ export default function App() {
       endMessage: null,
       openingDice: null,
       openingLocked: false,
+      needRoll: false,
+      youRolled: false,
+      foeRolled: false,
     });
     setScreen("multi");
   };
@@ -1259,6 +1270,17 @@ export default function App() {
           turnLimitSec: pvpClock.turnLimitSec,
           openingDice: pvpClock.openingDice,
           openingLocked: pvpClock.openingLocked,
+          needRoll: pvpClock.needRoll,
+          youRolled: pvpClock.youRolled,
+          foeRolled: pvpClock.foeRolled,
+          ended: Boolean(pvpClock.endMessage),
+          rollDice: () => {
+            try {
+              sock.rollDice();
+            } catch {
+              /* ignore */
+            }
+          },
           exitLabel: "Сдаться",
         }}
         allowRematch={false}
@@ -1301,8 +1323,12 @@ export default function App() {
           turnLimitSec,
           openingDice,
           openingLocked,
+          needRoll,
+          youRolled,
+          foeRolled,
         }) => {
           pvpFledRef.current = false;
+          pvpSettledRef.current = false;
           pvpSocketRef.current = socket;
           setPvpSeat(youAre);
           setPvpState(state);
@@ -1315,9 +1341,13 @@ export default function App() {
             endMessage: null,
             openingDice: openingDice ?? null,
             openingLocked: Boolean(openingLocked),
+            needRoll: Boolean(needRoll),
+            youRolled: Boolean(youRolled),
+            foeRolled: Boolean(foeRolled),
           });
           socket.setHandler((msg: PvpServerMsg) => {
             if (msg.type === "battle") {
+              if (pvpSettledRef.current && !msg.state.winner) return;
               setPvpState(msg.state);
               setPvpClock((c) => ({
                 ...c,
@@ -1326,15 +1356,24 @@ export default function App() {
                 foeTimeouts: msg.foeTimeouts,
                 maxTimeouts: msg.maxTimeouts,
                 turnLimitSec: msg.turnLimitSec,
-                openingDice: msg.openingDice ?? c.openingDice,
+                openingDice: msg.openingLocked
+                  ? (msg.openingDice ?? c.openingDice)
+                  : null,
                 openingLocked: Boolean(msg.openingLocked),
+                needRoll: Boolean(msg.needRoll),
+                youRolled: Boolean(msg.youRolled),
+                foeRolled: Boolean(msg.foeRolled),
               }));
             }
             if (msg.type === "ended") {
+              if (pvpSettledRef.current) return;
+              pvpSettledRef.current = true;
               setPvpClock((c) => ({
                 ...c,
                 turnEndsAt: null,
                 endMessage: msg.message,
+                openingLocked: false,
+                needRoll: false,
               }));
               setPvpState((s) => {
                 if (!s) return s;

@@ -44,6 +44,7 @@ export type PvpQueuePayload = {
 export class PvpSocket {
   private ws: WebSocket | null = null;
   private onMsg: ((m: PvpServerMsg) => void) | null = null;
+  private closedByUser = false;
 
   setHandler(onMessage: (m: PvpServerMsg) => void) {
     this.onMsg = onMessage;
@@ -55,6 +56,7 @@ export class PvpSocket {
       const url = resolveWsUrl();
       const ws = new WebSocket(url);
       this.ws = ws;
+      this.closedByUser = false;
       let settled = false;
       const timer = window.setTimeout(() => {
         if (settled) return;
@@ -89,6 +91,14 @@ export class PvpSocket {
       };
       ws.onclose = () => {
         this.ws = null;
+        if (this.closedByUser) return;
+        this.onMsg?.({
+          type: "ended",
+          winnerSeat: null,
+          youWon: false,
+          reason: "disconnect",
+          message: "Связь оборвалась — поражение",
+        });
       };
     });
   }
@@ -121,6 +131,7 @@ export class PvpSocket {
   }
 
   leave() {
+    this.closedByUser = true;
     try {
       this.send({ type: "cancel_queue" });
     } catch {
@@ -133,6 +144,10 @@ export class PvpSocket {
     }
     this.ws?.close();
     this.ws = null;
+  }
+
+  rollDice() {
+    this.send({ type: "roll_dice" });
   }
 
   action(action: PvpAction) {

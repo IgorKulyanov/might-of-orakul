@@ -3,6 +3,7 @@ import { WebSocketServer, type WebSocket } from "ws";
 import { CARD_MAP } from "../src/game/cards.ts";
 import {
   activeSeat,
+  applyOpeningDice,
   applySeatAction,
   forceWin,
   isSeatTurn,
@@ -47,6 +48,9 @@ type Room = {
   timeouts: { host: number; guest: number };
   endReason: PvpEndReason | null;
   openingDice: OpeningDice | null;
+  diceRolls: { host: number | null; guest: number | null };
+  openingPhase: "wait" | "reveal" | "done";
+  endedSent: boolean;
   /** До этого момента ходы с кубика не принимаем. */
   openingLockedUntil: number | null;
 };
@@ -231,12 +235,15 @@ function battlePayload(room: Room, seat: PvpSeat): PvpServerMsg {
     foeTimeouts,
     maxTimeouts: PVP_MAX_TIMEOUTS,
     turnLimitSec: PVP_TURN_SEC,
-    openingDice: room.openingDice
-      ? seatOpeningDice(room.openingDice, seat)
-      : undefined,
-    openingLocked: Boolean(
-      room.openingLockedUntil && Date.now() < room.openingLockedUntil,
-    ),
+    openingDice:
+      room.openingPhase === "reveal" && room.openingDice
+        ? seatOpeningDice(room.openingDice, seat)
+        : undefined,
+    openingLocked: room.openingPhase !== "done",
+    needRoll: room.openingPhase === "wait" && room.diceRolls[seat] == null,
+    youRolled: room.diceRolls[seat] != null,
+    foeRolled:
+      room.diceRolls[seat === "host" ? "guest" : "host"] != null,
   };
 }
 
@@ -276,9 +283,12 @@ function broadcastBattle(room: Room) {
   for (const seat of ["host", "guest"] as const) {
     const p = seat === "host" ? room.host : room.guest;
     if (!p) continue;
-    if (win) send(p.ws, endMessage(seat, win, reason));
+    if (win && !room.endedSent) {
+      send(p.ws, endMessage(seat, win, reason));
+    }
     send(p.ws, battlePayload(room, seat));
   }
+  if (win) room.endedSent = true;
 }
 
 function scheduleTurnTimer(room: Room) {
@@ -354,6 +364,60 @@ function finishForfeit(room: Room, loser: PvpSeat, reason: PvpEndReason) {
   broadcastBattle(room);
 }
 
+function d6(): number {
+  return 1 + Math.floor(Math.random() * 6);
+}
+
+function finishOpeningDice(room: Room) {
+  if (!room.battle || room.openingPhase !== "wait") return;
+  if (room.diceRolls.host == null || room.diceRolls.guest == null) return;
+  let host = room.diceRolls.host;
+  let guest = room.diceRolls.guest;
+  for (let i = 0; i < 24 && host === guest; i++) {
+    host = d6();
+    guest = d6();
+  }
+  if (host === guest) {
+    host = 6;
+    guest = 1;
+  }
+  room.diceRolls = { host, guest };
+  const dice: OpeningDice = {
+    host,
+    guest,
+    first: host > guest ? "host" : "guest",
+  };
+  room.openingDice = dice;
+  room.battle = applyOpeningDice(
+    room.battle,
+    dice,
+    room.host?.name ?? "Хост",
+    room.guest?.name ?? "Гость",
+  );
+  room.openingPhase = "reveal";
+  room.openingLockedUntil = Date.now() + PVP_OPENING_MS;
+  broadcastBattle(room);
+  clearTurnTimer(room);
+  room.turnTimer = setTimeout(() => {
+    if (!room.battle || winnerSeat(room.battle)) return;
+    room.openingPhase = "done";
+    room.openingLockedUntil = null;
+    scheduleTurnTimer(room);
+    broadcastBattle(room);
+  }, PVP_OPENING_MS);
+}
+
+function rollSeatDice(room: Room, seat: PvpSeat) {
+  if (!room.battle || room.openingPhase !== "wait") return;
+  if (room.diceRolls[seat] != null) return;
+  room.diceRolls[seat] = d6();
+  if (room.diceRolls.host != null && room.diceRolls.guest != null) {
+    finishOpeningDice(room);
+    return;
+  }
+  broadcastBattle(room);
+}
+
 function tryStart(room: Room) {
   if (room.battle) return;
   if (!room.host?.ready || !room.guest?.ready) return;
@@ -371,12 +435,17 @@ function tryStart(room: Room) {
         name: room.guest.name,
         level: room.guest.level,
       },
+      waitForDice: true,
     });
     room.battle = started.state;
-    room.openingDice = started.dice;
+    room.openingDice = null;
+    room.diceRolls = { host: null, guest: null };
+    room.openingPhase = "wait";
+    room.endedSent = false;
     room.timeouts = { host: 0, guest: 0 };
     room.endReason = null;
-    room.openingLockedUntil = Date.now() + PVP_OPENING_MS;
+    room.openingLockedUntil = Date.now() + 120_000;
+    room.turnEndsAt = null;
     room.battle = {
       ...room.battle,
       log: [
@@ -385,13 +454,14 @@ function tryStart(room: Room) {
       ].slice(0, 14),
     };
     broadcastBattle(room);
-    // Дать обоим увидеть кубик, потом стартует лимит хода.
+    clearTurnTimer(room);
+    // Если кто-то не нажмёт — бросаем за него, бой не зависает.
     room.turnTimer = setTimeout(() => {
-      if (!room.battle || winnerSeat(room.battle)) return;
-      room.openingLockedUntil = null;
-      scheduleTurnTimer(room);
-      broadcastBattle(room);
-    }, PVP_OPENING_MS);
+      if (!room.battle || room.openingPhase !== "wait") return;
+      if (room.diceRolls.host == null) room.diceRolls.host = d6();
+      if (room.diceRolls.guest == null) room.diceRolls.guest = d6();
+      finishOpeningDice(room);
+    }, 12_000);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Не удалось начать бой";
     if (room.host) send(room.host.ws, { type: "error", message });
@@ -457,6 +527,9 @@ function getOrCreate(code: string): Room | null {
       timeouts: { host: 0, guest: 0 },
       endReason: null,
       openingDice: null,
+      diceRolls: { host: null, guest: null },
+      openingPhase: "done",
+      endedSent: false,
       openingLockedUntil: null,
     };
     rooms.set(code, room);
@@ -811,6 +884,15 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
         return;
       }
 
+      if (msg.type === "roll_dice") {
+        if (!room.battle) {
+          send(ws, { type: "error", message: "Бой ещё не начат" });
+          return;
+        }
+        rollSeatDice(room, seat);
+        return;
+      }
+
       if (msg.type === "action") {
         if (!room.battle) {
           send(ws, { type: "error", message: "Бой ещё не начат" });
@@ -821,11 +903,8 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           return;
         }
         const action = msg.action as PvpAction;
-        if (
-          room.openingLockedUntil &&
-          Date.now() < room.openingLockedUntil
-        ) {
-          send(ws, { type: "error", message: "Ждём кубик — ещё не ходим" });
+        if (room.openingPhase !== "done") {
+          send(ws, { type: "error", message: "Сначала бросьте кубики" });
           return;
         }
         if (!isSeatTurn(room.battle, seat)) {

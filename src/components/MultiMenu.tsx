@@ -31,6 +31,9 @@ type Props = {
     turnLimitSec: number;
     openingDice?: { you: number; foe: number; youFirst: boolean };
     openingLocked?: boolean;
+    needRoll?: boolean;
+    youRolled?: boolean;
+    foeRolled?: boolean;
   }) => void;
 };
 
@@ -165,6 +168,9 @@ export function MultiMenu({
         turnLimitSec: msg.turnLimitSec,
         openingDice: msg.openingDice,
         openingLocked: msg.openingLocked,
+        needRoll: msg.needRoll,
+        youRolled: msg.youRolled,
+        foeRolled: msg.foeRolled,
       });
     }
   };

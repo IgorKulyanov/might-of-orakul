@@ -48,6 +48,7 @@ import {
 } from "./oracleGifts";
 import { flipBattle } from "./pvpFlip";
 import {
+  applyOpeningDice,
   applySeatAction,
   rollOpeningDice,
   startPvpBattle,
@@ -794,6 +795,21 @@ export function retailIntegrity(fails: QaFail[], ok: string[]): void {
     });
     if (hostFirst.state.active !== "you") {
       return `хост выиграл кубик, active=${hostFirst.state.active}`;
+    }
+    const pending = startPvpBattle({
+      host: { deck, heroId: "hero_life", name: "Хост", level: 3 },
+      guest: { deck, heroId: "hero_hell", name: "Гость", level: 3 },
+      waitForDice: true,
+    });
+    if (pending.dice != null) return "waitForDice: кубик рано";
+    const applied = applyOpeningDice(
+      pending.state,
+      { host: 2, guest: 5, first: "guest" },
+      "Хост",
+      "Гость",
+    );
+    if (applied.active !== "enemy" || applied.pvpFirst !== "enemy") {
+      return "кнопка кубика не выставила ход гостя";
     }
     return null;
   });

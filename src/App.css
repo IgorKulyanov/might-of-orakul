@@ -1666,15 +1666,16 @@ button {
 }
 
 .pvp-timer-pill {
-  padding: 0.2rem 0.5rem;
+  padding: 0.22rem 0.62rem;
   border-radius: 999px;
   background: #243b2e;
-  border: 1px solid rgba(120, 180, 140, 0.35);
+  border: 1px solid rgba(120, 180, 140, 0.45);
   color: #d8f3dc;
-  font-size: 0.72rem;
-  font-weight: 700;
+  font-size: 0.8rem;
+  font-weight: 800;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
 
 .pvp-dice-overlay {
@@ -1700,9 +1701,16 @@ button {
 }
 
 .pvp-dice-title {
-  margin: 0 0 0.9rem;
+  margin: 0;
   font-weight: 800;
   letter-spacing: 0.04em;
+  font-size: 1.15rem;
+}
+
+.pvp-dice-sub {
+  margin: 0.25rem 0 1rem;
+  opacity: 0.75;
+  font-size: 0.9rem;
 }
 
 .pvp-dice-row {
@@ -1728,7 +1736,29 @@ button {
 .pvp-die {
   font-size: 3.4rem;
   line-height: 1;
+  display: inline-block;
+}
+
+.pvp-die.is-spinning {
+  animation: pvp-die-spin 0.12s linear infinite;
+}
+
+.pvp-die.is-landed {
   animation: pvp-die-pop 0.45s ease;
+}
+
+.pvp-dice-placeholder {
+  opacity: 0.45;
+}
+
+.pvp-dice-wait {
+  margin: 1rem 0 0;
+  opacity: 0.8;
+}
+
+.pvp-dice-throw {
+  margin-top: 1.1rem;
+  min-width: 12rem;
 }
 
 .pvp-dice-col b {
@@ -1755,6 +1785,15 @@ button {
   to {
     transform: scale(1) rotate(0);
     opacity: 1;
+  }
+}
+
+@keyframes pvp-die-spin {
+  from {
+    transform: rotate(-18deg) scale(0.92);
+  }
+  to {
+    transform: rotate(18deg) scale(1.06);
   }
 }
 

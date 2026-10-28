@@ -61,13 +61,14 @@ export type PvpClientMsg =
   | { type: "cancel_queue" }
   | { type: "ready" }
   | { type: "leave" }
+  | { type: "roll_dice" }
   | { type: "action"; action: PvpAction };
 
 /** Лимит хода PvP (сек) и сколько авто-пропусков до поражения. */
 export const PVP_TURN_SEC = 20;
 export const PVP_MAX_TIMEOUTS = 5;
-/** Пока крутится кубик — ходы не принимаем (как пауза перед первым ходом бота). */
-export const PVP_OPENING_MS = 2800;
+/** После броска обоих — сколько держим результат на экране. */
+export const PVP_OPENING_MS = 2400;
 
 export type OpeningDice = {
   host: number;
@@ -137,6 +138,10 @@ export type PvpServerMsg =
       openingDice?: SeatOpeningDice;
       /** true, пока оба смотрят кубик — ходить нельзя. */
       openingLocked?: boolean;
+      /** Ещё не нажал «Бросить кубик». */
+      needRoll?: boolean;
+      youRolled?: boolean;
+      foeRolled?: boolean;
     }
   | { type: "error"; message: string }
   | { type: "peer_left"; message: string }
@@ -326,9 +331,28 @@ export function startPvpBattle(opts: {
     level: number;
   };
   dice?: OpeningDice;
-}): { state: BattleState; dice: OpeningDice } {
+  /** Стол уже есть, кубик бросят кнопкой. */
+  waitForDice?: boolean;
+}): { state: BattleState; dice: OpeningDice | null } {
+  if (opts.waitForDice) {
+    const state = createBattle(
+      opts.host.deck,
+      opts.guest.deck,
+      opts.host.heroId,
+      opts.guest.heroId,
+      opts.host.name,
+      opts.host.level,
+      opts.guest.level,
+      "you",
+    );
+    state.enemy.name = opts.guest.name;
+    state.log = [
+      `Сетевая дуэль: ${opts.host.name} vs ${opts.guest.name}`,
+      ...state.log,
+    ].slice(0, 14);
+    return { state, dice: null };
+  }
   const dice = opts.dice ?? rollOpeningDice();
-  const firstActive = dice.first === "host" ? "you" : "enemy";
   const state = createBattle(
     opts.host.deck,
     opts.guest.deck,
@@ -337,17 +361,36 @@ export function startPvpBattle(opts: {
     opts.host.name,
     opts.host.level,
     opts.guest.level,
-    firstActive,
+    dice.first === "host" ? "you" : "enemy",
   );
   state.enemy.name = opts.guest.name;
-  state.pvpFirst = firstActive;
-  const firstName = dice.first === "host" ? opts.host.name : opts.guest.name;
   state.log = [
-    `Кубик: ${opts.host.name} ${dice.host} — ${opts.guest.name} ${dice.guest}. Первым ходит ${firstName}.`,
     `Сетевая дуэль: ${opts.host.name} vs ${opts.guest.name}`,
     ...state.log,
   ].slice(0, 14);
-  return { state, dice };
+  return {
+    state: applyOpeningDice(state, dice, opts.host.name, opts.guest.name),
+    dice,
+  };
+}
+
+/** Записать результат кубика в уже созданный стол (кто ходит первым). */
+export function applyOpeningDice(
+  state: BattleState,
+  dice: OpeningDice,
+  hostName: string,
+  guestName: string,
+): BattleState {
+  const next = structuredClone(state) as BattleState;
+  const firstActive = dice.first === "host" ? "you" : "enemy";
+  next.active = firstActive;
+  next.pvpFirst = firstActive;
+  const firstName = dice.first === "host" ? hostName : guestName;
+  next.log = [
+    `Кубик: ${hostName} ${dice.host} — ${guestName} ${dice.guest}. Первым ходит ${firstName}.`,
+    ...next.log.filter((line) => !line.startsWith("Кубик:")),
+  ].slice(0, 14);
+  return next;
 }
 
 export function winnerSeat(
