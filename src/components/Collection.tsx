@@ -606,7 +606,7 @@ export function Collection({
             </div>
             <p className="exchange-preview">
               Отдаёшь <strong>{exchangeAmt}💎</strong> → получишь{" "}
-              <strong>{goldForDiamonds(exchangeAmt)}зол.</strong>
+              <strong>{goldForDiamonds(exchangeAmt)} зол.</strong>
             </p>
             <button
               type="button"
