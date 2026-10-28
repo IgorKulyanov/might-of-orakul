@@ -11,6 +11,8 @@ export function flipBattle(state: BattleState): BattleState {
   next.you.id = "you";
   next.enemy.id = "enemy";
   next.active = state.active === "you" ? "enemy" : "you";
+  if (state.pvpFirst === "you") next.pvpFirst = "enemy";
+  else if (state.pvpFirst === "enemy") next.pvpFirst = "you";
   if (state.winner === "you") next.winner = "enemy";
   else if (state.winner === "enemy") next.winner = "you";
   else next.winner = null;

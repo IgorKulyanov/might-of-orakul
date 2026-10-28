@@ -281,6 +281,8 @@ export interface PlayerState {
   name: string;
   heroId: string;
   faction: Faction;
+  /** Уровень оракула в этом бою (не уровень зрителя). */
+  level: number;
   hp: number;
   maxHp: number;
   mana: ManaPool;
@@ -324,6 +326,12 @@ export interface BattleRules {
 export interface BattleState {
   turn: number;
   active: "you" | "enemy";
+  /**
+   * Кто ходил первым в этой системе координат (you/enemy).
+   * Нужно, чтобы цикл ходов в PvP совпадал с ботом: второй игрок
+   * заканчивает раунд → turn++.
+   */
+  pvpFirst?: "you" | "enemy";
   you: PlayerState;
   enemy: PlayerState;
   log: string[];

@@ -76,7 +76,7 @@ import {
   hasSeenBattleTutorial,
   markBattleTutorialSeen,
 } from "../game/battleTutorial";
-import type { PvpAction } from "../game/pvpProtocol";
+import { PVP_OPENING_MS, type PvpAction } from "../game/pvpProtocol";
 import type { BattleState, CreatureInstance } from "../game/types";
 
 type BattleEndInfo = {
@@ -133,6 +133,7 @@ type Props = {
     maxTimeouts?: number;
     turnLimitSec?: number;
     openingDice?: { you: number; foe: number; youFirst: boolean } | null;
+    openingLocked?: boolean;
     exitLabel?: string;
   };
   /** Подмена стейта с сервера (каждый тик PvP). */
@@ -256,6 +257,8 @@ export function Battle({
   const networkRef = useRef(network);
   networkRef.current = network;
   const [turnLeftSec, setTurnLeftSec] = useState<number | null>(null);
+  const youLevelNow = state.you.level ?? yourLevel;
+  const enemyLevelNow = state.enemy.level ?? enemyLevel;
 
   useEffect(() => {
     if (!network?.turnEndsAt || state.winner) {
@@ -277,7 +280,9 @@ export function Battle({
   const enemyHero = getHero(state.enemy.heroId);
   const [fx, setFx] = useState<BattleFx | null>(null);
   const [busy, setBusy] = useState(false);
-  const [phase, setPhase] = useState<"you" | "enemy">("you");
+  const [phase, setPhase] = useState<"you" | "enemy">(() =>
+    externalState?.active === "enemy" ? "enemy" : "you",
+  );
   const [sfxOff, setSfxOff] = useState(() => isSfxMuted());
   const [reward, setReward] = useState<BattleEndInfo | null>(null);
   const [entered, setEntered] = useState(false);
@@ -417,17 +422,26 @@ export function Battle({
       return;
     }
     setDiceShow(true);
-    const t = window.setTimeout(() => setDiceShow(false), 2800);
+    const t = window.setTimeout(() => setDiceShow(false), PVP_OPENING_MS);
     return () => window.clearTimeout(t);
   }, [network?.openingDice]);
 
   useEffect(() => {
     if (!externalState) return;
+    const echoOwnTurn =
+      lock.current &&
+      stateRef.current.active === "you" &&
+      externalState.active === "you" &&
+      !externalState.winner;
     stateRef.current = externalState;
     setState(externalState);
     setPhase(externalState.active === "you" ? "you" : "enemy");
-    setBusy(false);
-    lock.current = false;
+    // Не сбрасывать busy по эху своего хода — иначе можно ходить поверх анимации.
+    if (echoOwnTurn) return;
+    if (externalState.active !== "you" || externalState.winner) {
+      setBusy(false);
+      lock.current = false;
+    }
   }, [externalState]);
 
   useLayoutEffect(() => {
@@ -501,6 +515,12 @@ export function Battle({
       reveal();
     });
   }, [state.winner]);
+
+  const pvpHold = Boolean(
+    network && (diceShow || network.openingLocked),
+  );
+  const actionBlocked =
+    busy || pvpHold || !!state.winner || state.active !== "you";
 
   const spellMode = spellTargetMode(state);
   const attackTargets = useMemo(() => {
@@ -616,7 +636,7 @@ export function Battle({
   };
 
   const onHandClick = (i: number) => {
-    if (busy || state.winner || state.active !== "you") return;
+    if (actionBlocked) return;
     setGuardianTankSlot(null);
     setMarionettePuppet(null);
     setBalthSwapFrom(null);
@@ -683,7 +703,7 @@ export function Battle({
     state.selectedSlot != null && moveFlexReady(state, state.selectedSlot);
 
   const onYourSlot = (i: number) => {
-    if (busy || state.winner || state.active !== "you") return;
+    if (actionBlocked) return;
 
     const creature = state.you.slots[i];
 
@@ -1074,7 +1094,7 @@ export function Battle({
   };
 
   const onEnemySlot = (i: number) => {
-    if (busy || state.winner || state.active !== "you") return;
+    if (actionBlocked) return;
 
     // Марионетка: 1) кукла 2) цель удара (сосед / любой для дальних)
     if (state.selectedHand != null && spellMode === "marionette") {
@@ -1380,7 +1400,7 @@ export function Battle({
   };
 
   const onEnemyHero = () => {
-    if (busy || state.winner || state.active !== "you") return;
+    if (actionBlocked) return;
 
     if (
       state.selectedHand != null &&
@@ -1421,7 +1441,7 @@ export function Battle({
   };
 
   const onYourHero = () => {
-    if (busy || state.winner || state.active !== "you") return;
+    if (actionBlocked) return;
 
     if (
       state.selectedHand != null &&
@@ -1473,7 +1493,7 @@ export function Battle({
   }, [state]);
 
   const onAttackAll = () => {
-    if (busy || state.winner || state.active !== "you") return;
+    if (actionBlocked) return;
     if (readyForwardCount === 0) {
       pushHint("Нет существ, готовых атаковать вперёд");
       return;
@@ -1508,7 +1528,7 @@ export function Battle({
   };
 
   const onEndTurn = () => {
-    if (busy || state.winner || state.active !== "you") return;
+    if (actionBlocked) return;
     setGravePickIdx(null);
     void runLocked(async () => {
       unlockSfx();
@@ -1517,6 +1537,13 @@ export function Battle({
 
       if (networkRef.current) {
         networkRef.current.sendAction({ kind: "endTurn" });
+        try {
+          const passed = endPlayerTurn(stateRef.current);
+          stateRef.current = passed;
+          setState(passed);
+        } catch {
+          /* сервер пришлёт канон */
+        }
         await sleep(400);
         return;
       }
@@ -1627,6 +1654,10 @@ export function Battle({
   }, [state.selectedHand, busy, dropSeq]);
 
   const hint = (() => {
+    if (pvpHold) return "Кубик решает, кто ходит первым…";
+    if (network && !state.winner && state.active !== "you") {
+      return "Ход соперника — жди своей очереди";
+    }
     if (busy && phase === "enemy") return "Ход соперника — смотри анимации";
     if (busy) return "…";
     if (state.selectedHand != null && spellMode === "ally_pair")
@@ -1777,7 +1808,7 @@ export function Battle({
 
   return (
     <div
-      className={`battle ${busy ? "is-busy" : ""} ${entered ? "is-entered" : ""}`}
+      className={`battle ${busy || actionBlocked ? "is-busy" : ""} ${entered ? "is-entered" : ""}`}
     >
       <header className="battle-bar">
         <button
@@ -1956,9 +1987,9 @@ export function Battle({
             <div className="hero enemy-hero">
               <strong>
                 {enemyHero.name}{" "}
-                <span className="orakul-level-badge">ур. {enemyLevel}</span>
+                <span className="orakul-level-badge">ур. {enemyLevelNow}</span>
               </strong>
-              <span className="hero-sub">Противник</span>
+              <span className="hero-sub">{state.enemy.name}</span>
               <span>HP {state.enemy.hp}/{state.enemy.maxHp}</span>
               <ManaBar
                 mana={state.enemy.mana}
@@ -2068,7 +2099,7 @@ export function Battle({
         <div className="board-lane your-lane">
           <div className="row-label your-label">
             Твои карты
-            {phase === "you" && !busy && (
+            {phase === "you" && !actionBlocked && (
               <span className="phase-tag you">твой ход</span>
             )}
           </div>
@@ -2080,7 +2111,7 @@ export function Battle({
               type="button"
                   className="primary end-turn-btn"
                   data-tut="end-turn"
-                  disabled={!!state.winner || state.active !== "you" || busy}
+                  disabled={actionBlocked}
                   onClick={onEndTurn}
                 >
                   Конец хода
@@ -2088,12 +2119,7 @@ export function Battle({
                 <button
                   type="button"
                   className="ghost attack-all-btn"
-                  disabled={
-                    !!state.winner ||
-                    state.active !== "you" ||
-                    busy ||
-                    readyForwardCount === 0
-                  }
+                  disabled={actionBlocked || readyForwardCount === 0}
                   onClick={onAttackAll}
                   title="Все готовые бьют клетку напротив; если пусто — героя"
                 >
@@ -2205,9 +2231,9 @@ export function Battle({
             <div className="hero you-hero">
               <strong>
                 {yourHero.name}{" "}
-                <span className="orakul-level-badge">ур. {yourLevel}</span>
+                <span className="orakul-level-badge">ур. {youLevelNow}</span>
               </strong>
-              <span className="hero-sub">{yourName}</span>
+              <span className="hero-sub">{state.you.name || yourName}</span>
               <span data-tut="you-hp">
                 HP {state.you.hp}/{state.you.maxHp}
               </span>
@@ -2262,7 +2288,7 @@ export function Battle({
         </div>
         <div className="hand-zone" data-tut="hand">
           <div className="hand-label">Рука</div>
-          <div className={`hand ${busy ? "hand-locked" : ""}`}>
+          <div className={`hand ${actionBlocked ? "hand-locked" : ""}`}>
             {Array.from({ length: 7 }, (_, i) => {
               const id = state.you.hand[i];
               if (!id) {
@@ -2274,7 +2300,7 @@ export function Battle({
                   data-tut={i === 0 ? "hand-card" : undefined}
                   className={`hand-card-anchor ${handDrag?.index === i ? "is-dragging" : ""}`}
                   onPointerDown={(e) => {
-                    if (busy || state.winner || state.active !== "you") return;
+                    if (actionBlocked) return;
                     if (e.button !== 0 && e.pointerType === "mouse") return;
                     e.preventDefault();
                     e.stopPropagation();

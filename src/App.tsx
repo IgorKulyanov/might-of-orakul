@@ -108,6 +108,7 @@ type PvpClock = {
   turnLimitSec: number;
   endMessage: string | null;
   openingDice: SeatOpeningDice | null;
+  openingLocked: boolean;
 };
 
 type Screen =
@@ -381,6 +382,7 @@ export default function App() {
     turnLimitSec: PVP_TURN_SEC,
     endMessage: null,
     openingDice: null,
+    openingLocked: false,
   });
   const pvpSocketRef = useRef<PvpSocket | null>(null);
   /** Сбежал из PvP — без наград (даже утешительных). */
@@ -919,6 +921,7 @@ export default function App() {
       turnLimitSec: PVP_TURN_SEC,
       endMessage: null,
       openingDice: null,
+      openingLocked: false,
     });
     setScreen("multi");
   };
@@ -1238,8 +1241,8 @@ export default function App() {
         yourHeroId={pvpState.you.heroId}
         enemyHeroId={pvpState.enemy.heroId}
         yourName={pvpState.you.name}
-        yourLevel={level}
-        enemyLevel={level}
+        yourLevel={pvpState.you.level ?? level}
+        enemyLevel={pvpState.enemy.level ?? 1}
         externalState={pvpState}
         network={{
           sendAction: (action) => {
@@ -1255,6 +1258,7 @@ export default function App() {
           maxTimeouts: pvpClock.maxTimeouts,
           turnLimitSec: pvpClock.turnLimitSec,
           openingDice: pvpClock.openingDice,
+          openingLocked: pvpClock.openingLocked,
           exitLabel: "Сдаться",
         }}
         allowRematch={false}
@@ -1296,6 +1300,7 @@ export default function App() {
           maxTimeouts,
           turnLimitSec,
           openingDice,
+          openingLocked,
         }) => {
           pvpFledRef.current = false;
           pvpSocketRef.current = socket;
@@ -1309,6 +1314,7 @@ export default function App() {
             turnLimitSec,
             endMessage: null,
             openingDice: openingDice ?? null,
+            openingLocked: Boolean(openingLocked),
           });
           socket.setHandler((msg: PvpServerMsg) => {
             if (msg.type === "battle") {
@@ -1321,6 +1327,7 @@ export default function App() {
                 maxTimeouts: msg.maxTimeouts,
                 turnLimitSec: msg.turnLimitSec,
                 openingDice: msg.openingDice ?? c.openingDice,
+                openingLocked: Boolean(msg.openingLocked),
               }));
             }
             if (msg.type === "ended") {

@@ -8,6 +8,7 @@ import {
   isSeatTurn,
   PVP_MATCH_LEVEL_DELTA,
   PVP_MAX_TIMEOUTS,
+  PVP_OPENING_MS,
   PVP_TURN_SEC,
   seatOpeningDice,
   startPvpBattle,
@@ -46,6 +47,8 @@ type Room = {
   timeouts: { host: number; guest: number };
   endReason: PvpEndReason | null;
   openingDice: OpeningDice | null;
+  /** До этого момента ходы с кубика не принимаем. */
+  openingLockedUntil: number | null;
 };
 
 const rooms = new Map<string, Room>();
@@ -231,6 +234,9 @@ function battlePayload(room: Room, seat: PvpSeat): PvpServerMsg {
     openingDice: room.openingDice
       ? seatOpeningDice(room.openingDice, seat)
       : undefined,
+    openingLocked: Boolean(
+      room.openingLockedUntil && Date.now() < room.openingLockedUntil,
+    ),
   };
 }
 
@@ -370,6 +376,7 @@ function tryStart(room: Room) {
     room.openingDice = started.dice;
     room.timeouts = { host: 0, guest: 0 };
     room.endReason = null;
+    room.openingLockedUntil = Date.now() + PVP_OPENING_MS;
     room.battle = {
       ...room.battle,
       log: [
@@ -381,9 +388,10 @@ function tryStart(room: Room) {
     // Дать обоим увидеть кубик, потом стартует лимит хода.
     room.turnTimer = setTimeout(() => {
       if (!room.battle || winnerSeat(room.battle)) return;
+      room.openingLockedUntil = null;
       scheduleTurnTimer(room);
       broadcastBattle(room);
-    }, 2800);
+    }, PVP_OPENING_MS);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Не удалось начать бой";
     if (room.host) send(room.host.ws, { type: "error", message });
@@ -449,6 +457,7 @@ function getOrCreate(code: string): Room | null {
       timeouts: { host: 0, guest: 0 },
       endReason: null,
       openingDice: null,
+      openingLockedUntil: null,
     };
     rooms.set(code, room);
   }
@@ -813,9 +822,13 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
         }
         const action = msg.action as PvpAction;
         if (
-          action.kind !== "commitState" &&
-          !isSeatTurn(room.battle, seat)
+          room.openingLockedUntil &&
+          Date.now() < room.openingLockedUntil
         ) {
+          send(ws, { type: "error", message: "Ждём кубик — ещё не ходим" });
+          return;
+        }
+        if (!isSeatTurn(room.battle, seat)) {
           send(ws, { type: "error", message: "Сейчас ход соперника" });
           return;
         }

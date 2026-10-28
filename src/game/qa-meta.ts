@@ -47,7 +47,12 @@ import {
   resolveBattleGift,
 } from "./oracleGifts";
 import { flipBattle } from "./pvpFlip";
-import { rollOpeningDice, startPvpBattle } from "./pvpProtocol";
+import {
+  applySeatAction,
+  rollOpeningDice,
+  startPvpBattle,
+  viewForSeat,
+} from "./pvpProtocol";
 import { validateBattleCommit } from "./pvpValidate";
 import {
   STARTER_DECK_BY_FACTION,
@@ -790,6 +795,45 @@ export function retailIntegrity(fails: QaFail[], ok: string[]): void {
     if (hostFirst.state.active !== "you") {
       return `хост выиграл кубик, active=${hostFirst.state.active}`;
     }
+    return null;
+  });
+
+  check("PvP уровни и очередь ходов", () => {
+    const deck = botDeckForLevel(5, "life");
+    const started = startPvpBattle({
+      host: { deck, heroId: "hero_life", name: "Хост", level: 12 },
+      guest: { deck, heroId: "hero_hell", name: "Гость", level: 1 },
+      dice: { host: 6, guest: 1, first: "host" },
+    });
+    let s = started.state;
+    if (s.you.level !== 12) return `хост level=${s.you.level}`;
+    if (s.enemy.level !== 1) return `гость level=${s.enemy.level}`;
+    const guestView = viewForSeat(s, "guest");
+    if (guestView.you.level !== 1 || guestView.enemy.level !== 12) {
+      return `flip levels you=${guestView.you.level} foe=${guestView.enemy.level}`;
+    }
+    if (guestView.you.name !== "Гость" || guestView.enemy.name !== "Хост") {
+      return "flip names";
+    }
+    s = applySeatAction(s, "host", { kind: "endTurn" });
+    if (s.active !== "enemy") return `после хода хоста active=${s.active}`;
+    if (s.turn !== 1) return `после первого хода turn=${s.turn}`;
+    s = applySeatAction(s, "guest", { kind: "endTurn" });
+    if (s.active !== "you") return `после хода гостя active=${s.active}`;
+    if (s.turn !== 2) return `после полного круга turn=${s.turn}`;
+
+    let t = startPvpBattle({
+      host: { deck, heroId: "hero_life", name: "Хост", level: 12 },
+      guest: { deck, heroId: "hero_hell", name: "Гость", level: 1 },
+      dice: { host: 1, guest: 6, first: "guest" },
+    }).state;
+    if (t.active !== "enemy") return "гость выиграл кубик, но ходит хост";
+    t = applySeatAction(t, "guest", { kind: "endTurn" });
+    if (t.active !== "you") return `гость первым: после его хода active=${t.active}`;
+    if (t.turn !== 1) return `гость первым: mid turn=${t.turn}`;
+    t = applySeatAction(t, "host", { kind: "endTurn" });
+    if (t.active !== "enemy") return `гость первым: после хоста active=${t.active}`;
+    if (t.turn !== 2) return `гость первым: round turn=${t.turn}`;
     return null;
   });
 

@@ -30,6 +30,7 @@ type Props = {
     maxTimeouts: number;
     turnLimitSec: number;
     openingDice?: { you: number; foe: number; youFirst: boolean };
+    openingLocked?: boolean;
   }) => void;
 };
 
@@ -163,6 +164,7 @@ export function MultiMenu({
         maxTimeouts: msg.maxTimeouts,
         turnLimitSec: msg.turnLimitSec,
         openingDice: msg.openingDice,
+        openingLocked: msg.openingLocked,
       });
     }
   };

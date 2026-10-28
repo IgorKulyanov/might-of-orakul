@@ -288,7 +288,7 @@ function makePlayer(
   name: string,
   deckIds: string[],
   heroId: string,
-  opts?: { maxHp?: number; startManaBonus?: number },
+  opts?: { maxHp?: number; startManaBonus?: number; level?: number },
 ): PlayerState {
   const hero = getHero(heroId);
   const deck = shuffle(deckIds);
@@ -301,6 +301,7 @@ function makePlayer(
     name,
     heroId: hero.id,
     faction: hero.faction,
+    level: Math.max(1, Math.min(50, opts?.level ?? 1)),
     hp: maxHp,
     maxHp,
     mana,
@@ -528,11 +529,13 @@ export function createBattle(
   const you = makePlayer("you", yourName, yourDeck, yourHeroId, {
     maxHp: youHp,
     startManaBonus: startManaBonus(yourLevel) + youEpic + youWater,
+    level: yourLevel,
   });
   const enemy = makePlayer("enemy", "Соперник", enemyDeck, enemyHeroId, {
     maxHp: enemyHp,
     // Те же правила, что у игрока: уровень + эпик + дар воды. Без «+1 боту».
     startManaBonus: startManaBonus(enemyLevel) + enemyEpic + enemyWater,
+    level: enemyLevel,
   });
   const youNatureNote =
     youEpic &&

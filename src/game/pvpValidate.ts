@@ -106,6 +106,11 @@ export function validateBattleCommit(
     return { ok: false, error: "Подмена имени" };
   }
 
+  // Уровни и кто ходил первым — серверные, клиент не подменяет.
+  nextHost.you.level = prevHost.you.level;
+  nextHost.enemy.level = prevHost.enemy.level;
+  nextHost.pvpFirst = prevHost.pvpFirst;
+
   return { ok: true, host: stripHeavyLog(nextHost) };
 }
 

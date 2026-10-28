@@ -2,6 +2,7 @@ import {
   attackWith,
   buffWithMage,
   createBattle,
+  endEnemyTurn,
   endPlayerTurn,
   healWithAngel,
   moveUnitToEmptySlot,
@@ -65,6 +66,8 @@ export type PvpClientMsg =
 /** Лимит хода PvP (сек) и сколько авто-пропусков до поражения. */
 export const PVP_TURN_SEC = 20;
 export const PVP_MAX_TIMEOUTS = 5;
+/** Пока крутится кубик — ходы не принимаем (как пауза перед первым ходом бота). */
+export const PVP_OPENING_MS = 2800;
 
 export type OpeningDice = {
   host: number;
@@ -132,6 +135,8 @@ export type PvpServerMsg =
       maxTimeouts: number;
       turnLimitSec: number;
       openingDice?: SeatOpeningDice;
+      /** true, пока оба смотрят кубик — ходить нельзя. */
+      openingLocked?: boolean;
     }
   | { type: "error"; message: string }
   | { type: "peer_left"; message: string }
@@ -203,8 +208,13 @@ export function applyPvpAction(
     return viewedAsYou;
   }
   switch (action.kind) {
-    case "endTurn":
-      return endPlayerTurn(viewedAsYou);
+    case "endTurn": {
+      // Как vs бот: первый в раунде отдаёт ход без turn++, второй закрывает цикл.
+      const first = viewedAsYou.pvpFirst ?? "you";
+      if (first === "you") return endPlayerTurn(viewedAsYou);
+      const asFirst = flipBattle(viewedAsYou);
+      return flipBattle(endEnemyTurn(asFirst));
+    }
     case "playCard":
       return playCard(viewedAsYou, action.handIndex, action.slotIndex);
     case "attack":
@@ -330,6 +340,7 @@ export function startPvpBattle(opts: {
     firstActive,
   );
   state.enemy.name = opts.guest.name;
+  state.pvpFirst = firstActive;
   const firstName = dice.first === "host" ? opts.host.name : opts.guest.name;
   state.log = [
     `Кубик: ${opts.host.name} ${dice.host} — ${opts.guest.name} ${dice.guest}. Первым ходит ${firstName}.`,

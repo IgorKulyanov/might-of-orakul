@@ -309,6 +309,7 @@ function manaRules(fails: QaFail[], ok: string[]): void {
     name: "QA",
     heroId: "hero_life",
     faction: "life",
+    level: 1,
     hp: 15,
     maxHp: 15,
     mana: emptyMana(),
