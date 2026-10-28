@@ -218,7 +218,21 @@ function broadcastLobby(room: Room) {
   if (room.guest) send(room.guest.ws, lobbyPayload(room, "guest"));
 }
 
+/** Если таймер reveal потерялся — не держим стол вечно (без рекурсии broadcast). */
+function unlockOpeningIfDue(room: Room) {
+  if (!room.battle) return;
+  if (room.openingPhase !== "reveal") return;
+  if (room.openingLockedUntil == null) return;
+  if (Date.now() < room.openingLockedUntil) return;
+  room.openingPhase = "done";
+  room.openingLockedUntil = null;
+  if (!room.turnEndsAt && !winnerSeat(room.battle)) {
+    scheduleTurnTimer(room);
+  }
+}
+
 function battlePayload(room: Room, seat: PvpSeat): PvpServerMsg {
+  unlockOpeningIfDue(room);
   const battle = room.battle!;
   const yourTimeouts =
     seat === "host" ? room.timeouts.host : room.timeouts.guest;
@@ -904,9 +918,11 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           send(ws, { type: "error", message: "Бой уже окончен" });
           return;
         }
+        unlockOpeningIfDue(room);
         const action = msg.action as PvpAction;
         if (room.openingPhase !== "done") {
           send(ws, { type: "error", message: "Сначала бросьте кубики" });
+          broadcastBattle(room);
           return;
         }
         if (!isSeatTurn(room.battle, seat)) {

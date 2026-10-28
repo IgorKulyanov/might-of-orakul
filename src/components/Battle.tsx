@@ -433,7 +433,7 @@ export function Battle({
       setDiceUi((ui) => (ui === "wait" ? "wait" : "prompt"));
       return;
     }
-    if (network.openingDice && (network.openingLocked || !diceDoneRef.current)) {
+    if (network.openingLocked && network.openingDice) {
       setDiceUi("result");
       return;
     }
@@ -441,7 +441,7 @@ export function Battle({
       setDiceUi("wait");
       return;
     }
-    if (diceUi === "result") return;
+    // Сервер открыл ход — сразу снимаем оверлей, иначе карты «не ставятся».
     diceDoneRef.current = true;
     setDiceUi("hidden");
   }, [
@@ -557,9 +557,10 @@ export function Battle({
     });
   }, [state.winner, network?.ended]);
 
+  // Блокировка только по серверу. diceUi сам по себе ход не держит —
+  // иначе после кубика рука навсегда «hand-locked» и карты не ставятся.
   const pvpHold = Boolean(
-    network &&
-      (diceUi !== "hidden" || network.openingLocked || network.needRoll),
+    network && (network.openingLocked || network.needRoll),
   );
   const actionBlocked =
     busy ||

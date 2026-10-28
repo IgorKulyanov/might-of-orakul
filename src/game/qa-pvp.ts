@@ -149,6 +149,18 @@ export function pvpDuelAll(fails: QaFail[], ok: string[]): void {
     }
     log.push("кубик: хост бросил — гость всё ещё бросает сам");
 
+    const afterBoth = pvpOpeningView(
+      "done",
+      { host: 5, guest: 2 },
+      "guest",
+      { host: 5, guest: 2, first: "host" },
+    );
+    if (afterBoth.needRoll || afterBoth.openingLocked) {
+      fail("после кубиков ход должен быть открыт");
+      return;
+    }
+    log.push("после кубиков стол разблокирован");
+
     let thrown = false;
     try {
       applySeatAction(
