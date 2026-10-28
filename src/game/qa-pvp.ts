@@ -5,6 +5,7 @@ import { getCard } from "./cards";
 import {
   applyPvpAction,
   applySeatAction,
+  pvpOpeningView,
   startPvpBattle,
   viewForSeat,
   type PvpAction,
@@ -124,6 +125,30 @@ export function pvpDuelAll(fails: QaFail[], ok: string[]): void {
   };
 
   try {
+    const emptyRolls = { host: null, guest: null };
+    const hostWait = pvpOpeningView("wait", emptyRolls, "host", null);
+    const guestWait = pvpOpeningView("wait", emptyRolls, "guest", null);
+    if (!hostWait.needRoll || !guestWait.needRoll) {
+      fail("на старте оба должны бросать кубик");
+      return;
+    }
+    const afterHost = { host: 5, guest: null };
+    const hostAfter = pvpOpeningView("wait", afterHost, "host", null);
+    const guestAfter = pvpOpeningView("wait", afterHost, "guest", null);
+    if (hostAfter.needRoll) {
+      fail("хост уже бросил, needRoll должен быть false");
+      return;
+    }
+    if (!guestAfter.needRoll || !guestAfter.foeRolled) {
+      fail("гость должен бросать сам, даже если хост уже бросил");
+      return;
+    }
+    if (guestAfter.openingDice) {
+      fail("результат кубика рано у гостя");
+      return;
+    }
+    log.push("кубик: хост бросил — гость всё ещё бросает сам");
+
     let thrown = false;
     try {
       applySeatAction(

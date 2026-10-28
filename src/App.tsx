@@ -377,6 +377,7 @@ export default function App() {
   );
   const [pvpState, setPvpState] = useState<BattleState | null>(null);
   const [pvpSeat, setPvpSeat] = useState<PvpSeat>("host");
+  const [pvpMatchKey, setPvpMatchKey] = useState(0);
   const [pvpClock, setPvpClock] = useState<PvpClock>({
     turnEndsAt: null,
     yourTimeouts: 0,
@@ -1246,7 +1247,7 @@ export default function App() {
     const sock = pvpSocketRef.current;
     return (
       <Battle
-        key={`pvp-${pvpSeat}`}
+        key={`pvp-${pvpSeat}-${pvpMatchKey}`}
         yourDeck={battleDeck(owned)}
         enemyDeck={battleDeck(owned)}
         yourHeroId={pvpState.you.heroId}
@@ -1330,6 +1331,7 @@ export default function App() {
           pvpFledRef.current = false;
           pvpSettledRef.current = false;
           pvpSocketRef.current = socket;
+          setPvpMatchKey((n) => n + 1);
           setPvpSeat(youAre);
           setPvpState(state);
           setPvpClock({
@@ -1356,9 +1358,10 @@ export default function App() {
                 foeTimeouts: msg.foeTimeouts,
                 maxTimeouts: msg.maxTimeouts,
                 turnLimitSec: msg.turnLimitSec,
-                openingDice: msg.openingLocked
-                  ? (msg.openingDice ?? c.openingDice)
-                  : null,
+                openingDice: msg.needRoll
+                  ? null
+                  : (msg.openingDice ??
+                    (msg.openingLocked ? c.openingDice : null)),
                 openingLocked: Boolean(msg.openingLocked),
                 needRoll: Boolean(msg.needRoll),
                 youRolled: Boolean(msg.youRolled),

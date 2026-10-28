@@ -92,6 +92,32 @@ export function seatOpeningDice(
   };
 }
 
+export type OpeningPhase = "wait" | "reveal" | "done";
+
+/** Как каждый сидящий видит кубик: хост бросил — гость всё ещё needRoll. */
+export function pvpOpeningView(
+  phase: OpeningPhase,
+  rolls: { host: number | null; guest: number | null },
+  seat: PvpSeat,
+  dice: OpeningDice | null,
+): {
+  needRoll: boolean;
+  youRolled: boolean;
+  foeRolled: boolean;
+  openingLocked: boolean;
+  openingDice: SeatOpeningDice | null;
+} {
+  const other: PvpSeat = seat === "host" ? "guest" : "host";
+  return {
+    needRoll: phase === "wait" && rolls[seat] == null,
+    youRolled: rolls[seat] != null,
+    foeRolled: rolls[other] != null,
+    openingLocked: phase !== "done",
+    openingDice:
+      phase === "reveal" && dice ? seatOpeningDice(dice, seat) : null,
+  };
+}
+
 /** Обычный d6. Ничья — переброс, пока не будет победителя. */
 export function rollOpeningDice(rng: () => number = Math.random): OpeningDice {
   for (let i = 0; i < 24; i++) {

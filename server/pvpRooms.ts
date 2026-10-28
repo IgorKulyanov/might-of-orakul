@@ -11,7 +11,7 @@ import {
   PVP_MAX_TIMEOUTS,
   PVP_OPENING_MS,
   PVP_TURN_SEC,
-  seatOpeningDice,
+  pvpOpeningView,
   startPvpBattle,
   viewForSeat,
   winnerSeat,
@@ -224,6 +224,12 @@ function battlePayload(room: Room, seat: PvpSeat): PvpServerMsg {
     seat === "host" ? room.timeouts.host : room.timeouts.guest;
   const foeTimeouts =
     seat === "host" ? room.timeouts.guest : room.timeouts.host;
+  const opening = pvpOpeningView(
+    room.openingPhase,
+    room.diceRolls,
+    seat,
+    room.openingDice,
+  );
   return {
     type: "battle",
     code: room.code,
@@ -235,15 +241,11 @@ function battlePayload(room: Room, seat: PvpSeat): PvpServerMsg {
     foeTimeouts,
     maxTimeouts: PVP_MAX_TIMEOUTS,
     turnLimitSec: PVP_TURN_SEC,
-    openingDice:
-      room.openingPhase === "reveal" && room.openingDice
-        ? seatOpeningDice(room.openingDice, seat)
-        : undefined,
-    openingLocked: room.openingPhase !== "done",
-    needRoll: room.openingPhase === "wait" && room.diceRolls[seat] == null,
-    youRolled: room.diceRolls[seat] != null,
-    foeRolled:
-      room.diceRolls[seat === "host" ? "guest" : "host"] != null,
+    openingDice: opening.openingDice ?? undefined,
+    openingLocked: opening.openingLocked,
+    needRoll: opening.needRoll,
+    youRolled: opening.youRolled,
+    foeRolled: opening.foeRolled,
   };
 }
 

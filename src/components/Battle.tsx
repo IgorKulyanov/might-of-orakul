@@ -427,34 +427,28 @@ export function Battle({
 
   useEffect(() => {
     if (!network) return;
-    if (diceDoneRef.current) return;
-    if (network.openingDice) {
+    // Кто ещё не бросил — всегда кнопка. Хост бросил ≠ гость тоже бросил.
+    if (network.needRoll) {
+      diceDoneRef.current = false;
+      setDiceUi((ui) => (ui === "wait" ? "wait" : "prompt"));
+      return;
+    }
+    if (network.openingDice && (network.openingLocked || !diceDoneRef.current)) {
       setDiceUi("result");
       return;
     }
-    if (network.needRoll) {
-      setDiceUi("prompt");
-      return;
-    }
-    if (network.turnEndsAt) {
-      diceDoneRef.current = true;
-      setDiceUi("hidden");
-      return;
-    }
-    if (network.youRolled && network.openingLocked) {
+    if (network.openingLocked) {
       setDiceUi("wait");
       return;
     }
-    if (!network.openingLocked) {
-      diceDoneRef.current = true;
-      setDiceUi("hidden");
-    }
+    if (diceUi === "result") return;
+    diceDoneRef.current = true;
+    setDiceUi("hidden");
   }, [
     network?.needRoll,
     network?.youRolled,
     network?.openingLocked,
     network?.openingDice,
-    network?.turnEndsAt,
   ]);
 
   useEffect(() => {
@@ -563,7 +557,10 @@ export function Battle({
     });
   }, [state.winner, network?.ended]);
 
-  const pvpHold = Boolean(network && diceUi !== "hidden");
+  const pvpHold = Boolean(
+    network &&
+      (diceUi !== "hidden" || network.openingLocked || network.needRoll),
+  );
   const actionBlocked =
     busy ||
     pvpAwaiting ||
@@ -2708,13 +2705,13 @@ export function Battle({
               <div className="pvp-dice-col">
                 <span className="pvp-dice-name">Соперник</span>
                 <span
-                  className={`pvp-die ${diceUi === "wait" || (diceUi === "result" && !network.openingDice) ? "is-spinning" : ""} ${diceUi === "result" ? "is-landed" : ""}`}
+                  className={`pvp-die ${network.foeRolled && diceUi !== "result" ? "is-spinning" : ""} ${diceUi === "result" ? "is-landed" : ""}`}
                   aria-hidden
                 >
                   {DIE_FACE[
                     diceUi === "result"
                       ? (network.openingDice?.foe ?? spinFace)
-                      : network.foeRolled && diceUi !== "prompt"
+                      : network.foeRolled
                         ? spinFace
                         : 1
                   ] ?? "⚀"}
@@ -2735,7 +2732,11 @@ export function Battle({
                   : "Первым ходит соперник"}
               </p>
             ) : diceUi === "wait" ? (
-              <p className="pvp-dice-wait">Ждём соперника…</p>
+              <p className="pvp-dice-wait">
+                {network.foeRolled
+                  ? "Оба бросили — сейчас результат"
+                  : "Ждём, пока соперник бросит свой кубик"}
+              </p>
             ) : (
               <button
                 type="button"
@@ -2749,7 +2750,9 @@ export function Battle({
                   }
                 }}
               >
-                Бросить кубик
+                {network.foeRolled
+                  ? "Соперник бросил — брось свой"
+                  : "Бросить кубик"}
               </button>
             )}
           </div>
