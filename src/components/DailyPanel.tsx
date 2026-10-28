@@ -37,7 +37,7 @@ export function DailyPanel({ owned: _owned, onClaim }: Props) {
               <div>
                 <strong>{q.title}</strong>
                 <span className="daily-meta">
-                  {prog}/{q.target} · +{q.xp} XP · +{q.gold}зол.
+                  {prog}/{q.target} · +{q.xp} XP · +{q.gold} зол.
                   {dia > 0 ? ` · +${dia}💎` : ""}
                 </span>
               </div>

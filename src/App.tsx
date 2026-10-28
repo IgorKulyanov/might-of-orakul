@@ -821,7 +821,7 @@ export default function App() {
           resultEyebrow = "Поздравляем!";
           resultTitle = "Арена пройдена!";
           const bits: string[] = [];
-          if (goldReward > 0) bits.push(`+${goldReward}зол.`);
+          if (goldReward > 0) bits.push(`+${goldReward} зол.`);
           if (diamondReward > 0) bits.push(`+${diamondReward}💎`);
           if (res.xpGained > 0) bits.push(`+${res.xpGained} XP`);
           resultLead = bits.length

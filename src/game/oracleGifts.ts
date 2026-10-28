@@ -75,7 +75,7 @@ export function oracleGiftCardText(faction: Faction, level: number): string {
   const lv = Math.max(1, Math.floor(level));
   switch (faction) {
     case "life":
-      return `Дар света: за победу +${lifeGiftGold(true, lv)}зол. (+1 за уровень).`;
+      return `Дар света: за победу +${lifeGiftGold(true, lv)} зол. (+1 за уровень).`;
     case "hell":
       return `Дар ада: за победу +${hellGiftXp(true, lv)} XP (+2 за уровень).`;
     case "death":
@@ -116,7 +116,7 @@ export function resolveBattleGift(
         giftXp: 0,
         giftLine:
           giftGold > 0
-            ? `${oracleGiftTitle("life")} +${giftGold}зол.`
+            ? `${oracleGiftTitle("life")} +${giftGold} зол.`
             : null,
       };
     }

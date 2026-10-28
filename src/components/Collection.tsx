@@ -196,11 +196,11 @@ export function Collection({
     const gold = owned.gold ?? 0;
     if (gold < price) {
       alert(
-        `Не хватает золота на ${label}.\nНужно ${price}зол., у тебя ${gold}зол..`,
+        `Не хватает золота на ${label}.\nНужно ${price} зол., у тебя ${gold} зол.`,
       );
       return;
     }
-    const ok = window.confirm(`Купить ${label} за ${price}зол.?`);
+    const ok = window.confirm(`Купить ${label} за ${price} зол.?`);
     if (!ok) return;
     onChange(buyCardWithGold(owned, id));
   };
@@ -544,7 +544,7 @@ export function Collection({
           <section className="currency-panel exchange-panel">
             <h2>Обмен 💎 → зол.</h2>
             <p className="hint">
-              Курс: <strong>1💎 = {GOLD_PER_DIAMOND}зол.</strong>. Выбери сколько
+              Курс: <strong>1💎 = {GOLD_PER_DIAMOND} зол.</strong>. Выбери сколько
               алмазов списать — хоть 5, хоть всё.
             </p>
             <div className="exchange-stepper" aria-label="Счётчик алмазов">
@@ -620,7 +620,7 @@ export function Collection({
                 }
                 const gained = goldForDiamonds(exchangeAmt);
                 onChange(next);
-                say(`Обмен: −${exchangeAmt}💎 → +${gained}зол.`);
+                say(`Обмен: −${exchangeAmt}💎 → +${gained} зол.`);
                 setExchangeAmt(1);
               }}
             >

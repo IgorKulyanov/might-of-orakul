@@ -203,7 +203,7 @@ export function OwnerBoostPanel({ open, owned, onClose }: Props) {
                       ? `есть ${have}`
                       : `выдать → ${otherLogin.trim() || "…"}`}
                     {" · "}
-                    {c.priceGold ?? 0}зол.
+                    {c.priceGold ?? 0} зол.
                     {c.priceDiamonds ? ` / ${c.priceDiamonds}💎` : ""}
                   </span>
                 </button>

@@ -515,7 +515,7 @@ export function AdminPanel({ open, onClose }: Props) {
                       {u.pendingResetCampaign ? " · сброс тропы" : ""}
                     </strong>
                     <span>
-                      {u.displayName || "—"} · ур.{u.level} · {u.gold}зол.{" "}
+                      {u.displayName || "—"} · ур.{u.level} · {u.gold} зол.{" "}
                       {u.diamonds}💎
                       {u.lastLoginAt
                         ? ` · ${new Date(u.lastLoginAt).toLocaleString()}`
