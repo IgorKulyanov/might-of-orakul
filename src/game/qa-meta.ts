@@ -47,6 +47,7 @@ import {
   resolveBattleGift,
 } from "./oracleGifts";
 import { flipBattle } from "./pvpFlip";
+import { rollOpeningDice, startPvpBattle } from "./pvpProtocol";
 import { validateBattleCommit } from "./pvpValidate";
 import {
   STARTER_DECK_BY_FACTION,
@@ -757,6 +758,38 @@ export function retailIntegrity(fails: QaFail[], ok: string[]): void {
     if (decks.size < 8) return `мало уникальных колод: ${decks.size}`;
     if (heroes.size < 2) return `мало героев: ${heroes.size}`;
     if (personas.size < 3) return `мало персон: ${personas.size}`;
+    return null;
+  });
+
+  check("PvP opening dice", () => {
+    const seq = [0.0, 0.16, 0.99, 0.5];
+    let i = 0;
+    const rng = () => seq[i++] ?? 0.2;
+    const d = rollOpeningDice(rng);
+    if (d.host < 1 || d.host > 6 || d.guest < 1 || d.guest > 6) {
+      return `грани ${d.host}/${d.guest}`;
+    }
+    if (d.host === d.guest) return "ничья не переброшена";
+    if (d.first !== (d.host > d.guest ? "host" : "guest")) {
+      return "first не от большего кубика";
+    }
+    const deck = botDeckForLevel(3, "life");
+    const guestFirst = startPvpBattle({
+      host: { deck, heroId: "hero_life", name: "Хост", level: 3 },
+      guest: { deck, heroId: "hero_hell", name: "Гость", level: 3 },
+      dice: { host: 2, guest: 5, first: "guest" },
+    });
+    if (guestFirst.state.active !== "enemy") {
+      return `гость выиграл кубик, active=${guestFirst.state.active}`;
+    }
+    const hostFirst = startPvpBattle({
+      host: { deck, heroId: "hero_life", name: "Хост", level: 3 },
+      guest: { deck, heroId: "hero_hell", name: "Гость", level: 3 },
+      dice: { host: 6, guest: 1, first: "host" },
+    });
+    if (hostFirst.state.active !== "you") {
+      return `хост выиграл кубик, active=${hostFirst.state.active}`;
+    }
     return null;
   });
 

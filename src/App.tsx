@@ -93,6 +93,7 @@ import {
   PVP_TURN_SEC,
   type PvpSeat,
   type PvpServerMsg,
+  type SeatOpeningDice,
 } from "./game/pvpProtocol";
 import { startBattleMusic, startMenuMusic, unlockSfx } from "./game/sfx";
 import { detectTelegramUser } from "./game/telegram";
@@ -106,6 +107,7 @@ type PvpClock = {
   maxTimeouts: number;
   turnLimitSec: number;
   endMessage: string | null;
+  openingDice: SeatOpeningDice | null;
 };
 
 type Screen =
@@ -378,6 +380,7 @@ export default function App() {
     maxTimeouts: PVP_MAX_TIMEOUTS,
     turnLimitSec: PVP_TURN_SEC,
     endMessage: null,
+    openingDice: null,
   });
   const pvpSocketRef = useRef<PvpSocket | null>(null);
   /** Сбежал из PvP — без наград (даже утешительных). */
@@ -915,6 +918,7 @@ export default function App() {
       maxTimeouts: PVP_MAX_TIMEOUTS,
       turnLimitSec: PVP_TURN_SEC,
       endMessage: null,
+      openingDice: null,
     });
     setScreen("multi");
   };
@@ -1250,6 +1254,7 @@ export default function App() {
           foeTimeouts: pvpClock.foeTimeouts,
           maxTimeouts: pvpClock.maxTimeouts,
           turnLimitSec: pvpClock.turnLimitSec,
+          openingDice: pvpClock.openingDice,
           exitLabel: "Сдаться",
         }}
         allowRematch={false}
@@ -1290,6 +1295,7 @@ export default function App() {
           foeTimeouts,
           maxTimeouts,
           turnLimitSec,
+          openingDice,
         }) => {
           pvpFledRef.current = false;
           pvpSocketRef.current = socket;
@@ -1302,6 +1308,7 @@ export default function App() {
             maxTimeouts,
             turnLimitSec,
             endMessage: null,
+            openingDice: openingDice ?? null,
           });
           socket.setHandler((msg: PvpServerMsg) => {
             if (msg.type === "battle") {
@@ -1313,6 +1320,7 @@ export default function App() {
                 foeTimeouts: msg.foeTimeouts,
                 maxTimeouts: msg.maxTimeouts,
                 turnLimitSec: msg.turnLimitSec,
+                openingDice: msg.openingDice ?? c.openingDice,
               }));
             }
             if (msg.type === "ended") {

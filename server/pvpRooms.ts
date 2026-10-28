@@ -9,9 +9,11 @@ import {
   PVP_MATCH_LEVEL_DELTA,
   PVP_MAX_TIMEOUTS,
   PVP_TURN_SEC,
+  seatOpeningDice,
   startPvpBattle,
   viewForSeat,
   winnerSeat,
+  type OpeningDice,
   type PvpAction,
   type PvpClientMsg,
   type PvpEndReason,
@@ -43,6 +45,7 @@ type Room = {
   turnTimer: ReturnType<typeof setTimeout> | null;
   timeouts: { host: number; guest: number };
   endReason: PvpEndReason | null;
+  openingDice: OpeningDice | null;
 };
 
 const rooms = new Map<string, Room>();
@@ -225,6 +228,9 @@ function battlePayload(room: Room, seat: PvpSeat): PvpServerMsg {
     foeTimeouts,
     maxTimeouts: PVP_MAX_TIMEOUTS,
     turnLimitSec: PVP_TURN_SEC,
+    openingDice: room.openingDice
+      ? seatOpeningDice(room.openingDice, seat)
+      : undefined,
   };
 }
 
@@ -346,7 +352,7 @@ function tryStart(room: Room) {
   if (room.battle) return;
   if (!room.host?.ready || !room.guest?.ready) return;
   try {
-    room.battle = startPvpBattle({
+    const started = startPvpBattle({
       host: {
         deck: room.host.deck,
         heroId: room.host.heroId,
@@ -360,6 +366,8 @@ function tryStart(room: Room) {
         level: room.guest.level,
       },
     });
+    room.battle = started.state;
+    room.openingDice = started.dice;
     room.timeouts = { host: 0, guest: 0 };
     room.endReason = null;
     room.battle = {
@@ -369,8 +377,13 @@ function tryStart(room: Room) {
         ...(room.battle.log ?? []),
       ].slice(0, 14),
     };
-    scheduleTurnTimer(room);
     broadcastBattle(room);
+    // Дать обоим увидеть кубик, потом стартует лимит хода.
+    room.turnTimer = setTimeout(() => {
+      if (!room.battle || winnerSeat(room.battle)) return;
+      scheduleTurnTimer(room);
+      broadcastBattle(room);
+    }, 2800);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Не удалось начать бой";
     if (room.host) send(room.host.ws, { type: "error", message });
@@ -435,6 +448,7 @@ function getOrCreate(code: string): Room | null {
       turnTimer: null,
       timeouts: { host: 0, guest: 0 },
       endReason: null,
+      openingDice: null,
     };
     rooms.set(code, room);
   }

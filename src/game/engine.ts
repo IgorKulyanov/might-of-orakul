@@ -504,6 +504,7 @@ export function createBattle(
   yourName = "Ты",
   yourLevel = 1,
   enemyLevel = yourLevel,
+  firstActive: "you" | "enemy" = "you",
 ): BattleState {
   uidSeq = 1;
   const youHero = getHero(yourHeroId);
@@ -547,7 +548,7 @@ export function createBattle(
       : "";
   return {
     turn: 1,
-    active: "you",
+    active: firstActive,
     you,
     enemy,
     calmTurnsLeft: 0,

@@ -132,6 +132,7 @@ type Props = {
     foeTimeouts?: number;
     maxTimeouts?: number;
     turnLimitSec?: number;
+    openingDice?: { you: number; foe: number; youFirst: boolean } | null;
     exitLabel?: string;
   };
   /** Подмена стейта с сервера (каждый тик PvP). */
@@ -144,6 +145,8 @@ type Props = {
 };
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+const DIE_FACE = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
 
 function BoardCard({
   creature,
@@ -385,9 +388,12 @@ export function Battle({
       clearHandDragLock();
     };
   }, []);
-  /** Подсказки первого боя */
+  /** Подсказки первого боя — в PvP не мешаем дуэли. */
   const [tutorialStep, setTutorialStep] = useState<number | null>(() =>
-    hasSeenBattleTutorial() ? null : 0,
+    network || hasSeenBattleTutorial() ? null : 0,
+  );
+  const [diceShow, setDiceShow] = useState(
+    () => Boolean(network?.openingDice),
   );
   const [tutorialSpot, setTutorialSpot] = useState<{
     top: number;
@@ -404,6 +410,16 @@ export function Battle({
     const id = window.requestAnimationFrame(() => setEntered(true));
     return () => window.cancelAnimationFrame(id);
   }, []);
+
+  useEffect(() => {
+    if (!network?.openingDice) {
+      setDiceShow(false);
+      return;
+    }
+    setDiceShow(true);
+    const t = window.setTimeout(() => setDiceShow(false), 2800);
+    return () => window.clearTimeout(t);
+  }, [network?.openingDice]);
 
   useEffect(() => {
     if (!externalState) return;
@@ -2505,6 +2521,36 @@ export function Battle({
                 })()}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {diceShow && network?.openingDice && (
+        <div className="pvp-dice-overlay" role="dialog" aria-label="Бросок кубика">
+          <div className="pvp-dice-card">
+            <p className="pvp-dice-title">Кто ходит первым</p>
+            <div className="pvp-dice-row">
+              <div className="pvp-dice-col">
+                <span className="pvp-dice-name">Ты</span>
+                <span className="pvp-die" aria-hidden>
+                  {DIE_FACE[network.openingDice.you] ?? "⚀"}
+                </span>
+                <b>{network.openingDice.you}</b>
+              </div>
+              <div className="pvp-dice-vs">vs</div>
+              <div className="pvp-dice-col">
+                <span className="pvp-dice-name">Соперник</span>
+                <span className="pvp-die" aria-hidden>
+                  {DIE_FACE[network.openingDice.foe] ?? "⚀"}
+                </span>
+                <b>{network.openingDice.foe}</b>
+              </div>
+            </div>
+            <p className="pvp-dice-result">
+              {network.openingDice.youFirst
+                ? "Ты ходишь первым"
+                : "Первым ходит соперник"}
+            </p>
           </div>
         </div>
       )}

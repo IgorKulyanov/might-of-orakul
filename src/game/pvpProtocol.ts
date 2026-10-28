@@ -66,6 +66,45 @@ export type PvpClientMsg =
 export const PVP_TURN_SEC = 20;
 export const PVP_MAX_TIMEOUTS = 5;
 
+export type OpeningDice = {
+  host: number;
+  guest: number;
+  first: PvpSeat;
+};
+
+/** Кубик как видит игрок: своё / чужое. */
+export type SeatOpeningDice = {
+  you: number;
+  foe: number;
+  youFirst: boolean;
+};
+
+export function seatOpeningDice(
+  dice: OpeningDice,
+  seat: PvpSeat,
+): SeatOpeningDice {
+  return {
+    you: seat === "host" ? dice.host : dice.guest,
+    foe: seat === "host" ? dice.guest : dice.host,
+    youFirst: dice.first === seat,
+  };
+}
+
+/** Обычный d6. Ничья — переброс, пока не будет победителя. */
+export function rollOpeningDice(rng: () => number = Math.random): OpeningDice {
+  for (let i = 0; i < 24; i++) {
+    const host = 1 + Math.floor(rng() * 6);
+    const guest = 1 + Math.floor(rng() * 6);
+    if (host === guest) continue;
+    return {
+      host,
+      guest,
+      first: host > guest ? "host" : "guest",
+    };
+  }
+  return { host: 6, guest: 1, first: "host" };
+}
+
 export type PvpEndReason = "combat" | "leave" | "disconnect" | "timeout";
 
 /** Сервер → клиент */
@@ -92,6 +131,7 @@ export type PvpServerMsg =
       foeTimeouts: number;
       maxTimeouts: number;
       turnLimitSec: number;
+      openingDice?: SeatOpeningDice;
     }
   | { type: "error"; message: string }
   | { type: "peer_left"; message: string }
@@ -275,7 +315,10 @@ export function startPvpBattle(opts: {
     name: string;
     level: number;
   };
-}): BattleState {
+  dice?: OpeningDice;
+}): { state: BattleState; dice: OpeningDice } {
+  const dice = opts.dice ?? rollOpeningDice();
+  const firstActive = dice.first === "host" ? "you" : "enemy";
   const state = createBattle(
     opts.host.deck,
     opts.guest.deck,
@@ -284,13 +327,16 @@ export function startPvpBattle(opts: {
     opts.host.name,
     opts.host.level,
     opts.guest.level,
+    firstActive,
   );
   state.enemy.name = opts.guest.name;
+  const firstName = dice.first === "host" ? opts.host.name : opts.guest.name;
   state.log = [
+    `Кубик: ${opts.host.name} ${dice.host} — ${opts.guest.name} ${dice.guest}. Первым ходит ${firstName}.`,
     `Сетевая дуэль: ${opts.host.name} vs ${opts.guest.name}`,
     ...state.log,
-  ].slice(0, 12);
-  return state;
+  ].slice(0, 14);
+  return { state, dice };
 }
 
 export function winnerSeat(
