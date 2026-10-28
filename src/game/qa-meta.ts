@@ -41,6 +41,11 @@ import {
   takeAiStep,
 } from "./engine";
 import { BASE_HEROES, EPIC_HEROES, FACTIONS, getHero, orakulArtUrl } from "./heroes";
+import {
+  hasDeathScytheGift,
+  orakulBattleHp,
+  resolveBattleGift,
+} from "./oracleGifts";
 import { flipBattle } from "./pvpFlip";
 import { validateBattleCommit } from "./pvpValidate";
 import {
@@ -189,43 +194,87 @@ export function economyAll(fails: QaFail[], ok: string[]): void {
     if (own.owned.heroId !== "hero_death_epic") return "эпик не надет";
     if (homeFactionOf(own.owned) !== "death") return "homeFaction слетел";
     if (canSelectHero(own.owned, "hero_nature")) return "можно выбрать чужую расу";
-    const back = setHero(own.owned, "hero_death");
-    if (back.heroId !== "hero_death") return "нельзя надеть обычную смерть";
-    const repaired = repairOracleRace(back);
-    if (repaired.heroId !== "hero_death") {
-      return `обычную смерть подменили на ${repaired.heroId}`;
-    }
     return null;
   });
 
-  check("base death start mana is not epic", () => {
-    const deck = botDeckForLevel(1, "death");
-    const base = createBattle(
-      deck,
-      deck,
-      "hero_death",
-      "hero_hell",
-      "QA",
-      1,
-      1,
-    );
-    const epic = createBattle(
-      deck,
-      deck,
-      "hero_death_epic",
-      "hero_hell",
-      "QA",
-      1,
-      1,
-    );
-    const b = base.you.mana.death ?? 0;
-    const e = epic.you.mana.death ?? 0;
-    if (b !== 3) return `обычная смерть старт ${b}, ждали 3`;
-    if (e !== 4) return `эпик смерти старт ${e}, ждали 4`;
+  check("base vs epic for all factions", () => {
     for (const f of FACTIONS) {
-      if (f === "death") continue;
-      if ((base.you.mana[f] ?? 0) !== 2) {
-        return `обычная смерть ${f}=${base.you.mana[f]}, ждали 2`;
+      const baseId = `hero_${f}`;
+      const epicId = `hero_${f}_epic`;
+      const deck = botDeckForLevel(1, f);
+      const foe = f === "hell" ? "hero_life" : "hero_hell";
+      const b = createBattle(deck, deck, baseId, foe, "QA", 1, 1);
+      const e = createBattle(deck, deck, epicId, foe, "QA", 1, 1);
+      if (getHero(b.you.heroId).tier !== "base") return `${f}: база не base`;
+      if (getHero(e.you.heroId).tier !== "epic") return `${f}: эпик не epic`;
+
+      const wantBase = 3;
+      const wantEpic = f === "water" ? 5 : 4;
+      if ((b.you.mana[f] ?? 0) !== wantBase) {
+        return `${f} база мана ${b.you.mana[f]}, ждали ${wantBase}`;
+      }
+      if ((e.you.mana[f] ?? 0) !== wantEpic) {
+        return `${f} эпик мана ${e.you.mana[f]}, ждали ${wantEpic}`;
+      }
+      for (const sch of FACTIONS) {
+        if (sch === f) continue;
+        if ((b.you.mana[sch] ?? 0) !== 2) {
+          return `${f} база ${sch}=${b.you.mana[sch]}`;
+        }
+        if ((e.you.mana[sch] ?? 0) !== 2) {
+          return `${f} эпик ${sch}=${e.you.mana[sch]}`;
+        }
+      }
+
+      const b10 = createBattle(deck, deck, baseId, foe, "QA", 10, 10);
+      const e10 = createBattle(deck, deck, epicId, foe, "QA", 10, 10);
+      const hpBase = orakulBattleHp(f, 10, "base");
+      const hpEpic = orakulBattleHp(f, 10, "epic");
+      if (b10.you.maxHp !== hpBase) return `${f} база HP ${b10.you.maxHp}`;
+      if (e10.you.maxHp !== hpEpic) return `${f} эпик HP ${e10.you.maxHp}`;
+      if (f === "nature") {
+        if (hpEpic <= hpBase) return "дар рощи не дал HP эпику";
+      } else if (hpEpic !== hpBase) {
+        return `${f} HP эпика отличается без дара рощи`;
+      }
+
+      if (hasDeathScytheGift(f, "base")) return `${f} база с даром косы`;
+      if (hasDeathScytheGift(f, "epic") !== (f === "death")) {
+        return `${f}: дар косы`;
+      }
+
+      const gBase = resolveBattleGift(f, true, 8, "base");
+      const gEpic = resolveBattleGift(f, true, 8, "epic");
+      if (gBase.giftGold || gBase.giftXp) {
+        return `${f} база получила дар после боя`;
+      }
+      if (f === "life" && gEpic.giftGold < 1) return "дар света не дал золото";
+      if (f === "hell" && gEpic.giftXp < 1) return "дар ада не дал XP";
+      if (f !== "life" && gEpic.giftGold) return `${f} эпик золото дара`;
+      if (f !== "hell" && gEpic.giftXp) return `${f} эпик XP дара`;
+
+      const log = e.log.join(" ");
+      if (f === "death" && !log.includes("дар косы")) {
+        return "эпик смерти без дара косы в логе";
+      }
+      if (f !== "death" && log.includes("дар косы")) {
+        return `${f} эпик с логом косы`;
+      }
+      if (f === "water" && !log.includes("дар пучины")) {
+        return "эпик воды без дара пучины";
+      }
+      if (f !== "water" && log.includes("дар пучины")) {
+        return `${f} эпик с логом пучины`;
+      }
+
+      const o = seedOwned(f, 100_000, 5_000);
+      const bought = buyEpicHero(o, epicId, "gold");
+      if (!bought.ok) return `${f} эпик не купился: ${bought.reason}`;
+      const back = setHero(bought.owned, baseId);
+      if (back.heroId !== baseId) return `${f} нельзя вернуть обычного`;
+      const repaired = repairOracleRace(back);
+      if (repaired.heroId !== baseId) {
+        return `${f} обычного подменили на ${repaired.heroId}`;
       }
     }
     return null;

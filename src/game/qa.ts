@@ -804,6 +804,38 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
     return null;
   });
 
+  assert("дар косы только у эпика смерти", () => {
+    const strike = (heroId: string) => {
+      let s = createBattle(
+        ["skeleton", "zombie", "tank", "hero_mana"],
+        ["crossbowman", "tank", "tank", "hero_mana"],
+        heroId,
+        "hero_life",
+        "QA",
+        1,
+        1,
+      );
+      s.you.slots[0] = arm(dummy("skeleton", "sk1", 1));
+      s.you.slots[0]!.health = 1;
+      s.you.slots[0]!.attack = 1;
+      s.enemy.slots[0] = dummy("crossbowman", "cb", 3);
+      s.enemy.slots[0]!.attack = 1;
+      s.enemy.slots[0]!.health = 3;
+      const before = s.you.mana.death ?? 0;
+      s = attackWith(s, 0, 0);
+      return {
+        dead: !s.you.slots[0],
+        gained: (s.you.mana.death ?? 0) - before,
+      };
+    };
+    const base = strike("hero_death");
+    const epic = strike("hero_death_epic");
+    if (!base.dead || !epic.dead) return "скелет не умер от ответки";
+    if (base.gained !== 0) return `обычная смерть +${base.gained} маны за труп`;
+    if (epic.gained !== 1) return `эпик смерти +${epic.gained} маны за труп`;
+    return null;
+  });
+
   assert("riposte отвечает сразу", () => {
     let s = boardForCreatures();
     // Ящер 2/2 бьёт арбалетчика 1/3 напротив → ответка 1, ящер 2/1
