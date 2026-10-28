@@ -134,7 +134,7 @@ export function SplashMenu({
 
       <div className="splash-top-right">
         <div className="splash-wallet" data-tut="hub-wallet" title="Кошелёк">
-          <span className="wallet-chip gold">зол. {gold}</span>
+          <span className="wallet-chip gold">🪙 {gold}</span>
           <span className="wallet-chip dia">💎 {diamonds}</span>
         </div>
         <button

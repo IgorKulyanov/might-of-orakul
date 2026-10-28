@@ -55,7 +55,7 @@ export const GOLD_EXCHANGES: GoldExchange[] = [
   { id: "g_4800", title: "Сокровищница", diamonds: 420, gold: 4800 },
 ];
 
-/** Сколько зол. даёт 1💎 при свободном обмене. */
+/** Сколько 🪙 даёт 1💎 при свободном обмене. */
 export const GOLD_PER_DIAMOND = 9;
 
 /** Быстрые шаги счётчика обмена. */

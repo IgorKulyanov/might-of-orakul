@@ -44,7 +44,7 @@ const LEGACY_KEYS = [
 const CASE_WIPE_FLAG = "arcane-duel-case-wipe-v4";
 /** Одноразово: копии + старт из 4 карт (v3). */
 const COPIES_FLAG = "arcane-duel-copies-v3";
-/** Одноразово: старый старт 250 зол. → минимум 500 зол. / 25💎. */
+/** Одноразово: старый старт 250 🪙 → минимум 500 🪙 / 25💎. */
 const WALLET_V2_FLAG = "orakul-start-wallet-v2";
 /** Одноразово: откат бесплатных демо-пакетов 💎 у ранних аккаунтов. */
 const WALLET_V3_FLAG = "orakul-wallet-pack-fix-v1";
@@ -708,7 +708,7 @@ export function beginWithHero(
     const diaNeed = hero.priceDiamonds ?? EPIC_HERO_DIAMONDS;
     if (pay === "gold") {
       if ((state.gold ?? 0) < goldNeed) {
-        return { owned, ok: false, reason: `Нужно ${goldNeed} зол.` };
+        return { owned, ok: false, reason: `Нужно ${goldNeed} 🪙` };
       }
       state = { ...state, gold: (state.gold ?? 0) - goldNeed };
     } else {

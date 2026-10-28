@@ -196,11 +196,11 @@ export function Collection({
     const gold = owned.gold ?? 0;
     if (gold < price) {
       alert(
-        `Не хватает золота на ${label}.\nНужно ${price} зол., у тебя ${gold} зол.`,
+        `Не хватает золота на ${label}.\nНужно ${price} 🪙, у тебя ${gold} 🪙`,
       );
       return;
     }
-    const ok = window.confirm(`Купить ${label} за ${price} зол.?`);
+    const ok = window.confirm(`Купить ${label} за ${price} 🪙?`);
     if (!ok) return;
     onChange(buyCardWithGold(owned, id));
   };
@@ -224,7 +224,7 @@ export function Collection({
         </button>
         <h1>{tab === "deck" ? "Колода" : "Магазин"}</h1>
         <div className="wallet-row">
-          <span className="wallet-chip gold">зол. {owned.gold ?? 0}</span>
+          <span className="wallet-chip gold">🪙 {owned.gold ?? 0}</span>
           <span className="wallet-chip dia">💎 {owned.diamonds ?? 0}</span>
         </div>
         <div className="tabs">
@@ -250,7 +250,7 @@ export function Collection({
             title="Алмазы и золото"
           >
             <span className="shop-tab-icons" aria-hidden>
-              💎<span className="shop-tab-slash">/</span>зол.
+              💎<span className="shop-tab-slash">/</span>🪙
             </span>
             <span className="shop-tab-label">Валюта</span>
           </button>
@@ -351,7 +351,7 @@ export function Collection({
                         className="primary"
                         onClick={() => buy(c.id, false)}
                       >
-                        {have > 0 ? "Ещё · " : ""}зол. {c.priceGold}
+                        {have > 0 ? "Ещё · " : ""}🪙 {c.priceGold}
                       </button>
                       {c.priceDiamonds != null && c.priceDiamonds > 0 && (
                         <button
@@ -542,9 +542,9 @@ export function Collection({
         <div className="currency-shop" data-tut="hub-shop-packs">
 
           <section className="currency-panel exchange-panel">
-            <h2>Обмен 💎 → зол.</h2>
+            <h2>Обмен 💎 → 🪙</h2>
             <p className="hint">
-              Курс: <strong>1💎 = {GOLD_PER_DIAMOND} зол.</strong>. Выбери сколько
+              Курс: <strong>1💎 = {GOLD_PER_DIAMOND} 🪙</strong>. Выбери сколько
               алмазов списать — хоть 5, хоть всё.
             </p>
             <div className="exchange-stepper" aria-label="Счётчик алмазов">
@@ -606,7 +606,7 @@ export function Collection({
             </div>
             <p className="exchange-preview">
               Отдаёшь <strong>{exchangeAmt}💎</strong> → получишь{" "}
-              <strong>{goldForDiamonds(exchangeAmt)} зол.</strong>
+              <strong>{goldForDiamonds(exchangeAmt)} 🪙</strong>
             </p>
             <button
               type="button"
@@ -620,7 +620,7 @@ export function Collection({
                 }
                 const gained = goldForDiamonds(exchangeAmt);
                 onChange(next);
-                say(`Обмен: −${exchangeAmt}💎 → +${gained} зол.`);
+                say(`Обмен: −${exchangeAmt}💎 → +${gained} 🪙`);
                 setExchangeAmt(1);
               }}
             >
