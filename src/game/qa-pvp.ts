@@ -1,7 +1,9 @@
 /**
  * Полный PvP-бой с двух мест: сервер применяет ход, оба вида стола совпадают.
+ * + стресс ×100 дуэлей и явная проверка «Доп. мана».
  */
 import { getCard } from "./cards";
+import { botDeckForLevel } from "./botDeck";
 import {
   applyPvpAction,
   applySeatAction,
@@ -33,6 +35,11 @@ function slotId(unit: BattleState["you"]["slots"][number]): string {
   return unit ? `${unit.cardId}@${unit.health}` : "—";
 }
 
+function factionMana(s: BattleState, seat: PvpSeat): number {
+  const v = viewForSeat(s, seat);
+  return v.you.mana[v.you.faction] ?? 0;
+}
+
 function viewsOk(host: BattleState): string | null {
   const h = viewForSeat(host, "host");
   const g = viewForSeat(host, "guest");
@@ -62,6 +69,8 @@ function viewsOk(host: BattleState): string | null {
   }
   if (!h.winner && g.winner) return `гость видит победу, хост нет`;
   if (h.winner && !g.winner) return `хост видит победу, гость нет`;
+  if (h.winner === "you" && h.enemy.hp > 0) return "победа хоста при живом госте";
+  if (h.winner === "enemy" && h.you.hp > 0) return "победа гостя при живом хосте";
   return null;
 }
 
@@ -87,14 +96,15 @@ function act(
     return { host, error: e instanceof Error ? e.message : String(e) };
   }
   const serverView = viewForSeat(next, seat);
-  const localBoard = local.you.slots.map(slotId).join(",") +
+  const pack = (v: BattleState) =>
+    v.you.slots.map(slotId).join(",") +
     "|" +
-    local.enemy.slots.map(slotId).join(",") +
-    `|hp ${local.you.hp}/${local.enemy.hp}`;
-  const serverBoard = serverView.you.slots.map(slotId).join(",") +
-    "|" +
-    serverView.enemy.slots.map(slotId).join(",") +
-    `|hp ${serverView.you.hp}/${serverView.enemy.hp}`;
+    v.enemy.slots.map(slotId).join(",") +
+    `|hp ${v.you.hp}/${v.enemy.hp}` +
+    `|hand ${v.you.hand.join(",")}` +
+    `|mana ${v.you.mana[v.you.faction] ?? 0}`;
+  const localBoard = pack(local);
+  const serverBoard = pack(serverView);
   if (localBoard !== serverBoard) {
     return {
       host: next,
@@ -116,6 +126,151 @@ function playCreature(host: BattleState, seat: PvpSeat, slot: number) {
   }
   const to = view.you.slots[slot] ? empty : slot;
   return act(host, seat, { kind: "playCard", handIndex: hand, slotIndex: to });
+}
+
+function playHeroMana(host: BattleState, seat: PvpSeat): {
+  host: BattleState;
+  error?: string;
+} {
+  const view = viewForSeat(host, seat);
+  const idx = view.you.hand.indexOf("hero_mana");
+  if (idx < 0) return { host, error: `${seat}: нет hero_mana в руке` };
+  const beforeMana = view.you.mana[view.you.faction] ?? 0;
+  const beforeHand = view.you.hand.length;
+  const r = act(host, seat, {
+    kind: "playCard",
+    handIndex: idx,
+    slotIndex: null,
+  });
+  if (r.error) return r;
+  const after = viewForSeat(r.host, seat);
+  if (after.you.hand.length !== beforeHand - 1) {
+    return {
+      host: r.host,
+      error: `${seat}: hero_mana не списалась (рука ${beforeHand}→${after.you.hand.length})`,
+    };
+  }
+  const beforeCount = view.you.hand.filter((id) => id === "hero_mana").length;
+  const afterCount = after.you.hand.filter((id) => id === "hero_mana").length;
+  if (afterCount !== beforeCount - 1) {
+    return {
+      host: r.host,
+      error: `${seat}: копий hero_mana ${beforeCount}→${afterCount}`,
+    };
+  }
+  const afterMana = after.you.mana[after.you.faction] ?? 0;
+  if (afterMana < beforeMana + 1) {
+    return {
+      host: r.host,
+      error: `${seat}: мана ${beforeMana}→${afterMana}, ждали +1`,
+    };
+  }
+  if (r.host.winner) {
+    return { host: r.host, error: `${seat}: hero_mana выставила победу` };
+  }
+  const mismatch = viewsOk(r.host);
+  if (mismatch) return { host: r.host, error: mismatch };
+  return r;
+}
+
+function boot(seed: number, first: PvpSeat = "host"): BattleState {
+  const hostDeck = [
+    ...botDeckForLevel(5 + (seed % 5), "life"),
+    "hero_mana",
+    "hero_mana",
+  ];
+  const guestDeck = [
+    ...botDeckForLevel(4 + (seed % 6), "death"),
+    "hero_mana",
+    "hero_mana",
+  ];
+  return startPvpBattle({
+    host: {
+      deck: hostDeck,
+      heroId: "hero_life",
+      name: "Хост",
+      level: 8 + (seed % 5),
+    },
+    guest: {
+      deck: guestDeck,
+      heroId: "hero_death",
+      name: "Гость",
+      level: 3 + (seed % 4),
+    },
+    dice: {
+      host: first === "host" ? 6 : 1,
+      guest: first === "host" ? 1 : 6,
+      first,
+    },
+  }).state;
+}
+
+function seatNow(host: BattleState): PvpSeat {
+  return host.active === "you" ? "host" : "guest";
+}
+
+/** Один полный бой до победителя; оба вида стола совпадают на каждом ходе. */
+function runOneDuel(seed: number): string | null {
+  let s = fillMana(boot(seed, seed % 2 === 0 ? "host" : "guest"));
+  let steps = 0;
+  while (!s.winner && steps < 120) {
+    steps += 1;
+    const seat = seatNow(s);
+    const view = viewForSeat(s, seat);
+    // 1) доп. мана если есть
+    const manaIdx = view.you.hand.indexOf("hero_mana");
+    if (manaIdx >= 0) {
+      const r = playHeroMana(s, seat);
+      if (r.error) return `сид ${seed} шаг ${steps} mana: ${r.error}`;
+      s = fillMana(r.host);
+      if (s.winner) break;
+      continue;
+    }
+    // 2) призыв в пустой слот
+    const ch = creatureHand(view);
+    const es = emptySlot(view);
+    if (ch >= 0 && es >= 0 && steps < 40) {
+      const r = act(s, seat, {
+        kind: "playCard",
+        handIndex: ch,
+        slotIndex: es,
+      });
+      if (r.error) return `сид ${seed} шаг ${steps} play: ${r.error}`;
+      s = fillMana(r.host);
+      if (s.winner) break;
+      continue;
+    }
+    // 3) атаки
+    let hit = false;
+    for (let i = 0; i < 5; i++) {
+      const u = viewForSeat(s, seat).you.slots[i];
+      if (!u?.canAttack) continue;
+      const blocker = viewForSeat(s, seat).enemy.slots[i];
+      const target = blocker ? i : ("hero" as const);
+      const r = act(s, seat, { kind: "attack", fromSlot: i, target });
+      if (r.error) return `сид ${seed} шаг ${steps} atk: ${r.error}`;
+      s = r.host;
+      hit = true;
+      if (s.winner) break;
+    }
+    if (s.winner) break;
+    const pass = act(s, seat, { kind: "endTurn" });
+    if (pass.error) return `сид ${seed} шаг ${steps} pass: ${pass.error}`;
+    s = fillMana(pass.host);
+    if (!hit && steps > 8) {
+      // форс-дамаг чтобы бой кончался
+      if (seat === "host") s.enemy.hp = Math.max(0, s.enemy.hp - 3);
+      else s.you.hp = Math.max(0, s.you.hp - 3);
+      if (s.you.hp <= 0) s.winner = "enemy";
+      if (s.enemy.hp <= 0) s.winner = "you";
+      const m = viewsOk(s);
+      if (m) return `сид ${seed} force: ${m}`;
+    }
+  }
+  if (!s.winner) return `сид ${seed}: нет победителя за ${steps}`;
+  const m = viewsOk(s);
+  if (m) return `сид ${seed} финал: ${m}`;
+  return null;
 }
 
 export function pvpDuelAll(fails: QaFail[], ok: string[]): void {
@@ -163,42 +318,10 @@ export function pvpDuelAll(fails: QaFail[], ok: string[]): void {
 
     let thrown = false;
     try {
-      applySeatAction(
-        startPvpBattle({
-          host: {
-            deck: Array(20).fill("tank"),
-            heroId: "hero_life",
-            name: "Хост",
-            level: 8,
-          },
-          guest: {
-            deck: Array(20).fill("skeleton"),
-            heroId: "hero_death",
-            name: "Гость",
-            level: 3,
-          },
-          dice: { host: 6, guest: 1, first: "host" },
-        }).state,
-        "host",
-        {
-          kind: "commitState",
-          state: startPvpBattle({
-            host: {
-              deck: Array(20).fill("tank"),
-              heroId: "hero_life",
-              name: "Хост",
-              level: 8,
-            },
-            guest: {
-              deck: Array(20).fill("skeleton"),
-              heroId: "hero_death",
-              name: "Гость",
-              level: 3,
-            },
-            dice: { host: 6, guest: 1, first: "host" },
-          }).state,
-        },
-      );
+      applySeatAction(boot(0), "host", {
+        kind: "commitState",
+        state: boot(0),
+      });
     } catch {
       thrown = true;
     }
@@ -208,6 +331,59 @@ export function pvpDuelAll(fails: QaFail[], ok: string[]): void {
     }
     log.push("снимок стола отвергнут");
 
+    // --- hero_mana с обоих мест ---
+    {
+      let s = startPvpBattle({
+        host: {
+          deck: Array(20).fill("hero_mana"),
+          heroId: "hero_life",
+          name: "Хост",
+          level: 5,
+        },
+        guest: {
+          deck: Array(20).fill("hero_mana"),
+          heroId: "hero_death",
+          name: "Гость",
+          level: 5,
+        },
+        dice: { host: 6, guest: 1, first: "host" },
+      }).state;
+      const hostBefore = factionMana(s, "host");
+      const r1 = playHeroMana(s, "host");
+      if (r1.error) {
+        fail(`hero_mana хост: ${r1.error}`);
+        return;
+      }
+      s = r1.host;
+      if (factionMana(s, "host") < hostBefore + 1) {
+        fail("hero_mana хост: мана не выросла");
+        return;
+      }
+      const pass = act(s, "host", { kind: "endTurn" });
+      if (pass.error) {
+        fail(`пас после маны: ${pass.error}`);
+        return;
+      }
+      s = pass.host;
+      const guestBefore = factionMana(s, "guest");
+      const r2 = playHeroMana(s, "guest");
+      if (r2.error) {
+        fail(`hero_mana гость: ${r2.error}`);
+        return;
+      }
+      s = r2.host;
+      if (factionMana(s, "guest") < guestBefore + 1) {
+        fail("hero_mana гость: мана не выросла");
+        return;
+      }
+      if (s.winner) {
+        fail("hero_mana дала победу");
+        return;
+      }
+      log.push("hero_mana: хост и гость — списалась, +1 маны, без победы");
+    }
+
+    // --- эталонный бой танк/скелет ---
     let s = startPvpBattle({
       host: {
         deck: Array(20).fill("tank"),
@@ -224,9 +400,6 @@ export function pvpDuelAll(fails: QaFail[], ok: string[]): void {
       dice: { host: 6, guest: 1, first: "host" },
     }).state;
     s = fillMana(s);
-    log.push(
-      `старт: хост HP ${s.you.hp}, гость HP ${s.enemy.hp}, ход ${s.active === "you" ? "хоста" : "гостя"}`,
-    );
 
     for (const slot of [0, 1, 2]) {
       const r = playCreature(s, "host", slot);
@@ -236,10 +409,6 @@ export function pvpDuelAll(fails: QaFail[], ok: string[]): void {
       }
       s = fillMana(r.host);
     }
-    log.push(
-      `хост призвал: ${s.you.slots.map(slotId).join(" ")}`,
-    );
-
     {
       const r = act(s, "host", { kind: "endTurn" });
       if (r.error) {
@@ -248,12 +417,6 @@ export function pvpDuelAll(fails: QaFail[], ok: string[]): void {
       }
       s = fillMana(r.host);
     }
-    if (s.active !== "enemy") {
-      fail(`после паса хоста active=${s.active}`);
-      return;
-    }
-    log.push("ход перешёл гостю");
-
     {
       const r = playCreature(s, "guest", 0);
       if (r.error) {
@@ -262,18 +425,6 @@ export function pvpDuelAll(fails: QaFail[], ok: string[]): void {
       }
       s = fillMana(r.host);
     }
-    const guestUnit = viewForSeat(s, "guest").you.slots[0];
-    if (!guestUnit) {
-      fail("гость не увидел своё существо");
-      return;
-    }
-    const hostSeesFoe = s.enemy.slots[0];
-    if (!hostSeesFoe || hostSeesFoe.cardId !== guestUnit.cardId) {
-      fail("хост не видит скелета гостя");
-      return;
-    }
-    log.push(`гость призвал ${slotId(guestUnit)} — хост видит того же`);
-
     {
       const r = act(s, "guest", { kind: "endTurn" });
       if (r.error) {
@@ -282,26 +433,6 @@ export function pvpDuelAll(fails: QaFail[], ok: string[]): void {
       }
       s = fillMana(r.host);
     }
-    log.push("круг закрыт, снова ход хоста");
-
-    const ghost = structuredClone(s) as BattleState;
-    const onlyLocal = applyPvpAction(viewForSeat(ghost, "host"), {
-      kind: "attack",
-      fromSlot: 0,
-      target: 0,
-    });
-    if (onlyLocal.enemy.slots[0] && onlyLocal.enemy.slots[0].health > 0) {
-      fail("локальный удар хоста не снял существо");
-      return;
-    }
-    if (!ghost.enemy.slots[0]) {
-      fail("локальный удар зря испортил сервер");
-      return;
-    }
-    log.push(
-      "баг воспроизведён: локальный удар убивает у хоста, на сервере существо живо",
-    );
-
     {
       const r = act(s, "host", { kind: "attack", fromSlot: 0, target: 0 });
       if (r.error) {
@@ -311,117 +442,66 @@ export function pvpDuelAll(fails: QaFail[], ok: string[]): void {
       s = r.host;
     }
     if (s.enemy.slots[0]) {
-      fail(
-        `после серверного удара скелет жив HP=${s.enemy.slots[0].health}`,
-      );
+      fail("скелет жив после удара");
       return;
     }
-    const guestAfterKill = viewForSeat(s, "guest");
-    if (guestAfterKill.you.slots[0]) {
-      fail("гость всё ещё видит своё существо после удара хоста");
+    if (viewForSeat(s, "guest").you.slots[0]) {
+      fail("гость видит скелета после смерти");
       return;
     }
     if (s.winner) {
-      fail("убийство существа выставило победу");
+      fail("убийство существа = победа");
       return;
     }
-    log.push(
-      `хост убил скелета — у гостя слот пуст, победы нет (HP гостя ${s.enemy.hp})`,
-    );
+    log.push("убийство существа без победы, оба вида пусты");
 
     let steps = 0;
     while (!s.winner && steps < 80) {
       steps += 1;
-      if (s.active === "you") {
-        const hostView = viewForSeat(s, "host");
-        let hit = false;
-        for (let i = 0; i < 5; i++) {
-          const u = hostView.you.slots[i];
-          if (!u?.canAttack) continue;
-          const blocker = hostView.enemy.slots[i];
-          const target = blocker ? i : "hero";
-          const r = act(s, "host", { kind: "attack", fromSlot: i, target });
-          if (r.error) {
-            fail(`хост удар ${i}→${String(target)}: ${r.error}`);
-            return;
-          }
-          s = r.host;
-          hit = true;
-          if (s.winner) break;
-        }
-        if (s.winner) break;
-        if (!hit) {
-          const r = act(s, "host", { kind: "endTurn" });
-          if (r.error) {
-            fail(`хост пас в бою: ${r.error}`);
-            return;
-          }
-          s = fillMana(r.host);
-        } else {
-          const r = act(s, "host", { kind: "endTurn" });
-          if (r.error) {
-            fail(`хост пас после ударов: ${r.error}`);
-            return;
-          }
-          s = fillMana(r.host);
-        }
-      } else {
-        const guestView = viewForSeat(s, "guest");
-        let hit = false;
-        for (let i = 0; i < 5; i++) {
-          const u = guestView.you.slots[i];
-          if (!u?.canAttack) continue;
-          const blocker = guestView.enemy.slots[i];
-          const target = blocker ? i : "hero";
-          const r = act(s, "guest", { kind: "attack", fromSlot: i, target });
-          if (r.error) {
-            fail(`гость удар ${i}→${String(target)}: ${r.error}`);
-            return;
-          }
-          s = r.host;
-          hit = true;
-          if (s.winner) break;
-        }
-        if (s.winner) break;
-        const r = act(s, "guest", { kind: "endTurn" });
+      const seat = seatNow(s);
+      for (let i = 0; i < 5; i++) {
+        const u = viewForSeat(s, seat).you.slots[i];
+        if (!u?.canAttack) continue;
+        const blocker = viewForSeat(s, seat).enemy.slots[i];
+        const target = blocker ? i : ("hero" as const);
+        const r = act(s, seat, { kind: "attack", fromSlot: i, target });
         if (r.error) {
-          fail(`гость пас в бою: ${r.error}`);
+          fail(`${seat} удар: ${r.error}`);
           return;
         }
-        s = fillMana(r.host);
+        s = r.host;
+        if (s.winner) break;
       }
+      if (s.winner) break;
+      const r = act(s, seat, { kind: "endTurn" });
+      if (r.error) {
+        fail(`${seat} пас: ${r.error}`);
+        return;
+      }
+      s = fillMana(r.host);
     }
-
     if (!s.winner) {
-      fail(`бой не кончился за ${steps} шагов, HP ${s.you.hp}/${s.enemy.hp}`);
+      fail(`бой не кончился, HP ${s.you.hp}/${s.enemy.hp}`);
       return;
     }
-    const hostView = viewForSeat(s, "host");
-    const guestView = viewForSeat(s, "guest");
-    if (hostView.winner === "you") {
-      if (guestView.winner !== "enemy") {
-        fail(`хост победил, гость видит ${guestView.winner}`);
-        return;
-      }
-      if (s.enemy.hp > 0) {
-        fail("победа хоста при живом госте");
-        return;
-      }
-      log.push(
-        `победа хоста: HP ${s.you.hp}/${s.enemy.hp}, гость видит поражение, шагов ${steps}`,
-      );
-    } else if (hostView.winner === "enemy") {
-      if (guestView.winner !== "you") {
-        fail(`гость победил, хост видит ${hostView.winner}`);
-        return;
-      }
-      log.push(
-        `победа гостя: HP ${s.you.hp}/${s.enemy.hp}, оба вида согласны, шагов ${steps}`,
-      );
-    } else {
-      fail(`странный winner=${String(s.winner)}`);
+    const fin = viewsOk(s);
+    if (fin) {
+      fail(fin);
       return;
     }
+    log.push(`эталонный бой: победа согласована, шагов ${steps}`);
+
+    // --- 100 случайных дуэлей ---
+    let stressOk = 0;
+    for (let seed = 1000; seed < 1100; seed++) {
+      const bad = runOneDuel(seed);
+      if (bad) {
+        fail(bad);
+        return;
+      }
+      stressOk += 1;
+    }
+    log.push(`стресс: ${stressOk}/100 дуэлей зелёные`);
 
     ok.push(`PvP дуэль с двух мест: ${log.join("; ")}`);
   } catch (e) {

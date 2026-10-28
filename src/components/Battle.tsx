@@ -76,8 +76,14 @@ import {
   hasSeenBattleTutorial,
   markBattleTutorialSeen,
 } from "../game/battleTutorial";
-import { PVP_OPENING_MS, type PvpAction } from "../game/pvpProtocol";
+import {
+  applyPvpAction,
+  PVP_OPENING_MS,
+  type PvpAction,
+} from "../game/pvpProtocol";
 import type { BattleState, CreatureInstance } from "../game/types";
+
+type NetAction = PvpAction | ((s: BattleState) => PvpAction | null);
 
 type BattleEndInfo = {
   won: boolean;
@@ -470,19 +476,22 @@ export function Battle({
 
   useEffect(() => {
     if (!externalState) return;
+    // Победа в PvP только после server `ended` — иначе ложный оверлей.
+    let next = externalState;
+    if (network && next.winner && !network.ended) {
+      next = { ...next, winner: null };
+    }
     const keepBusy =
-      lock.current &&
-      externalState.active === "you" &&
-      !externalState.winner;
-    stateRef.current = externalState;
-    setState(externalState);
-    setPhase(externalState.active === "you" ? "you" : "enemy");
+      lock.current && next.active === "you" && !next.winner;
+    stateRef.current = next;
+    setState(next);
+    setPhase(next.active === "you" ? "you" : "enemy");
     setPvpAwaiting(false);
     // Стол всегда с сервера. Busy не сбрасываем посреди своей анимации.
     if (keepBusy) return;
     setBusy(false);
     lock.current = false;
-  }, [externalState]);
+  }, [externalState, network, network?.ended]);
 
   useLayoutEffect(() => {
     if (tutorialStep == null || state.winner) {
@@ -593,15 +602,47 @@ export function Battle({
     /** Применить к актуальному state (не к устаревшему из замыкания клика). */
     run: (s: BattleState) => BattleState,
     holdMs = 900,
-    netAction?: PvpAction,
+    netAction?: NetAction,
   ) => {
     unlockSfx();
     const before = stateRef.current;
     const isSpellCard = nextFx.kind === "spell" && !!nextFx.cardId;
     const instant = nextFx.kind === "spell" || nextFx.kind === "heal";
+    const online = Boolean(networkRef.current);
     setFx(nextFx);
     playActionSfx(nextFx, before);
     const apply = () => {
+      // PvP: тот же applyPvpAction, что на сервере. Без «подождать 1.6с» —
+      // иначе handIndex устаревает, доп. мана не списывается и откатывается.
+      if (networkRef.current) {
+        const action =
+          typeof netAction === "function"
+            ? netAction(stateRef.current)
+            : netAction;
+        if (!action) {
+          console.error("[battle] PvP без типизированного хода");
+          setFx(null);
+          return stateRef.current;
+        }
+        let after: BattleState;
+        try {
+          after = applyPvpAction(stateRef.current, action);
+        } catch (e) {
+          console.error("[battle] PvP apply fail:", e);
+          setFx(null);
+          return stateRef.current;
+        }
+        if (after.winner) after = { ...after, winner: null };
+        stateRef.current = after;
+        setState(after);
+        playResultSfx(before, after);
+        try {
+          networkRef.current.sendAction(action);
+        } catch (e) {
+          console.error("[battle] net send fail:", e);
+        }
+        return after;
+      }
       let after: BattleState;
       try {
         after = run(stateRef.current);
@@ -610,25 +651,26 @@ export function Battle({
         setFx(null);
         return stateRef.current;
       }
-      if (networkRef.current && after.winner) {
-        after = { ...after, winner: null };
-      }
       stateRef.current = after;
       setState(after);
       playResultSfx(before, after);
-      if (networkRef.current) {
-        if (!netAction) {
-          console.error("[battle] PvP без типизированного хода");
-          return after;
-        }
-        try {
-          networkRef.current.sendAction(netAction);
-        } catch (e) {
-          console.error("[battle] net send fail:", e);
-        }
-      }
       return after;
     };
+    // В сети ход сразу — анимация после. Оффлайн спеллы как раньше (сначала карта).
+    if (online) {
+      apply();
+      const hold = isSpellCard
+        ? Math.max(holdMs, 1400)
+        : instant
+          ? Math.max(holdMs, 900)
+          : nextFx.hitHero && nextFx.kind !== "heal"
+            ? Math.max(holdMs, 1400)
+            : holdMs;
+      await sleep(hold);
+      setFx(null);
+      await sleep(200);
+      return;
+    }
     if (isSpellCard) {
       // Сначала спокойно появляется карта, потом эффект на столе.
       const hold = Math.max(holdMs, 3000);
@@ -710,7 +752,14 @@ export function Battle({
               return playCard(s, idx, null);
             },
             1400,
-            { kind: "playCard", handIndex: i, slotIndex: null },
+            (s) => {
+              const idx =
+                s.you.hand[i] === cardId
+                  ? i
+                  : s.you.hand.indexOf(cardId);
+              if (idx < 0) return null;
+              return { kind: "playCard", handIndex: idx, slotIndex: null };
+            },
           );
         });
         return;
@@ -1624,7 +1673,14 @@ export function Battle({
         playActionSfx(preview, s);
         await sleep(320);
         const before = s;
-        const after = attackWith(s, i, target);
+        const action: PvpAction = {
+          kind: "attack",
+          fromSlot: i,
+          target,
+        };
+        const after = networkRef.current
+          ? applyPvpAction(s, action)
+          : attackWith(s, i, target);
         const over = Boolean(after.winner) || after.enemy.hp <= 0;
         s =
           networkRef.current && after.winner
@@ -1634,11 +1690,7 @@ export function Battle({
         setState(s);
         playResultSfx(before, s);
         if (networkRef.current) {
-          networkRef.current.sendAction({
-            kind: "attack",
-            fromSlot: i,
-            target,
-          });
+          networkRef.current.sendAction(action);
         }
         setFx(null);
         await sleep(180);
