@@ -24,7 +24,7 @@ import type { OwnedState } from "../game/types";
 const SPLASH_SLIDES = [
   "/splash-elements-v2.jpg?v=7",
   "/splash-slides/valkyrie-hi.png?v=2",
-  "/splash-slides/kraken-hi.png?v=2",
+  "/splash-slides/kraken-hi.png?v=3",
   "/splash-slides/vampire-hi.png?v=2",
   "/splash-slides/ent-hi.png?v=2",
   "/splash-slides/inferno-hi.png?v=2",
