@@ -482,6 +482,16 @@ function tickEndOwnerEffects(p: PlayerState, log: string[]): void {
     if (sp.kind === "shield" && sp.turnsLeft != null) {
       sp.turnsLeft -= 1;
     }
+    // Чистое небо: тик в конце хода жертвы — иначе 1 ход спадает до её атак.
+    if (sp.kind === "mute_ranged" && sp.turnsLeft != null) {
+      sp.turnsLeft -= 1;
+    }
+  }
+  if (p.muteRangedTurns > 0) {
+    p.muteRangedTurns -= 1;
+    if (p.muteRangedTurns <= 0) {
+      log.unshift(`${p.name}: чистое небо — стрелки снова могут бить`);
+    }
   }
 }
 
@@ -1746,6 +1756,16 @@ function applySpellEffects(
             s.canAttack = false;
           }
         }
+        if (lingerMeta) {
+          pushBoardSpell(foe, {
+            cardId: lingerMeta.cardId,
+            turnsLeft: eff.turns,
+            targetSide: foe.id,
+            casterSide: caster.id,
+            kind: "mute_ranged",
+            mode: "active",
+          });
+        }
         log.unshift(
           `${caster.name}: чистое небо — стрелки/маги врага молчат ${eff.turns} ход`,
         );
@@ -2051,6 +2071,9 @@ function boardSideForSpellEffects(
       e.type === "skip_combat"
     ) {
       return casterId;
+    }
+    if (e.type === "mute_ranged" || e.type === "weaken_foe_damage") {
+      return foeId;
     }
   }
   return casterId;
@@ -3123,12 +3146,6 @@ function tickUnitStatuses(p: PlayerState, log: string[]): void {
     p.weakenDamageTurns -= 1;
     if (p.weakenDamageTurns <= 0) {
       log.unshift(`${p.name}: пыль в глаза спала — урон полный`);
-    }
-  }
-  if (p.muteRangedTurns > 0) {
-    p.muteRangedTurns -= 1;
-    if (p.muteRangedTurns <= 0) {
-      log.unshift(`${p.name}: чистое небо — стрелки снова могут бить`);
     }
   }
 }

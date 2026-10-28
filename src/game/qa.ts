@@ -706,6 +706,37 @@ function spellsAll(fails: QaFail[], ok: string[]): void {
             bad = `бан школы ${s.enemy.attackBanSchool}/${s.enemy.attackBanTurns}`;
           }
           break;
+        case "clear_sky": {
+          if (s.enemy.muteRangedTurns < 1) {
+            bad = `muteRangedTurns=${s.enemy.muteRangedTurns}`;
+            break;
+          }
+          const ranged =
+            CARDS.find(
+              (c) => c.kind === "creature" && c.attackPattern === "ranged",
+            )?.id ?? "crossbowman";
+          s.enemy.slots[0] = dummy(ranged, "en-bow", 4);
+          s.enemy.slots[0]!.canAttack = true;
+          // На ход врага стрелок должен молчать (раньше mute падал в beginTurn).
+          s = endPlayerTurn(s);
+          if (s.enemy.muteRangedTurns < 1) {
+            bad = `после твоего паса mute уже ${s.enemy.muteRangedTurns}`;
+            break;
+          }
+          if (s.enemy.slots[0]?.canAttack) {
+            bad = "стрелок врага может бить под чистым небом";
+            break;
+          }
+          if (!s.enemy.activeSpells.some((sp) => sp.kind === "mute_ranged")) {
+            bad = "карта чистого неба не висит на поле";
+            break;
+          }
+          s = endEnemyTurn(s);
+          if (s.enemy.muteRangedTurns > 0) {
+            bad = `после хода врага mute ещё ${s.enemy.muteRangedTurns}`;
+          }
+          break;
+        }
         case "last_stand": {
           const u = s.you.slots[0]!;
           if (!u.noRestore || u.baseAttack < 2) bad = `last_stand atk=${u.baseAttack} noRestore=${u.noRestore}`;
