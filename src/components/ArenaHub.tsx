@@ -15,6 +15,7 @@ import {
 } from "../game/arena";
 import { playerLevel } from "../game/owned";
 import type { OwnedState } from "../game/types";
+import { GameIcon } from "./GameIcon";
 
 type Props = {
   owned: OwnedState;
@@ -172,19 +173,18 @@ export function ArenaHub({
           </p>
           <p className="arena-win-loot">
             Награды арены за забег (уже в кошельке, по боям):{" "}
-            <strong>
-              🪙
+            <strong className="inline-icos">
+              <GameIcon name="gold" size={16} />
               {Object.values(ARENA_ROUND_REWARDS).reduce((s, r) => s + r.gold, 0)}
             </strong>
             {" · "}
-            <strong>
-              💎
+            <strong className="inline-icos">
+              <GameIcon name="diamond" size={16} />
               {Object.values(ARENA_ROUND_REWARDS).reduce(
                 (s, r) => s + r.diamonds,
                 0,
               )}
-            </strong>
-            {" "}
+            </strong>{" "}
             (40+60+80+100+150 золота · 0+0+1+2+5 алмазов). Плюс опыт и обычные
             награды за каждый бой с ботом.
           </p>
@@ -283,9 +283,16 @@ export function ArenaHub({
                       .join(" ")}
                   >
                     <span className="arena-reward-round">Бой {r}</span>
-                    <span className="arena-reward-loot">
-                      🪙{row.gold}
-                      {row.diamonds > 0 ? ` · 💎${row.diamonds}` : ""}
+                    <span className="arena-reward-loot inline-icos">
+                      <GameIcon name="gold" size={14} />
+                      {row.gold}
+                      {row.diamonds > 0 ? (
+                        <>
+                          {" · "}
+                          <GameIcon name="diamond" size={14} />
+                          {row.diamonds}
+                        </>
+                      ) : null}
                     </span>
                     <em>
                       {got ? "получено" : current ? "сейчас" : "дальше"}
@@ -295,12 +302,26 @@ export function ArenaHub({
               })}
             </ul>
             <p className="arena-reward-total">
-              Забег целиком: 🪙 430 · 💎8
+              Забег целиком:{" "}
+              <span className="inline-icos">
+                <GameIcon name="gold" size={14} /> 430 ·{" "}
+                <GameIcon name="diamond" size={14} /> 8
+              </span>
               {reward ? (
                 <>
                   <br />
-                  За этот бой: 🪙{reward.gold}
-                  {reward.diamonds > 0 ? ` · 💎${reward.diamonds}` : ""}
+                  За этот бой:{" "}
+                  <span className="inline-icos">
+                    <GameIcon name="gold" size={14} />
+                    {reward.gold}
+                    {reward.diamonds > 0 ? (
+                      <>
+                        {" · "}
+                        <GameIcon name="diamond" size={14} />
+                        {reward.diamonds}
+                      </>
+                    ) : null}
+                  </span>
                 </>
               ) : null}
             </p>

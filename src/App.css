@@ -3970,6 +3970,26 @@ html.is-hand-dragging .grave-row {
   line-height: 1;
 }
 
+.game-ico {
+  display: inline-block;
+  vertical-align: -0.2em;
+  object-fit: contain;
+  flex-shrink: 0;
+  user-select: none;
+  pointer-events: none;
+}
+
+.inline-icos {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
+  flex-wrap: wrap;
+}
+
+.inline-icos .game-ico {
+  vertical-align: middle;
+}
+
 .mana-n {
   min-width: 0.7em;
   text-align: center;

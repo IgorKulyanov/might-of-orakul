@@ -3,12 +3,12 @@ import { CardView } from "./CardView";
 import {
   CARDS,
   DECK_SIZE,
-  FACTION_LABEL,
   MIN_DECK_SIZE,
   SCHOOL_LABEL,
   maxCopiesForCard,
   sortCatalogCards,
 } from "../game/cards";
+import { GameIcon, diamondText, goldText } from "./GameIcon";
 import { analyzeDeck } from "../game/deckStats";
 import { getHero } from "../game/heroes";
 import {
@@ -184,10 +184,10 @@ export function Collection({
       const price = card.priceDiamonds ?? 0;
       if (!price) return;
       if ((owned.diamonds ?? 0) < price) {
-        alert(`Не хватает алмазов (нужно ${price}💎).`);
+        alert(`Не хватает алмазов (нужно ${diamondText(price)}).`);
         return;
       }
-      const ok = window.confirm(`Купить ${label} за ${price}💎?`);
+      const ok = window.confirm(`Купить ${label} за ${diamondText(price)}?`);
       if (!ok) return;
       onChange(buyCardWithDiamonds(owned, id));
       return;
@@ -196,11 +196,11 @@ export function Collection({
     const gold = owned.gold ?? 0;
     if (gold < price) {
       alert(
-        `Не хватает золота на ${label}.\nНужно ${price} 🪙, у тебя ${gold} 🪙`,
+        `Не хватает золота на ${label}.\nНужно ${goldText(price)}, у тебя ${goldText(gold)}`,
       );
       return;
     }
-    const ok = window.confirm(`Купить ${label} за ${price} 🪙?`);
+    const ok = window.confirm(`Купить ${label} за ${goldText(price)}?`);
     if (!ok) return;
     onChange(buyCardWithGold(owned, id));
   };
@@ -224,8 +224,12 @@ export function Collection({
         </button>
         <h1>{tab === "deck" ? "Колода" : "Магазин"}</h1>
         <div className="wallet-row">
-          <span className="wallet-chip gold">🪙 {owned.gold ?? 0}</span>
-          <span className="wallet-chip dia">💎 {owned.diamonds ?? 0}</span>
+          <span className="wallet-chip gold">
+            <GameIcon name="gold" size={16} /> {owned.gold ?? 0}
+          </span>
+          <span className="wallet-chip dia">
+            <GameIcon name="diamond" size={16} /> {owned.diamonds ?? 0}
+          </span>
         </div>
         <div className="tabs">
           <button
@@ -250,7 +254,9 @@ export function Collection({
             title="Алмазы и золото"
           >
             <span className="shop-tab-icons" aria-hidden>
-              💎<span className="shop-tab-slash">/</span>🪙
+              <GameIcon name="diamond" size={14} />
+              <span className="shop-tab-slash">/</span>
+              <GameIcon name="gold" size={14} />
             </span>
             <span className="shop-tab-label">Валюта</span>
           </button>
@@ -351,7 +357,8 @@ export function Collection({
                         className="primary"
                         onClick={() => buy(c.id, false)}
                       >
-                        {have > 0 ? "Ещё · " : ""}🪙 {c.priceGold}
+                        {have > 0 ? "Ещё · " : ""}
+                        <GameIcon name="gold" size={14} /> {c.priceGold}
                       </button>
                       {c.priceDiamonds != null && c.priceDiamonds > 0 && (
                         <button
@@ -359,7 +366,7 @@ export function Collection({
                           className="ghost"
                           onClick={() => buy(c.id, true)}
                         >
-                          💎 {c.priceDiamonds}
+                          <GameIcon name="diamond" size={14} /> {c.priceDiamonds}
                         </button>
                       )}
                     </div>
@@ -413,8 +420,9 @@ export function Collection({
               </span>
               <span>
                 Своя школа:{" "}
-                <strong>
-                  {FACTION_LABEL[homeFaction]} {deckStats.ownSchoolPct}%
+                <strong className="deck-school-pct">
+                  <GameIcon name={homeFaction} size={14} />{" "}
+                  {deckStats.ownSchoolPct}%
                 </strong>
               </span>
             </div>
@@ -542,10 +550,17 @@ export function Collection({
         <div className="currency-shop" data-tut="hub-shop-packs">
 
           <section className="currency-panel exchange-panel">
-            <h2>Обмен 💎 → 🪙</h2>
+            <h2 className="currency-heading">
+              Обмен <GameIcon name="diamond" size={20} /> →{" "}
+              <GameIcon name="gold" size={20} />
+            </h2>
             <p className="hint">
-              Курс: <strong>1💎 = {GOLD_PER_DIAMOND} 🪙</strong>. Выбери сколько
-              алмазов списать — хоть 5, хоть всё.
+              Курс:{" "}
+              <strong className="inline-icos">
+                1 <GameIcon name="diamond" size={14} /> = {GOLD_PER_DIAMOND}{" "}
+                <GameIcon name="gold" size={14} />
+              </strong>
+              . Выбери сколько алмазов списать — хоть 5, хоть всё.
             </p>
             <div className="exchange-stepper" aria-label="Счётчик алмазов">
               <button
@@ -570,7 +585,9 @@ export function Collection({
                     );
                   }}
                 />
-                <span className="exchange-unit">💎</span>
+                <span className="exchange-unit">
+                  <GameIcon name="diamond" size={16} />
+                </span>
               </label>
               <button
                 type="button"
@@ -605,8 +622,14 @@ export function Collection({
               </button>
             </div>
             <p className="exchange-preview">
-              Отдаёшь <strong>{exchangeAmt}💎</strong> → получишь{" "}
-              <strong>{goldForDiamonds(exchangeAmt)} 🪙</strong>
+              Отдаёшь{" "}
+              <strong className="inline-icos">
+                {exchangeAmt} <GameIcon name="diamond" size={14} />
+              </strong>{" "}
+              → получишь{" "}
+              <strong className="inline-icos">
+                {goldForDiamonds(exchangeAmt)} <GameIcon name="gold" size={14} />
+              </strong>
             </p>
             <button
               type="button"
@@ -615,12 +638,12 @@ export function Collection({
               onClick={() => {
                 const next = exchangeDiamondsAmount(owned, exchangeAmt);
                 if (next === owned) {
-                  say(`Нужно ${exchangeAmt}💎`);
+                  say(`Нужно ${diamondText(exchangeAmt)}`);
                   return;
                 }
                 const gained = goldForDiamonds(exchangeAmt);
                 onChange(next);
-                say(`Обмен: −${exchangeAmt}💎 → +${gained} 🪙`);
+                say(`Обмен: −${diamondText(exchangeAmt)} → +${goldText(gained)}`);
                 setExchangeAmt(1);
               }}
             >
@@ -629,7 +652,9 @@ export function Collection({
           </section>
 
           <section className="currency-panel">
-            <h2>Купить 💎</h2>
+            <h2 className="currency-heading">
+              Купить <GameIcon name="diamond" size={20} />
+            </h2>
             <p className="hint">
               Оплата через ЮKassa (карта / СБП). После оплаты алмазы
               появятся на аккаунте — обнови магазин или зайди снова.
@@ -657,7 +682,7 @@ export function Collection({
                       return;
                     }
                     const ok = window.confirm(
-                      `Купить «${pack.title}»?\n\n💎 ${pack.diamonds} за ${pack.priceLabel}\n\nОткроется ЮKassa. Оплата = согласие с пользовательским соглашением; после зачисления алмазов возврат по общему правилу не производится.`,
+                      `Купить «${pack.title}»?\n\n${diamondText(pack.diamonds)} за ${pack.priceLabel}\n\nОткроется ЮKassa. Оплата = согласие с пользовательским соглашением; после зачисления алмазов возврат по общему правилу не производится.`,
                     );
                     if (!ok) return;
                     setPayBusy(pack.id);
@@ -686,7 +711,9 @@ export function Collection({
                   }}
                 >
                   <strong>{pack.title}</strong>
-                  <span className="pack-amount">💎 {pack.diamonds}</span>
+                  <span className="pack-amount inline-icos">
+                    <GameIcon name="diamond" size={16} /> {pack.diamonds}
+                  </span>
                   <span className="pack-price">
                     {payBusy === pack.id ? "…" : pack.priceLabel}
                   </span>

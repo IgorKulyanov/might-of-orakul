@@ -13,6 +13,7 @@ import {
   type CampaignState,
 } from "../game/campaign";
 import type { OwnedState } from "../game/types";
+import { GameIcon } from "./GameIcon";
 
 type Props = {
   owned: OwnedState;
@@ -151,10 +152,20 @@ export function CampaignMap({
               className={`campaign-mile ${done ? "is-done" : ""}`}
             >
               <strong>{m}</strong>
-              <span>
-                {r.gold > 0 ? `🪙${r.gold}` : ""}
+              <span className="inline-icos">
+                {r.gold > 0 ? (
+                  <>
+                    <GameIcon name="gold" size={14} />
+                    {r.gold}
+                  </>
+                ) : null}
                 {r.gold > 0 && r.diamonds > 0 ? " · " : ""}
-                {r.diamonds > 0 ? `💎${r.diamonds}` : ""}
+                {r.diamonds > 0 ? (
+                  <>
+                    <GameIcon name="diamond" size={14} />
+                    {r.diamonds}
+                  </>
+                ) : null}
               </span>
               <em>{done ? "получено" : r.title}</em>
             </div>

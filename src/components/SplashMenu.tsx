@@ -15,6 +15,7 @@ import {
   unlockSfx,
 } from "../game/sfx";
 import type { OwnedState } from "../game/types";
+import { GameIcon } from "./GameIcon";
 
 /**
  * Заставка + слайды (ASCII в путях).
@@ -134,8 +135,12 @@ export function SplashMenu({
 
       <div className="splash-top-right">
         <div className="splash-wallet" data-tut="hub-wallet" title="Кошелёк">
-          <span className="wallet-chip gold">🪙 {gold}</span>
-          <span className="wallet-chip dia">💎 {diamonds}</span>
+          <span className="wallet-chip gold">
+            <GameIcon name="gold" size={16} /> {gold}
+          </span>
+          <span className="wallet-chip dia">
+            <GameIcon name="diamond" size={16} /> {diamonds}
+          </span>
         </div>
         <button
           type="button"

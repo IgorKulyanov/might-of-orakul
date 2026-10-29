@@ -88,12 +88,13 @@ export const SCHOOL_COLOR: Record<School, string> = {
   neutral: "#6c757d",
 };
 
+/** Буквы для текстовых строк (логи / formatManaCost). В UI — GameIcon. */
 export const FACTION_LABEL: Record<Faction, string> = {
-  water: "💧",
-  hell: "🔥",
-  death: "🧛",
-  life: "🪽",
-  nature: "🍃",
+  water: "Вд",
+  hell: "Ог",
+  death: "См",
+  life: "Жз",
+  nature: "Пр",
 };
 
 export const PATTERN_LABEL: Record<string, string> = {

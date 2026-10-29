@@ -19,6 +19,7 @@ import {
 import { orakulBattleHp } from "../game/oracleGifts";
 import { xpToNextLevel } from "../game/progression";
 import type { HeroDef, OwnedState } from "../game/types";
+import { GameIcon } from "./GameIcon";
 import { XpBar } from "./XpBar";
 
 type Props = {
@@ -106,8 +107,9 @@ function HeroCard({
         <div className="hero-buy">
           <div className="hero-buy-row">
             <div className="hero-buy-col">
-              <span className="hero-buy-label">
-                {EPIC_HERO_GOLD.toLocaleString("ru-RU")} 🪙
+              <span className="hero-buy-label inline-icos">
+                {EPIC_HERO_GOLD.toLocaleString("ru-RU")}{" "}
+                <GameIcon name="gold" size={16} />
               </span>
               <button
                 type="button"
@@ -118,8 +120,9 @@ function HeroCard({
               </button>
             </div>
             <div className="hero-buy-col">
-              <span className="hero-buy-label">
-                {EPIC_HERO_DIAMONDS.toLocaleString("ru-RU")} 💎
+              <span className="hero-buy-label inline-icos">
+                {EPIC_HERO_DIAMONDS.toLocaleString("ru-RU")}{" "}
+                <GameIcon name="diamond" size={16} />
               </span>
               <button
                 type="button"
@@ -170,8 +173,9 @@ export function HeroSelect({ owned, onChange, onBack, onBattle }: Props) {
           Школа: <strong>{SCHOOL_LABEL[home]}</strong> — сменить на другую
           нельзя. Можно надеть базового или эпик <em>своей</em> школы. Ур.{" "}
           {level}, в бою <strong>{hp} HP</strong>.{" "}
-          <span className="hero-wallet">
-            {owned.gold ?? 0} 🪙 · {owned.diamonds ?? 0} 💎
+          <span className="hero-wallet inline-icos">
+            {owned.gold ?? 0} <GameIcon name="gold" size={14} /> ·{" "}
+            {owned.diamonds ?? 0} <GameIcon name="diamond" size={14} />
           </span>
         </p>
         <XpBar level={level} xp={xp} xpNeed={xpNeed} />

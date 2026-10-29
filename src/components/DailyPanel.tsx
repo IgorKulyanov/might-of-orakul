@@ -5,6 +5,7 @@ import {
   type DailyQuestId,
 } from "../game/dailies";
 import type { OwnedState } from "../game/types";
+import { GameIcon } from "./GameIcon";
 
 type Props = {
   owned: OwnedState;
@@ -36,9 +37,15 @@ export function DailyPanel({ owned: _owned, onClaim }: Props) {
             <li key={q.id} className="daily-item">
               <div>
                 <strong>{q.title}</strong>
-                <span className="daily-meta">
-                  {prog}/{q.target} · +{q.xp} XP · +{q.gold} 🪙
-                  {dia > 0 ? ` · +${dia}💎` : ""}
+                <span className="daily-meta inline-icos">
+                  {prog}/{q.target} · +{q.xp} XP · +{q.gold}{" "}
+                  <GameIcon name="gold" size={13} />
+                  {dia > 0 ? (
+                    <>
+                      {" · +"}
+                      {dia} <GameIcon name="diamond" size={13} />
+                    </>
+                  ) : null}
                 </span>
               </div>
               <button

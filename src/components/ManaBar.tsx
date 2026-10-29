@@ -1,6 +1,7 @@
-import { FACTION_LABEL, SCHOOL_COLOR } from "../game/cards";
+import { SCHOOL_COLOR } from "../game/cards";
 import { FACTIONS } from "../game/heroes";
 import type { Faction, ManaPool } from "../game/types";
+import { GameIcon } from "./GameIcon";
 
 type Props = {
   mana: ManaPool;
@@ -18,7 +19,7 @@ export function ManaBar({ mana, highlight, compact }: Props) {
           style={{ ["--faction" as string]: SCHOOL_COLOR[f] }}
           title={f}
         >
-          <span className="mana-ico">{FACTION_LABEL[f]}</span>
+          <GameIcon name={f} className="mana-ico" size={compact ? 13 : 15} />
           <span className="mana-n">{mana[f] ?? 0}</span>
         </span>
       ))}

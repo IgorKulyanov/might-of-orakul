@@ -13,18 +13,9 @@ import type {
   AttackPattern,
   CardDef,
   ManaCost,
-  School,
   StatusEffect,
 } from "../game/types";
-
-const SCHOOL_ICON: Record<School, string> = {
-  water: "💧",
-  hell: "🔥",
-  death: "🧛",
-  life: "🪽",
-  nature: "🍃",
-  neutral: "⚪",
-};
+import { GameIcon } from "./GameIcon";
 
 const PATTERN_ICON: Record<AttackPattern, string> = {
   melee: "⚔️",
@@ -236,7 +227,7 @@ export function CardView({
           <div className="card-face card-front">
             <div className="card-stats" aria-label="Характеристики">
               <span className="stats-school" title={SCHOOL_LABEL[c.school]}>
-                {SCHOOL_ICON[c.school]}
+                <GameIcon name={c.school} size={14} />
                 <span className="cost-mini">{costLabel}</span>
               </span>
               {c.kind === "creature" ? (
@@ -329,7 +320,7 @@ export function CardView({
               />
               <div className="card-desc-body">
                 <h2>
-                  {SCHOOL_ICON[c.school]} {c.name}
+                  <GameIcon name={c.school} size={18} /> {c.name}
                 </h2>
                 <p className="card-desc-meta">
                   {SCHOOL_LABEL[c.school]} · мана {costLabel}

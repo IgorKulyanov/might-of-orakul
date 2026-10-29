@@ -19,6 +19,7 @@ import {
   saveDeck,
 } from "../game/owned";
 import { getHero, oracleLore, orakulArtUrl } from "../game/heroes";
+import { GameIcon } from "./GameIcon";
 import {
   oracleGiftCardText,
   orakulBattleHp,
@@ -219,10 +220,10 @@ export function Cabinet({
         <h1>Личный кабинет</h1>
         <div className="wallet-row">
           <span className="wallet-chip gold" title="Золото">
-            🪙 {owned.gold ?? 0}
+            <GameIcon name="gold" size={16} /> {owned.gold ?? 0}
           </span>
           <span className="wallet-chip dia" title="Кристаллы">
-            💎 {owned.diamonds ?? 0}
+            <GameIcon name="diamond" size={16} /> {owned.diamonds ?? 0}
           </span>
         </div>
       </header>
