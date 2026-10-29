@@ -3,7 +3,6 @@ import { CardView } from "./CardView";
 import {
   CARDS,
   DECK_SIZE,
-  SCHOOL_LABEL,
   compareCatalogCards,
   getCard,
   maxCopiesForCard,
@@ -19,7 +18,7 @@ import {
   saveDeck,
 } from "../game/owned";
 import { getHero, oracleLore, orakulArtUrl } from "../game/heroes";
-import { GameIcon } from "./GameIcon";
+import { GameIcon, SchoolBadge } from "./GameIcon";
 import {
   oracleGiftCardText,
   orakulBattleHp,
@@ -263,8 +262,9 @@ export function Cabinet({
               {epic && <span className="orakul-epic-badge">Эпик</span>}
             </div>
             <div className="cabinet-oracle-body">
-              <p className="cabinet-oracle-eyebrow">
-                {displayName ?? "Оракул"} · {SCHOOL_LABEL[hero.faction]}
+              <p className="cabinet-oracle-eyebrow inline-icos">
+                {displayName ?? "Оракул"} ·{" "}
+                <SchoolBadge school={hero.faction} size={14} />
               </p>
               <h2 className="cabinet-oracle-title">{hero.name}</h2>
               <p className="cabinet-oracle-lore">{lore}</p>

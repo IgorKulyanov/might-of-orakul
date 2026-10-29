@@ -88,13 +88,16 @@ export const SCHOOL_COLOR: Record<School, string> = {
   neutral: "#6c757d",
 };
 
-/** Буквы для текстовых строк (логи / formatManaCost). В UI — GameIcon. */
+/**
+ * Короткие подписи для логов / formatManaCost (без картинок).
+ * В UI — GameIcon / SchoolBadge / ManaCostIcons.
+ */
 export const FACTION_LABEL: Record<Faction, string> = {
-  water: "Вд",
-  hell: "Ог",
-  death: "См",
-  life: "Жз",
-  nature: "Пр",
+  water: "Вода",
+  hell: "Ад",
+  death: "Смерть",
+  life: "Жизнь",
+  nature: "Природа",
 };
 
 export const PATTERN_LABEL: Record<string, string> = {
@@ -110,9 +113,9 @@ export function formatManaCost(cost: ManaCost): string {
   const parts: string[] = [];
   (Object.keys(cost) as Faction[]).forEach((f) => {
     const n = cost[f];
-    if (n && n > 0) parts.push(`${FACTION_LABEL[f]}${n}`);
+    if (n && n > 0) parts.push(`${FACTION_LABEL[f]} ${n}`);
   });
-  return parts.length ? parts.join(" ") : "0";
+  return parts.length ? parts.join(" · ") : "0";
 }
 
 /** Уровень рамки 1…5 (сила карты). Fallback: rarity → cost. */

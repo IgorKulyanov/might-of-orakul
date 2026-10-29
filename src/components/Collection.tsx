@@ -8,7 +8,12 @@ import {
   maxCopiesForCard,
   sortCatalogCards,
 } from "../game/cards";
-import { GameIcon, diamondText, goldText } from "./GameIcon";
+import {
+  GameIcon,
+  SchoolBadge,
+  diamondText,
+  goldText,
+} from "./GameIcon";
 import { analyzeDeck } from "../game/deckStats";
 import { getHero } from "../game/heroes";
 import {
@@ -304,9 +309,7 @@ export function Collection({
                     {s === "all" ? (
                       "Все школы"
                     ) : (
-                      <span className="inline-icos">
-                        <GameIcon name={s} size={13} /> {SCHOOL_LABEL[s]}
-                      </span>
+                      <SchoolBadge school={s} size={13} />
                     )}
                   </button>
                 ))}
@@ -343,7 +346,9 @@ export function Collection({
                   onClick={locked ? undefined : () => addToDeck(c.id)}
                 />
                 <div className="grid-meta">
-                  <div className="card-live-tag">
+                  <div className="card-live-tag inline-icos">
+                    <SchoolBadge school={c.school} size={12} />
+                    {" · "}
                     {c.kind === "spell" ? "Заклинание" : "Существо"}
                     {c.unitLevel
                       ? ` · ${UNIT_TIER_LABEL[c.unitLevel]}`
@@ -426,8 +431,8 @@ export function Collection({
               </span>
               <span>
                 Своя школа:{" "}
-                <strong className="deck-school-pct">
-                  <GameIcon name={homeFaction} size={14} />{" "}
+                <strong className="deck-school-pct inline-icos">
+                  <SchoolBadge school={homeFaction} size={14} />{" "}
                   {deckStats.ownSchoolPct}%
                 </strong>
               </span>
@@ -506,9 +511,7 @@ export function Collection({
                 {s === "all" ? (
                   "Все школы"
                 ) : (
-                  <span className="inline-icos">
-                    <GameIcon name={s} size={13} /> {SCHOOL_LABEL[s]}
-                  </span>
+                  <SchoolBadge school={s} size={13} />
                 )}
               </button>
             ))}
@@ -528,8 +531,10 @@ export function Collection({
                       onClick={() => addToDeck(c.id)}
                     />
                     <div className="grid-meta">
-                      <div className="card-live-tag">
-                        {c.school === homeFaction ? "своя · " : ""}
+                      <div className="card-live-tag inline-icos">
+                        <SchoolBadge school={c.school} size={12} />
+                        {c.school === homeFaction ? " · своя" : ""}
+                        {" · "}
                         в колоде {inDeck}/{cap} (есть {have})
                       </div>
                       <div className="shop-meta">

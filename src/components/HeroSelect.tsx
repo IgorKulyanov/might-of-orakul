@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { SCHOOL_COLOR, SCHOOL_LABEL } from "../game/cards";
+import { SCHOOL_COLOR } from "../game/cards";
 import {
   BASE_HEROES,
   EPIC_HEROES,
@@ -19,7 +19,7 @@ import {
 import { orakulBattleHp } from "../game/oracleGifts";
 import { xpToNextLevel } from "../game/progression";
 import type { HeroDef, OwnedState } from "../game/types";
-import { GameIcon } from "./GameIcon";
+import { GameIcon, SchoolBadge } from "./GameIcon";
 import { XpBar } from "./XpBar";
 
 type Props = {
@@ -95,8 +95,7 @@ function HeroCard({
           {on && <span className="hero-picked">выбран</span>}
         </div>
         <span className="hero-faction inline-icos">
-          Оракул · <GameIcon name={h.faction} size={14} />{" "}
-          {SCHOOL_LABEL[h.faction]} · ур. {level}
+          Оракул · <SchoolBadge school={h.faction} size={14} /> · ур. {level}
         </span>
         <span className="hero-hp">HP {hp}</span>
         <p>{h.text}</p>
@@ -171,7 +170,7 @@ export function HeroSelect({ owned, onChange, onBack, onBattle }: Props) {
 
       <div className="hero-level-panel">
         <p className="hint hero-screen-hint">
-          Школа: <strong>{SCHOOL_LABEL[home]}</strong> — сменить на другую
+          Школа: <SchoolBadge school={home} size={15} /> — сменить на другую
           нельзя. Можно надеть базового или эпик <em>своей</em> школы. Ур.{" "}
           {level}, в бою <strong>{hp} HP</strong>.{" "}
           <span className="hero-wallet inline-icos">

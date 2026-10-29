@@ -1,3 +1,4 @@
+import { SCHOOL_LABEL } from "../game/cards";
 import type { Faction, ManaCost, School } from "../game/types";
 
 export type GameIconName =
@@ -6,15 +7,18 @@ export type GameIconName =
   | "gold"
   | "diamond";
 
+/** Версия ассетов — сброс кэша браузера после правок SVG. */
+const UI_VER = "3";
+
 const SRC: Record<string, string> = {
-  water: "/ui/water.svg",
-  hell: "/ui/hell.svg",
-  death: "/ui/death.svg",
-  life: "/ui/life.svg",
-  nature: "/ui/nature.svg",
-  neutral: "/ui/neutral.svg",
-  gold: "/ui/gold.svg",
-  diamond: "/ui/diamond.svg",
+  water: `/ui/water.svg?v=${UI_VER}`,
+  hell: `/ui/hell.svg?v=${UI_VER}`,
+  death: `/ui/death.svg?v=${UI_VER}`,
+  life: `/ui/life.svg?v=${UI_VER}`,
+  nature: `/ui/nature.svg?v=${UI_VER}`,
+  neutral: `/ui/neutral.svg?v=${UI_VER}`,
+  gold: `/ui/gold.svg?v=${UI_VER}`,
+  diamond: `/ui/diamond.svg?v=${UI_VER}`,
 };
 
 const ALT: Record<string, string> = {
@@ -60,6 +64,26 @@ export function GameIcon({ name, className = "", size = 16, title }: Props) {
   );
 }
 
+/** Иконка школы + подпись (Жизнь / Смерть / …). */
+export function SchoolBadge({
+  school,
+  size = 14,
+  className = "",
+  hideLabel = false,
+}: {
+  school: School;
+  size?: number;
+  className?: string;
+  hideLabel?: boolean;
+}) {
+  return (
+    <span className={`inline-icos school-badge ${className}`.trim()}>
+      <GameIcon name={school} size={size} title={SCHOOL_LABEL[school]} />
+      {!hideLabel ? <span>{SCHOOL_LABEL[school]}</span> : null}
+    </span>
+  );
+}
+
 /** Стоимость карты: иконки школ + цифры (вместо букв «Ог2»). */
 export function ManaCostIcons({
   cost,
@@ -72,7 +96,7 @@ export function ManaCostIcons({
 }) {
   const parts = MANA_ORDER.filter((f) => (cost[f] ?? 0) > 0).map((f) => (
     <span key={f} className="mana-cost-part">
-      <GameIcon name={f} size={size} />
+      <GameIcon name={f} size={size} title={SCHOOL_LABEL[f]} />
       <span className="mana-cost-n">{cost[f]}</span>
     </span>
   ));

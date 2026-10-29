@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { SCHOOL_COLOR, SCHOOL_LABEL } from "../game/cards";
+import { SCHOOL_COLOR } from "../game/cards";
 import {
   BASE_HEROES,
   epicPowerPreview,
@@ -8,7 +8,7 @@ import {
 } from "../game/heroes";
 import { beginWithHero } from "../game/owned";
 import type { Faction, OwnedState } from "../game/types";
-import { GameIcon } from "./GameIcon";
+import { SchoolBadge } from "./GameIcon";
 
 type Props = {
   owned: OwnedState;
@@ -97,9 +97,8 @@ export function OnboardingScreen({
                   {on && <span className="onboard-pick-mark">✓</span>}
                 </div>
                 <strong className="onboard-pick-name">{h.name}</strong>
-                <span className="onboard-pick-school inline-icos">
-                  <GameIcon name={h.faction} size={14} />{" "}
-                  {SCHOOL_LABEL[h.faction]}
+                <span className="onboard-pick-school">
+                  <SchoolBadge school={h.faction} size={14} />
                 </span>
                 <p className="onboard-epic-later">
                   <span className="onboard-epic-later-label">Позже эпик</span>

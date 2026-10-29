@@ -5,8 +5,8 @@ import {
   type DevDeckMode,
 } from "../game/devMode";
 import { FACTIONS, getHero, orakulArtUrl } from "../game/heroes";
-import { SCHOOL_LABEL } from "../game/cards";
 import type { Faction } from "../game/types";
+import { SchoolBadge } from "./GameIcon";
 
 type Props = {
   onBack: () => void;
@@ -60,8 +60,8 @@ export function DevSandbox({ onBack, onStart }: Props) {
             <img src={orakulArtUrl(yourHero)} alt="" draggable={false} />
             <div>
               <strong>{yourHero.name}</strong>
-              <span>
-                {SCHOOL_LABEL[yourHero.faction]} ·{" "}
+              <span className="inline-icos">
+                <SchoolBadge school={yourHero.faction} size={13} /> ·{" "}
                 {yourHero.tier === "epic" ? "эпик" : "база"}
               </span>
             </div>
@@ -78,7 +78,7 @@ export function DevSandbox({ onBack, onStart }: Props) {
                 }
                 onClick={() => pickFactionHero("you", f, false)}
               >
-                {SCHOOL_LABEL[f]}
+                <SchoolBadge school={f} size={13} />
               </button>
             ))}
           </div>
@@ -94,7 +94,9 @@ export function DevSandbox({ onBack, onStart }: Props) {
                 }
                 onClick={() => pickFactionHero("you", f, true)}
               >
-                Эпик {SCHOOL_LABEL[f]}
+                <span className="inline-icos">
+                  Эпик <SchoolBadge school={f} size={13} />
+                </span>
               </button>
             ))}
           </div>
@@ -132,8 +134,8 @@ export function DevSandbox({ onBack, onStart }: Props) {
             <img src={orakulArtUrl(enemyHero)} alt="" draggable={false} />
             <div>
               <strong>{enemyHero.name}</strong>
-              <span>
-                {SCHOOL_LABEL[enemyHero.faction]} ·{" "}
+              <span className="inline-icos">
+                <SchoolBadge school={enemyHero.faction} size={13} /> ·{" "}
                 {enemyHero.tier === "epic" ? "эпик" : "база"}
               </span>
             </div>
@@ -150,7 +152,7 @@ export function DevSandbox({ onBack, onStart }: Props) {
                 }
                 onClick={() => pickFactionHero("enemy", f, false)}
               >
-                {SCHOOL_LABEL[f]}
+                <SchoolBadge school={f} size={13} />
               </button>
             ))}
           </div>
@@ -166,7 +168,9 @@ export function DevSandbox({ onBack, onStart }: Props) {
                 }
                 onClick={() => pickFactionHero("enemy", f, true)}
               >
-                Эпик {SCHOOL_LABEL[f]}
+                <span className="inline-icos">
+                  Эпик <SchoolBadge school={f} size={13} />
+                </span>
               </button>
             ))}
           </div>

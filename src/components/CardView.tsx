@@ -19,7 +19,7 @@ import type {
   ManaCost,
   StatusEffect,
 } from "../game/types";
-import { GameIcon, ManaCostIcons } from "./GameIcon";
+import { GameIcon, ManaCostIcons, SchoolBadge } from "./GameIcon";
 
 const PATTERN_ICON: Record<AttackPattern, string> = {
   melee: "⚔️",
@@ -327,7 +327,7 @@ export function CardView({
                   <GameIcon name={c.school} size={18} /> {c.name}
                 </h2>
                 <p className="card-desc-meta inline-icos">
-                  {SCHOOL_LABEL[c.school]} · мана{" "}
+                  <SchoolBadge school={c.school} size={14} /> · мана{" "}
                   <ManaCostIcons cost={manaCost} size={14} />
                   {c.kind === "creature" && (
                     <>

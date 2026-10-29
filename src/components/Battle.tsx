@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CardView, EmptySlot } from "./CardView";
-import { GameIcon } from "./GameIcon";
+import { GameIcon, SchoolBadge } from "./GameIcon";
 import { ManaBar } from "./ManaBar";
 import {
   PATTERN_LABEL,
@@ -2165,7 +2165,10 @@ export function Battle({
                 {enemyHero.name}{" "}
                 <span className="orakul-level-badge">ур. {enemyLevelNow}</span>
               </strong>
-              <span className="hero-sub">{state.enemy.name}</span>
+              <span className="hero-sub inline-icos">
+                <SchoolBadge school={state.enemy.faction} size={13} /> ·{" "}
+                {state.enemy.name}
+              </span>
               <span>HP {state.enemy.hp}/{state.enemy.maxHp}</span>
               <ManaBar
                 mana={state.enemy.mana}
@@ -2409,7 +2412,10 @@ export function Battle({
                 {yourHero.name}{" "}
                 <span className="orakul-level-badge">ур. {youLevelNow}</span>
               </strong>
-              <span className="hero-sub">{state.you.name || yourName}</span>
+              <span className="hero-sub inline-icos">
+                <SchoolBadge school={state.you.faction} size={13} /> ·{" "}
+                {state.you.name || yourName}
+              </span>
               <span data-tut="you-hp">
                 HP {state.you.hp}/{state.you.maxHp}
               </span>
