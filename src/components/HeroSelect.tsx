@@ -94,8 +94,9 @@ function HeroCard({
           <strong>{h.name}</strong>
           {on && <span className="hero-picked">выбран</span>}
         </div>
-        <span className="hero-faction">
-          Оракул · {SCHOOL_LABEL[h.faction]} · ур. {level}
+        <span className="hero-faction inline-icos">
+          Оракул · <GameIcon name={h.faction} size={14} />{" "}
+          {SCHOOL_LABEL[h.faction]} · ур. {level}
         </span>
         <span className="hero-hp">HP {hp}</span>
         <p>{h.text}</p>

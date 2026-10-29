@@ -768,10 +768,29 @@ button {
   font-size: 0.65rem;
   min-width: 0.9rem;
   text-align: center;
-  max-width: 4.5rem;
+  max-width: 5.5rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.mana-cost-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.12rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.mana-cost-part {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.05rem;
+}
+
+.mana-cost-n {
+  font-size: 0.72em;
 }
 
 .combat-nums {

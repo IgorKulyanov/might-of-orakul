@@ -1,4 +1,9 @@
-import { useState, type KeyboardEvent, type MouseEvent } from "react";
+import {
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   PATTERN_LABEL,
@@ -6,7 +11,6 @@ import {
   SCHOOL_LABEL,
   cardArtUrl,
   cardFrameLevel,
-  formatManaCost,
   getCard,
 } from "../game/cards";
 import type {
@@ -15,7 +19,7 @@ import type {
   ManaCost,
   StatusEffect,
 } from "../game/types";
-import { GameIcon } from "./GameIcon";
+import { GameIcon, ManaCostIcons } from "./GameIcon";
 
 const PATTERN_ICON: Record<AttackPattern, string> = {
   melee: "⚔️",
@@ -62,7 +66,7 @@ type Props = {
 
 type EffectMark = {
   key: string;
-  icon: string;
+  icon: ReactNode;
   label: string;
   title: string;
   tone: "bad" | "curse" | "buff" | "warn";
@@ -100,7 +104,7 @@ export function CardView({
   const fullHp = maxHealth ?? c.health ?? hp;
   const fullAtk = maxAttack ?? c.attack ?? atk;
   const pattern = (c.attackPattern ?? "melee") as AttackPattern;
-  const costLabel = formatManaCost(manaCostOverride ?? c.manaCost ?? {});
+  const manaCost = manaCostOverride ?? c.manaCost ?? {};
   const interactive = Boolean(onClick) && !(locked && !onClick);
 
   const marks: EffectMark[] = [];
@@ -172,7 +176,7 @@ export function CardView({
   if (packBonus > 0) {
     marks.push({
       key: "pack",
-      icon: "💀",
+      icon: <GameIcon name="death" size={12} />,
       label: `стая +${packBonus}`,
       title: `Стая скелетов: +${packBonus}/+${packBonus}`,
       tone: "buff",
@@ -228,7 +232,7 @@ export function CardView({
             <div className="card-stats" aria-label="Характеристики">
               <span className="stats-school" title={SCHOOL_LABEL[c.school]}>
                 <GameIcon name={c.school} size={14} />
-                <span className="cost-mini">{costLabel}</span>
+                <ManaCostIcons cost={manaCost} size={11} className="cost-mini" />
               </span>
               {c.kind === "creature" ? (
                 <span
@@ -322,8 +326,9 @@ export function CardView({
                 <h2>
                   <GameIcon name={c.school} size={18} /> {c.name}
                 </h2>
-                <p className="card-desc-meta">
-                  {SCHOOL_LABEL[c.school]} · мана {costLabel}
+                <p className="card-desc-meta inline-icos">
+                  {SCHOOL_LABEL[c.school]} · мана{" "}
+                  <ManaCostIcons cost={manaCost} size={14} />
                   {c.kind === "creature" && (
                     <>
                       {" "}

@@ -8,6 +8,7 @@ import {
 } from "../game/ownerCode";
 import { getCachedUser } from "../game/session";
 import type { OwnedState } from "../game/types";
+import { GameIcon } from "./GameIcon";
 
 type Props = {
   open: boolean;
@@ -158,7 +159,9 @@ export function OwnerBoostPanel({ open, owned, onClose }: Props) {
               disabled={busy || !canAct}
               onClick={() => void grant({ gold: 500 })}
             >
-              +500 🪙
+              <span className="inline-icos">
+                +500 <GameIcon name="gold" size={14} />
+              </span>
             </button>
             <button
               type="button"
@@ -166,7 +169,9 @@ export function OwnerBoostPanel({ open, owned, onClose }: Props) {
               disabled={busy || !canAct}
               onClick={() => void grant({ diamonds: 25 })}
             >
-              +25 💎
+              <span className="inline-icos">
+                +25 <GameIcon name="diamond" size={14} />
+              </span>
             </button>
             <button
               type="button"
@@ -174,7 +179,10 @@ export function OwnerBoostPanel({ open, owned, onClose }: Props) {
               disabled={busy || !canAct}
               onClick={() => void grant({ gold: 2000, diamonds: 50 })}
             >
-              +2000 🪙 +50💎
+              <span className="inline-icos">
+                +2000 <GameIcon name="gold" size={14} /> +50{" "}
+                <GameIcon name="diamond" size={14} />
+              </span>
             </button>
           </div>
         </section>
@@ -203,8 +211,16 @@ export function OwnerBoostPanel({ open, owned, onClose }: Props) {
                       ? `есть ${have}`
                       : `выдать → ${otherLogin.trim() || "…"}`}
                     {" · "}
-                    {c.priceGold ?? 0} 🪙
-                    {c.priceDiamonds ? ` / ${c.priceDiamonds}💎` : ""}
+                    <span className="inline-icos">
+                      {c.priceGold ?? 0} <GameIcon name="gold" size={12} />
+                      {c.priceDiamonds ? (
+                        <>
+                          {" / "}
+                          {c.priceDiamonds}{" "}
+                          <GameIcon name="diamond" size={12} />
+                        </>
+                      ) : null}
+                    </span>
                   </span>
                 </button>
               );

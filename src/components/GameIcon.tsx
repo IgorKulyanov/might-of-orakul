@@ -1,4 +1,4 @@
-import type { Faction, School } from "../game/types";
+import type { Faction, ManaCost, School } from "../game/types";
 
 export type GameIconName =
   | Faction
@@ -28,6 +28,14 @@ const ALT: Record<string, string> = {
   diamond: "алмаз",
 };
 
+const MANA_ORDER: Faction[] = [
+  "water",
+  "hell",
+  "death",
+  "life",
+  "nature",
+];
+
 type Props = {
   name: GameIconName;
   className?: string;
@@ -49,6 +57,30 @@ export function GameIcon({ name, className = "", size = 16, title }: Props) {
       className={`game-ico ${className}`.trim()}
       draggable={false}
     />
+  );
+}
+
+/** Стоимость карты: иконки школ + цифры (вместо букв «Ог2»). */
+export function ManaCostIcons({
+  cost,
+  size = 12,
+  className = "",
+}: {
+  cost: ManaCost;
+  size?: number;
+  className?: string;
+}) {
+  const parts = MANA_ORDER.filter((f) => (cost[f] ?? 0) > 0).map((f) => (
+    <span key={f} className="mana-cost-part">
+      <GameIcon name={f} size={size} />
+      <span className="mana-cost-n">{cost[f]}</span>
+    </span>
+  ));
+  if (!parts.length) {
+    return <span className={`mana-cost-row ${className}`.trim()}>0</span>;
+  }
+  return (
+    <span className={`mana-cost-row ${className}`.trim()}>{parts}</span>
   );
 }
 

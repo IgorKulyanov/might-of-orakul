@@ -14,6 +14,7 @@ import {
 } from "../game/api";
 import { clearPvpFleeLocal } from "../game/pvpFleeBan";
 import { getCachedUser } from "../game/session";
+import { GameIcon } from "./GameIcon";
 
 type Props = {
   open: boolean;
@@ -514,9 +515,10 @@ export function AdminPanel({ open, onClose }: Props) {
                       {u.pvpBanned ? " · бан PvP" : ""}
                       {u.pendingResetCampaign ? " · сброс тропы" : ""}
                     </strong>
-                    <span>
-                      {u.displayName || "—"} · ур.{u.level} · {u.gold} 🪙{" "}
-                      {u.diamonds}💎
+                    <span className="inline-icos">
+                      {u.displayName || "—"} · ур.{u.level} · {u.gold}{" "}
+                      <GameIcon name="gold" size={12} /> {u.diamonds}{" "}
+                      <GameIcon name="diamond" size={12} />
                       {u.lastLoginAt
                         ? ` · ${new Date(u.lastLoginAt).toLocaleString()}`
                         : ""}

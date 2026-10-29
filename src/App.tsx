@@ -616,7 +616,7 @@ export default function App() {
             setOwned(mergeOwnedFromServer(me));
             cleanUrl();
             window.alert(
-              `Оплата прошла! Начислено 💎 ${order.diamonds}. Приятной игры.`,
+              `Оплата прошла! Начислено ${order.diamonds} алм. Приятной игры.`,
             );
             setScreen("collection");
             return;
@@ -834,8 +834,8 @@ export default function App() {
           resultEyebrow = "Поздравляем!";
           resultTitle = "Арена пройдена!";
           const bits: string[] = [];
-          if (goldReward > 0) bits.push(`+${goldReward} 🪙`);
-          if (diamondReward > 0) bits.push(`+${diamondReward}💎`);
+          if (goldReward > 0) bits.push(`+${goldReward} зол.`);
+          if (diamondReward > 0) bits.push(`+${diamondReward} алм.`);
           if (res.xpGained > 0) bits.push(`+${res.xpGained} XP`);
           resultLead = bits.length
             ? `Ваша награда: ${bits.join(" · ")}`

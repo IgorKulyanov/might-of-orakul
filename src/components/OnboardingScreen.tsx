@@ -8,6 +8,7 @@ import {
 } from "../game/heroes";
 import { beginWithHero } from "../game/owned";
 import type { Faction, OwnedState } from "../game/types";
+import { GameIcon } from "./GameIcon";
 
 type Props = {
   owned: OwnedState;
@@ -96,7 +97,8 @@ export function OnboardingScreen({
                   {on && <span className="onboard-pick-mark">✓</span>}
                 </div>
                 <strong className="onboard-pick-name">{h.name}</strong>
-                <span className="onboard-pick-school">
+                <span className="onboard-pick-school inline-icos">
+                  <GameIcon name={h.faction} size={14} />{" "}
                   {SCHOOL_LABEL[h.faction]}
                 </span>
                 <p className="onboard-epic-later">

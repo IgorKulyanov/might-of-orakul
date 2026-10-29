@@ -301,7 +301,13 @@ export function Collection({
                     className={filter === s ? "chip on" : "chip"}
                     onClick={() => setFilter(s)}
                   >
-                    {s === "all" ? "Все школы" : SCHOOL_LABEL[s]}
+                    {s === "all" ? (
+                      "Все школы"
+                    ) : (
+                      <span className="inline-icos">
+                        <GameIcon name={s} size={13} /> {SCHOOL_LABEL[s]}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -497,7 +503,13 @@ export function Collection({
                 className={filter === s ? "chip on" : "chip"}
                 onClick={() => setFilter(s)}
               >
-                {s === "all" ? "Все школы" : SCHOOL_LABEL[s]}
+                {s === "all" ? (
+                  "Все школы"
+                ) : (
+                  <span className="inline-icos">
+                    <GameIcon name={s} size={13} /> {SCHOOL_LABEL[s]}
+                  </span>
+                )}
               </button>
             ))}
           </div>

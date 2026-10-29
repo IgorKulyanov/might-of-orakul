@@ -710,12 +710,12 @@ export function beginWithHero(
     const diaNeed = hero.priceDiamonds ?? EPIC_HERO_DIAMONDS;
     if (pay === "gold") {
       if ((state.gold ?? 0) < goldNeed) {
-        return { owned, ok: false, reason: `Нужно ${goldNeed} 🪙` };
+        return { owned, ok: false, reason: `Нужно ${goldNeed} зол.` };
       }
       state = { ...state, gold: (state.gold ?? 0) - goldNeed };
     } else {
       if ((state.diamonds ?? 0) < diaNeed) {
-        return { owned, ok: false, reason: `Нужно ${diaNeed}💎` };
+        return { owned, ok: false, reason: `Нужно ${diaNeed} алм.` };
       }
       state = { ...state, diamonds: (state.diamonds ?? 0) - diaNeed };
     }

@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CardView, EmptySlot } from "./CardView";
+import { GameIcon } from "./GameIcon";
 import { ManaBar } from "./ManaBar";
 import {
   PATTERN_LABEL,
@@ -2658,7 +2659,9 @@ export function Battle({
                 )}
                 {reward.goldReward > 0 && (
                   <div className="battle-reward-chip gold">
-                    <span className="battle-reward-label">Золото</span>
+                    <span className="battle-reward-label inline-icos">
+                      <GameIcon name="gold" size={14} /> Золото
+                    </span>
                     <span className="battle-reward-value">
                       +{reward.goldReward}
                     </span>
@@ -2666,7 +2669,9 @@ export function Battle({
                 )}
                 {reward.diamondReward > 0 && (
                   <div className="battle-reward-chip dia">
-                    <span className="battle-reward-label">Кристаллы</span>
+                    <span className="battle-reward-label inline-icos">
+                      <GameIcon name="diamond" size={14} /> Кристаллы
+                    </span>
                     <span className="battle-reward-value">
                       +{reward.diamondReward}
                     </span>
