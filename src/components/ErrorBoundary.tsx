@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { alog, dumpActionLog } from "../game/actionLog";
 
 type Props = { children: ReactNode };
 type State = { error: Error | null };
@@ -13,6 +14,12 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[orakul] UI crash:", error, info.componentStack);
+    alog("error", "ui.crash", {
+      message: error.message,
+      stack: error.stack?.slice(0, 500),
+      componentStack: info.componentStack?.slice(0, 400),
+    });
+    dumpActionLog(40);
   }
 
   private reload = () => {

@@ -6,6 +6,7 @@ import {
   apiVerifyEmail,
   type ApiUser,
 } from "../game/api";
+import { alog } from "../game/actionLog";
 import { USER_AGREEMENT_URL } from "../game/legal";
 import { getLastLogin, setLastLogin } from "../game/session";
 import { startMenuMusic, unlockSfx } from "../game/sfx";
@@ -94,6 +95,7 @@ export function AuthScreen({
 
       if (mode === "verify") {
         const res = await apiVerifyEmail(id, code.trim());
+        alog("auth", "verify.ok");
         finish(res.token, res.user, id.includes("@") ? id : getLastLogin() || id);
         return;
       }
@@ -101,6 +103,7 @@ export function AuthScreen({
       if (mode === "login") {
         try {
           const res = await apiLogin(id, password);
+          alog("auth", "login.ok");
           finish(res.token, res.user, id);
           return;
         } catch (err) {
@@ -109,6 +112,7 @@ export function AuthScreen({
               ? String((err as { code?: string }).code || "")
               : "";
           const msg = err instanceof Error ? err.message : "Ошибка";
+          alog("auth", "login.fail", { code: errCode, msg });
           if (errCode === "EMAIL_NOT_VERIFIED") {
             goVerify(
               id,
@@ -133,6 +137,9 @@ export function AuthScreen({
         return;
       }
       const res = await apiRegister(id, password);
+      alog("auth", "register.ok", {
+        needsVerify: !!(res.needsEmailVerify || res.user.needsEmailVerify),
+      });
       if (res.needsEmailVerify || res.user.needsEmailVerify) {
         goVerify(id, res.user.email, res.devCode);
         if (res.mailWarning) setError(res.mailWarning);
@@ -140,7 +147,9 @@ export function AuthScreen({
       }
       finish(res.token, res.user, id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка");
+      const msg = err instanceof Error ? err.message : "Ошибка";
+      alog("auth", "auth.fail", { mode, msg });
+      setError(msg);
     } finally {
       setBusy(false);
     }

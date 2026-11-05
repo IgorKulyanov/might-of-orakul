@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { alog } from "./game/actionLog";
 import { ArenaHub } from "./components/ArenaHub";
 import { AuthScreen } from "./components/AuthScreen";
 import { Battle } from "./components/Battle";
@@ -411,6 +412,10 @@ export default function App() {
   arenaRoundRef.current = arenaRound;
   const screenRef = useRef(screen);
   screenRef.current = screen;
+
+  useEffect(() => {
+    alog("nav", "screen", { screen });
+  }, [screen]);
 
   // Пульс «онлайн» для админки (раз в ~30с + при смене экрана).
   useEffect(() => {

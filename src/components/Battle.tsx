@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CardView, EmptySlot } from "./CardView";
+import { alog } from "../game/actionLog";
 import { GameIcon, SchoolBadge } from "./GameIcon";
 import { ManaBar } from "./ManaBar";
 import {
@@ -622,14 +623,25 @@ export function Battle({
             : netAction;
         if (!action) {
           console.error("[battle] PvP без типизированного хода");
+          alog("pvp", "apply.missingAction", { fx: nextFx.kind });
           setFx(null);
           return stateRef.current;
         }
         let after: BattleState;
         try {
           after = applyPvpAction(stateRef.current, action);
+          alog("pvp", "apply.ok", {
+            type: (action as { type?: string }).type,
+            turn: after.turn,
+            active: after.active,
+            log0: after.log[0],
+          });
         } catch (e) {
           console.error("[battle] PvP apply fail:", e);
+          alog("error", "pvp.apply.fail", {
+            err: e instanceof Error ? e.message : String(e),
+            action,
+          });
           setFx(null);
           return stateRef.current;
         }
@@ -641,14 +653,29 @@ export function Battle({
           networkRef.current.sendAction(action);
         } catch (e) {
           console.error("[battle] net send fail:", e);
+          alog("error", "pvp.send.fail", {
+            err: e instanceof Error ? e.message : String(e),
+          });
         }
         return after;
       }
       let after: BattleState;
       try {
         after = run(stateRef.current);
+        alog("battle", "apply.ok", {
+          fx: nextFx.kind,
+          cardId: nextFx.cardId,
+          turn: after.turn,
+          active: after.active,
+          winner: after.winner,
+          log0: after.log[0],
+        });
       } catch (e) {
         console.error("[battle] apply fail:", e);
+        alog("error", "battle.apply.fail", {
+          err: e instanceof Error ? e.message : String(e),
+          fx: nextFx.kind,
+        });
         setFx(null);
         return stateRef.current;
       }

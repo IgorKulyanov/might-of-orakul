@@ -21,6 +21,7 @@ import {
   orakulBattleHp,
   waterGiftStartMana,
 } from "./oracleGifts";
+import { alog } from "./actionLog";
 import { startManaBonus } from "./progression";
 import type {
   AttackPattern,
@@ -559,7 +560,7 @@ export function createBattle(
     youEpic && youHero.faction === "death"
       ? `, дар косы (смерть юнита death → +1 мана death / ход)`
       : "";
-  return {
+  const battle: BattleState = {
     turn: 1,
     active: firstActive,
     you,
@@ -575,6 +576,16 @@ export function createBattle(
     selectedHand: null,
     selectedSlot: null,
   };
+  alog("engine", "createBattle", {
+    yourHeroId,
+    enemyHeroId,
+    yourLevel,
+    enemyLevel,
+    firstActive,
+    youCards: yourDeck.length,
+    enemyCards: enemyDeck.length,
+  });
+  return battle;
 }
 
 /** После стольких циклов ходов (turn > N) начинается буйство крови. */
