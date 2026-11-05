@@ -65,9 +65,13 @@ export function manaCostTotal(cost: ManaCost): number {
   return Object.values(cost).reduce((s, n) => s + (n ?? 0), 0);
 }
 
+/** Сброс кэша браузера/CDN после замены JPG (бампай при новых артах). */
+const CARD_ART_VER = "20261106a";
+
 export function cardArtUrl(card: CardDef): string {
   const art = card.art ?? `${card.id}.png`;
-  return `/cards/${art.split("/").map(encodeURIComponent).join("/")}`;
+  const path = `/cards/${art.split("/").map(encodeURIComponent).join("/")}`;
+  return `${path}?v=${CARD_ART_VER}`;
 }
 
 export const SCHOOL_LABEL: Record<School, string> = {
