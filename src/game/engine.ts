@@ -42,18 +42,29 @@ export function battleManaCost(
   cardId: string,
 ): ManaCost {
   const card = getCard(cardId);
-  const base = card.manaCost ?? {};
-  if (card.kind !== "spell" || !state.rules?.heavySpells) return base;
-  // «Доп. мана» / «Камни»: иначе +1 своей школы съедает весь прирост → кажется, что карта «не сработала».
-  const effects =
-    card.spellEffects && card.spellEffects.length > 0
-      ? card.spellEffects
-      : cardId === "hero_mana"
-        ? ([{ type: "gain_mana" as const, amount: 1 }] as SpellEffect[])
-        : [];
-  if (isManaRampSpell(effects)) return base;
+  let cost: ManaCost = { ...(card.manaCost ?? {}) };
   const caster = state.active === "you" ? state.you : state.enemy;
-  return heavySpellCost(cardId, base, caster.faction);
+  const rules = state.rules;
+
+  if (card.kind === "creature" && rules?.deathTax && card.school === "death") {
+    cost = { ...cost, death: (cost.death ?? 0) + 1 };
+  }
+  if (card.kind === "creature" && rules?.creatureTax) {
+    cost = heavySpellCost(cardId, cost, caster.faction);
+  }
+  if (card.kind === "spell" && rules?.heavySpells) {
+    // «Доп. мана» / «Камни»: иначе +1 своей школы съедает весь прирост.
+    const effects =
+      card.spellEffects && card.spellEffects.length > 0
+        ? card.spellEffects
+        : cardId === "hero_mana"
+          ? ([{ type: "gain_mana" as const, amount: 1 }] as SpellEffect[])
+          : [];
+    if (!isManaRampSpell(effects)) {
+      cost = heavySpellCost(cardId, cost, caster.faction);
+    }
+  }
+  return cost;
 }
 
 let uidSeq = 1;
@@ -695,15 +706,46 @@ function spawnCreature(
     permAttack += 1;
     permHealth += 1;
   }
+  if (rules?.undeadWane && c.school === "death") {
+    atk = Math.max(0, atk - 1);
+    hp = Math.max(1, hp - 1);
+    permAttack -= 1;
+    permHealth -= 1;
+  }
+  if (rules?.lifeBloom && c.school === "life") {
+    hp += 1;
+    permHealth += 1;
+  }
+  if (rules?.emberEdge && c.school === "hell") {
+    atk += 1;
+    permAttack += 1;
+  }
+  if (rules?.tideSkin && c.school === "water") {
+    hp += 1;
+    permHealth += 1;
+  }
+  if (rules?.wildFang && c.school === "nature") {
+    atk += 1;
+    permAttack += 1;
+  }
+  if (rules?.ironBoard) {
+    hp += 1;
+  }
   if (rules?.fragileBoard) {
     hp = Math.max(1, hp - 1);
   }
   const rush = hasAbility(cardId, "rush");
+  const baseHp = Math.max(
+    1,
+    (c.health ?? 1) -
+      (rules?.fragileBoard ? 1 : 0) +
+      (rules?.ironBoard ? 1 : 0),
+  );
   return {
     uid: uid(),
     cardId,
     baseAttack: c.attack ?? 0,
-    baseHealth: Math.max(1, (c.health ?? 1) - (rules?.fragileBoard ? 1 : 0)),
+    baseHealth: baseHp,
     permAttack,
     permHealth,
     packBonus: 0,

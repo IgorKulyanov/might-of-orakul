@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
-  DAILY_QUESTS,
   loadDailies,
+  todayQuests,
   type DailyQuestId,
 } from "../game/dailies";
 import type { OwnedState } from "../game/types";
@@ -21,14 +21,19 @@ type Props = {
 export function DailyPanel({ owned: _owned, onClaim }: Props) {
   const [tick, setTick] = useState(0);
   const dailies = loadDailies();
+  const quests = todayQuests(dailies);
   void tick;
   void _owned;
 
   return (
     <div className="daily-panel" data-tut="hub-dailies-panel">
-      <h2 className="daily-title">Ежедневные задания</h2>
+      <h2 className="daily-title">Задания дня</h2>
+      <p className="hint" style={{ marginTop: 0 }}>
+        Три цели из большого пула — завтра выпадут другие. Часть зовёт на арену,
+        тропу или дуэль.
+      </p>
       <ul className="daily-list">
-        {DAILY_QUESTS.map((q) => {
+        {quests.map((q) => {
           const prog = dailies.progress[q.id] ?? 0;
           const done = prog >= q.target;
           const claimed = dailies.claimed.includes(q.id);

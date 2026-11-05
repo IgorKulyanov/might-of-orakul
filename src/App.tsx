@@ -797,6 +797,13 @@ export default function App() {
     let res = applyBattleResult(ownedRef.current, won, {
       xpOnly: isCampaign,
       pvp: isPvp,
+      mode: isPvp
+        ? "pvp"
+        : isArena
+          ? "arena"
+          : isCampaign
+            ? "campaign"
+            : "bot",
     });
     let goldReward = res.goldReward;
     let diamondReward = res.diamondReward;

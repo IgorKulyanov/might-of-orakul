@@ -1,11 +1,13 @@
 import {
-  ALL_ARENA_MOD_IDS,
+  ARENA_DAY_POOL,
+  ARENA_MOD_CATALOG,
+  pickArenaDayMods,
   type ArenaModId,
 } from "./battleRules";
 import { MAX_PLAYER_LEVEL } from "./progression";
 import type { OwnedState } from "./types";
 
-const KEY = "orakul-arena-v1";
+const KEY = "orakul-arena-v2";
 export const ARENA_ROUNDS = 5;
 
 export type ArenaState = {
@@ -50,17 +52,21 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-/** 5 модификаторов дня по сиду даты. */
+function isKnownMod(id: string): id is ArenaModId {
+  return Object.prototype.hasOwnProperty.call(ARENA_MOD_CATALOG, id);
+}
+
+/** 5 модификаторов дня по сиду даты (большой пул, без баффа смерти, без конфликтов). */
 export function arenaModsForDay(day = todayKey()): ArenaModId[] {
-  const rnd = mulberry32(hashSeed(`arena:${day}`));
-  const pool = [...ALL_ARENA_MOD_IDS];
+  const rnd = mulberry32(hashSeed(`arena-v2:${day}`));
+  const pool = [...ARENA_DAY_POOL];
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(rnd() * (i + 1));
     const t = pool[i]!;
     pool[i] = pool[j]!;
     pool[j] = t;
   }
-  return pool.slice(0, ARENA_ROUNDS);
+  return pickArenaDayMods(pool, ARENA_ROUNDS);
 }
 
 function freshArena(day = todayKey()): ArenaState {
@@ -81,9 +87,10 @@ export function normalizeArena(
     const prevBest = Math.max(0, Math.floor(raw?.bestStreak ?? 0));
     return { ...freshArena(today), bestStreak: prevBest };
   }
+  const rawMods = Array.isArray(raw.dayMods) ? raw.dayMods : [];
   const mods =
-    Array.isArray(raw.dayMods) && raw.dayMods.length === ARENA_ROUNDS
-      ? (raw.dayMods as ArenaModId[])
+    rawMods.length === ARENA_ROUNDS && rawMods.every(isKnownMod)
+      ? (rawMods as ArenaModId[])
       : arenaModsForDay(today);
   return {
     cleared: Math.min(

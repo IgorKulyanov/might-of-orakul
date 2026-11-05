@@ -895,9 +895,15 @@ export type BattleRewardResult = {
 export function applyBattleResult(
   owned: OwnedState,
   won: boolean,
-  opts?: { xpOnly?: boolean; pvp?: boolean },
+  opts?: {
+    xpOnly?: boolean;
+    pvp?: boolean;
+    mode?: "bot" | "campaign" | "arena" | "pvp" | "dev";
+  },
 ): BattleRewardResult {
-  trackBattleForDailies(won);
+  const mode =
+    opts?.mode ?? (opts?.pvp ? "pvp" : "bot");
+  trackBattleForDailies(won, mode);
   const progress = normalizeProgress(owned);
   const hero = getHero(activeHeroId(owned));
   const gift = resolveBattleGift(

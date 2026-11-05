@@ -312,8 +312,19 @@ export type AttackTarget = "hero" | number;
 
 export interface BattleRules {
   undeadSurge?: boolean;
+  /** Смерть: −1/−1 при призыве. */
+  undeadWane?: boolean;
+  /** Смерть: существа +1 маны смерти. */
+  deathTax?: boolean;
+  lifeBloom?: boolean;
+  emberEdge?: boolean;
+  tideSkin?: boolean;
+  wildFang?: boolean;
   heavySpells?: boolean;
+  /** Существа +1 маны своей школы (нейтрал — школа оракула). */
+  creatureTax?: boolean;
   fragileBoard?: boolean;
+  ironBoard?: boolean;
   /** Порог хода для буйства крови (по умолчанию 20). */
   bloodFrenzyAfter?: number;
   /**
