@@ -336,6 +336,7 @@ export function Battle({
     pointerId: number;
   } | null>(null);
   const handDragUnbind = useRef<(() => void) | null>(null);
+  const handZoneRef = useRef<HTMLDivElement | null>(null);
   const dropAfterSelectRef = useRef<{
     side: "you" | "enemy";
     slot: number;
@@ -2506,8 +2507,38 @@ export function Battle({
             })}
           </div>
         </div>
-        <div className="hand-zone" data-tut="hand">
-          <div className="hand-label">Рука</div>
+        <div className="hand-zone" data-tut="hand" ref={handZoneRef}>
+          <div className="hand-label-row">
+            <div className="hand-label">Рука</div>
+            <div className="hand-scroll-btns" aria-label="Листать руку">
+              <button
+                type="button"
+                className="ghost hand-scroll-btn"
+                aria-label="Влево"
+                onClick={() => {
+                  handZoneRef.current?.scrollBy({
+                    left: -Math.max(120, (handZoneRef.current.clientWidth || 200) * 0.7),
+                    behavior: "smooth",
+                  });
+                }}
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                className="ghost hand-scroll-btn"
+                aria-label="Вправо"
+                onClick={() => {
+                  handZoneRef.current?.scrollBy({
+                    left: Math.max(120, (handZoneRef.current.clientWidth || 200) * 0.7),
+                    behavior: "smooth",
+                  });
+                }}
+              >
+                ›
+              </button>
+            </div>
+          </div>
           <div className={`hand ${actionBlocked ? "hand-locked" : ""}`}>
             {Array.from({ length: 7 }, (_, i) => {
               const id = state.you.hand[i];
@@ -2598,10 +2629,16 @@ export function Battle({
                       const dx = ev.clientX - start.x;
                       const dy = ev.clientY - start.y;
                       if (!handDragMoved.current) {
-                        if (dx * dx + dy * dy < 64) return;
-                        // Горизонтальный свайп на таче = скролл руки, не выкладка
-                        if (isTouch && Math.abs(dx) >= Math.abs(dy) * 1.1) {
-                          abortForScroll();
+                        // Тач: драг только явным жестом вверх к полю; вбок/вниз = скролл
+                        if (isTouch) {
+                          if (dx * dx + dy * dy < 140) return;
+                          const mostlyUp =
+                            dy < -14 && Math.abs(dy) > Math.abs(dx) * 1.25;
+                          if (!mostlyUp) {
+                            abortForScroll();
+                            return;
+                          }
+                        } else if (dx * dx + dy * dy < 64) {
                           return;
                         }
                         handDragMoved.current = true;

@@ -2235,10 +2235,37 @@ html.is-hand-dragging .grave-row {
   height: 100%;
   overflow: hidden;
   display: grid;
-  grid-template-rows: 0.95em var(--hand-card-h);
+  grid-template-rows: auto var(--hand-card-h);
   gap: 0.15rem;
   align-content: end;
   justify-items: center;
+}
+
+.hand-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  width: 100%;
+  min-height: 0.95em;
+}
+
+.hand-scroll-btns {
+  display: none;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.hand-scroll-btn {
+  min-width: 2.1rem;
+  min-height: 1.85rem;
+  padding: 0.15rem 0.45rem;
+  font-size: 1.25rem;
+  line-height: 1;
+  border-radius: 8px;
+  background: rgba(18, 14, 10, 0.88);
+  border: 1px solid rgba(232, 196, 120, 0.45);
+  color: #ffe7b0;
 }
 
 .hand,
@@ -2627,10 +2654,44 @@ html.is-hand-dragging .grave-row {
     overflow-x: auto;
     overflow-y: hidden;
     justify-items: stretch;
-    grid-template-rows: 0.85em var(--hand-card-h);
+    grid-template-rows: auto var(--hand-card-h) 1.35rem;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
     touch-action: pan-x;
+    /* полоска под картами — удобно листать пальцем */
+    padding-bottom: 0.15rem;
+  }
+
+  .hand-zone::after {
+    content: "";
+    grid-row: 3;
+    height: 1.2rem;
+    border-radius: 8px;
+    background: linear-gradient(
+      90deg,
+      rgba(232, 196, 120, 0.08),
+      rgba(232, 196, 120, 0.22),
+      rgba(232, 196, 120, 0.08)
+    );
+    border: 1px dashed rgba(232, 196, 120, 0.35);
+    pointer-events: none;
+  }
+
+  .hand-scroll-btns {
+    display: inline-flex;
+  }
+
+  .hand-label-row {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    padding: 0 0.1rem;
+    background: linear-gradient(
+      90deg,
+      rgba(12, 8, 5, 0.92),
+      rgba(12, 8, 5, 0.75) 70%,
+      transparent
+    );
   }
 
   .grave-zone {
