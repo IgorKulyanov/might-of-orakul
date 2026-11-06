@@ -1227,12 +1227,12 @@ button {
 }
 
 .your-row .board-card-wrap.is-lunge {
-  animation: lunge-you 0.85s ease-in-out;
+  animation: lunge-you 0.52s ease-in-out;
   z-index: 6;
 }
 
 .enemy-row .board-card-wrap.is-lunge {
-  animation: lunge-enemy 0.85s ease-in-out;
+  animation: lunge-enemy 0.52s ease-in-out;
   z-index: 6;
 }
 
@@ -1258,12 +1258,12 @@ button {
 
 /* Тряска + вспышка у цели */
 .board-card-wrap.is-hit {
-  animation: hit-shake 0.75s ease;
+  animation: hit-shake 0.48s ease;
   z-index: 5;
 }
 
 .hero.is-hit {
-  animation: hit-shake-soft 0.7s ease;
+  animation: hit-shake-soft 0.45s ease;
 }
 
 @keyframes hit-shake {

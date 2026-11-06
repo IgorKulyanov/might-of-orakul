@@ -1768,9 +1768,9 @@ export function Battle({
       stateRef.current = s;
       setState(s);
       playResultSfx(before, s);
-      await sleep(900);
+      await sleep(450);
 
-      // шаги соперника — медленно, по одному
+      // шаги соперника — по одному, чуть бодрее (раньше было очень томно)
       for (let n = 0; n < 20; n++) {
         const step = takeAiStep(s);
         if (!step) break;
@@ -1779,40 +1779,40 @@ export function Battle({
           !!step.fx.hitHero &&
           step.fx.kind !== "heal" &&
           step.fx.side === "enemy";
-        // Дольше держим удар в оракула / спелл — иначе непонятно, отчего умер.
+        // Удар в оракула / спелл чуть дольше — чтобы было ясно, отчего урон.
         const hold = isSpellCard
-          ? 3400
+          ? 2200
           : hitFace
-            ? 2200
+            ? 1400
             : step.fx.kind === "lunge"
-              ? 1500
+              ? 950
               : step.fx.kind === "play"
-                ? 1300
+                ? 850
                 : step.fx.kind === "spell"
-                  ? 1800
-                  : 1000;
+                  ? 1100
+                  : 650;
         setFx(step.fx);
         playActionSfx(step.fx, s);
         if (isSpellCard) {
           // Карта сначала появляется, эффект — после анимации.
-          await sleep(1600);
+          await sleep(900);
           before = s;
           s = step.state;
           stateRef.current = s;
           setState(s);
           playResultSfx(before, s);
-          await sleep(Math.max(900, hold - 1600));
+          await sleep(Math.max(550, hold - 900));
         } else {
-          await sleep(Math.floor(hold * 0.4));
+          await sleep(Math.floor(hold * 0.35));
           before = s;
           s = step.state;
           stateRef.current = s;
           setState(s);
           playResultSfx(before, s);
-          await sleep(Math.floor(hold * 0.6));
+          await sleep(Math.floor(hold * 0.55));
         }
         setFx(null);
-        await sleep(hitFace || isSpellCard ? 520 : 380);
+        await sleep(hitFace || isSpellCard ? 280 : 160);
         if (s.winner) break;
       }
 
@@ -1825,7 +1825,7 @@ export function Battle({
         sfxTurn();
       }
       setPhase("you");
-      await sleep(400);
+      await sleep(250);
     });
   };
 
