@@ -244,13 +244,22 @@ function battlePayload(room: Room, seat: PvpSeat): PvpServerMsg {
     seat,
     room.openingDice,
   );
+  const win = winnerSeat(battle);
+  const matchEnded = Boolean(win) || room.endedSent;
+  const reason = room.endReason ?? "combat";
+  const endMsg = win
+    ? (endMessage(seat, win, reason) as Extract<
+        PvpServerMsg,
+        { type: "ended" }
+      >)
+    : null;
   return {
     type: "battle",
     code: room.code,
     youAre: seat,
     state: viewForSeat(battle, seat),
     yourTurn: isSeatTurn(battle, seat),
-    turnEndsAt: room.turnEndsAt,
+    turnEndsAt: matchEnded ? null : room.turnEndsAt,
     yourTimeouts,
     foeTimeouts,
     maxTimeouts: PVP_MAX_TIMEOUTS,
@@ -260,6 +269,9 @@ function battlePayload(room: Room, seat: PvpSeat): PvpServerMsg {
     needRoll: opening.needRoll,
     youRolled: opening.youRolled,
     foeRolled: opening.foeRolled,
+    matchEnded: matchEnded || undefined,
+    youWon: endMsg ? endMsg.youWon : undefined,
+    endMessage: endMsg?.message,
   };
 }
 
@@ -916,6 +928,7 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
         }
         if (room.battle.winner) {
           send(ws, { type: "error", message: "Бой уже окончен" });
+          broadcastBattle(room);
           return;
         }
         unlockOpeningIfDue(room);
@@ -927,6 +940,8 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
         }
         if (!isSeatTurn(room.battle, seat)) {
           send(ws, { type: "error", message: "Сейчас ход соперника" });
+          // Клиент мог успеть применить ход локально — вернём правду со стола.
+          broadcastBattle(room);
           return;
         }
         try {

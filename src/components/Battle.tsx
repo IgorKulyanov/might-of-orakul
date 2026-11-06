@@ -482,13 +482,12 @@ export function Battle({
 
   useEffect(() => {
     if (!externalState) return;
-    // Победа в PvP только после server `ended` — иначе ложный оверлей.
-    let next = externalState;
-    if (network && next.winner && !network.ended) {
-      next = { ...next, winner: null };
-    }
+    // Стол с сервера — winner больше не вычищаем (иначе при потере `ended`
+    // проигравший навечно «ждёт хода» без оверлея).
+    const next = externalState;
+    const matchOver = Boolean(next.winner) || Boolean(network?.ended);
     const keepBusy =
-      lock.current && next.active === "you" && !next.winner;
+      !matchOver && lock.current && next.active === "you";
     stateRef.current = next;
     setState(next);
     setPhase(next.active === "you" ? "you" : "enemy");
@@ -548,7 +547,7 @@ export function Battle({
 
   useEffect(() => {
     if (!state.winner || rewarded.current) return;
-    if (network && !network.ended) return;
+    // PvP: оверлей по server winner; ended желателен, но не обязателен.
     rewarded.current = true;
     const won = state.winner === "you";
     try {
@@ -2086,7 +2085,7 @@ export function Battle({
               className={`pvp-timer-pill ${
                 state.active === "you" && turnLeftSec <= 5 ? "is-urgent" : ""
               } ${state.active !== "you" ? "is-foe" : ""}`}
-              title={`Ход ${network.turnLimitSec ?? 20}с. Потом автоматически передаётся.`}
+              title={`Ход ${network.turnLimitSec ?? 60}с. Потом автоматически передаётся.`}
             >
               {state.active === "you"
                 ? `ход ${turnLeftSec}с`
@@ -2804,7 +2803,7 @@ export function Battle({
         </div>
       )}
 
-      {showResult && state.winner && (!network || network.ended) && (
+      {showResult && state.winner && (
         <div
           className={`overlay battle-result-overlay ${
             state.winner === "you" ? "is-win" : "is-lose"

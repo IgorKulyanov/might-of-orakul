@@ -63,7 +63,7 @@ export type PvpClientMsg =
   | { type: "action"; action: PvpAction };
 
 /** Лимит хода PvP (сек) и сколько авто-пропусков до поражения. */
-export const PVP_TURN_SEC = 20;
+export const PVP_TURN_SEC = 60;
 export const PVP_MAX_TIMEOUTS = 5;
 /** После броска обоих — сколько держим результат на экране. */
 export const PVP_OPENING_MS = 2400;
@@ -166,6 +166,10 @@ export type PvpServerMsg =
       needRoll?: boolean;
       youRolled?: boolean;
       foeRolled?: boolean;
+      /** Дубль сигнала конца боя (если `ended` потерялся — клиент не зависает). */
+      matchEnded?: boolean;
+      youWon?: boolean;
+      endMessage?: string;
     }
   | { type: "error"; message: string }
   | { type: "peer_left"; message: string }

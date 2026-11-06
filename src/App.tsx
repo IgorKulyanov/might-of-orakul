@@ -1361,11 +1361,14 @@ export default function App() {
           });
           socket.setHandler((msg: PvpServerMsg) => {
             if (msg.type === "battle") {
-              if (pvpSettledRef.current && !msg.state.winner) return;
+              const finished =
+                Boolean(msg.matchEnded) || Boolean(msg.state.winner);
+              if (pvpSettledRef.current && !finished) return;
+              if (finished) pvpSettledRef.current = true;
               setPvpState(msg.state);
               setPvpClock((c) => ({
                 ...c,
-                turnEndsAt: msg.turnEndsAt,
+                turnEndsAt: finished ? null : msg.turnEndsAt,
                 yourTimeouts: msg.yourTimeouts,
                 foeTimeouts: msg.foeTimeouts,
                 maxTimeouts: msg.maxTimeouts,
@@ -1374,14 +1377,19 @@ export default function App() {
                   ? null
                   : (msg.openingDice ??
                     (msg.openingLocked ? c.openingDice : null)),
-                openingLocked: Boolean(msg.openingLocked),
-                needRoll: Boolean(msg.needRoll),
+                openingLocked: finished ? false : Boolean(msg.openingLocked),
+                needRoll: finished ? false : Boolean(msg.needRoll),
                 youRolled: Boolean(msg.youRolled),
                 foeRolled: Boolean(msg.foeRolled),
+                // Конец боя дублируем в battle — если `ended` не дошёл, не зависаем.
+                endMessage: finished
+                  ? (c.endMessage ??
+                    msg.endMessage ??
+                    (msg.youWon ? "Победа!" : "Поражение"))
+                  : c.endMessage,
               }));
             }
             if (msg.type === "ended") {
-              if (pvpSettledRef.current) return;
               pvpSettledRef.current = true;
               setPvpClock((c) => ({
                 ...c,
