@@ -271,7 +271,12 @@ export function CardView({
             <div className="card-art-wrap">
               <div
                 className="card-art"
-                style={{ backgroundImage: `url(${art})` }}
+                style={{
+                  backgroundImage: `url(${art})`,
+                  ...(c.artFocus
+                    ? { backgroundPosition: c.artFocus }
+                    : null),
+                }}
                 aria-hidden
               />
               <div className="card-footer">

@@ -223,6 +223,8 @@ export interface CardDef {
   /** Сила/тир карты 1…5 (скелет=1, костяной рекс=5). */
   unitLevel?: 1 | 2 | 3 | 4 | 5;
   art?: string;
+  /** background-position арта (головы у края кадра и т.п.). */
+  artFocus?: string;
   spellEffects?: SpellEffect[];
   onPlayHealHero?: number;
   ability?: CreatureAbility;
