@@ -766,7 +766,13 @@ export function Battle({
     if (!assertHandMana(i)) return;
     if (card.kind === "spell") {
       const need = spellTargetMode({ ...state, selectedHand: i });
+      // Без цели (доп. мана, доп. карта…): 1-й клик — выбор, 2-й — каст.
+      // Иначе «посмотреть» = сразу сработала.
       if (!need) {
+        if (state.selectedHand !== i) {
+          setState(selectHand(state, i));
+          return;
+        }
         const cardId = state.you.hand[i]!;
         void runLocked(async () => {
           await playFx(
@@ -1885,8 +1891,13 @@ export function Battle({
     }
     if (state.selectedHand != null && spellMode === "enemy")
       return "Заклинание: кликни существо врага";
-    if (state.selectedHand != null)
+    if (state.selectedHand != null) {
+      const sid = state.you.hand[state.selectedHand];
+      if (sid && getCard(sid).kind === "spell" && !spellMode) {
+        return "Заклинание выбрано — кликни ещё раз, чтобы разыграть (↻ — только описание)";
+      }
       return "Призыв: кликни пустой слот (+) в своём ряду";
+    }
     if (state.selectedSlot != null) {
       const c = state.you.slots[state.selectedSlot];
       const ab = c && !c.stripped ? getCard(c.cardId).ability : undefined;
