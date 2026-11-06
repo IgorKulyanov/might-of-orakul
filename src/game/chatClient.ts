@@ -1,4 +1,4 @@
-import { getApiBase } from "./api";
+import { getWsOrigin } from "./api";
 
 export type ChatMessage = {
   id: string;
@@ -15,20 +15,7 @@ type ServerMsg =
   | { type: "ok"; message: string };
 
 function resolveChatWsUrl(): string {
-  if (typeof window !== "undefined") {
-    const base = getApiBase();
-    if (!base) {
-      const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-      return `${proto}//${window.location.host}/ws/chat`;
-    }
-    const u = new URL(base);
-    u.protocol = u.protocol === "https:" ? "wss:" : "ws:";
-    u.pathname = "/ws/chat";
-    u.search = "";
-    u.hash = "";
-    return u.toString();
-  }
-  return "ws://127.0.0.1:8787/ws/chat";
+  return `${getWsOrigin()}/ws/chat`;
 }
 
 export class LobbyChatSocket {

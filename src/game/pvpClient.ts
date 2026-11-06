@@ -4,23 +4,10 @@ import type {
   PvpServerMsg,
 } from "./pvpProtocol";
 
-import { getApiBase } from "./api";
+import { getWsOrigin } from "./api";
 
 function resolveWsUrl(): string {
-  if (typeof window !== "undefined") {
-    const base = getApiBase();
-    if (!base) {
-      const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-      return `${proto}//${window.location.host}/ws/pvp`;
-    }
-    const u = new URL(base);
-    u.protocol = u.protocol === "https:" ? "wss:" : "ws:";
-    u.pathname = "/ws/pvp";
-    u.search = "";
-    u.hash = "";
-    return u.toString();
-  }
-  return "ws://127.0.0.1:8787/ws/pvp";
+  return `${getWsOrigin()}/ws/pvp`;
 }
 
 export type PvpJoinPayload = {

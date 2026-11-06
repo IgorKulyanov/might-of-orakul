@@ -271,7 +271,7 @@ export function MultiMenu({
         setBusy(false);
         setBusyHint(null);
         setMessage(
-          "Сервер не ответил. Обнови страницу (Ctrl+F5) и попробуй снова.",
+          "Сервер не ответил на комнату. Жёстко обнови страницу (Ctrl+F5) и попробуй снова. Если снова пусто — напиши в поддержку.",
         );
         try {
           socketRef.current?.leave();
@@ -279,7 +279,7 @@ export function MultiMenu({
           /* ignore */
         }
         socketRef.current = null;
-      }, 12_000);
+      }, 18_000);
     } catch (err) {
       clearLobbyWait();
       setMessage(err instanceof Error ? err.message : "Ошибка связи");

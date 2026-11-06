@@ -1,8 +1,11 @@
 import type { OwnedState } from "./types";
 
+/** Прямой HTTPS/WSS на VPS (обход Pages Functions для сокетов). */
+export const VPS_PUBLIC_ORIGIN = "https://157.22.204.47.sslip.io";
+
 /**
- * На pages.dev — тот же origin (Cloudflare Functions → VPS).
- * Иначе VITE_API_URL / localhost. Игрокам sslip не нужен.
+ * На pages.dev — тот же origin (Cloudflare Functions → VPS) для /api.
+ * Иначе VITE_API_URL / localhost.
  */
 export function getApiBase(): string {
   if (typeof window !== "undefined") {
@@ -18,6 +21,33 @@ export function getApiBase(): string {
   if (env) return env;
   if (typeof window !== "undefined") return "";
   return "http://127.0.0.1:8787";
+}
+
+/**
+ * База для WebSocket. На pages.dev — напрямую на VPS:
+ * прокси CF Functions часто поднимает WS (101), но не отдаёт lobby/battle.
+ */
+export function getWsOrigin(): string {
+  const env = (import.meta.env.VITE_WS_URL as string | undefined)?.replace(
+    /\/$/,
+    "",
+  );
+  if (env) return env;
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host.endsWith("pages.dev") || host.endsWith("orakul.pages.dev")) {
+      return VPS_PUBLIC_ORIGIN.replace(/^http/, "ws");
+    }
+  }
+  const base = getApiBase();
+  if (!base) {
+    if (typeof window === "undefined") return "ws://127.0.0.1:8787";
+    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${proto}//${window.location.host}`;
+  }
+  const u = new URL(base);
+  u.protocol = u.protocol === "https:" ? "wss:" : "ws:";
+  return u.origin;
 }
 
 /** @deprecated use getApiBase() — оставлено для старых импортов */
