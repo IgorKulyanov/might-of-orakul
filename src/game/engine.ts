@@ -609,12 +609,15 @@ function pilesEmpty(p: PlayerState): boolean {
 
 /**
  * «Колоды иссякли» для буйства крови.
- * Важно: стартовая раздача короткой колоды (все карты в руке, колода 0)
- * — это НЕ иссякание. Иначе песочница со стартом из 4 карт
- * сразу включает буйство и бой сам заканчивается.
+ * Важно:
+ * — старт короткой колоды (все в руке, колода 0) — НЕ иссякание;
+ * — все карты выложены существами на стол — тоже НЕ иссякание
+ *   (иначе дуэль на 4–8 картах включает буйство через пару ходов).
  */
 function cardsExhausted(p: PlayerState): boolean {
-  return pilesEmpty(p) && p.hand.length === 0;
+  if (!pilesEmpty(p) || p.hand.length > 0) return false;
+  if (p.slots.some((u) => !!u)) return false;
+  return true;
 }
 
 function bloodFrenzyThreshold(state: BattleState): number {

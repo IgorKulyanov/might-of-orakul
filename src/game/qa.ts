@@ -420,6 +420,31 @@ function shortDeckAndShuffle(fails: QaFail[], ok: string[]): void {
     });
   }
 
+  // Все существа на стол — колода/рука/грейв пусты, но буйства быть не должно.
+  let boardOnly = createBattle(
+    ["skeleton", "zombie", "imp", "recruit"],
+    ["skeleton", "zombie", "imp", "recruit"],
+    "hero_death",
+    "hero_hell",
+    "QA",
+    10,
+    10,
+  );
+  boardOnly.you.mana = { life: 5, hell: 5, death: 5, nature: 5, water: 5 };
+  boardOnly.you.hand = ["skeleton", "zombie", "imp", "recruit"];
+  boardOnly.you.deck = [];
+  boardOnly.you.graveyard = [];
+  for (let i = 0; i < 4; i++) {
+    boardOnly = playCard(boardOnly, 0, i);
+  }
+  boardOnly = endPlayerTurn(boardOnly);
+  if (boardOnly.bloodFrenzy > 0) {
+    fails.push({
+      area: "буйство",
+      detail: `карты на столе: ложное буйство (frenzy=${boardOnly.bloodFrenzy})`,
+    });
+  }
+
   let t = createBattle(
     ["spider", "spider", "spider", "hurricane", ...Array(16).fill("elf")],
     ["fire_gopnik", ...Array(19).fill("strike")],
