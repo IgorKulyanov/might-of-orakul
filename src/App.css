@@ -2017,10 +2017,16 @@ button {
 
 .hand-card-anchor,
 .hand-card-anchor * {
-  touch-action: none;
+  /* pan-x: можно доскроллить руку; драг включается из JS после порога */
+  touch-action: pan-x;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+}
+
+.hand-card-anchor.is-dragging,
+.hand-card-anchor.is-dragging * {
+  touch-action: none;
 }
 
 .hand-card-anchor.is-dragging {
@@ -2617,10 +2623,14 @@ html.is-hand-dragging .grave-row {
     order: 1;
     height: auto;
     width: 100%;
+    max-width: 100%;
     overflow-x: auto;
-    overflow-y: visible;
+    overflow-y: hidden;
     justify-items: stretch;
     grid-template-rows: 0.85em var(--hand-card-h);
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
   }
 
   .grave-zone {
@@ -2653,9 +2663,11 @@ html.is-hand-dragging .grave-row {
     justify-items: center;
     margin: 0;
     width: max-content;
-    max-width: 100%;
+    /* без max-width — скроллит .hand-zone, иначе правые карты не достать */
+    max-width: none;
     gap: 0.22rem;
-    -webkit-overflow-scrolling: touch;
+    overflow: visible;
+    padding-right: 0.85rem;
     scrollbar-width: thin;
   }
 

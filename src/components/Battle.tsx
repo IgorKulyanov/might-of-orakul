@@ -2522,7 +2522,14 @@ export function Battle({
                   onPointerDown={(e) => {
                     if (actionBlocked) return;
                     if (e.button !== 0 && e.pointerType === "mouse") return;
-                    e.preventDefault();
+                    const isTouch =
+                      e.pointerType === "touch" || e.pointerType === "pen";
+                    // Мышь: сразу глушим выделение. Тач: не трогаем — иначе нельзя
+                    // доскроллить правые карты в руке.
+                    if (!isTouch) {
+                      e.preventDefault();
+                      document.documentElement.classList.add("is-hand-dragging");
+                    }
                     e.stopPropagation();
                     handDragUnbind.current?.();
                     handDragMoved.current = false;
@@ -2535,8 +2542,15 @@ export function Battle({
                     };
                     let lastX = e.clientX;
                     let lastY = e.clientY;
-                    // Сразу в DOM — до React-рендера, иначе iOS успевает скроллить
-                    document.documentElement.classList.add("is-hand-dragging");
+
+                    const abortForScroll = () => {
+                      handDragStart.current = null;
+                      handDragMoved.current = false;
+                      handDragUnbind.current?.();
+                      handDragUnbind.current = null;
+                      clearHandDragLock();
+                      setHandDrag(null);
+                    };
 
                     const finish = (ev: PointerEvent) => {
                       const start = handDragStart.current;
@@ -2579,17 +2593,25 @@ export function Battle({
                     const onMove = (ev: PointerEvent) => {
                       const start = handDragStart.current;
                       if (!start || start.pointerId !== ev.pointerId) return;
-                      ev.preventDefault();
                       lastX = ev.clientX;
                       lastY = ev.clientY;
                       const dx = ev.clientX - start.x;
                       const dy = ev.clientY - start.y;
                       if (!handDragMoved.current) {
-                        if (dx * dx + dy * dy < 25) return;
+                        if (dx * dx + dy * dy < 64) return;
+                        // Горизонтальный свайп на таче = скролл руки, не выкладка
+                        if (isTouch && Math.abs(dx) >= Math.abs(dy) * 1.1) {
+                          abortForScroll();
+                          return;
+                        }
                         handDragMoved.current = true;
+                        document.documentElement.classList.add(
+                          "is-hand-dragging",
+                        );
                         setGravePickIdx(null);
                         setState((s) => selectHand(s, start.index));
                       }
+                      ev.preventDefault();
                       const magnet = findBoardDropAt(
                         ev.clientX,
                         ev.clientY,
