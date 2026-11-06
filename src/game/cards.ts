@@ -66,12 +66,42 @@ export function manaCostTotal(cost: ManaCost): number {
 }
 
 /** Сброс кэша браузера/CDN после замены JPG (бампай при новых артах). */
-const CARD_ART_VER = "20261106d";
+const CARD_ART_VER = "20261106e";
 
 export function cardArtUrl(card: CardDef): string {
   const art = card.art ?? `${card.id}.png`;
   const path = `/cards/${art.split("/").map(encodeURIComponent).join("/")}`;
   return `${path}?v=${CARD_ART_VER}`;
+}
+
+/** Кроп/фокус арта на карте (inline — побеждает CSS cover 38%). */
+export function cardArtStyle(card: CardDef): {
+  backgroundPosition?: string;
+  backgroundSize?: string;
+} {
+  // Жёсткий оверрайд: у этих портретов cover срезает полголовы.
+  const forced: Record<
+    string,
+    { backgroundPosition: string; backgroundSize: string }
+  > = {
+    banshee: {
+      backgroundPosition: "center top",
+      backgroundSize: "auto 100%",
+    },
+    basilisk: {
+      backgroundPosition: "68% top",
+      backgroundSize: "auto 100%",
+    },
+  };
+  if (forced[card.id]) return forced[card.id];
+
+  const style: {
+    backgroundPosition?: string;
+    backgroundSize?: string;
+  } = {};
+  if (card.artFocus) style.backgroundPosition = card.artFocus;
+  if (card.artFit === "height") style.backgroundSize = "auto 100%";
+  return style;
 }
 
 export const SCHOOL_LABEL: Record<School, string> = {

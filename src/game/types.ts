@@ -225,6 +225,11 @@ export interface CardDef {
   art?: string;
   /** background-position арта (головы у края кадра и т.п.). */
   artFocus?: string;
+  /**
+   * cover — дефолт (кроп).
+   * height — вписать по высоте, голова не срезается (высокие портреты).
+   */
+  artFit?: "cover" | "height";
   spellEffects?: SpellEffect[];
   onPlayHealHero?: number;
   ability?: CreatureAbility;

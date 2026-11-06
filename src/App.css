@@ -821,6 +821,19 @@ button {
   background-size: cover;
   /* Чуть ниже центра — в кадре оружие/торс, не только лицо */
   background-position: center 38%;
+  background-repeat: no-repeat;
+  background-color: #0a0c12;
+}
+
+/* Высокие портреты: cover срезал головы — вписываем по высоте */
+.card[data-card="banshee"] .card-art,
+.card[data-card="basilisk"] .card-art {
+  background-size: auto 100% !important;
+  background-position: center top !important;
+}
+
+.card[data-card="basilisk"] .card-art {
+  background-position: 68% top !important;
 }
 
 .effect-marks {

@@ -9,6 +9,7 @@ import {
   PATTERN_LABEL,
   SCHOOL_COLOR,
   SCHOOL_LABEL,
+  cardArtStyle,
   cardArtUrl,
   cardFrameLevel,
   getCard,
@@ -99,6 +100,7 @@ export function CardView({
   const color = SCHOOL_COLOR[c.school];
   const frameLv = cardFrameLevel(c);
   const art = cardArtUrl(c);
+  const artStyle = cardArtStyle(c);
   const atk = liveAttack ?? c.attack ?? 0;
   const hp = liveHealth ?? c.health ?? 0;
   const fullHp = maxHealth ?? c.health ?? hp;
@@ -220,6 +222,7 @@ export function CardView({
         ]
           .filter(Boolean)
           .join(" ")}
+        data-card={c.id}
         style={{ ["--school" as string]: color }}
         onClick={interactive ? onCardClick : undefined}
         onKeyDown={interactive ? onKey : undefined}
@@ -273,9 +276,7 @@ export function CardView({
                 className="card-art"
                 style={{
                   backgroundImage: `url(${art})`,
-                  ...(c.artFocus
-                    ? { backgroundPosition: c.artFocus }
-                    : null),
+                  ...artStyle,
                 }}
                 aria-hidden
               />
