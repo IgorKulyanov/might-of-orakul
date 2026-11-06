@@ -35,7 +35,13 @@ export function getWsOrigin(): string {
   if (env) return env;
   if (typeof window !== "undefined") {
     const host = window.location.hostname;
-    if (host.endsWith("pages.dev") || host.endsWith("orakul.pages.dev")) {
+    const local =
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host.endsWith(".local");
+    // Прод (pages / любой https-домен): WS напрямую на VPS.
+    // Same-origin через CF Functions часто даёт 101 без lobby/chat.
+    if (!local && window.location.protocol === "https:") {
       return VPS_PUBLIC_ORIGIN.replace(/^http/, "ws");
     }
   }

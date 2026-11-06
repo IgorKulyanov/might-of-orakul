@@ -43,7 +43,7 @@ export function CommunityPanel({
     let cancelled = false;
     const sock = new LobbyChatSocket();
     sockRef.current = sock;
-    setStatus("Подключение…");
+    setStatus("Подключение к чату…");
     void sock
       .connect(token, (msg) => {
         if (cancelled) return;
@@ -59,11 +59,15 @@ export function CommunityPanel({
         if (msg.type === "ok") setStatus(msg.message);
       })
       .then(() => {
-        /* готово — статус снимет history */
+        if (!cancelled) setStatus((s) => (s === "Подключение к чату…" ? null : s));
       })
       .catch((e) => {
         if (!cancelled) {
-          setStatus(e instanceof Error ? e.message : "Чат недоступен");
+          setStatus(
+            e instanceof Error
+              ? e.message
+              : "Чат недоступен — обнови страницу (Ctrl+F5)",
+          );
         }
       });
     return () => {

@@ -43,7 +43,8 @@ const CHAT_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const MAX_CLIENTS = 200;
 const PING_MS = 25_000;
 const HELLO_TIMEOUT_MS = 8_000;
-const MAX_CONN_PER_IP = 8;
+/** На мобильных/CGNAT и при прокси лимит 8 легко душит чат. */
+const MAX_CONN_PER_IP = 40;
 
 const history: ChatMsg[] = [];
 const clients = new Set<WebSocket>();
@@ -183,6 +184,8 @@ export function attachLobbyChat(authLookup: AuthLookup): WebSocketServer {
     }
 
     const ip =
+      String(req.headers["cf-connecting-ip"] || "").trim() ||
+      String(req.headers["x-real-ip"] || "").trim() ||
       String(req.headers["x-forwarded-for"] || "")
         .split(",")[0]
         .trim() ||
@@ -190,7 +193,10 @@ export function attachLobbyChat(authLookup: AuthLookup): WebSocketServer {
       "unknown";
     const connRl = rateLimit(`chat-conn:${ip}`, MAX_CONN_PER_IP, 60_000);
     if (!connRl.ok) {
-      send(ws, { type: "error", message: "Слишком много подключений" });
+      send(ws, {
+        type: "error",
+        message: "Слишком много подключений с этой сети — подожди минуту",
+      });
       ws.close();
       return;
     }
