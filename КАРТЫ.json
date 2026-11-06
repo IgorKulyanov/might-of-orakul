@@ -907,7 +907,7 @@
     },
     {
       "id": "mercenary",
-      "name": "Золотой дракон",
+      "name": "Золотая виверна",
       "school": "neutral",
       "kind": "creature",
       "manaCost": {
@@ -917,12 +917,12 @@
       "attack": 3,
       "health": 3,
       "attackPattern": "melee",
-      "text": "Нейтрал: жизнь+ад. Золотой дракон — универсальный боец.",
+      "text": "Нейтрал: жизнь+ад. Золотая виверна — универсальный боец.",
       "rarity": "rare",
       "premium": false,
       "art": "нетральные существа/bot_00182_.png",
       "priceGold": 160,
-      "gender": "male",
+      "gender": "female",
       "unitLevel": 2,
       "priceDiamonds": 6
     },
