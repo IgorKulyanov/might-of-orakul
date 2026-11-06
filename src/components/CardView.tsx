@@ -264,9 +264,6 @@ export function CardView({
                       title={`${PATTERN_HINT[pattern]} · атака ${atk}`}
                     >
                       <em>{atk}</em>
-                      <i className="card-stat-pip-ico" aria-hidden>
-                        {PATTERN_ICON[pattern]}
-                      </i>
                     </span>
                     <span
                       className={`card-stat-pip card-stat-hp ${wounded ? "is-wounded" : ""}`}
@@ -275,11 +272,7 @@ export function CardView({
                       <em className={wounded ? "hp-hurt" : undefined}>{hp}</em>
                     </span>
                   </>
-                ) : (
-                  <span className="card-stat-pip card-stat-spell" title="Заклинание">
-                    <em>✦</em>
-                  </span>
-                )}
+                ) : null}
                 {marks.length > 0 && (
                   <div className="effect-marks effect-marks--badge" aria-label="Эффекты на карте">
                     {marks.map((m) => (

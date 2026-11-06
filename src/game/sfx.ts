@@ -228,8 +228,10 @@ export function playSample(
   });
 }
 
-/** Звук выкладывания карты: public/sfx/карта.wav */
-export const SFX_PLAY_CARD_URL = `/sfx/${encodeURIComponent("карта.wav")}`;
+/** Звук выкладывания карты (ASCII — надёжнее на Pages, чем кириллица в URL). */
+export const SFX_PLAY_CARD_URL = "/sfx/play-card.wav";
+/** Старый путь — запасной, если копии ещё нет на CDN. */
+const SFX_PLAY_CARD_URL_LEGACY = `/sfx/${encodeURIComponent("карта.wav")}`;
 
 /** Звук атаки: public/sfx/атака.wav */
 export const SFX_ATTACK_URL = `/sfx/${encodeURIComponent("атака.wav")}`;
@@ -744,9 +746,9 @@ export function sfxUiClick(): void {
   softTone({ freq: 640, dur: 0.07, gain: 0.03, attack: 0.01, harmonics: [1, 0.2] });
 }
 
-/** Выкладывание карты: public/sfx/карта.wav */
+/** Выкладывание карты: public/sfx/play-card.wav (fallback → карта.wav → synth). */
 export function sfxPlayCard(): void {
-  playSampleOrFallback(SFX_PLAY_CARD_URL, 0.75, () => {
+  const synth = () => {
     softNoise({
       dur: 0.12,
       gain: 0.055,
@@ -770,6 +772,9 @@ export function sfxPlayCard(): void {
       type: "lowpass",
       q: 0.5,
     });
+  };
+  playSampleOrFallback(SFX_PLAY_CARD_URL, 0.75, () => {
+    playSampleOrFallback(SFX_PLAY_CARD_URL_LEGACY, 0.75, synth);
   });
 }
 
