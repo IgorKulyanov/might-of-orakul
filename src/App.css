@@ -2017,7 +2017,7 @@ button {
 
 .hand-card-anchor,
 .hand-card-anchor * {
-  /* Скролл руки — кнопки + полоска; на карте только драг (без рывков от pan-x). */
+  /* Жест сами: вбок = скролл руки, вверх = выкладка (без native pan-x). */
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;

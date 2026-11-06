@@ -328,6 +328,8 @@ export function Battle({
   /** Счётчик: без него дроп не срабатывает, если карта уже была выбрана в начале драга */
   const [dropSeq, setDropSeq] = useState(0);
   const handDragMoved = useRef(false);
+  /** pending → scroll (вбок по карте) | drag (вверх на стол) */
+  const handGestureMode = useRef<"pending" | "scroll" | "drag">("pending");
   const handDragStart = useRef<{
     x: number;
     y: number;
@@ -337,6 +339,7 @@ export function Battle({
   } | null>(null);
   const handDragUnbind = useRef<(() => void) | null>(null);
   const handZoneRef = useRef<HTMLDivElement | null>(null);
+  const handDragGhostRef = useRef<HTMLDivElement | null>(null);
   const dropAfterSelectRef = useRef<{
     side: "you" | "enemy";
     slot: number;
@@ -2553,20 +2556,23 @@ export function Battle({
                   onPointerDown={(e) => {
                     if (actionBlocked) return;
                     if (e.button !== 0 && e.pointerType === "mouse") return;
-                    // Карты: touch-action none — жест сразу на драг, без боя со скроллом.
-                    // Листать руку: кнопки ‹› и полоска под картами.
-                    e.preventDefault();
-                    e.stopPropagation();
-                    try {
-                      (e.currentTarget as HTMLElement).setPointerCapture(
-                        e.pointerId,
-                      );
-                    } catch {
-                      /* ignore */
+                    const isTouch =
+                      e.pointerType === "touch" || e.pointerType === "pen";
+                    const anchor = e.currentTarget as HTMLElement;
+                    // Тач: сначала ждём направление (вбок=скролл / вверх=выкладка).
+                    // Мышь: сразу захват под драг.
+                    if (!isTouch) {
+                      e.preventDefault();
+                      try {
+                        anchor.setPointerCapture(e.pointerId);
+                      } catch {
+                        /* ignore */
+                      }
                     }
-                    document.documentElement.classList.add("is-hand-dragging");
+                    e.stopPropagation();
                     handDragUnbind.current?.();
                     handDragMoved.current = false;
+                    handGestureMode.current = "pending";
                     handDragStart.current = {
                       x: e.clientX,
                       y: e.clientY,
@@ -2574,12 +2580,15 @@ export function Battle({
                       cardId: id,
                       pointerId: e.pointerId,
                     };
+                    const startScroll = handZoneRef.current?.scrollLeft ?? 0;
                     let lastX = e.clientX;
                     let lastY = e.clientY;
+                    let lastMagnetKey = "";
 
                     const finish = (ev: PointerEvent) => {
                       const start = handDragStart.current;
                       if (!start || start.pointerId !== ev.pointerId) return;
+                      const mode = handGestureMode.current;
                       const moved = handDragMoved.current;
                       const x =
                         Number.isFinite(ev.clientX) && ev.clientX !== 0
@@ -2592,11 +2601,13 @@ export function Battle({
                           : lastY;
                       handDragStart.current = null;
                       handDragMoved.current = false;
+                      handGestureMode.current = "pending";
                       handDragUnbind.current?.();
                       handDragUnbind.current = null;
                       clearHandDragLock();
                       setHandDrag(null);
-                      if (!moved) {
+                      if (mode === "scroll") return;
+                      if (!moved || mode === "pending") {
                         setGravePickIdx(null);
                         onHandClick(start.index);
                         return;
@@ -2608,11 +2619,32 @@ export function Battle({
                           slot: drop.slot,
                         };
                         setState((s) => selectHand(s, start.index));
-                        // selectedHand мог уже стоять с начала драга — форсим эффект
                         setDropSeq((n) => n + 1);
                         return;
                       }
                       pushHint("Поднеси карту ближе к пустому слоту своего ряда");
+                    };
+
+                    const beginDrag = (clientX: number, clientY: number) => {
+                      handGestureMode.current = "drag";
+                      handDragMoved.current = true;
+                      try {
+                        anchor.setPointerCapture(
+                          handDragStart.current?.pointerId ?? e.pointerId,
+                        );
+                      } catch {
+                        /* ignore */
+                      }
+                      document.documentElement.classList.add("is-hand-dragging");
+                      setGravePickIdx(null);
+                      lastMagnetKey = "";
+                      setHandDrag({
+                        index: i,
+                        cardId: id,
+                        x: clientX,
+                        y: clientY,
+                        magnet: null,
+                      });
                     };
 
                     const onMove = (ev: PointerEvent) => {
@@ -2622,29 +2654,69 @@ export function Battle({
                       lastY = ev.clientY;
                       const dx = ev.clientX - start.x;
                       const dy = ev.clientY - start.y;
-                      if (!handDragMoved.current) {
-                        if (dx * dx + dy * dy < 36) return;
-                        handDragMoved.current = true;
-                        setGravePickIdx(null);
-                        setState((s) => selectHand(s, start.index));
+
+                      if (handGestureMode.current === "pending") {
+                        const dist2 = dx * dx + dy * dy;
+                        if (dist2 < 64) return;
+                        if (isTouch) {
+                          const absX = Math.abs(dx);
+                          const absY = Math.abs(dy);
+                          // Вбок по карте — скролл руки (без выкладки)
+                          if (absX > absY * 1.05) {
+                            handGestureMode.current = "scroll";
+                            handDragMoved.current = true;
+                            const zone = handZoneRef.current;
+                            if (zone) zone.scrollLeft = startScroll - dx;
+                            return;
+                          }
+                          // Вверх к столу — драг
+                          if (dy < -4 && absY >= absX * 0.9) {
+                            beginDrag(ev.clientX, ev.clientY);
+                          } else if (dist2 > 220 && dy > 0) {
+                            // вниз / шум — считаем скроллом, не цепляем карту
+                            handGestureMode.current = "scroll";
+                            handDragMoved.current = true;
+                          }
+                          return;
+                        }
+                        beginDrag(ev.clientX, ev.clientY);
                       }
+
+                      if (handGestureMode.current === "scroll") {
+                        const zone = handZoneRef.current;
+                        if (zone) zone.scrollLeft = startScroll - dx;
+                        return;
+                      }
+
+                      if (handGestureMode.current !== "drag") return;
                       ev.preventDefault();
+                      const ghost = handDragGhostRef.current;
+                      if (ghost) {
+                        ghost.style.left = `${ev.clientX}px`;
+                        ghost.style.top = `${ev.clientY}px`;
+                      }
                       const magnet = findBoardDropAt(
                         ev.clientX,
                         ev.clientY,
                         start.cardId,
                       );
-                      // Призрак следует за пальцем; магнит только подсвечивает слот
-                      // (без скачков к центру — на таче это давало рывки).
-                      setHandDrag({
-                        index: start.index,
-                        cardId: start.cardId,
-                        x: ev.clientX,
-                        y: ev.clientY,
-                        magnet: magnet
-                          ? { side: magnet.side, slot: magnet.slot }
+                      const key = magnet
+                        ? `${magnet.side}:${magnet.slot}`
+                        : "";
+                      if (key === lastMagnetKey) return;
+                      lastMagnetKey = key;
+                      setHandDrag((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              x: ev.clientX,
+                              y: ev.clientY,
+                              magnet: magnet
+                                ? { side: magnet.side, slot: magnet.slot }
+                                : null,
+                            }
                           : null,
-                      });
+                      );
                     };
 
                     window.addEventListener("pointermove", onMove, {
@@ -2708,6 +2780,7 @@ export function Battle({
 
       {handDrag ? (
         <div
+          ref={handDragGhostRef}
           className="hand-drag-ghost"
           style={{
             left: handDrag.x,
