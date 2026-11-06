@@ -2406,7 +2406,7 @@ html.is-hand-dragging .grave-row {
     --board-card-w: min(72px, calc((100vw - 1.4rem) / 5.45));
     --board-card-h: calc(var(--board-card-w) * 1.5);
     /* Рука: крупнее + горизонтальный скролл (не жмём все 7 в экран) */
-    --hand-card-w: min(100px, 26vw);
+    --hand-card-w: min(124px, 34vw);
     --hand-card-h: calc(var(--hand-card-w) * 1.5);
     --linger-card-w: min(48px, 13vw);
     --linger-card-h: calc(var(--linger-card-w) * 1.5);
@@ -2642,7 +2642,7 @@ html.is-hand-dragging .grave-row {
   .battle {
     --board-card-w: min(64px, calc((100vw - 1.1rem) / 5.4));
     --board-card-h: calc(var(--board-card-w) * 1.5);
-    --hand-card-w: min(92px, 28vw);
+    --hand-card-w: min(118px, 36vw);
     --hand-card-h: calc(var(--hand-card-w) * 1.5);
     --linger-card-w: min(42px, 12vw);
     --linger-card-h: calc(var(--linger-card-w) * 1.5);
