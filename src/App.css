@@ -2405,8 +2405,8 @@ html.is-hand-dragging .grave-row {
     /* Поле: как было — 5 слотов влезают, фон/стол не пляшут */
     --board-card-w: min(72px, calc((100vw - 1.4rem) / 5.45));
     --board-card-h: calc(var(--board-card-w) * 1.5);
-    /* Рука: крупнее + горизонтальный скролл (не жмём все 7 в экран) */
-    --hand-card-w: min(124px, 34vw);
+    /* Рука: средний размер + горизонтальный скролл */
+    --hand-card-w: min(88px, 24vw);
     --hand-card-h: calc(var(--hand-card-w) * 1.5);
     --linger-card-w: min(48px, 13vw);
     --linger-card-h: calc(var(--linger-card-w) * 1.5);
@@ -2642,7 +2642,7 @@ html.is-hand-dragging .grave-row {
   .battle {
     --board-card-w: min(64px, calc((100vw - 1.1rem) / 5.4));
     --board-card-h: calc(var(--board-card-w) * 1.5);
-    --hand-card-w: min(118px, 36vw);
+    --hand-card-w: min(84px, 25vw);
     --hand-card-h: calc(var(--hand-card-w) * 1.5);
     --linger-card-w: min(42px, 12vw);
     --linger-card-h: calc(var(--linger-card-w) * 1.5);
@@ -6196,7 +6196,7 @@ html.is-hand-dragging .grave-row {
   .battle {
     --board-card-w: min(62px, calc((100vw - 1.1rem) / 5.55));
     --board-card-h: calc(var(--board-card-w) * 1.48);
-    --hand-card-w: min(124px, 34vw);
+    --hand-card-w: min(88px, 24vw);
     --hand-card-h: calc(var(--hand-card-w) * 1.5);
     --linger-card-w: min(40px, 11vw);
     --linger-card-h: calc(var(--linger-card-w) * 1.48);
@@ -6306,7 +6306,7 @@ html.is-hand-dragging .grave-row {
   .battle {
     --board-card-w: min(56px, calc((100vw - 0.9rem) / 5.5));
     --board-card-h: calc(var(--board-card-w) * 1.48);
-    --hand-card-w: min(118px, 36vw);
+    --hand-card-w: min(84px, 25vw);
     --hand-card-h: calc(var(--hand-card-w) * 1.5);
   }
 
