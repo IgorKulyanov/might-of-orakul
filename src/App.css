@@ -2405,19 +2405,15 @@ html.is-hand-dragging .grave-row {
     /* Поле: как было — 5 слотов влезают, фон/стол не пляшут */
     --board-card-w: min(72px, calc((100vw - 1.4rem) / 5.45));
     --board-card-h: calc(var(--board-card-w) * 1.5);
-    /* Рука средняя; поле держит оба ряда — враг не уезжает вверх */
-    --hand-card-w: min(76px, 21vw);
-    --hand-card-h: calc(var(--hand-card-w) * 1.48);
+    /* Рука чуть крупнее старой; поле без натяга карт */
+    --hand-card-w: min(72px, 20vw);
+    --hand-card-h: calc(var(--hand-card-w) * 1.5);
     --linger-card-w: min(48px, 13vw);
     --linger-card-h: calc(var(--linger-card-w) * 1.5);
     --battle-footer-h: auto;
     width: 100%;
     max-width: 100vw;
-    grid-template-rows:
-      auto
-      auto
-      minmax(calc(var(--board-card-h) * 2 + 6.5rem), 1fr)
-      minmax(0, 23dvh);
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
     gap: 0.12rem;
     padding: 0.2rem 0.28rem 0.22rem;
     overflow-x: hidden;
@@ -2472,8 +2468,33 @@ html.is-hand-dragging .grave-row {
     overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    /* оба ряда + кнопки видны без «съезда» врага */
-    min-height: calc(var(--board-card-h) * 2 + 5.5rem);
+    justify-content: flex-start;
+  }
+
+  /* Не растягивать карты полевых слотов по высоте */
+  .battle .board-slot,
+  .battle .board-card-wrap,
+  .battle .board-card-wrap .card.board,
+  .battle .card.empty-slot {
+    width: var(--board-card-w) !important;
+    height: var(--board-card-h) !important;
+    max-width: var(--board-card-w) !important;
+    max-height: var(--board-card-h) !important;
+    aspect-ratio: 2 / 3;
+  }
+
+  .battle .board-card-wrap,
+  .battle .board-card-wrap .card.board,
+  .battle .card.empty-slot {
+    inset: auto;
+    top: 0;
+    left: 0;
+  }
+
+  .battle .row {
+    height: var(--board-card-h) !important;
+    min-height: var(--board-card-h) !important;
+    max-height: var(--board-card-h) !important;
   }
 
   .board-lane-main {
@@ -2481,6 +2502,11 @@ html.is-hand-dragging .grave-row {
     grid-template-rows: auto auto;
     column-gap: 0;
     row-gap: 0.2rem;
+    min-height: 0;
+    align-items: start;
+  }
+
+  .board-lane-side {
     min-height: 0;
   }
 
@@ -2581,38 +2607,45 @@ html.is-hand-dragging .grave-row {
     grid-template-columns: 1fr;
     height: auto;
     min-height: 0;
-    max-height: 23dvh;
-    gap: 0.12rem;
-    padding: 0.06rem 0.1rem 0.04rem;
-    overflow: hidden;
+    max-height: none;
+    gap: 0.18rem;
+    padding: 0.08rem 0.1rem 0.06rem;
+    overflow: visible;
   }
 
   .hand-zone {
     order: 1;
     height: auto;
     width: 100%;
-    max-height: 100%;
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: visible;
     justify-items: stretch;
     grid-template-rows: 0.85em var(--hand-card-h);
-    min-height: 0;
   }
 
-  /* Грейв на телефоне прячем — иначе съедает высоту; показываем при выборе могильщика */
   .grave-zone {
-    display: none;
+    display: grid;
     order: 2;
     height: auto;
     width: 100%;
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: visible;
     justify-items: stretch;
+    /* компактный грейв — не как вторая рука */
+    grid-template-rows: 0.85em calc(var(--hand-card-h) * 0.62);
   }
 
-  .grave-zone:has(.grave-row.is-active) {
-    display: grid;
-    max-height: 4.5rem;
+  .grave-zone .grave-row,
+  .grave-zone .grave-slot-empty,
+  .grave-zone .grave-card-wrap {
+    height: calc(var(--hand-card-h) * 0.62);
+  }
+
+  .grave-zone .grave-card-wrap .card.compact {
+    --card-w: calc(var(--hand-card-w) * 0.62) !important;
+    --card-h: calc(var(--hand-card-h) * 0.62) !important;
+    width: calc(var(--hand-card-w) * 0.62) !important;
+    height: calc(var(--hand-card-h) * 0.62) !important;
   }
 
   .battle .hand {
@@ -2656,16 +2689,12 @@ html.is-hand-dragging .grave-row {
   .battle {
     --board-card-w: min(64px, calc((100vw - 1.1rem) / 5.4));
     --board-card-h: calc(var(--board-card-w) * 1.5);
-    --hand-card-w: min(72px, 22vw);
-    --hand-card-h: calc(var(--hand-card-w) * 1.48);
+    --hand-card-w: min(70px, 21vw);
+    --hand-card-h: calc(var(--hand-card-w) * 1.5);
     --linger-card-w: min(42px, 12vw);
     --linger-card-h: calc(var(--linger-card-w) * 1.5);
     padding: 0.15rem 0.2rem 0.18rem;
-    grid-template-rows:
-      auto
-      auto
-      minmax(calc(var(--board-card-h) * 2 + 6rem), 1fr)
-      minmax(0, 22dvh);
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
   }
 
   .battle .end-turn-btn,
@@ -6215,8 +6244,8 @@ html.is-hand-dragging .grave-row {
   .battle {
     --board-card-w: min(62px, calc((100vw - 1.1rem) / 5.55));
     --board-card-h: calc(var(--board-card-w) * 1.48);
-    --hand-card-w: min(76px, 21vw);
-    --hand-card-h: calc(var(--hand-card-w) * 1.48);
+    --hand-card-w: min(72px, 20vw);
+    --hand-card-h: calc(var(--hand-card-w) * 1.5);
     --linger-card-w: min(40px, 11vw);
     --linger-card-h: calc(var(--linger-card-w) * 1.48);
     padding: 0.12rem 0.18rem 0.14rem;
@@ -6324,18 +6353,10 @@ html.is-hand-dragging .grave-row {
 
   .battle {
     --board-card-w: min(56px, calc((100vw - 0.9rem) / 5.5));
-    --board-card-h: calc(var(--board-card-w) * 1.48);
-    --hand-card-w: min(72px, 22vw);
-    --hand-card-h: calc(var(--hand-card-w) * 1.48);
-    grid-template-rows:
-      auto
-      auto
-      minmax(calc(var(--board-card-h) * 2 + 5.8rem), 1fr)
-      minmax(0, 21dvh);
-  }
-
-  .battle-footer {
-    max-height: 21dvh;
+    --board-card-h: calc(var(--board-card-w) * 1.5);
+    --hand-card-w: min(70px, 21vw);
+    --hand-card-h: calc(var(--hand-card-w) * 1.5);
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
   }
 
   .collection .grid,
