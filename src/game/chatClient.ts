@@ -14,8 +14,10 @@ type ServerMsg =
   | { type: "error"; message: string }
   | { type: "ok"; message: string };
 
-function resolveChatWsUrl(): string {
-  return `${getWsOrigin()}/ws/chat`;
+function resolveChatWsUrl(token?: string | null): string {
+  const base = `${getWsOrigin()}/ws/chat`;
+  if (!token) return base;
+  return `${base}?token=${encodeURIComponent(token)}`;
 }
 
 export class LobbyChatSocket {
@@ -99,7 +101,7 @@ export class LobbyChatSocket {
 
       let ws: WebSocket;
       try {
-        ws = new WebSocket(resolveChatWsUrl());
+        ws = new WebSocket(resolveChatWsUrl(token));
       } catch (e) {
         fail(e instanceof Error ? e : new Error("Чат: нет связи"));
         return;

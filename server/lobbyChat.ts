@@ -205,6 +205,15 @@ export function attachLobbyChat(authLookup: AuthLookup): WebSocketServer {
     let alive = true;
     let lastText = "";
     let lastTextAt = 0;
+    let queryUser: { id: string; login: string; displayName?: string | null } | null =
+      null;
+    try {
+      const u = new URL(req.url || "/", "http://localhost");
+      const qTok = String(u.searchParams.get("token") || "").trim();
+      if (qTok) queryUser = authLookup(qTok);
+    } catch {
+      /* ignore */
+    }
     clients.add(ws);
 
     // Без hello — выкидываем (не держим «зомби» для DoS).
@@ -266,7 +275,8 @@ export function attachLobbyChat(authLookup: AuthLookup): WebSocketServer {
       }
 
       if (msg.type === "hello") {
-        const u = authLookup(String(msg.token || "").trim());
+        const u =
+          authLookup(String(msg.token || "").trim()) || queryUser;
         if (!u) {
           send(ws, {
             type: "error",

@@ -4,10 +4,20 @@ import type {
   PvpServerMsg,
 } from "./pvpProtocol";
 
-import { getWsOrigin } from "./api";
+import { getWsOrigin, VPS_PUBLIC_ORIGIN } from "./api";
 
-function resolveWsUrl(): string {
-  return `${getWsOrigin()}/ws/pvp`;
+function wsCandidates(): string[] {
+  const primary = `${getWsOrigin()}/ws/pvp`;
+  const direct = `${VPS_PUBLIC_ORIGIN.replace(/^http/, "ws")}/ws/pvp`;
+  const sameOrigin =
+    typeof window !== "undefined"
+      ? `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws/pvp`
+      : "";
+  const out: string[] = [];
+  for (const u of [primary, direct, sameOrigin]) {
+    if (u && !out.includes(u)) out.push(u);
+  }
+  return out;
 }
 
 export type PvpJoinPayload = {
@@ -32,18 +42,45 @@ export class PvpSocket {
   private ws: WebSocket | null = null;
   private onMsg: ((m: PvpServerMsg) => void) | null = null;
   private closedByUser = false;
+  private token: string | null = null;
 
   setHandler(onMessage: (m: PvpServerMsg) => void) {
     this.onMsg = onMessage;
   }
 
-  connect(onMessage: (m: PvpServerMsg) => void): Promise<void> {
+  /** token кладём и в query — на части сетей тело первого пакета теряется. */
+  connect(token: string, onMessage: (m: PvpServerMsg) => void): Promise<void> {
     this.onMsg = onMessage;
+    this.token = token;
+    this.closedByUser = false;
+    const urls = wsCandidates();
+    let i = 0;
+    const tryNext = (): Promise<void> => {
+      if (i >= urls.length) {
+        return Promise.reject(
+          new Error("Нет связи с сервером PvP. Обнови страницу (Ctrl+F5)."),
+        );
+      }
+      const base = urls[i++]!;
+      return this.openOne(base).catch(() => tryNext());
+    };
+    return tryNext();
+  }
+
+  private openOne(baseUrl: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      const url = resolveWsUrl();
-      const ws = new WebSocket(url);
+      const q = this.token
+        ? `?token=${encodeURIComponent(this.token)}`
+        : "";
+      const url = `${baseUrl}${q}`;
+      let ws: WebSocket;
+      try {
+        ws = new WebSocket(url);
+      } catch (e) {
+        reject(e instanceof Error ? e : new Error("WebSocket fail"));
+        return;
+      }
       this.ws = ws;
-      this.closedByUser = false;
       let settled = false;
       const timer = window.setTimeout(() => {
         if (settled) return;
@@ -53,9 +90,9 @@ export class PvpSocket {
         } catch {
           /* ignore */
         }
-        this.ws = null;
-        reject(new Error("Нет связи с сервером PvP (таймаут). Обнови страницу."));
-      }, 10_000);
+        if (this.ws === ws) this.ws = null;
+        reject(new Error("Таймаут PvP"));
+      }, 8_000);
       ws.onopen = () => {
         if (settled) return;
         settled = true;
@@ -66,7 +103,8 @@ export class PvpSocket {
         if (settled) return;
         settled = true;
         window.clearTimeout(timer);
-        reject(new Error("WebSocket: нет связи с сервером"));
+        if (this.ws === ws) this.ws = null;
+        reject(new Error("WebSocket: нет связи"));
       };
       ws.onmessage = (ev) => {
         try {
@@ -77,8 +115,8 @@ export class PvpSocket {
         }
       };
       ws.onclose = () => {
-        this.ws = null;
-        if (this.closedByUser) return;
+        if (this.ws === ws) this.ws = null;
+        if (this.closedByUser || !settled) return;
         this.onMsg?.({
           type: "error",
           message: "Связь оборвалась. Обнови страницу.",

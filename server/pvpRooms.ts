@@ -639,12 +639,14 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
   wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
     const connId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const ip =
+      String(req.headers["cf-connecting-ip"] || "").trim() ||
+      String(req.headers["x-real-ip"] || "").trim() ||
       String(req.headers["x-forwarded-for"] || "")
         .split(",")[0]
         .trim() ||
       req.socket.remoteAddress ||
       "unknown";
-    const connRl = rateLimit(`pvp-conn:${ip}`, 12, 60_000);
+    const connRl = rateLimit(`pvp-conn:${ip}`, 40, 60_000);
     if (!connRl.ok) {
       send(ws, { type: "error", message: "Слишком много подключений к PvP" });
       try {
@@ -654,6 +656,25 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
       }
       return;
     }
+
+    /** Токен из ?token= — запасной канал, если join-пакет потерялся. */
+    let queryUser: { id: string; login: string } | null = null;
+    try {
+      const u = new URL(req.url || "/", "http://localhost");
+      const qTok = String(u.searchParams.get("token") || "").trim();
+      if (qTok) queryUser = authLookup(qTok);
+    } catch {
+      /* ignore */
+    }
+
+    const resolveUser = (rawToken: unknown) => {
+      const t = String(rawToken || "").trim();
+      if (t) {
+        const u = authLookup(t);
+        if (u) return u;
+      }
+      return queryUser;
+    };
 
     const leaveCurrentRoom = (reason: "leave" | "disconnect") => {
       const code = socketRoom.get(ws) ?? null;
@@ -696,9 +717,13 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
       }
 
       if (msg.type === "queue") {
-        const user = authLookup(String(msg.token || ""));
+        const user = resolveUser(msg.token);
         if (!user) {
-          send(ws, { type: "error", message: "Нужен вход" });
+          console.warn("[pvp] queue auth fail ip=", ip);
+          send(ws, {
+            type: "error",
+            message: "Нужен вход — выйди и войди в аккаунт снова",
+          });
           return;
         }
         const qRl = rateLimit(`ws-queue:${user.id}`, 20, 60_000);
@@ -754,12 +779,16 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
       }
 
       if (msg.type === "join") {
-        const user = authLookup(String(msg.token || ""));
+        const user = resolveUser(msg.token);
         if (!user) {
-          send(ws, { type: "error", message: "Нужен вход" });
+          console.warn("[pvp] join auth fail ip=", ip, "mode=", msg.mode);
+          send(ws, {
+            type: "error",
+            message: "Нужен вход — выйди и войди в аккаунт снова",
+          });
           return;
         }
-        const joinRl = rateLimit(`ws-join:${user.id}`, 10, 60_000);
+        const joinRl = rateLimit(`ws-join:${user.id}`, 30, 60_000);
         if (!joinRl.ok) {
           send(ws, {
             type: "error",

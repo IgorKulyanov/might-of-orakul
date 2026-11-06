@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { apiMe } from "../game/api";
+import { getCard } from "../game/cards";
 import { PvpSocket } from "../game/pvpClient";
 import {
   PVP_MATCH_LEVEL_DELTA,
@@ -175,12 +177,34 @@ export function MultiMenu({
     }
   };
 
-  const ensureSocket = async () => {
+  const ensureSocket = async (token: string) => {
     socketRef.current?.leave();
     const sock = new PvpSocket();
     socketRef.current = sock;
-    await sock.connect(handleMsg);
+    await sock.connect(token, handleMsg);
     return sock;
+  };
+
+  const pvpDeck = () => {
+    const clean = deck.filter((id) => {
+      try {
+        getCard(id);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+    return clean;
+  };
+
+  const assertSession = async (token: string) => {
+    try {
+      await apiMe(token);
+      return true;
+    } catch {
+      setMessage("Сессия устарела — выйди и войди в аккаунт снова");
+      return false;
+    }
   };
 
   const findOpponent = async () => {
@@ -189,8 +213,9 @@ export function MultiMenu({
       setMessage("Нужен вход");
       return;
     }
-    if (deck.length < 4) {
-      setMessage("Собери колоду в кабинете");
+    const liveDeck = pvpDeck();
+    if (liveDeck.length < 4) {
+      setMessage("Собери колоду в кабинете (минимум 4 карты)");
       return;
     }
     if (canStartPvp && !canStartPvp()) return;
@@ -198,11 +223,15 @@ export function MultiMenu({
     setMessage(null);
     startedRef.current = false;
     try {
-      const sock = await ensureSocket();
+      if (!(await assertSession(token))) {
+        setBusy(false);
+        return;
+      }
+      const sock = await ensureSocket(token);
       sock.queue({
         token,
         heroId,
-        deck,
+        deck: liveDeck,
         name: displayName,
         level: playerLevel,
       });
@@ -232,7 +261,8 @@ export function MultiMenu({
       setMessage("Нужен вход");
       return;
     }
-    if (deck.length < 4) {
+    const liveDeck = pvpDeck();
+    if (liveDeck.length < 4) {
       setMessage("Собери колоду в кабинете (минимум 4 карты)");
       return;
     }
@@ -252,7 +282,12 @@ export function MultiMenu({
     setSearching(null);
     startedRef.current = false;
     try {
-      const sock = await ensureSocket();
+      if (!(await assertSession(token))) {
+        setBusy(false);
+        setBusyHint(null);
+        return;
+      }
+      const sock = await ensureSocket(token);
       setBusyHint(
         mode === "create"
           ? "Ждём код от сервера…"
@@ -263,7 +298,7 @@ export function MultiMenu({
         ...(mode === "join" ? { code: roomCode.trim() } : {}),
         token,
         heroId,
-        deck,
+        deck: liveDeck,
         name: displayName,
         level: playerLevel,
       });
@@ -271,7 +306,7 @@ export function MultiMenu({
         setBusy(false);
         setBusyHint(null);
         setMessage(
-          "Сервер не ответил на комнату. Жёстко обнови страницу (Ctrl+F5) и попробуй снова. Если снова пусто — напиши в поддержку.",
+          "Сервер не ответил на комнату. Жёстко обнови (Ctrl+F5), выйди и войди в аккаунт, затем снова создай комнату.",
         );
         try {
           socketRef.current?.leave();
