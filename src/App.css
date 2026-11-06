@@ -2708,11 +2708,38 @@ html.is-hand-dragging .grave-row {
     order: 2;
     height: auto;
     width: 100%;
-    overflow-x: auto;
-    overflow-y: visible;
+    overflow: hidden;
     justify-items: stretch;
-    /* компактный грейв — не как вторая рука */
-    grid-template-rows: 0.85em calc(var(--hand-card-h) * 0.62);
+    align-items: end;
+    gap: 0.2rem 0.35rem;
+    /* карты слева, «Грейв» справа — без своего скролла */
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: calc(var(--hand-card-h) * 0.62);
+    touch-action: manipulation;
+  }
+
+  .grave-zone .grave-label {
+    grid-column: 2;
+    grid-row: 1;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    letter-spacing: 0.16em;
+    height: auto;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.1rem 0;
+    color: #9aa3ae;
+  }
+
+  .grave-zone .grave-row {
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    touch-action: manipulation;
   }
 
   .grave-zone .grave-row,
@@ -2721,10 +2748,18 @@ html.is-hand-dragging .grave-row {
     height: calc(var(--hand-card-h) * 0.62);
   }
 
+  .grave-zone .grave-slot-empty,
+  .grave-zone .grave-card-wrap {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
+    max-width: calc(var(--hand-card-w) * 0.62);
+  }
+
   .grave-zone .grave-card-wrap .card.compact {
-    --card-w: calc(var(--hand-card-w) * 0.62) !important;
+    --card-w: 100% !important;
     --card-h: calc(var(--hand-card-h) * 0.62) !important;
-    width: calc(var(--hand-card-w) * 0.62) !important;
+    width: 100% !important;
     height: calc(var(--hand-card-h) * 0.62) !important;
   }
 
@@ -2742,10 +2777,8 @@ html.is-hand-dragging .grave-row {
   }
 
   .grave-row {
-    overflow-x: auto;
+    overflow: hidden;
     max-width: 100%;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
   }
 
   .board .linger-side {
