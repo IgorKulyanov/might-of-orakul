@@ -2017,16 +2017,11 @@ button {
 
 .hand-card-anchor,
 .hand-card-anchor * {
-  /* pan-x: можно доскроллить руку; драг включается из JS после порога */
-  touch-action: pan-x;
+  /* Скролл руки — кнопки + полоска; на карте только драг (без рывков от pan-x). */
+  touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
-}
-
-.hand-card-anchor.is-dragging,
-.hand-card-anchor.is-dragging * {
-  touch-action: none;
 }
 
 .hand-card-anchor.is-dragging {
@@ -2254,6 +2249,10 @@ html.is-hand-dragging .grave-row {
   display: none;
   align-items: center;
   gap: 0.2rem;
+}
+
+.hand-scroll-rail {
+  display: none;
 }
 
 .hand-scroll-btn {
@@ -2654,27 +2653,37 @@ html.is-hand-dragging .grave-row {
     overflow-x: auto;
     overflow-y: hidden;
     justify-items: stretch;
-    grid-template-rows: auto var(--hand-card-h) 1.35rem;
+    grid-template-rows: auto var(--hand-card-h) 1.45rem;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
-    touch-action: pan-x;
-    /* полоска под картами — удобно листать пальцем */
-    padding-bottom: 0.15rem;
+    padding-bottom: 0.1rem;
   }
 
-  .hand-zone::after {
-    content: "";
+  .hand-scroll-rail {
+    display: block;
     grid-row: 3;
-    height: 1.2rem;
+    height: 1.35rem;
+    margin: 0 0.15rem;
     border-radius: 8px;
+    touch-action: none;
+    cursor: grab;
     background: linear-gradient(
       90deg,
-      rgba(232, 196, 120, 0.08),
-      rgba(232, 196, 120, 0.22),
-      rgba(232, 196, 120, 0.08)
+      rgba(232, 196, 120, 0.1),
+      rgba(232, 196, 120, 0.28),
+      rgba(232, 196, 120, 0.1)
     );
-    border: 1px dashed rgba(232, 196, 120, 0.35);
-    pointer-events: none;
+    border: 1px dashed rgba(232, 196, 120, 0.45);
+  }
+
+  .hand-scroll-rail:active {
+    cursor: grabbing;
+    background: linear-gradient(
+      90deg,
+      rgba(232, 196, 120, 0.16),
+      rgba(232, 196, 120, 0.4),
+      rgba(232, 196, 120, 0.16)
+    );
   }
 
   .hand-scroll-btns {

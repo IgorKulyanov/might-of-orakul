@@ -2553,15 +2553,18 @@ export function Battle({
                   onPointerDown={(e) => {
                     if (actionBlocked) return;
                     if (e.button !== 0 && e.pointerType === "mouse") return;
-                    const isTouch =
-                      e.pointerType === "touch" || e.pointerType === "pen";
-                    // Мышь: сразу глушим выделение. Тач: не трогаем — иначе нельзя
-                    // доскроллить правые карты в руке.
-                    if (!isTouch) {
-                      e.preventDefault();
-                      document.documentElement.classList.add("is-hand-dragging");
-                    }
+                    // Карты: touch-action none — жест сразу на драг, без боя со скроллом.
+                    // Листать руку: кнопки ‹› и полоска под картами.
+                    e.preventDefault();
                     e.stopPropagation();
+                    try {
+                      (e.currentTarget as HTMLElement).setPointerCapture(
+                        e.pointerId,
+                      );
+                    } catch {
+                      /* ignore */
+                    }
+                    document.documentElement.classList.add("is-hand-dragging");
                     handDragUnbind.current?.();
                     handDragMoved.current = false;
                     handDragStart.current = {
@@ -2573,15 +2576,6 @@ export function Battle({
                     };
                     let lastX = e.clientX;
                     let lastY = e.clientY;
-
-                    const abortForScroll = () => {
-                      handDragStart.current = null;
-                      handDragMoved.current = false;
-                      handDragUnbind.current?.();
-                      handDragUnbind.current = null;
-                      clearHandDragLock();
-                      setHandDrag(null);
-                    };
 
                     const finish = (ev: PointerEvent) => {
                       const start = handDragStart.current;
@@ -2629,22 +2623,8 @@ export function Battle({
                       const dx = ev.clientX - start.x;
                       const dy = ev.clientY - start.y;
                       if (!handDragMoved.current) {
-                        // Тач: драг только явным жестом вверх к полю; вбок/вниз = скролл
-                        if (isTouch) {
-                          if (dx * dx + dy * dy < 140) return;
-                          const mostlyUp =
-                            dy < -14 && Math.abs(dy) > Math.abs(dx) * 1.25;
-                          if (!mostlyUp) {
-                            abortForScroll();
-                            return;
-                          }
-                        } else if (dx * dx + dy * dy < 64) {
-                          return;
-                        }
+                        if (dx * dx + dy * dy < 36) return;
                         handDragMoved.current = true;
-                        document.documentElement.classList.add(
-                          "is-hand-dragging",
-                        );
                         setGravePickIdx(null);
                         setState((s) => selectHand(s, start.index));
                       }
@@ -2654,12 +2634,13 @@ export function Battle({
                         ev.clientY,
                         start.cardId,
                       );
+                      // Призрак следует за пальцем; магнит только подсвечивает слот
+                      // (без скачков к центру — на таче это давало рывки).
                       setHandDrag({
                         index: start.index,
                         cardId: start.cardId,
-                        // Магнит: призрак «прилипает» к центру слота
-                        x: magnet ? magnet.cx : ev.clientX,
-                        y: magnet ? magnet.cy : ev.clientY,
+                        x: ev.clientX,
+                        y: ev.clientY,
                         magnet: magnet
                           ? { side: magnet.side, slot: magnet.slot }
                           : null,
@@ -2688,6 +2669,40 @@ export function Battle({
               );
             })}
           </div>
+          <div
+            className="hand-scroll-rail"
+            role="scrollbar"
+            aria-label="Листать руку"
+            aria-orientation="horizontal"
+            onPointerDown={(e) => {
+              if (e.button !== 0 && e.pointerType === "mouse") return;
+              const zone = handZoneRef.current;
+              if (!zone) return;
+              e.preventDefault();
+              e.stopPropagation();
+              const pointerId = e.pointerId;
+              const startX = e.clientX;
+              const startScroll = zone.scrollLeft;
+              try {
+                (e.currentTarget as HTMLElement).setPointerCapture(pointerId);
+              } catch {
+                /* ignore */
+              }
+              const onMove = (ev: PointerEvent) => {
+                if (ev.pointerId !== pointerId) return;
+                zone.scrollLeft = startScroll - (ev.clientX - startX);
+              };
+              const onUp = (ev: PointerEvent) => {
+                if (ev.pointerId !== pointerId) return;
+                window.removeEventListener("pointermove", onMove);
+                window.removeEventListener("pointerup", onUp);
+                window.removeEventListener("pointercancel", onUp);
+              };
+              window.addEventListener("pointermove", onMove, { passive: true });
+              window.addEventListener("pointerup", onUp);
+              window.addEventListener("pointercancel", onUp);
+            }}
+          />
         </div>
       </div>
 
