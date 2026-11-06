@@ -14,6 +14,21 @@ type Props = {
   onOwnerBoostCode?: () => void;
 };
 
+/** Сегодня — только часы:минуты; иначе день.месяц и время. */
+function formatChatTime(at: number): string {
+  const d = new Date(at);
+  if (Number.isNaN(d.getTime())) return "";
+  const now = new Date();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  if (sameDay) return `${hh}:${mm}`;
+  return `${d.getDate()}.${d.getMonth() + 1} ${hh}:${mm}`;
+}
+
 export function CommunityPanel({
   open,
   onClose,
@@ -171,7 +186,16 @@ export function CommunityPanel({
                       setStatus("Жалоба отправлена");
                     }}
                   >
-                    <strong>{m.name}</strong>
+                    <span className="community-msg-meta">
+                      <strong>{m.name}</strong>
+                      <time
+                        className="community-msg-time"
+                        dateTime={new Date(m.at).toISOString()}
+                        title={new Date(m.at).toLocaleString("ru-RU")}
+                      >
+                        {formatChatTime(m.at)}
+                      </time>
+                    </span>
                     <span>{m.text}</span>
                   </div>
                 ))
