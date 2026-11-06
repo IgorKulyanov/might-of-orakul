@@ -2721,15 +2721,12 @@ html.is-hand-dragging .grave-row {
   .grave-zone .grave-label {
     grid-column: 2;
     grid-row: 1;
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-    letter-spacing: 0.16em;
+    writing-mode: horizontal-tb;
+    letter-spacing: 0.06em;
     height: auto;
-    align-self: stretch;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.1rem 0;
+    align-self: end;
+    padding: 0 0.15rem 0.15rem;
+    white-space: nowrap;
     color: #9aa3ae;
   }
 
