@@ -39,12 +39,6 @@ const PATTERN_HINT: Record<AttackPattern, string> = {
   aoe_all: "Бьёт всех вражеских существ",
 };
 
-/**
- * Прототип раскладки (кружки ATK/HP, мана на арте, без верхней полосы).
- * Скелет/зомби — старт смерти; василиск — проверка «морда не под навесом».
- */
-const BADGE_LAYOUT_IDS = new Set(["skeleton", "zombie", "basilisk"]);
-
 type Props = {
   cardId?: string;
   card?: CardDef;
@@ -112,7 +106,6 @@ export function CardView({
   const pattern = (c.attackPattern ?? "melee") as AttackPattern;
   const manaCost = manaCostOverride ?? c.manaCost ?? {};
   const interactive = Boolean(onClick) && !(locked && !onClick);
-  const badgeLayout = BADGE_LAYOUT_IDS.has(c.id);
 
   const marks: EffectMark[] = [];
   const wound = Math.max(0, fullHp - hp);
@@ -223,7 +216,6 @@ export function CardView({
           compact ? "compact" : "",
           board ? "board" : "",
           canAttack ? "can-attack" : "",
-          badgeLayout ? "badge-layout" : "",
           interactive || flippable ? "clickable" : "",
         ]
           .filter(Boolean)
@@ -237,117 +229,55 @@ export function CardView({
         <div className="card-inner">
           <span className="card-frame-ornament" aria-hidden />
           <div className="card-face card-front">
-            {badgeLayout ? (
-              <div className="card-art-wrap card-art-wrap--badge">
-                <div
-                  className="card-art"
-                  style={{ backgroundImage: `url(${art})` }}
-                  aria-hidden
-                />
-                <div className="card-badge-mana" aria-label="Мана">
-                  <span
-                    className="card-badge-school"
-                    title={SCHOOL_LABEL[c.school]}
-                  >
-                    <GameIcon name={c.school} size={compact || board ? 12 : 16} />
+            <div className="card-stats" aria-label="Характеристики">
+              <span className="stats-school" title={SCHOOL_LABEL[c.school]}>
+                <GameIcon name={c.school} size={14} />
+                <ManaCostIcons cost={manaCost} size={11} className="cost-mini" />
+              </span>
+              {c.kind === "creature" ? (
+                <span
+                  className={`stats-combat ${wounded ? "is-wounded" : ""}`}
+                  title={PATTERN_HINT[pattern]}
+                >
+                  <span className="combat-nums">
+                    {atk}/
+                    <span className={wounded ? "hp-hurt" : undefined}>
+                      {hp}
+                    </span>
                   </span>
-                  <ManaCostIcons
-                    cost={manaCost}
-                    size={compact || board ? 11 : 14}
-                    className="card-badge-cost"
-                  />
-                </div>
-                {c.kind === "creature" ? (
-                  <>
+                  <span className="pattern-ico">{PATTERN_ICON[pattern]}</span>
+                </span>
+              ) : (
+                <span className="stats-combat spell-badge" title="Заклинание">
+                  ✦
+                </span>
+              )}
+              {marks.length > 0 && (
+                <div className="effect-marks" aria-label="Эффекты на карте">
+                  {marks.map((m) => (
                     <span
-                      className="card-stat-pip card-stat-atk"
-                      title={`${PATTERN_HINT[pattern]} · атака ${atk}`}
+                      key={m.key}
+                      className={`effect-mark tone-${m.tone}`}
+                      title={m.title}
                     >
-                      <em>{atk}</em>
+                      <span className="effect-ico">{m.icon}</span>
+                      <span className="effect-label">{m.label}</span>
                     </span>
-                    <span
-                      className={`card-stat-pip card-stat-hp ${wounded ? "is-wounded" : ""}`}
-                      title={`Жизни ${hp}${wounded ? ` (−${wound})` : ""}`}
-                    >
-                      <em className={wounded ? "hp-hurt" : undefined}>{hp}</em>
-                    </span>
-                  </>
-                ) : null}
-                {marks.length > 0 && (
-                  <div className="effect-marks effect-marks--badge" aria-label="Эффекты на карте">
-                    {marks.map((m) => (
-                      <span
-                        key={m.key}
-                        className={`effect-mark tone-${m.tone}`}
-                        title={m.title}
-                      >
-                        <span className="effect-ico">{m.icon}</span>
-                        <span className="effect-label">{m.label}</span>
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <div className="card-footer">
-                  <div className="card-name">{c.name}</div>
+                  ))}
                 </div>
-              </div>
-            ) : (
-              <>
-                <div className="card-stats" aria-label="Характеристики">
-                  <span className="stats-school" title={SCHOOL_LABEL[c.school]}>
-                    <GameIcon name={c.school} size={14} />
-                    <ManaCostIcons
-                      cost={manaCost}
-                      size={11}
-                      className="cost-mini"
-                    />
-                  </span>
-                  {c.kind === "creature" ? (
-                    <span
-                      className={`stats-combat ${wounded ? "is-wounded" : ""}`}
-                      title={PATTERN_HINT[pattern]}
-                    >
-                      <span className="combat-nums">
-                        {atk}/
-                        <span className={wounded ? "hp-hurt" : undefined}>
-                          {hp}
-                        </span>
-                      </span>
-                      <span className="pattern-ico">{PATTERN_ICON[pattern]}</span>
-                    </span>
-                  ) : (
-                    <span className="stats-combat spell-badge" title="Заклинание">
-                      ✦
-                    </span>
-                  )}
-                  {marks.length > 0 && (
-                    <div className="effect-marks" aria-label="Эффекты на карте">
-                      {marks.map((m) => (
-                        <span
-                          key={m.key}
-                          className={`effect-mark tone-${m.tone}`}
-                          title={m.title}
-                        >
-                          <span className="effect-ico">{m.icon}</span>
-                          <span className="effect-label">{m.label}</span>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
+              )}
+            </div>
 
-                <div className="card-art-wrap">
-                  <div
-                    className="card-art"
-                    style={{ backgroundImage: `url(${art})` }}
-                    aria-hidden
-                  />
-                  <div className="card-footer">
-                    <div className="card-name">{c.name}</div>
-                  </div>
-                </div>
-              </>
-            )}
+            <div className="card-art-wrap">
+              <div
+                className="card-art"
+                style={{ backgroundImage: `url(${art})` }}
+                aria-hidden
+              />
+              <div className="card-footer">
+                <div className="card-name">{c.name}</div>
+              </div>
+            </div>
           </div>
         </div>
         {locked && <div className="lock-veil" aria-hidden>🔒</div>}
