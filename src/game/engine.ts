@@ -3434,21 +3434,6 @@ export function normalizeBattleFx(fx: BattleFx): BattleFx {
           )
         ) {
           next.vfx = "poison";
-        } else if (
-          effects.some(
-            (e) =>
-              e.type === "damage_hero" ||
-              e.type === "damage_unit" ||
-              e.type === "damage_all_enemies" ||
-              e.type === "damage_undead" ||
-              e.type === "banish_unit" ||
-              e.type === "slow_enemy" ||
-              e.type === "freeze_enemy" ||
-              e.type === "fear" ||
-              e.type === "traitor",
-          )
-        ) {
-          next.vfx = "magic";
         } else {
           next.vfx = "magic";
         }

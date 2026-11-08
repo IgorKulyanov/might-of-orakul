@@ -4,7 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
+  type RefObject,
 } from "react";
 import { CardView, EmptySlot } from "./CardView";
 import { alog } from "../game/actionLog";
@@ -170,6 +170,113 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 const DIE_FACE = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
 
+/** Снаряд по DOM-точкам — без CSS var в keyframes (iOS их игнорит → opacity 0). */
+function BattleMissile({
+  className,
+  boardRef,
+  fromSide,
+  fromSlot,
+  toSlot,
+  hitHero,
+  hitSlots,
+}: {
+  className: string;
+  boardRef: RefObject<HTMLDivElement | null>;
+  fromSide: "you" | "enemy";
+  fromSlot?: number;
+  toSlot?: number;
+  hitHero?: boolean;
+  hitSlots?: number[];
+}) {
+  const elRef = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    const el = elRef.current;
+    const board = boardRef.current;
+    if (!el || !board) return;
+
+    const boardRect = board.getBoundingClientRect();
+    const mid = (node: Element | null) => {
+      if (!node) return null;
+      const r = node.getBoundingClientRect();
+      return {
+        x: r.left + r.width / 2 - boardRect.left,
+        y: r.top + r.height / 2 - boardRect.top,
+      };
+    };
+
+    const fromEl = board.querySelector(
+      `[data-board-drop="${fromSide}:${fromSlot ?? 2}"]`,
+    );
+    const toSide = fromSide === "you" ? "enemy" : "you";
+    const targetSlot = hitSlots?.[0] ?? toSlot;
+    const toEl = hitHero
+      ? board.querySelector(
+          fromSide === "you"
+            ? ".enemy-oracle-bar .oracle-block"
+            : ".you-oracle-bar .oracle-block",
+        )
+      : board.querySelector(
+          `[data-board-drop="${toSide}:${targetSlot ?? 2}"]`,
+        );
+
+    const from = mid(fromEl) ?? {
+      x: boardRect.width * (0.12 + (fromSlot ?? 2) * 0.19),
+      y: fromSide === "you" ? boardRect.height * 0.78 : boardRect.height * 0.22,
+    };
+    const to = mid(toEl) ?? {
+      x: boardRect.width * (0.12 + (targetSlot ?? 2) * 0.19),
+      y: hitHero
+        ? fromSide === "you"
+          ? boardRect.height * 0.06
+          : boardRect.height * 0.94
+        : fromSide === "you"
+          ? boardRect.height * 0.22
+          : boardRect.height * 0.78,
+    };
+
+    el.style.left = "0";
+    el.style.top = "0";
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const duration = reduce ? 180 : 560;
+    const anim = el.animate(
+      [
+        {
+          transform: `translate(${from.x}px, ${from.y}px) scale(0.45)`,
+          opacity: 0.35,
+        },
+        {
+          transform: `translate(${from.x}px, ${from.y}px) scale(1)`,
+          opacity: 1,
+          offset: 0.12,
+        },
+        {
+          transform: `translate(${to.x}px, ${to.y}px) scale(1.35)`,
+          opacity: 0.2,
+        },
+      ],
+      {
+        duration,
+        easing: "cubic-bezier(0.2, 0.75, 0.25, 1)",
+        fill: "forwards",
+      },
+    );
+    return () => anim.cancel();
+  }, [
+    boardRef,
+    className,
+    fromSide,
+    fromSlot,
+    toSlot,
+    hitHero,
+    hitSlots,
+  ]);
+
+  return <span ref={elRef} className={className} aria-hidden />;
+}
+
 function BoardCard({
   creature,
   selected,
@@ -309,6 +416,7 @@ export function Battle({
   const yourHero = getHero(state.you.heroId);
   const enemyHero = getHero(state.enemy.heroId);
   const [fx, setFx] = useState<BattleFx | null>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   const [pvpAwaiting, setPvpAwaiting] = useState(false);
   const [phase, setPhase] = useState<"you" | "enemy">(() =>
@@ -1916,7 +2024,7 @@ export function Battle({
     };
   };
 
-  const missileStyle = ((): CSSProperties | null => {
+  const missileClass = (() => {
     if (!fx) return null;
     const motion = fx.motion ?? "melee";
     const flyAttack =
@@ -1924,21 +2032,6 @@ export function Battle({
     const flySpell =
       fx.kind === "spell" && (fx.vfx === "poison" || fx.vfx === "magic");
     if (!flyAttack && !flySpell) return null;
-    const slotPct = (slot: number | undefined) =>
-      slot == null || slot < 0 ? 50 : 12 + slot * 19;
-    const fromX = slotPct(fx.fromSlot ?? 2);
-    const toSlot =
-      fx.hitSlots?.[0] ?? fx.toSlot ?? (fx.hitHero ? -1 : fx.fromSlot ?? 2);
-    const toX = slotPct(toSlot);
-    return {
-      ["--fx-x0" as string]: `${fromX}%`,
-      ["--fx-x1" as string]: `${toX}%`,
-    };
-  })();
-
-  const missileClass = (() => {
-    if (!fx || !missileStyle) return null;
-    const motion = fx.motion ?? "melee";
     const kind =
       fx.kind === "spell"
         ? fx.vfx === "poison"
@@ -2279,10 +2372,19 @@ export function Battle({
         </aside>
       </div>
 
-      <div className="board">
-        {missileClass && missileStyle ? (
+      <div className="board" ref={boardRef}>
+        {missileClass && fx ? (
           <div className="battle-fx-layer" aria-hidden>
-            <span className={missileClass} style={missileStyle} />
+            <BattleMissile
+              key={`${fx.side}-${fx.kind}-${fx.fromSlot}-${fx.toSlot}-${fx.hitSlots?.join(".") ?? ""}-${fx.vfx ?? ""}`}
+              className={missileClass}
+              boardRef={boardRef}
+              fromSide={fx.side}
+              fromSlot={fx.fromSlot}
+              toSlot={fx.toSlot}
+              hitHero={fx.hitHero}
+              hitSlots={fx.hitSlots}
+            />
           </div>
         ) : null}
         <div className="oracle-bar enemy-oracle-bar" data-tut="enemy-oracle">

@@ -1227,42 +1227,44 @@ button {
 }
 
 .your-row .board-card-wrap.is-lunge {
-  animation: lunge-you 0.52s ease-in-out;
-  z-index: 6;
+  animation: lunge-you 0.55s cubic-bezier(0.2, 0.8, 0.3, 1);
+  z-index: 8;
 }
 
 .enemy-row .board-card-wrap.is-lunge {
-  animation: lunge-enemy 0.52s ease-in-out;
-  z-index: 6;
+  animation: lunge-enemy 0.55s cubic-bezier(0.2, 0.8, 0.3, 1);
+  z-index: 8;
 }
 
-/* Дальник / болт: лёгкий кивок вместо выпада */
+/* Дальник / болт: заметный кивок */
 .your-row .board-card-wrap.is-nod {
-  animation: nod-you 0.42s ease-in-out;
-  z-index: 6;
+  animation: nod-you 0.45s ease-in-out;
+  z-index: 8;
 }
 .enemy-row .board-card-wrap.is-nod {
-  animation: nod-enemy 0.42s ease-in-out;
-  z-index: 6;
+  animation: nod-enemy 0.45s ease-in-out;
+  z-index: 8;
 }
 
 @keyframes lunge-you {
   0%,
   100% {
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
-  40% {
-    transform: translateY(-8px);
+  38% {
+    transform: translateY(-36px) scale(1.06);
+    filter: brightness(1.15);
   }
 }
 
 @keyframes lunge-enemy {
   0%,
   100% {
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
-  40% {
-    transform: translateY(8px);
+  38% {
+    transform: translateY(36px) scale(1.06);
+    filter: brightness(1.15);
   }
 }
 
@@ -1272,7 +1274,7 @@ button {
     transform: translateY(0) scale(1);
   }
   35% {
-    transform: translateY(-4px) scale(1.03);
+    transform: translateY(-14px) scale(1.08);
   }
 }
 
@@ -1282,131 +1284,153 @@ button {
     transform: translateY(0) scale(1);
   }
   35% {
-    transform: translateY(4px) scale(1.03);
+    transform: translateY(14px) scale(1.08);
   }
 }
 
-/* Слой снарядов / магии / яда */
+/* Слой снарядов / магии / яда — полёт через WAAPI (см. BattleMissile) */
 .battle-fx-layer {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 40;
-  overflow: hidden;
+  z-index: 60;
+  overflow: visible;
 }
 
 .battle-missile {
   position: absolute;
-  left: var(--fx-x0, 50%);
-  width: 12px;
-  height: 12px;
-  margin-left: -6px;
+  left: 0;
+  top: 0;
+  width: 22px;
+  height: 22px;
+  margin-left: -11px;
+  margin-top: -11px;
   border-radius: 50%;
-  opacity: 0;
-  will-change: left, top, transform, opacity;
-}
-
-.battle-missile.from-you {
-  animation: missile-fly-you 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
-}
-.battle-missile.from-enemy {
-  animation: missile-fly-enemy 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+  opacity: 0.9;
+  will-change: transform, opacity;
+  pointer-events: none;
 }
 
 .battle-missile.is-arrow {
-  width: 18px;
-  height: 5px;
-  margin-left: -9px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, #f0e6d0, #c4a574);
-  box-shadow: 0 0 6px rgba(240, 230, 208, 0.7);
-}
-.battle-missile.is-arrow.from-you {
-  transform: rotate(-70deg);
-}
-.battle-missile.is-arrow.from-enemy {
-  transform: rotate(110deg);
+  width: 28px;
+  height: 8px;
+  margin-left: -14px;
+  margin-top: -4px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #fff8e7, #e8c27a 55%, #a67c3a);
+  box-shadow:
+    0 0 10px 2px rgba(255, 230, 160, 0.85),
+    0 0 22px rgba(240, 200, 120, 0.55);
 }
 
 .battle-missile.is-bolt {
   background: radial-gradient(circle, #fff 0%, #7ec8ff 45%, #3a6fd8 100%);
-  box-shadow: 0 0 14px 4px rgba(80, 160, 255, 0.75);
+  box-shadow:
+    0 0 16px 6px rgba(80, 160, 255, 0.85),
+    0 0 28px rgba(100, 180, 255, 0.5);
 }
 .battle-missile.is-bolt.school-hell,
 .battle-missile.is-magic.school-hell {
   background: radial-gradient(circle, #fff3e0 0%, #ff8a3d 50%, #c43c12 100%);
-  box-shadow: 0 0 16px 5px rgba(255, 100, 40, 0.7);
+  box-shadow:
+    0 0 18px 7px rgba(255, 100, 40, 0.85),
+    0 0 30px rgba(255, 120, 40, 0.45);
 }
 .battle-missile.is-bolt.school-death,
 .battle-missile.is-magic.school-death {
   background: radial-gradient(circle, #f3e5ff 0%, #b388ff 45%, #6a1b9a 100%);
-  box-shadow: 0 0 16px 5px rgba(160, 80, 255, 0.7);
+  box-shadow:
+    0 0 18px 7px rgba(160, 80, 255, 0.85),
+    0 0 30px rgba(160, 80, 255, 0.45);
 }
 .battle-missile.is-bolt.school-life,
 .battle-missile.is-magic.school-life {
   background: radial-gradient(circle, #fffde7 0%, #ffe082 45%, #f9a825 100%);
-  box-shadow: 0 0 16px 5px rgba(255, 200, 60, 0.7);
+  box-shadow:
+    0 0 18px 7px rgba(255, 200, 60, 0.85),
+    0 0 30px rgba(255, 200, 60, 0.45);
 }
 .battle-missile.is-bolt.school-water,
 .battle-missile.is-magic.school-water {
   background: radial-gradient(circle, #e0f7fa 0%, #4dd0e1 45%, #00838f 100%);
-  box-shadow: 0 0 16px 5px rgba(0, 180, 200, 0.7);
+  box-shadow:
+    0 0 18px 7px rgba(0, 180, 200, 0.85),
+    0 0 30px rgba(0, 180, 200, 0.45);
 }
 .battle-missile.is-bolt.school-nature,
 .battle-missile.is-magic.school-nature {
   background: radial-gradient(circle, #e8f5e9 0%, #81c784 45%, #2e7d32 100%);
-  box-shadow: 0 0 16px 5px rgba(70, 180, 80, 0.7);
+  box-shadow:
+    0 0 18px 7px rgba(70, 180, 80, 0.85),
+    0 0 30px rgba(70, 180, 80, 0.45);
 }
 
 .battle-missile.is-magic {
-  width: 16px;
-  height: 16px;
-  margin-left: -8px;
+  width: 26px;
+  height: 26px;
+  margin-left: -13px;
+  margin-top: -13px;
   background: radial-gradient(circle, #fff 0%, #ce93d8 50%, #7b1fa2 100%);
-  box-shadow: 0 0 18px 6px rgba(180, 100, 255, 0.65);
+  box-shadow:
+    0 0 20px 8px rgba(180, 100, 255, 0.8),
+    0 0 34px rgba(180, 100, 255, 0.45);
 }
 
 .battle-missile.is-poison {
-  width: 14px;
-  height: 14px;
-  margin-left: -7px;
+  width: 24px;
+  height: 24px;
+  margin-left: -12px;
+  margin-top: -12px;
   background: radial-gradient(circle, #dcedc8 0%, #8bc34a 40%, #33691e 100%);
-  box-shadow: 0 0 14px 5px rgba(120, 200, 60, 0.65);
+  box-shadow:
+    0 0 18px 7px rgba(120, 200, 60, 0.85),
+    0 0 30px rgba(120, 200, 60, 0.45);
 }
 
-@keyframes missile-fly-you {
-  0% {
-    left: var(--fx-x0, 50%);
-    top: 74%;
-    opacity: 0;
-    transform: scale(0.5);
+@media (max-width: 720px) {
+  @keyframes lunge-you {
+    0%,
+    100% {
+      transform: translateY(0) scale(1);
+    }
+    38% {
+      transform: translateY(-44px) scale(1.1);
+      filter: brightness(1.2);
+    }
   }
-  12% {
-    opacity: 1;
+  @keyframes lunge-enemy {
+    0%,
+    100% {
+      transform: translateY(0) scale(1);
+    }
+    38% {
+      transform: translateY(44px) scale(1.1);
+      filter: brightness(1.2);
+    }
   }
-  100% {
-    left: var(--fx-x1, 50%);
-    top: 18%;
-    opacity: 0.15;
-    transform: scale(1.15);
+  .battle-missile {
+    width: 28px;
+    height: 28px;
+    margin-left: -14px;
+    margin-top: -14px;
   }
-}
-
-@keyframes missile-fly-enemy {
-  0% {
-    left: var(--fx-x0, 50%);
-    top: 18%;
-    opacity: 0;
-    transform: scale(0.5);
+  .battle-missile.is-arrow {
+    width: 34px;
+    height: 10px;
+    margin-left: -17px;
+    margin-top: -5px;
   }
-  12% {
-    opacity: 1;
+  .battle-missile.is-magic {
+    width: 32px;
+    height: 32px;
+    margin-left: -16px;
+    margin-top: -16px;
   }
-  100% {
-    left: var(--fx-x1, 50%);
-    top: 74%;
-    opacity: 0.15;
-    transform: scale(1.15);
+  .battle-missile.is-poison {
+    width: 30px;
+    height: 30px;
+    margin-left: -15px;
+    margin-top: -15px;
   }
 }
 
@@ -1449,12 +1473,32 @@ button {
 
 /* Тряска + вспышка у цели */
 .board-card-wrap.is-hit {
-  animation: hit-shake 0.48s ease;
-  z-index: 5;
+  animation: hit-shake 0.55s ease;
+  z-index: 7;
+}
+.board-card-wrap.is-hit::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 16px;
+  pointer-events: none;
+  box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.85), 0 0 22px rgba(230, 57, 70, 0.55);
+  animation: hit-ring 0.55s ease;
 }
 
 .hero.is-hit {
   animation: hit-shake-soft 0.45s ease;
+}
+
+@keyframes hit-ring {
+  0% {
+    opacity: 1;
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.12);
+  }
 }
 
 @keyframes hit-shake {
@@ -1464,8 +1508,8 @@ button {
     box-shadow: none;
   }
   12% {
-    transform: translate(-5px, 2px) rotate(-2deg);
-    filter: brightness(1.45);
+    transform: translate(-8px, 3px) rotate(-3deg);
+    filter: brightness(1.55);
     box-shadow: 0 0 0 3px #e63946;
   }
   24% {
