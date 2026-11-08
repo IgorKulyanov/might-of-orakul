@@ -533,7 +533,7 @@ export function arenaAll(fails: QaFail[], ok: string[]): void {
     return null;
   });
 
-  check("round stacks mods", () => {
+  check("round single mod", () => {
     const fresh = normalizeArena(null);
     const withMods = {
       ...fresh,
@@ -549,8 +549,8 @@ export function arenaAll(fails: QaFail[], ok: string[]): void {
       ] as ArenaModId[],
     };
     const r3 = arenaModsForRound(withMods, 3);
-    if (r3.length !== 3) return `round3 len=${r3.length}`;
-    if (r3[2] !== "undead_surge") return "порядок модов";
+    if (r3.length !== 1) return `round3 len=${r3.length}`;
+    if (r3[0] !== "undead_surge") return "мод раунда 3";
     if (nextArenaRound(withMods) !== 3) return "next≠3";
     return null;
   });

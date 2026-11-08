@@ -165,7 +165,8 @@ export const ALL_ARENA_MOD_IDS = Object.keys(
 
 /**
  * Пул дневной ротации арены.
- * «Прилив нежити» сознательно выкинут — усиливал и так сильную смерть.
+ * Только симметричные правила: без расовых бафов/нерфов (death_tax, life_bloom…).
+ * «Прилив нежити» тоже вне пула.
  */
 export const ARENA_DAY_POOL: ArenaModId[] = [
   "glass_oracles",
@@ -173,12 +174,6 @@ export const ARENA_DAY_POOL: ArenaModId[] = [
   "fat_oracles",
   "mana_drought",
   "double_drought",
-  "undead_wane",
-  "death_tax",
-  "life_bloom",
-  "ember_edge",
-  "tide_skin",
-  "wild_fang",
   "early_blood",
   "sudden_blood",
   "mid_blood",

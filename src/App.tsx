@@ -152,6 +152,9 @@ function richerDecks(
 
 /** Аккаунт ещё не прошёл создание оракула/ника. */
 function accountNeedsOnboarding(user: ApiUser): boolean {
+  // Уже есть школа на сервере — не гоняем снова на выбор оракула.
+  if (user.owned?.homeFaction || user.owned?.heroId) return false;
+  if (user.heroId && user.displayName) return false;
   if (user.needsOnboarding) return true;
   if (!user.displayName) return true;
   if (!user.heroId && !user.owned?.homeFaction) return true;
@@ -187,13 +190,20 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
   // Новый/пустой аккаунт: не тянуть чужой локальный сейв с этого ПК
   // и не угадывать школу по hero_life по умолчанию.
   if (accountNeedsOnboarding(user)) {
-    if (backup?.homeFaction && hasOwnedProgress(backup)) {
+    // Сервер уже знает школу — не сбрасывать в blank (это возвращало 500 зол.).
+    if (user.owned?.homeFaction || hasOwnedProgress(user.owned as OwnedState)) {
+      /* fall through to normal merge */
+    } else if (backup?.homeFaction && hasOwnedProgress(backup)) {
       // Восстановление после сброса сервера — свой бэкап по логину
       const restored = { ...backup };
       saveOwned(restored);
       return restored;
+    } else if (localRaw.homeFaction && hasOwnedProgress(localRaw)) {
+      saveOwned(localRaw);
+      return localRaw;
+    } else {
+      return blankOnboardingOwned();
     }
-    return blankOnboardingOwned();
   }
 
   // Бэкап по логину важнее «пустого» текущего сейва после сброса сервера
@@ -553,17 +563,20 @@ export default function App() {
         {
           const next = mergeOwnedFromServer(flagged);
           setOwned(next);
-          try {
-            const { user: synced } = await apiUpdateMe(existing, {
-              owned: next,
-              heroId: next.heroId,
-            });
-            if (!cancelled) {
-              updateCachedUser(synced);
-              setUser(synced);
+          // Пустой онбординг на сервер не пушим — иначе затирало школу/золото.
+          if (next.homeFaction) {
+            try {
+              const { user: synced } = await apiUpdateMe(existing, {
+                owned: next,
+                heroId: next.heroId,
+              });
+              if (!cancelled) {
+                updateCachedUser(synced);
+                setUser(synced);
+              }
+            } catch {
+              /* offline */
             }
-          } catch {
-            /* offline */
           }
         }
       } catch {

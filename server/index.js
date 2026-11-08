@@ -376,7 +376,13 @@ function publicUser(u) {
     email: maskEmail(u.email),
     emailVerified: verified,
     needsEmailVerify: Boolean(u.email) && !verified,
-    needsOnboarding: !u.displayName || !u.heroId,
+    // Школа может жить только в owned — top-level heroId иногда пуст после сбоя синка.
+    needsOnboarding: !(
+      sanitizeDisplayName(u.displayName) &&
+      (u.heroId ||
+        u.owned?.heroId ||
+        u.owned?.homeFaction)
+    ),
     lastLoginAt: u.lastLoginAt ?? null,
     dormant: Boolean(u.dormant),
     pendingResetCampaign: Boolean(u.pendingResetCampaign),
@@ -539,7 +545,7 @@ app.post(
 
 app.post(
   "/api/register",
-  rateLimitMiddleware({ name: "register", maxN: 8, windowMs: 60_000 }),
+  rateLimitMiddleware({ name: "register", maxN: 20, windowMs: 60_000 }),
   async (req, res) => {
     try {
       const password = String(req.body?.password || "").slice(0, 72);
@@ -623,7 +629,7 @@ app.post(
 
 app.post(
   "/api/login",
-  rateLimitMiddleware({ name: "login", maxN: 20, windowMs: 60_000 }),
+  rateLimitMiddleware({ name: "login", maxN: 60, windowMs: 60_000 }),
   async (req, res) => {
     try {
       // Почта (новые) или старый логин — одно поле

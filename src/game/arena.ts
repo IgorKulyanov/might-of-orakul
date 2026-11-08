@@ -152,14 +152,18 @@ export function nextArenaRound(state: ArenaState): number | null {
   return s.cleared + 1;
 }
 
-/** Моды, активные в бою раунда `round` (1…5). */
+/**
+ * Мод раунда `round` (1…5) — только свой, без накопления.
+ * Раньше slice(0,n) вешал 1…5 правил сразу к 5-му бою и ощущалось как «дурят».
+ */
 export function arenaModsForRound(
   state: ArenaState,
   round: number,
 ): ArenaModId[] {
   const s = normalizeArena(state);
   const n = Math.max(1, Math.min(ARENA_ROUNDS, round));
-  return s.dayMods.slice(0, n);
+  const mod = s.dayMods[n - 1];
+  return mod ? [mod] : [];
 }
 
 export const ARENA_ROUND_REWARDS: Record<

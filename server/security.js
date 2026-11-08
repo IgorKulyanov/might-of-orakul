@@ -188,6 +188,40 @@ export function sanitizeOwned(raw, prev) {
     ].slice(0, 50);
   }
 
+  // Клиент после ложного онбординга шлёт «чистый лист» — не затирать прогресс.
+  const prevHome = base.homeFaction;
+  const nextHome = next.homeFaction;
+  const prevColN = Object.values(
+    base.collection && typeof base.collection === "object"
+      ? base.collection
+      : {},
+  ).reduce((s, n) => s + (Math.floor(Number(n)) || 0), 0);
+  const nextColN = Object.values(next.collection || {}).reduce(
+    (s, n) => s + (Math.floor(Number(n)) || 0),
+    0,
+  );
+  const looksFresh =
+    !nextHome &&
+    (Number(next.level) || 1) <= 1 &&
+    nextColN === 0 &&
+    !(Array.isArray(next.purchased) && next.purchased.length);
+  if ((prevHome || prevColN >= 4 || (Number(base.level) || 1) > 1) && looksFresh) {
+    console.warn(
+      "[orakul] blocked wipe of progressed owned via PUT /api/me",
+    );
+    next.homeFaction = base.homeFaction;
+    next.heroId = base.heroId ?? next.heroId;
+    next.collection = base.collection;
+    next.purchased = base.purchased;
+    next.unlocked = base.unlocked;
+    next.unlockedHeroes = base.unlockedHeroes;
+    next.decks = base.decks;
+    next.level = base.level;
+    next.xp = base.xp;
+    next.gold = base.gold;
+    next.diamonds = base.diamonds;
+  }
+
   return clampOwnedShopGains(base, next);
 }
 

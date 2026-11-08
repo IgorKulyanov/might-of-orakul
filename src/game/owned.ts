@@ -61,6 +61,14 @@ function applyStartWalletV2(owned: OwnedState): OwnedState {
   } catch {
     return owned;
   }
+  // Уже тратил / качал — не возвращать золото к 500 (баг «купил вампира → снова 500»).
+  if (
+    (owned.purchased?.length ?? 0) > 0 ||
+    (owned.level ?? 1) > 1 ||
+    (owned.xp ?? 0) > 0
+  ) {
+    return owned;
+  }
   const gold = Math.max(Number(owned.gold) || 0, START_GOLD);
   const diamonds = Math.max(Number(owned.diamonds) || 0, START_DIAMONDS);
   if (gold === (owned.gold ?? 0) && diamonds === (owned.diamonds ?? 0)) {
