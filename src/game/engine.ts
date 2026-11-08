@@ -398,9 +398,9 @@ function findUnitByUid(
 }
 
 /**
- * Снять длящееся заклинание → кастеру.
- * untilCleared (яд): в руку; иначе в сброс кастера.
- * Раньше яд висел на жертве и уходил в сброс врага.
+ * Снять длящееся заклинание → в сброс кастера.
+ * Раньше untilCleared (яд) возвращался в руку — в стартовой колоде смерти
+ * карта крутилась без конца («юзаю — хоп, снова в руке»).
  */
 function reclaimLingeringSpell(
   state: BattleState,
@@ -411,12 +411,7 @@ function reclaimLingeringSpell(
     sp.casterSide === "you" || sp.casterSide === "enemy"
       ? state[sp.casterSide]
       : boardFallback;
-  const untilCleared = sp.turnsLeft == null;
-  if (untilCleared && caster.hand.length < 7) {
-    caster.hand.push(sp.cardId);
-  } else {
-    caster.graveyard.push(sp.cardId);
-  }
+  caster.graveyard.push(sp.cardId);
 }
 
 function pruneLingering(state: BattleState): void {

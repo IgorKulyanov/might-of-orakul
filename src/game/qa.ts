@@ -978,7 +978,7 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
     return null;
   });
 
-  assert("poison returns to hand when target dies", () => {
+  assert("poison goes to grave when target dies", () => {
     let s = createBattle(
       ["poison", "banish", "skeleton", "zombie"],
       ["tank", "skeleton", "zombie", "hero_mana"],
@@ -997,8 +997,11 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
     if (s.you.hand.includes("poison")) return "яд ещё в руке, пока действует";
     s = playCard(s, s.you.hand.indexOf("banish"), 0);
     if (s.enemy.slots[0]) return "цель не убрана";
-    if (!s.you.hand.includes("poison")) {
-      return `яд не вернулся в руку (рука=${s.you.hand.join(",")}; сброс врага=${s.enemy.graveyard.join(",")}; свой=${s.you.graveyard.join(",")})`;
+    if (s.you.hand.includes("poison")) {
+      return "яд снова в руке — должен уйти в сброс";
+    }
+    if (!s.you.graveyard.includes("poison")) {
+      return `яд не в своём сбросе (свой=${s.you.graveyard.join(",")}; враг=${s.enemy.graveyard.join(",")})`;
     }
     if (s.enemy.graveyard.includes("poison")) {
       return "яд ушёл в сброс врага";
