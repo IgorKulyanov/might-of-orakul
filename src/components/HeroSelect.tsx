@@ -7,6 +7,7 @@ import {
   EPIC_HERO_GOLD,
   orakulArtUrl,
 } from "../game/heroes";
+import { apiShopBuyHero } from "../game/api";
 import {
   activeHeroId,
   buyEpicHero,
@@ -27,6 +28,7 @@ type Props = {
   onChange: (o: OwnedState) => void;
   onBack: () => void;
   onBattle: () => void;
+  authToken?: string | null;
 };
 
 function HeroCard({
@@ -35,9 +37,11 @@ function HeroCard({
   onChange,
   level,
   foreign,
+  authToken,
 }: {
   h: HeroDef;
   owned: OwnedState;
+  authToken?: string | null;
   onChange: (o: OwnedState) => void;
   level: number;
   /** Чужая фракция — только витрина, выбрать нельзя. */
@@ -53,20 +57,44 @@ function HeroCard({
   const [hint, setHint] = useState<string | null>(null);
 
   const buy = (pay: "gold" | "diamonds") => {
-    const res = buyEpicHero(owned, h.id, pay);
-    if (!res.ok) {
-      setHint(
-        pay === "gold" ? "Недостаточно золота" : "Недостаточно кристаллов",
-      );
-      return;
-    }
-    if (res.owned.heroId !== h.id) {
-      setHint("Куплено, но облик не сменился — нажми на карту");
+    void (async () => {
+      if (authToken) {
+        try {
+          const { user } = await apiShopBuyHero(authToken, h.id, pay);
+          if (!user.owned) {
+            setHint("Сервер не вернул сейв");
+            return;
+          }
+          const next: OwnedState = {
+            ...owned,
+            ...user.owned,
+            decks: owned.decks,
+            activeDeckId: owned.activeDeckId,
+            homeFaction: owned.homeFaction ?? user.owned.homeFaction,
+            heroId: user.owned.heroId ?? h.id,
+          };
+          setHint(null);
+          onChange(next);
+        } catch (e) {
+          setHint(e instanceof Error ? e.message : "Покупка не прошла");
+        }
+        return;
+      }
+      const res = buyEpicHero(owned, h.id, pay);
+      if (!res.ok) {
+        setHint(
+          pay === "gold" ? "Недостаточно золота" : "Недостаточно кристаллов",
+        );
+        return;
+      }
+      if (res.owned.heroId !== h.id) {
+        setHint("Куплено, но облик не сменился — нажми на карту");
+        onChange(res.owned);
+        return;
+      }
+      setHint(null);
       onChange(res.owned);
-      return;
-    }
-    setHint(null);
-    onChange(res.owned);
+    })();
   };
 
   return (
@@ -140,7 +168,13 @@ function HeroCard({
   );
 }
 
-export function HeroSelect({ owned, onChange, onBack, onBattle }: Props) {
+export function HeroSelect({
+  owned,
+  onChange,
+  onBack,
+  onBattle,
+  authToken = null,
+}: Props) {
   const level = playerLevel(owned);
   const xp = owned.xp ?? 0;
   const xpNeed = xpToNextLevel(level);
@@ -190,6 +224,7 @@ export function HeroSelect({ owned, onChange, onBack, onBattle }: Props) {
             owned={owned}
             onChange={onChange}
             level={level}
+            authToken={authToken}
           />
         ))}
       </div>
@@ -206,6 +241,7 @@ export function HeroSelect({ owned, onChange, onBack, onBattle }: Props) {
             owned={owned}
             onChange={onChange}
             level={level}
+            authToken={authToken}
           />
         ))}
       </div>

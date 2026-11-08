@@ -233,11 +233,18 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
   const serverOwned = user.owned;
   // Оракул/эпики/кейсы — локальный сейв главнее: иначе после покупки эпика
   // сервер со старым heroId откатывал облик на базового.
+  // Эпики только с сервера (касса); без сервера — локальный сейв.
   const unlockedHeroes = [
-    ...new Set([
-      ...(local.unlockedHeroes ?? []),
-      ...(serverOwned?.unlockedHeroes ?? []),
-    ]),
+    ...new Set(
+      serverOwned
+        ? [
+            ...(local.unlockedHeroes ?? []).filter(
+              (id) => !/_epic$/i.test(id),
+            ),
+            ...(serverOwned.unlockedHeroes ?? []),
+          ]
+        : [...(local.unlockedHeroes ?? [])],
+    ),
   ];
   const serverHero =
     user.heroId ?? serverOwned?.heroId ?? null;
@@ -268,36 +275,46 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
   if (!homeFaction) {
     return blankOnboardingOwned();
   }
-  const collection = { ...(local.collection ?? {}) };
-  if (serverOwned?.collection && typeof serverOwned.collection === "object") {
-    for (const [id, n] of Object.entries(serverOwned.collection)) {
-      const a = Math.max(0, Math.floor(Number(collection[id]) || 0));
-      const b = Math.max(0, Math.floor(Number(n) || 0));
-      collection[id] = Math.max(a, b);
+  // Коллекция/покупки: сервер — касса. Локальный max раньше оставлял бесплатные карты.
+  const collection: Record<string, number> = {};
+  const serverCol =
+    serverOwned?.collection && typeof serverOwned.collection === "object"
+      ? serverOwned.collection
+      : null;
+  if (serverCol) {
+    for (const [id, n] of Object.entries(serverCol)) {
+      const v = Math.max(0, Math.floor(Number(n) || 0));
+      if (v > 0) collection[id] = v;
+    }
+  } else {
+    for (const [id, n] of Object.entries(local.collection ?? {})) {
+      const v = Math.max(0, Math.floor(Number(n) || 0));
+      if (v > 0) collection[id] = v;
     }
   }
   const unlocked = [
     ...new Set([
-      ...(local.unlocked ?? []),
-      ...(serverOwned?.unlocked ?? []),
+      ...(serverOwned?.unlocked ?? local.unlocked ?? []),
       ...Object.keys(collection),
     ]),
   ];
   const purchased = [
     ...new Set([
-      ...(local.purchased ?? []),
-      ...(serverOwned?.purchased ?? []),
+      ...(serverOwned?.purchased ?? local.purchased ?? []),
     ]),
   ];
   const decks = richerDecks(local.decks, serverOwned?.decks);
   const merged: OwnedState = {
     ...local,
-    // max: админ-гранты с сервера + локальный прогресс не теряем
-    gold: Math.max(Number(serverOwned?.gold) || 0, Number(local.gold) || 0),
-    diamonds: Math.max(
-      Number(serverOwned?.diamonds) || 0,
-      Number(local.diamonds) || 0,
-    ),
+    // Валюта: сервер главнее (покупки/штрафы). Награды боя уходят PUT-ом до релогина.
+    gold:
+      serverOwned != null && serverOwned.gold != null
+        ? Math.max(0, Number(serverOwned.gold) || 0)
+        : Math.max(0, Number(local.gold) || 0),
+    diamonds:
+      serverOwned != null && serverOwned.diamonds != null
+        ? Math.max(0, Number(serverOwned.diamonds) || 0)
+        : Math.max(0, Number(local.diamonds) || 0),
     level: Math.max(
       Number(serverOwned?.level) || 1,
       Number(local.level) || 1,
@@ -661,20 +678,22 @@ export default function App() {
       });
       updateCachedUser(me);
       setUser(me);
-      // Админ-гранты с сервера (pending → owned) подтянуть в локальный сейв
+      // Касса с сервера: валюта + коллекция (PUT мог срезать неоплаченное)
       if (me.owned) {
         const synced: OwnedState = {
           ...next,
           gold: me.owned.gold ?? next.gold,
           diamonds: me.owned.diamonds ?? next.diamonds,
+          collection: me.owned.collection ?? next.collection,
+          purchased: me.owned.purchased ?? next.purchased,
+          unlocked: me.owned.unlocked ?? next.unlocked,
+          unlockedHeroes: me.owned.unlockedHeroes ?? next.unlockedHeroes,
+          level: me.owned.level ?? next.level,
+          xp: me.owned.xp ?? next.xp,
         };
-        if (
-          synced.gold !== next.gold ||
-          synced.diamonds !== next.diamonds
-        ) {
-          saveOwned(synced);
-          setOwned(synced);
-        }
+        saveOwned(synced);
+        setOwned(synced);
+        if (me.login) backupOwnedForLogin(me.login, synced);
       }
     } catch {
       /* offline */
@@ -1187,6 +1206,7 @@ export default function App() {
         owned={owned}
         onChange={updateOwned}
         onBack={() => setScreen("cabinet")}
+        authToken={token}
         onBattle={() => {
           unlockSfx();
           void startBattleMusic();

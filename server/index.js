@@ -32,6 +32,7 @@ import {
   sanitizeLogin,
   sanitizeOwned,
 } from "./security.js";
+import { applyHeroBuy, applyShopBuy } from "./shopCatalog.js";
 
 const VERIFY_TTL_MS = 15 * 60 * 1000;
 
@@ -993,6 +994,118 @@ app.put(
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: "Ошибка сохранения" });
+    }
+  },
+);
+
+/**
+ * Покупка карты — только здесь. PUT /api/me больше не принимает рост коллекции.
+ */
+app.post(
+  "/api/shop/buy",
+  auth,
+  rateLimitMiddleware({
+    name: "shop-buy",
+    maxN: 30,
+    windowMs: 60_000,
+    keyFn: (req) => `shop:${req.user?.id || clientIp(req)}`,
+  }),
+  async (req, res) => {
+    try {
+      const cardId = String(req.body?.cardId || "").slice(0, 64);
+      const currency =
+        req.body?.currency === "diamonds" ? "diamonds" : "gold";
+      if (!cardId) {
+        res.status(400).json({ error: "Не указана карта" });
+        return;
+      }
+      const result = await withDb((db) => {
+        const user = db.users.find((u) => u.id === req.user.id);
+        if (!user) return null;
+        if (!user.owned || typeof user.owned !== "object") {
+          user.owned = {
+            unlocked: [],
+            purchased: [],
+            collection: {},
+            decks: {},
+            gold: 0,
+            diamonds: 0,
+          };
+        }
+        const buy = applyShopBuy(user.owned, cardId, currency);
+        if (!buy.ok) return { error: buy.error };
+        flushPendingGrants(user);
+        persistLiveDb();
+        return { user: publicUser(user) };
+      });
+      if (!result) {
+        res.status(401).json({ error: "Нужен вход" });
+        return;
+      }
+      if (result.error) {
+        res.status(400).json({ error: result.error });
+        return;
+      }
+      res.json(result);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Ошибка покупки" });
+    }
+  },
+);
+
+/** Покупка эпического облика оракула. */
+app.post(
+  "/api/shop/buy-hero",
+  auth,
+  rateLimitMiddleware({
+    name: "shop-hero",
+    maxN: 20,
+    windowMs: 60_000,
+    keyFn: (req) => `shop-hero:${req.user?.id || clientIp(req)}`,
+  }),
+  async (req, res) => {
+    try {
+      const heroId = String(req.body?.heroId || "").slice(0, 64);
+      const currency =
+        req.body?.currency === "diamonds" ? "diamonds" : "gold";
+      if (!heroId) {
+        res.status(400).json({ error: "Не указан облик" });
+        return;
+      }
+      const result = await withDb((db) => {
+        const user = db.users.find((u) => u.id === req.user.id);
+        if (!user) return null;
+        if (!user.owned || typeof user.owned !== "object") {
+          user.owned = {
+            unlocked: [],
+            purchased: [],
+            collection: {},
+            decks: {},
+            unlockedHeroes: [],
+            gold: 0,
+            diamonds: 0,
+          };
+        }
+        const buy = applyHeroBuy(user.owned, heroId, currency);
+        if (!buy.ok) return { error: buy.error };
+        if (user.owned.heroId) user.heroId = user.owned.heroId;
+        flushPendingGrants(user);
+        persistLiveDb();
+        return { user: publicUser(user) };
+      });
+      if (!result) {
+        res.status(401).json({ error: "Нужен вход" });
+        return;
+      }
+      if (result.error) {
+        res.status(400).json({ error: result.error });
+        return;
+      }
+      res.json(result);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Ошибка покупки облика" });
     }
   },
 );

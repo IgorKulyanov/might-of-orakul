@@ -235,6 +235,32 @@ export function apiUpdateMe(
   });
 }
 
+/** Серверная покупка карты (списание валюты на API). */
+export function apiShopBuy(
+  token: string,
+  cardId: string,
+  currency: "gold" | "diamonds",
+) {
+  return request<{ user: ApiUser }>("/api/shop/buy", {
+    method: "POST",
+    token,
+    body: JSON.stringify({ cardId, currency }),
+  });
+}
+
+/** Серверная покупка эпического облика. */
+export function apiShopBuyHero(
+  token: string,
+  heroId: string,
+  currency: "gold" | "diamonds",
+) {
+  return request<{ user: ApiUser }>("/api/shop/buy-hero", {
+    method: "POST",
+    token,
+    body: JSON.stringify({ heroId, currency }),
+  });
+}
+
 export function apiCreateRoom(token: string, code?: string) {
   return request<{ roomId: string; status: string; message: string }>(
     "/api/rooms",

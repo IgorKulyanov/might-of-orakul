@@ -20,7 +20,7 @@ import {
   UNIT_TIER_LABEL,
   starterDeckForFaction,
 } from "../game/progression";
-import { apiCreatePayment } from "../game/api";
+import { apiCreatePayment, apiShopBuy } from "../game/api";
 import {
   buyCardWithDiamonds,
   buyCardWithGold,
@@ -194,7 +194,7 @@ export function Collection({
       }
       const ok = window.confirm(`Купить ${label} за ${diamondText(price)}?`);
       if (!ok) return;
-      onChange(buyCardWithDiamonds(owned, id));
+      void commitBuy(id, "diamonds", () => buyCardWithDiamonds(owned, id));
       return;
     }
     const price = card.priceGold ?? 0;
@@ -207,7 +207,35 @@ export function Collection({
     }
     const ok = window.confirm(`Купить ${label} за ${goldText(price)}?`);
     if (!ok) return;
-    onChange(buyCardWithGold(owned, id));
+    void commitBuy(id, "gold", () => buyCardWithGold(owned, id));
+  };
+
+  const commitBuy = async (
+    cardId: string,
+    currency: "gold" | "diamonds",
+    localBuy: () => OwnedState,
+  ) => {
+    if (!authToken) {
+      onChange(localBuy());
+      return;
+    }
+    try {
+      const { user } = await apiShopBuy(authToken, cardId, currency);
+      if (!user.owned) {
+        alert("Сервер не вернул сейв после покупки");
+        return;
+      }
+      const next: OwnedState = {
+        ...owned,
+        ...user.owned,
+        decks: owned.decks,
+        activeDeckId: owned.activeDeckId,
+        homeFaction: owned.homeFaction ?? user.owned.homeFaction,
+      };
+      onChange(next);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Покупка не прошла");
+    }
   };
 
   const persist = () => {

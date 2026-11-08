@@ -1,7 +1,9 @@
 /**
  * Защита API: лимиты, санитизация сейва, антибрутфорс.
  * Не панацея от читов в соло (клиентский движок), но режет тупые атаки и накрутку на сервере.
+ * Рост коллекции/эпиков через PUT запрещён — только POST /api/shop/*.
  */
+import { clampOwnedShopGains } from "./shopCatalog.js";
 
 const loginFails = new Map(); // ip|login -> { n, until }
 const hitBuckets = new Map(); // key -> { n, reset }
@@ -174,7 +176,19 @@ export function sanitizeOwned(raw, prev) {
     next.collection = col;
   }
 
-  return next;
+  if (Array.isArray(next.purchased)) {
+    next.purchased = [
+      ...new Set(next.purchased.map((c) => String(c).slice(0, 64))),
+    ].slice(0, 500);
+  }
+
+  if (Array.isArray(next.unlockedHeroes)) {
+    next.unlockedHeroes = [
+      ...new Set(next.unlockedHeroes.map((c) => String(c).slice(0, 64))),
+    ].slice(0, 50);
+  }
+
+  return clampOwnedShopGains(base, next);
 }
 
 function clampInt(v, min, max, fallback) {
