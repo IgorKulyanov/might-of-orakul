@@ -1207,8 +1207,9 @@ export function playActionSfx(fx: BattleFx, _before?: BattleState): void {
     return;
   }
   if (fx.kind === "lunge") {
-    if (isMageBoltCard(fx.cardId)) sfxMageBolt();
-    else if (isArrowCard(fx.cardId)) sfxArrow();
+    const motion = fx.motion;
+    if (motion === "bolt" || isMageBoltCard(fx.cardId)) sfxMageBolt();
+    else if (motion === "ranged" || isArrowCard(fx.cardId)) sfxArrow();
     else sfxAttack();
     if (fx.hitHero) setTimeout(() => sfxHitHero(), 90);
   }

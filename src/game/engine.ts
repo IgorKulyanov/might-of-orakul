@@ -3372,6 +3372,9 @@ function beginTurn(
   }
 }
 
+/** Движение атаки: ближний укол / стрела / магический болт. */
+export type BattleFxMotion = "melee" | "ranged" | "bolt";
+
 /** Визуальный эффект для анимации в UI */
 export type BattleFx = {
   side: "you" | "enemy";
@@ -3382,7 +3385,80 @@ export type BattleFx = {
   hitHero?: boolean;
   /** Карта, которую показали (заклинание / призыв) */
   cardId?: string;
+  /** Для kind=lunge: чем бьют. */
+  motion?: BattleFxMotion;
+  /** Для kind=spell: яд / цветная магия. */
+  vfx?: "poison" | "magic";
+  school?: Faction;
 };
+
+const BOLT_ATTACK_IDS = new Set([
+  "mage",
+  "necro_mage",
+  "lich",
+  "arbiter",
+  "water_spirit",
+  "fire_gopnik",
+  "inferno",
+]);
+const ARROW_ATTACK_IDS = new Set(["elf", "crossbowman", "archer"]);
+
+export function attackMotionFor(cardId: string): BattleFxMotion {
+  if (BOLT_ATTACK_IDS.has(cardId)) return "bolt";
+  if (ARROW_ATTACK_IDS.has(cardId)) return "ranged";
+  try {
+    if (patternOf(cardId) === "ranged") return "ranged";
+  } catch {
+    /* ignore */
+  }
+  return "melee";
+}
+
+/** Дополнить FX по cardId (motion / school / poison). */
+export function normalizeBattleFx(fx: BattleFx): BattleFx {
+  const next: BattleFx = { ...fx };
+  if (fx.kind === "lunge" && fx.cardId && !fx.motion) {
+    next.motion = attackMotionFor(fx.cardId);
+  }
+  if (fx.kind === "spell" && fx.cardId) {
+    try {
+      const card = getCard(fx.cardId);
+      if (!next.school && card.school && card.school !== "neutral") {
+        next.school = card.school;
+      }
+      if (!next.vfx) {
+        const effects = card.spellEffects ?? [];
+        if (
+          effects.some(
+            (e) => e.type === "poison" || e.type === "poison_all",
+          )
+        ) {
+          next.vfx = "poison";
+        } else if (
+          effects.some(
+            (e) =>
+              e.type === "damage_hero" ||
+              e.type === "damage_unit" ||
+              e.type === "damage_all_enemies" ||
+              e.type === "damage_undead" ||
+              e.type === "banish_unit" ||
+              e.type === "slow_enemy" ||
+              e.type === "freeze_enemy" ||
+              e.type === "fear" ||
+              e.type === "traitor",
+          )
+        ) {
+          next.vfx = "magic";
+        } else {
+          next.vfx = "magic";
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return next;
+}
 
 /** Конец твоего хода → старт хода врага (без действий ИИ). */
 export function endPlayerTurn(state: BattleState): BattleState {
@@ -4625,7 +4701,7 @@ export function takeAiStep(
     next.log = next.log.slice(0, 10);
     return {
       state: next,
-      fx: { side: "enemy", kind: "spell", cardId: id },
+      fx: normalizeBattleFx({ side: "enemy", kind: "spell", cardId: id }),
     };
   }
 
@@ -4671,13 +4747,14 @@ export function takeAiStep(
     checkWinner(next);
     return {
       state: next,
-      fx: {
+      fx: normalizeBattleFx({
         side: "enemy",
         kind: "spell",
         cardId: id,
         toSlot: target ?? undefined,
         hitSlots: need === "enemy" && target != null ? [target] : undefined,
-      },
+        hitHero: need == null && effects.some((e) => e.type === "damage_hero"),
+      }),
     };
   }
 
@@ -5076,14 +5153,15 @@ export function takeAiStep(
     checkWinner(next);
     return {
       state: next,
-      fx: {
+      fx: normalizeBattleFx({
         side: "enemy",
         kind: "lunge",
         fromSlot: i,
         hitSlots,
         hitHero,
         cardId: atk.cardId,
-      },
+        motion: attackMotionFor(atk.cardId),
+      }),
     };
   }
 }
@@ -5097,35 +5175,39 @@ export function attackFxPreview(
   const atk = state.you.slots[fromSlot];
   const pattern = atk ? patternOf(atk.cardId) : "melee";
   const cardId = atk?.cardId;
+  const motion = cardId ? attackMotionFor(cardId) : "melee";
   if (target === "hero") {
-    return {
+    return normalizeBattleFx({
       side: "you",
       kind: "lunge",
       fromSlot,
       hitHero: true,
       cardId,
-    };
+      motion,
+    });
   }
   if (pattern === "lane_cleave3") {
-    return {
+    return normalizeBattleFx({
       side: "you",
       kind: "lunge",
       fromSlot,
       hitSlots: cleaveSlots(fromSlot),
       cardId,
-    };
+      motion,
+    });
   }
   if (pattern === "cleave3") {
-    return {
+    return normalizeBattleFx({
       side: "you",
       kind: "lunge",
       fromSlot,
       hitSlots: cleaveSlots(target),
       cardId,
-    };
+      motion,
+    });
   }
   if (pattern === "aoe_all") {
-    return {
+    return normalizeBattleFx({
       side: "you",
       kind: "lunge",
       fromSlot,
@@ -5133,15 +5215,17 @@ export function attackFxPreview(
         .map((s, i) => (s ? i : -1))
         .filter((i) => i >= 0),
       cardId,
-    };
+      motion,
+    });
   }
-  return {
+  return normalizeBattleFx({
     side: "you",
     kind: "lunge",
     fromSlot,
     hitSlots: [target],
     cardId,
-  };
+    motion,
+  });
 }
 
 export function selectHand(state: BattleState, index: number | null): BattleState {

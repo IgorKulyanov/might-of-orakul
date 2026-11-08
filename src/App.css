@@ -1236,6 +1236,16 @@ button {
   z-index: 6;
 }
 
+/* Дальник / болт: лёгкий кивок вместо выпада */
+.your-row .board-card-wrap.is-nod {
+  animation: nod-you 0.42s ease-in-out;
+  z-index: 6;
+}
+.enemy-row .board-card-wrap.is-nod {
+  animation: nod-enemy 0.42s ease-in-out;
+  z-index: 6;
+}
+
 @keyframes lunge-you {
   0%,
   100% {
@@ -1253,6 +1263,187 @@ button {
   }
   40% {
     transform: translateY(8px);
+  }
+}
+
+@keyframes nod-you {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  35% {
+    transform: translateY(-4px) scale(1.03);
+  }
+}
+
+@keyframes nod-enemy {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  35% {
+    transform: translateY(4px) scale(1.03);
+  }
+}
+
+/* Слой снарядов / магии / яда */
+.battle-fx-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+  overflow: hidden;
+}
+
+.battle-missile {
+  position: absolute;
+  left: var(--fx-x0, 50%);
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border-radius: 50%;
+  opacity: 0;
+  will-change: left, top, transform, opacity;
+}
+
+.battle-missile.from-you {
+  animation: missile-fly-you 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+.battle-missile.from-enemy {
+  animation: missile-fly-enemy 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+
+.battle-missile.is-arrow {
+  width: 18px;
+  height: 5px;
+  margin-left: -9px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #f0e6d0, #c4a574);
+  box-shadow: 0 0 6px rgba(240, 230, 208, 0.7);
+}
+.battle-missile.is-arrow.from-you {
+  transform: rotate(-70deg);
+}
+.battle-missile.is-arrow.from-enemy {
+  transform: rotate(110deg);
+}
+
+.battle-missile.is-bolt {
+  background: radial-gradient(circle, #fff 0%, #7ec8ff 45%, #3a6fd8 100%);
+  box-shadow: 0 0 14px 4px rgba(80, 160, 255, 0.75);
+}
+.battle-missile.is-bolt.school-hell,
+.battle-missile.is-magic.school-hell {
+  background: radial-gradient(circle, #fff3e0 0%, #ff8a3d 50%, #c43c12 100%);
+  box-shadow: 0 0 16px 5px rgba(255, 100, 40, 0.7);
+}
+.battle-missile.is-bolt.school-death,
+.battle-missile.is-magic.school-death {
+  background: radial-gradient(circle, #f3e5ff 0%, #b388ff 45%, #6a1b9a 100%);
+  box-shadow: 0 0 16px 5px rgba(160, 80, 255, 0.7);
+}
+.battle-missile.is-bolt.school-life,
+.battle-missile.is-magic.school-life {
+  background: radial-gradient(circle, #fffde7 0%, #ffe082 45%, #f9a825 100%);
+  box-shadow: 0 0 16px 5px rgba(255, 200, 60, 0.7);
+}
+.battle-missile.is-bolt.school-water,
+.battle-missile.is-magic.school-water {
+  background: radial-gradient(circle, #e0f7fa 0%, #4dd0e1 45%, #00838f 100%);
+  box-shadow: 0 0 16px 5px rgba(0, 180, 200, 0.7);
+}
+.battle-missile.is-bolt.school-nature,
+.battle-missile.is-magic.school-nature {
+  background: radial-gradient(circle, #e8f5e9 0%, #81c784 45%, #2e7d32 100%);
+  box-shadow: 0 0 16px 5px rgba(70, 180, 80, 0.7);
+}
+
+.battle-missile.is-magic {
+  width: 16px;
+  height: 16px;
+  margin-left: -8px;
+  background: radial-gradient(circle, #fff 0%, #ce93d8 50%, #7b1fa2 100%);
+  box-shadow: 0 0 18px 6px rgba(180, 100, 255, 0.65);
+}
+
+.battle-missile.is-poison {
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  background: radial-gradient(circle, #dcedc8 0%, #8bc34a 40%, #33691e 100%);
+  box-shadow: 0 0 14px 5px rgba(120, 200, 60, 0.65);
+}
+
+@keyframes missile-fly-you {
+  0% {
+    left: var(--fx-x0, 50%);
+    top: 74%;
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    left: var(--fx-x1, 50%);
+    top: 18%;
+    opacity: 0.15;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes missile-fly-enemy {
+  0% {
+    left: var(--fx-x0, 50%);
+    top: 18%;
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    left: var(--fx-x1, 50%);
+    top: 74%;
+    opacity: 0.15;
+    transform: scale(1.15);
+  }
+}
+
+/* Яд: постоянное свечение + вспышка при наложении */
+.board-card-wrap.has-poison {
+  box-shadow: 0 0 0 2px rgba(139, 195, 74, 0.55),
+    0 0 12px rgba(100, 180, 40, 0.35);
+  animation: poison-aura 1.6s ease-in-out infinite;
+}
+.board-card-wrap.is-poison-burst {
+  animation: poison-burst 0.7s ease;
+  z-index: 7;
+}
+
+@keyframes poison-aura {
+  0%,
+  100% {
+    filter: saturate(1.05);
+  }
+  50% {
+    filter: saturate(1.25) brightness(1.06);
+  }
+}
+
+@keyframes poison-burst {
+  0% {
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(139, 195, 74, 0);
+  }
+  30% {
+    filter: brightness(1.35) hue-rotate(-10deg);
+    box-shadow: 0 0 0 4px rgba(139, 195, 74, 0.85),
+      0 0 22px rgba(100, 220, 50, 0.7);
+  }
+  100% {
+    filter: brightness(1);
+    box-shadow: 0 0 0 2px rgba(139, 195, 74, 0.55);
   }
 }
 

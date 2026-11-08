@@ -1,4 +1,11 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { CardView, EmptySlot } from "./CardView";
 import { alog } from "../game/actionLog";
 import { GameIcon, SchoolBadge } from "./GameIcon";
@@ -58,6 +65,7 @@ import {
   validAttackTargets,
   verdictWithArbiter,
   BLOOD_FRENZY_AFTER_TURNS,
+  normalizeBattleFx,
   type BattleFx,
 } from "../game/engine";
 import { getHero, orakulArtUrl } from "../game/heroes";
@@ -169,7 +177,9 @@ function BoardCard({
   ready,
   sleeping,
   lunge,
+  nod,
   hit,
+  poisonBurst,
   playIn,
   heal,
   onClick,
@@ -180,11 +190,15 @@ function BoardCard({
   ready?: boolean;
   sleeping?: boolean;
   lunge?: boolean;
+  /** Лёгкий кивок вместо укола (дальник / болт). */
+  nod?: boolean;
   hit?: boolean;
+  poisonBurst?: boolean;
   playIn?: boolean;
   heal?: boolean;
   onClick: () => void;
 }) {
+  const poisoned = creature.statuses.some((st) => st.type === "poison");
   return (
     <div
       className={[
@@ -194,7 +208,10 @@ function BoardCard({
         ready ? "is-ready" : "",
         sleeping ? "is-sleeping" : "",
         lunge ? "is-lunge" : "",
+        nod ? "is-nod" : "",
         hit ? "is-hit" : "",
+        poisonBurst ? "is-poison-burst" : "",
+        poisoned ? "has-poison" : "",
         playIn ? "is-play-in" : "",
         heal ? "is-heal" : "",
       ]
@@ -603,17 +620,23 @@ export function Battle({
   };
 
   const playFx = async (
-    nextFx: BattleFx,
+    rawFx: BattleFx,
     /** Применить к актуальному state (не к устаревшему из замыкания клика). */
     run: (s: BattleState) => BattleState,
     holdMs = 900,
     netAction?: NetAction,
   ) => {
     unlockSfx();
+    const nextFx = normalizeBattleFx(rawFx);
     const before = stateRef.current;
     const isSpellCard = nextFx.kind === "spell" && !!nextFx.cardId;
     const instant = nextFx.kind === "spell" || nextFx.kind === "heal";
     const online = Boolean(networkRef.current);
+    const flying =
+      (nextFx.kind === "lunge" &&
+        (nextFx.motion === "ranged" || nextFx.motion === "bolt")) ||
+      (nextFx.kind === "spell" &&
+        (nextFx.vfx === "poison" || nextFx.vfx === "magic"));
     setFx(nextFx);
     playActionSfx(nextFx, before);
     const apply = () => {
@@ -720,10 +743,14 @@ export function Battle({
       return;
     }
     const faceHit = !!nextFx.hitHero && nextFx.kind !== "heal";
-    const hold = faceHit ? Math.max(holdMs, 1800) : holdMs;
-    await sleep(Math.floor(hold * 0.4));
+    const hold = flying
+      ? Math.max(holdMs, faceHit ? 1600 : 1100)
+      : faceHit
+        ? Math.max(holdMs, 1800)
+        : holdMs;
+    await sleep(Math.floor(hold * (flying ? 0.45 : 0.4)));
     apply();
-    await sleep(Math.floor(hold * 0.6));
+    await sleep(Math.floor(hold * (flying ? 0.55 : 0.6)));
     setFx(null);
     await sleep(faceHit ? 320 : 200);
   };
@@ -1773,25 +1800,33 @@ export function Battle({
       for (let n = 0; n < 20; n++) {
         const step = takeAiStep(s);
         if (!step) break;
-        const isSpellCard = step.fx.kind === "spell" && !!step.fx.cardId;
+        const stepFx = normalizeBattleFx(step.fx);
+        const isSpellCard = stepFx.kind === "spell" && !!stepFx.cardId;
         const hitFace =
-          !!step.fx.hitHero &&
-          step.fx.kind !== "heal" &&
-          step.fx.side === "enemy";
+          !!stepFx.hitHero &&
+          stepFx.kind !== "heal" &&
+          stepFx.side === "enemy";
+        const flying =
+          (stepFx.kind === "lunge" &&
+            (stepFx.motion === "ranged" || stepFx.motion === "bolt")) ||
+          (stepFx.kind === "spell" &&
+            (stepFx.vfx === "poison" || stepFx.vfx === "magic"));
         // Удар в оракула / спелл чуть дольше — чтобы было ясно, отчего урон.
         const hold = isSpellCard
           ? 2200
           : hitFace
             ? 1400
-            : step.fx.kind === "lunge"
-              ? 950
-              : step.fx.kind === "play"
-                ? 850
-                : step.fx.kind === "spell"
-                  ? 1100
-                  : 650;
-        setFx(step.fx);
-        playActionSfx(step.fx, s);
+            : flying
+              ? 1100
+              : stepFx.kind === "lunge"
+                ? 950
+                : stepFx.kind === "play"
+                  ? 850
+                  : stepFx.kind === "spell"
+                    ? 1100
+                    : 650;
+        setFx(stepFx);
+        playActionSfx(stepFx, s);
         if (isSpellCard) {
           // Карта сначала появляется, эффект — после анимации.
           await sleep(900);
@@ -1828,33 +1863,97 @@ export function Battle({
     });
   };
 
-  const yourFx = (slot: number) => ({
-    lunge: fx?.side === "you" && fx.kind === "lunge" && fx.fromSlot === slot,
-    hit:
-      (fx?.side === "enemy" && fx.hitSlots?.includes(slot)) ||
-      (fx?.side === "you" && fx.kind === "heal" && fx.toSlot === slot) ||
-      false,
-    playIn: fx?.side === "you" && fx.kind === "play" && fx.toSlot === slot,
-    heal:
-      fx?.side === "you" &&
-      fx.kind === "heal" &&
-      (fx.fromSlot === slot || fx.toSlot === slot),
-  });
+  const yourFx = (slot: number) => {
+    const attacking =
+      fx?.side === "you" && fx.kind === "lunge" && fx.fromSlot === slot;
+    const motion = fx?.motion ?? "melee";
+    return {
+      lunge: !!attacking && motion === "melee",
+      nod: !!attacking && motion !== "melee",
+      hit:
+        (fx?.side === "enemy" && fx.hitSlots?.includes(slot)) ||
+        (fx?.side === "you" && fx.kind === "heal" && fx.toSlot === slot) ||
+        (fx?.side === "you" &&
+          fx.kind === "spell" &&
+          fx.vfx !== "poison" &&
+          fx.toSlot === slot) ||
+        false,
+      poisonBurst:
+        !!fx?.vfx &&
+        fx.vfx === "poison" &&
+        fx.side === "enemy" &&
+        !!fx.hitSlots?.includes(slot),
+      playIn: fx?.side === "you" && fx.kind === "play" && fx.toSlot === slot,
+      heal:
+        fx?.side === "you" &&
+        fx.kind === "heal" &&
+        (fx.fromSlot === slot || fx.toSlot === slot),
+    };
+  };
 
-  const enemyFx = (slot: number) => ({
-    lunge: fx?.side === "enemy" && fx.kind === "lunge" && fx.fromSlot === slot,
-    hit:
-      (fx?.side === "you" && fx.hitSlots?.includes(slot)) ||
-      (fx?.side === "enemy" &&
-        (fx.kind === "heal" || fx.kind === "spell") &&
-        (fx.toSlot === slot || fx.hitSlots?.includes(slot))) ||
-      false,
-    playIn: fx?.side === "enemy" && fx.kind === "play" && fx.toSlot === slot,
-    heal:
-      fx?.side === "enemy" &&
-      fx.kind === "heal" &&
-      (fx.fromSlot === slot || fx.toSlot === slot),
-  });
+  const enemyFx = (slot: number) => {
+    const attacking =
+      fx?.side === "enemy" && fx.kind === "lunge" && fx.fromSlot === slot;
+    const motion = fx?.motion ?? "melee";
+    return {
+      lunge: !!attacking && motion === "melee",
+      nod: !!attacking && motion !== "melee",
+      hit:
+        (fx?.side === "you" && fx.hitSlots?.includes(slot)) ||
+        (fx?.side === "enemy" &&
+          (fx.kind === "heal" || fx.kind === "spell") &&
+          (fx.toSlot === slot || fx.hitSlots?.includes(slot))) ||
+        false,
+      poisonBurst:
+        !!fx?.vfx &&
+        fx.vfx === "poison" &&
+        !!fx.hitSlots?.includes(slot),
+      playIn: fx?.side === "enemy" && fx.kind === "play" && fx.toSlot === slot,
+      heal:
+        fx?.side === "enemy" &&
+        fx.kind === "heal" &&
+        (fx.fromSlot === slot || fx.toSlot === slot),
+    };
+  };
+
+  const missileStyle = ((): CSSProperties | null => {
+    if (!fx) return null;
+    const motion = fx.motion ?? "melee";
+    const flyAttack =
+      fx.kind === "lunge" && (motion === "ranged" || motion === "bolt");
+    const flySpell =
+      fx.kind === "spell" && (fx.vfx === "poison" || fx.vfx === "magic");
+    if (!flyAttack && !flySpell) return null;
+    const slotPct = (slot: number | undefined) =>
+      slot == null || slot < 0 ? 50 : 12 + slot * 19;
+    const fromX = slotPct(fx.fromSlot ?? 2);
+    const toSlot =
+      fx.hitSlots?.[0] ?? fx.toSlot ?? (fx.hitHero ? -1 : fx.fromSlot ?? 2);
+    const toX = slotPct(toSlot);
+    return {
+      ["--fx-x0" as string]: `${fromX}%`,
+      ["--fx-x1" as string]: `${toX}%`,
+    };
+  })();
+
+  const missileClass = (() => {
+    if (!fx || !missileStyle) return null;
+    const motion = fx.motion ?? "melee";
+    const kind =
+      fx.kind === "spell"
+        ? fx.vfx === "poison"
+          ? "poison"
+          : "magic"
+        : motion === "bolt"
+          ? "bolt"
+          : "arrow";
+    return [
+      "battle-missile",
+      `is-${kind}`,
+      `from-${fx.side}`,
+      fx.school ? `school-${fx.school}` : "school-neutral",
+    ].join(" ");
+  })();
 
   const readyCount = state.you.slots.filter((s) => s?.canAttack).length;
 
@@ -2181,6 +2280,11 @@ export function Battle({
       </div>
 
       <div className="board">
+        {missileClass && missileStyle ? (
+          <div className="battle-fx-layer" aria-hidden>
+            <span className={missileClass} style={missileStyle} />
+          </div>
+        ) : null}
         <div className="oracle-bar enemy-oracle-bar" data-tut="enemy-oracle">
             <button
               type="button"
@@ -2282,7 +2386,9 @@ export function Battle({
                             (!busy && balthSwapFrom != null && !!s)
                           }
                           lunge={anim.lunge}
+                          nod={anim.nod}
                           hit={anim.hit}
+                          poisonBurst={anim.poisonBurst}
                           playIn={false}
                           heal={anim.heal}
                           onClick={() => onEnemySlot(i)}
@@ -2393,7 +2499,9 @@ export function Battle({
                               paladinReady)
                           }
                           lunge={anim.lunge}
+                          nod={anim.nod}
                           hit={anim.hit}
+                          poisonBurst={anim.poisonBurst}
                           playIn={false}
                           heal={anim.heal}
                           onClick={() => onYourSlot(i)}
