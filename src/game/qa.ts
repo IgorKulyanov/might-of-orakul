@@ -652,6 +652,21 @@ function spellsAll(fails: QaFail[], ok: string[]): void {
           fails.push({ area: "магия", detail: `${id}: кукла не уснула` });
           continue;
         }
+        // Ближник также может бить твоего
+        s.you.hand = ["marionette", ...s.you.hand];
+        s.you.mana = { ...s.you.mana, hell: 10 };
+        s.enemy.slots[2] = dummy("spearman", "e2-m", 3);
+        s.enemy.slots[2]!.attack = 3;
+        s.you.slots[2] = dummy(unit, "you-m", 8);
+        const myHp = s.you.slots[2]!.health;
+        s = playMarionette(s, 0, 2, { kind: "ally_unit", slot: 2 });
+        if ((s.you.slots[2]?.health ?? myHp) >= myHp) {
+          fails.push({
+            area: "магия",
+            detail: `${id}: ближник не ударил твоего`,
+          });
+          continue;
+        }
         passed += 1;
         continue;
       }

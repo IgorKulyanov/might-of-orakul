@@ -43,6 +43,8 @@ import {
   playCard,
   playGuardianBond,
   playMarionette,
+  marionetteIsRanged,
+  marionetteTargetOk,
   gravediggerFlexReady,
   recentGraveCreatures,
   reviveWithGravedigger,
@@ -836,6 +838,12 @@ export function Battle({
     state.active !== "you";
 
   const spellMode = spellTargetMode(state);
+  const marionettePuppetUnit =
+    marionettePuppet != null ? state.enemy.slots[marionettePuppet] : null;
+  const marionetteRanged = !!(
+    marionettePuppetUnit &&
+    marionetteIsRanged(marionettePuppetUnit.cardId, marionettePuppetUnit)
+  );
   const attackTargets = useMemo(() => {
     if (state.selectedSlot == null) return new Set<string>();
     return new Set(validAttackTargets(state, state.selectedSlot).map(String));
@@ -1115,7 +1123,7 @@ export function Battle({
 
     const creature = state.you.slots[i];
 
-    // Марионетка: лучник/маг лечит союзника силой атаки
+    // Марионетка: дальник лечит / ближник бьёт твоего
     if (
       state.selectedHand != null &&
       spellMode === "marionette" &&
@@ -1123,6 +1131,11 @@ export function Battle({
       creature
     ) {
       const hand = state.selectedHand;
+      const target = { kind: "ally_unit" as const, slot: i };
+      if (!marionetteTargetOk(state, marionettePuppet, target)) {
+        pushHint("Эта цель недоступна для выбранной куклы");
+        return;
+      }
       if (!assertHandMana(hand, { clearHand: true })) {
         setMarionettePuppet(null);
         return;
@@ -1137,16 +1150,13 @@ export function Battle({
             cardId: state.you.hand[hand],
             hitSlots: [i],
           },
-          (s) => playMarionette(s, hand, puppet, {
-              kind: "ally_unit",
-              slot: i,
-            }),
+          (s) => playMarionette(s, hand, puppet, target),
           1600,
           {
             kind: "marionette",
             handIndex: hand,
             puppetSlot: puppet,
-            target: { kind: "ally_unit", slot: i },
+            target,
           },
         );
       });
@@ -1553,16 +1563,26 @@ export function Battle({
         pushHint("Выбор куклы сброшен");
         return;
       }
+      if (!enemyUnit) {
+        pushHint("Пустой слот — некого бить");
+        return;
+      }
+      const target = { kind: "enemy_unit" as const, slot: i };
+      if (!marionetteTargetOk(state, marionettePuppet, target)) {
+        const pup = state.enemy.slots[marionettePuppet];
+        pushHint(
+          pup && !marionetteIsRanged(pup.cardId)
+            ? "Ближник бьёт только соседа слева/справа (или твою карту/оракула)"
+            : "Эта цель недоступна",
+        );
+        return;
+      }
       if (!assertHandMana(hand, { clearHand: true })) {
         setMarionettePuppet(null);
         return;
       }
       const puppet = marionettePuppet;
       setMarionettePuppet(null);
-      if (!enemyUnit) {
-        pushHint("Пустой слот — некого бить");
-        return;
-      }
       void runLocked(async () => {
         await playFx(
           {
@@ -1571,16 +1591,13 @@ export function Battle({
             cardId: state.you.hand[hand],
             hitSlots: [puppet, i],
           },
-          (s) => playMarionette(s, hand, puppet, {
-              kind: "enemy_unit",
-              slot: i,
-            }),
+          (s) => playMarionette(s, hand, puppet, target),
           1600,
           {
             kind: "marionette",
             handIndex: hand,
             puppetSlot: puppet,
-            target: { kind: "enemy_unit", slot: i },
+            target,
           },
         );
       });
@@ -1865,6 +1882,11 @@ export function Battle({
       marionettePuppet != null
     ) {
       const hand = state.selectedHand;
+      const target = { kind: "enemy_hero" as const };
+      if (!marionetteTargetOk(state, marionettePuppet, target)) {
+        pushHint("Ближник не бьёт героя врага — бей соседа или твою карту/оракула");
+        return;
+      }
       if (!assertHandMana(hand, { clearHand: true })) {
         setMarionettePuppet(null);
         return;
@@ -1879,13 +1901,13 @@ export function Battle({
             cardId: state.you.hand[hand],
             hitHero: true,
           },
-          (s) => playMarionette(s, hand, puppet, { kind: "enemy_hero" }),
+          (s) => playMarionette(s, hand, puppet, target),
           1600,
           {
             kind: "marionette",
             handIndex: hand,
             puppetSlot: puppet,
-            target: { kind: "enemy_hero" },
+            target,
           },
         );
       });
@@ -1912,6 +1934,11 @@ export function Battle({
       marionettePuppet != null
     ) {
       const hand = state.selectedHand;
+      const target = { kind: "ally_hero" as const };
+      if (!marionetteTargetOk(state, marionettePuppet, target)) {
+        pushHint("Эта цель недоступна для куклы");
+        return;
+      }
       if (!assertHandMana(hand, { clearHand: true })) {
         setMarionettePuppet(null);
         return;
@@ -1926,13 +1953,13 @@ export function Battle({
             cardId: state.you.hand[hand],
             hitHero: true,
           },
-          (s) => playMarionette(s, hand, puppet, { kind: "ally_hero" }),
+          (s) => playMarionette(s, hand, puppet, target),
           1600,
           {
             kind: "marionette",
             handIndex: hand,
             puppetSlot: puppet,
-            target: { kind: "ally_hero" },
+            target,
           },
         );
       });
@@ -2244,7 +2271,9 @@ export function Battle({
         : "Взять урон: кликни стража (кто принимает урон)";
     if (state.selectedHand != null && spellMode === "marionette")
       return marionettePuppet != null
-        ? "Марионетка: кликни цель (сосед / враг / герой / свой для лучника)"
+        ? marionetteRanged
+          ? "Марионетка: враг / герой врага = удар; свой / твой оракул = лечение"
+          : "Марионетка: сосед врага = удар по нему; свой / твой оракул = удар по тебе"
         : "Марионетка: кликни существо врага (кукла)";
     if (state.selectedHand != null && spellMode === "ally") {
       const sid = state.you.hand[state.selectedHand];
@@ -2567,7 +2596,10 @@ export function Battle({
               attackTargets.has("hero") ||
               (!busy &&
                 spellMode === "marionette" &&
-                marionettePuppet != null)
+                marionettePuppet != null &&
+                marionetteTargetOk(state, marionettePuppet, {
+                  kind: "enemy_hero",
+                }))
                   ? "targetable"
                   : ""
             } ${enemyHeroHit || enemyHeroHeal ? "is-hit" : ""}`}
@@ -2635,7 +2667,14 @@ export function Battle({
                           targetable={
                             (!busy && attackTargets.has(String(i))) ||
                             (!busy && spellMode === "enemy") ||
-                            (!busy && spellMode === "marionette") ||
+                            (!busy &&
+                              spellMode === "marionette" &&
+                              (marionettePuppet == null ||
+                                (marionettePuppet != null &&
+                                  marionetteTargetOk(state, marionettePuppet, {
+                                    kind: "enemy_unit",
+                                    slot: i,
+                                  })))) ||
                             (!busy &&
                               mermaidReady &&
                               state.selectedSlot != null &&
@@ -2769,7 +2808,11 @@ export function Battle({
                               )) ||
                               spellMode === "ally_pair" ||
                               (spellMode === "marionette" &&
-                                marionettePuppet != null) ||
+                                marionettePuppet != null &&
+                                marionetteTargetOk(state, marionettePuppet, {
+                                  kind: "ally_unit",
+                                  slot: i,
+                                })) ||
                               angelHealing ||
                               mageReady ||
                               paladinReady)
@@ -2820,8 +2863,13 @@ export function Battle({
               mageReady ||
               (!busy &&
                 spellMode === "marionette" &&
-                marionettePuppet != null)
-                ? "heal-target"
+                marionettePuppet != null &&
+                marionetteTargetOk(state, marionettePuppet, {
+                  kind: "ally_hero",
+                }))
+                ? marionetteRanged || mageReady
+                  ? "heal-target"
+                  : "targetable"
                 : ""
             }`}
             onClick={onYourHero}

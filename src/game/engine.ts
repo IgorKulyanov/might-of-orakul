@@ -5291,7 +5291,52 @@ export type MarionetteTarget =
   | { kind: "ally_unit"; slot: number }
   | { kind: "ally_hero" };
 
-/** Марионетка: кукла врага бьёт выбранную цель (или лечит союзника атакой), затем спит. */
+/** Дальник / маг / арбитр — гибкая марионетка; остальное ближний бой. */
+export function marionetteIsRanged(
+  cardId: string,
+  host?: CreatureInstance | null,
+): boolean {
+  const pat = patternOf(cardId);
+  return (
+    pat === "ranged" ||
+    pat === "aoe_all" ||
+    pat === "cleave3" ||
+    hasAbility(cardId, "mage_flex", host) ||
+    hasAbility(cardId, "arbiter_flex", host)
+  );
+}
+
+/** Допустима ли цель для уже выбранной куклы. */
+export function marionetteTargetOk(
+  state: BattleState,
+  puppetSlot: number,
+  target: MarionetteTarget,
+): boolean {
+  const puppet = state.enemy.slots[puppetSlot];
+  if (!puppet) return false;
+  const ranged = marionetteIsRanged(puppet.cardId, puppet);
+  if (target.kind === "enemy_unit") {
+    if (!state.enemy.slots[target.slot]) return false;
+    if (target.slot === puppetSlot) return false;
+    if (!ranged && Math.abs(target.slot - puppetSlot) !== 1) return false;
+    return true;
+  }
+  if (target.kind === "enemy_hero") {
+    // Ближник бьёт «на тебя», не своего героя
+    return ranged;
+  }
+  if (target.kind === "ally_hero") {
+    // Дальник лечит; ближник бьёт твоего оракула
+    return true;
+  }
+  // ally_unit
+  if (!state.you.slots[target.slot]) return false;
+  // Дальник лечит любого; ближник бьёт напротив (тот же индекс) или любого твоего
+  if (ranged) return true;
+  return true;
+}
+
+/** Марионетка: кукла врага бьёт цель (или дальник лечит твоего), затем спит. */
 export function playMarionette(
   state: BattleState,
   handIndex: number,
@@ -5332,39 +5377,15 @@ export function playMarionette(
     return next;
   }
 
-  const pat = patternOf(puppet.cardId);
-  const isRanged =
-    pat === "ranged" ||
-    pat === "aoe_all" ||
-    pat === "cleave3" ||
-    hasAbility(puppet.cardId, "mage_flex", puppet) ||
-    hasAbility(puppet.cardId, "arbiter_flex", puppet);
-  const isMelee = !isRanged;
+  const isRanged = marionetteIsRanged(puppet.cardId, puppet);
 
-  if (isMelee) {
-    if (target.kind !== "enemy_unit") {
-      next.log = [
-        "Ближник-марионетка: кликни соседа слева или справа",
-        ...next.log,
-      ].slice(0, 10);
-      return next;
-    }
-    if (Math.abs(target.slot - puppetSlot) !== 1) {
-      next.log = [
-        "Ближник бьёт только соседа слева/справа",
-        ...next.log,
-      ].slice(0, 10);
-      return next;
-    }
-    if (!foe.slots[target.slot]) {
-      next.log = ["Пустой слот — некого бить", ...next.log].slice(0, 10);
-      return next;
-    }
-  } else if (
-    target.kind === "enemy_unit" &&
-    !foe.slots[target.slot]
-  ) {
-    next.log = ["Пустой слот — некого бить", ...next.log].slice(0, 10);
+  if (!marionetteTargetOk(next, puppetSlot, target)) {
+    next.log = [
+      isRanged
+        ? "Марионетка: кликни врага, героя врага или своего (лечение)"
+        : "Ближник-марионетка: сосед врага слева/справа, или удар по твоему существу/оракулу",
+      ...next.log,
+    ].slice(0, 10);
     return next;
   }
 
@@ -5389,30 +5410,37 @@ export function playMarionette(
       removeIfDead(foe, i, next.log, next);
     }
   } else if (target.kind === "ally_hero") {
-    if (isMelee) {
-      next.log = ["Ближник не лечит — только удар по соседу", ...next.log].slice(
-        0,
-        10,
-      );
-      // откат маны/карты упрощённо не делаем — уже оплатили; не должны сюда попасть из UI
-    } else {
+    if (isRanged) {
       me.hp = Math.min(me.maxHp, me.hp + dmg);
       next.log = [
         `Марионетка ${getCard(puppet.cardId).name}: сила ${dmg} лечит твоего оракула`,
         ...next.log,
       ].slice(0, 10);
+    } else {
+      me.hp -= dmg;
+      next.log = [
+        `Марионетка ${getCard(puppet.cardId).name} бьёт твоего оракула на ${dmg}`,
+        ...next.log,
+      ].slice(0, 10);
     }
   } else {
-    const ally = me.slots[target.slot];
-    if (!ally || isMelee) {
-      next.log = ["Нет цели для помощи", ...next.log].slice(0, 10);
-    } else {
+    const ally = me.slots[target.slot]!;
+    if (isRanged) {
       const base = effectiveBase(ally);
       ally.health = Math.min(base.hp, ally.health + dmg);
       next.log = [
         `Марионетка ${getCard(puppet.cardId).name}: +${dmg} HP союзнику ${getCard(ally.cardId).name}`,
         ...next.log,
       ].slice(0, 10);
+    } else {
+      const dealt = dealToCreature(ally, dmg, next.log, me.slots);
+      next.log = [
+        `Марионетка ${getCard(puppet.cardId).name} бьёт твоего ${getCard(ally.cardId).name} на ${dealt}`,
+        ...next.log,
+      ].slice(0, 10);
+      for (let i = 0; i < me.slots.length; i++) {
+        removeIfDead(me, i, next.log, next);
+      }
     }
   }
 
