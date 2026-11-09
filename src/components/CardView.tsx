@@ -128,7 +128,7 @@ export function CardView({
       key: "poison",
       icon: "🧪",
       label: `яд ${poisonAmt}`,
-      title: `Яд: сейчас −${poisonAmt} HP в начале хода, затем сильнее (+1)`,
+      title: `Яд: в начале хода жертвы сначала HP к базе, затем −${poisonAmt}, потом сильнее (+1)`,
       tone: "curse",
     });
   }

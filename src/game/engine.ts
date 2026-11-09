@@ -215,9 +215,9 @@ function syncBoardAuras(p: PlayerState, log: string[]): void {
 }
 
 /**
- * Конец хода: ATK к базе (затем снова вешаем «slow»), HP к базе без яда.
- * Яд и hold_wound (ответка) сохраняют раны. hold_wound снимается после одного резета —
- * рана доживает до хода врага, к следующему ресету уже можно восстановиться.
+ * Конец хода: ATK/HP к базе (затем снова вешаем «slow»).
+ * Яд НЕ фиксирует боевые раны — сначала полный откат HP, потом tickPoison.
+ * hold_wound (только ответка) держит рану через один резет, до хода врага.
  * Замедление само по себе здесь НЕ снимаем — иначе «Замедлить врага»
  * сгорает до хода жертвы. Срок: expireSlow у владельца после его хода.
  */
@@ -231,16 +231,13 @@ function restoreSurvivors(p: PlayerState): void {
     }
     const base = effectiveBase(s);
     s.attack = base.atk;
-    const poisoned = s.statuses.some((st) => st.type === "poison");
     const holdWound = s.statuses.some((st) => st.type === "hold_wound");
-    if (!poisoned && !holdWound) {
-      s.health = base.hp;
-    } else {
-      // яд / ответка держат раны, но не выше текущей базы
-      s.health = Math.min(s.health, base.hp);
-    }
     if (holdWound) {
+      // Ответка: рана доживает до хода врага
+      s.health = Math.min(s.health, base.hp);
       s.statuses = s.statuses.filter((st) => st.type !== "hold_wound");
+    } else {
+      s.health = base.hp;
     }
     for (const st of s.statuses) {
       if (st.type === "slow") {
@@ -265,10 +262,8 @@ function expireSlow(p: PlayerState): void {
 }
 
 /**
- * Яд в начале хода владельца: −N HP, затем сила яда +1 к следующему тику
- * (1 → 2 → 3…). Свежий яд (только что повесили) первый тик пропускает —
- * иначе «яд + удар в тот же ход» съедает дважды. При 0 HP — смерть.
- * Несколько стаков суммируются в один.
+ * Яд после отката HP к базе: −N от полного здоровья, затем сила +1
+ * (1 → 2 → 3…). При 0 HP — смерть. Несколько стаков суммируются в один.
  */
 function tickPoison(
   p: PlayerState,
@@ -282,19 +277,6 @@ function tickPoison(
     if (!poison.length) continue;
     const dmg = poison.reduce((sum, st) => sum + st.amount, 0);
     const steady = poison.every((st) => st.steady);
-    const fresh = poison.some((st) => st.fresh);
-    if (fresh) {
-      s.statuses = s.statuses.filter((st) => st.type !== "poison");
-      s.statuses.push({
-        type: "poison",
-        amount: dmg,
-        ...(steady ? { steady: true } : {}),
-      });
-      log.unshift(
-        `${getCard(s.cardId).name}: яд впитывается (−${dmg} со следующего хода)`,
-      );
-      continue;
-    }
     s.health -= dmg;
     if (s.health <= 0) {
       log.unshift(`${getCard(s.cardId).name} погибает от яда (−${dmg})`);
@@ -327,12 +309,10 @@ function applyPoisonStatus(
   amount: number,
   opts?: { steady?: boolean },
 ): void {
-  const had = unit.statuses.some((st) => st.type === "poison");
   unit.statuses.push({
     type: "poison",
     amount,
     ...(opts?.steady ? { steady: true } : {}),
-    ...(!had ? { fresh: true } : {}),
   });
 }
 
@@ -421,8 +401,6 @@ function dealToCreature(
       `🛡 Щит: ${raw} → ${dealt} урона по ${getCard(def.cardId).name}`,
     );
   }
-  // Рана доживает до следующего резета хода (враг начинает ход уже битый).
-  if (dealt > 0 && def.health > 0) markHoldWound(def);
   return dealt;
 }
 
@@ -979,6 +957,7 @@ function tryRiposte(
   log.unshift(
     `${getCard(victim.cardId).name}: ответный выстрел по ${getCard(atk.cardId).name} на ${dmg} → ${Math.max(0, atk.health)} HP`,
   );
+  if (atk.health > 0) markHoldWound(atk);
   for (let i = 0; i < attackerOwner.slots.length; i++) {
     removeIfDead(attackerOwner, i, log, state);
   }
@@ -1011,8 +990,7 @@ function resolveHitVictim(
  * Ближний бой: бьёт только атакующий (инициатива хода).
  * Убил — цели нет, ответки нет. Выжила — ответит уже в свой ход
  * (кроме ability riposte — ответ сразу).
- * Урон копится и через hold_wound доживает до хода жертвы; на следующем
- * резете (конец её хода) выжившие без яда возвращаются к базе.
+ * Боевой урон в пределах хода; к старту хода жертвы HP к базе, потом яд.
  */
 function meleeStrike(
   attackerOwner: PlayerState,
@@ -1092,7 +1070,7 @@ function applyOnHitExtras(
       applyPoisonStatus(def, 1);
     }
     log.unshift(
-      `${getCard(def.cardId).name}: яд скорпикоры (−1 со след. хода, растёт)`,
+      `${getCard(def.cardId).name}: яд скорпикоры (−1 в начале хода, растёт)`,
     );
   }
   if (def && def.health > 0 && hasAbility(atk.cardId, "spider_poison", atk)) {
@@ -1100,7 +1078,7 @@ function applyOnHitExtras(
       applyPoisonStatus(def, 1, { steady: true });
     }
     log.unshift(
-      `${getCard(def.cardId).name}: яд паука (−1 со след. хода, пока не снимут)`,
+      `${getCard(def.cardId).name}: яд паука (−1 в начале хода, пока не снимут)`,
     );
   }
   if (def && def.health > 0 && hasAbility(atk.cardId, "basilisk_gaze", atk)) {
@@ -1348,7 +1326,7 @@ function applySpellEffects(
           });
         }
         log.unshift(
-          `${caster.name}: ${getCard(u.cardId).name} отравлен (−${eff.amount} со след. хода, затем растёт)`,
+          `${caster.name}: ${getCard(u.cardId).name} отравлен (−${eff.amount} после отката HP в свой ход, затем растёт)`,
         );
         break;
       }
@@ -3514,15 +3492,15 @@ export function endPlayerTurn(state: BattleState): BattleState {
   if (next.you.revealEnemyHandTurns > 0) next.you.revealEnemyHandTurns -= 1;
   clearEchoSpells(next);
   pruneLingering(next);
-  // Сначала яд у того, чей ход начинается — пока ещё висят раны (1 HP + яд = смерть)
-  tickPoison(next.enemy, next.log, next);
   // Твои slow уже отыграли твой ход; у врага slow должен дожить до его атак
   expireSlow(next.you);
+  // Сначала полный откат HP (даже с ядом), потом тик яда от базы
   restoreSurvivors(next.you);
   restoreSurvivors(next.enemy);
+  tickPoison(next.enemy, next.log, next);
   pruneLingering(next);
   next.log = [
-    "Конец хода: ATK к базе; HP без яда восстановлены",
+    "Конец хода: ATK/HP к базе, затем яд у того, чей ход",
     ...next.log,
   ].slice(0, 10);
   next.active = "enemy";
@@ -3557,10 +3535,11 @@ export function endEnemyTurn(state: BattleState): BattleState {
   if (next.enemy.revealEnemyHandTurns > 0) next.enemy.revealEnemyHandTurns -= 1;
   // Эхо врага НЕ снимаем здесь — игрок должен видеть серые карты весь свой ход
   pruneLingering(next);
-  tickPoison(next.you, next.log, next);
   expireSlow(next.enemy);
+  // Сначала полный откат HP, потом яд у того, чей ход начинается
   restoreSurvivors(next.you);
   restoreSurvivors(next.enemy);
+  tickPoison(next.you, next.log, next);
   pruneLingering(next);
   next.active = "you";
   next.turn += 1;

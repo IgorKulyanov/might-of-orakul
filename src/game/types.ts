@@ -257,8 +257,6 @@ export type StatusEffect = {
   amount: number;
   /** Яд без эскалации (паук): каждый ход фиксированный −amount. */
   steady?: boolean;
-  /** Яд только что повесили — первый тик пропускаем (не «съедает» в тот же переход). */
-  fresh?: boolean;
 };
 
 export interface CreatureInstance {

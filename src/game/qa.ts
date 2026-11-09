@@ -926,7 +926,40 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
     return null;
   });
 
-  assert("combat damage persists into enemy turn", () => {
+  assert("combat damage resets then poison ticks from full", () => {
+    let s = createBattle(
+      ["poison", "elf", "skeleton", "zombie"],
+      ["tank", "skeleton", "zombie", "hero_mana"],
+      "hero_death",
+      "hero_hell",
+      "QA",
+      5,
+      5,
+    );
+    s.you.mana = { ...s.you.mana, death: 10, nature: 10 };
+    s.enemy.slots[0] = dummy("tank", "t1", 10);
+    s.enemy.slots[0]!.health = 10;
+    s.enemy.slots[0]!.baseHealth = 10;
+    s.you.slots[0] = arm(dummy("elf", "e1", 3));
+    s.you.slots[0]!.attack = 5;
+    s = playCard(s, s.you.hand.indexOf("poison"), 0);
+    s = attackWith(s, 0, 0);
+    if ((s.enemy.slots[0]?.health ?? 0) !== 5) {
+      return `после удара HP ${s.enemy.slots[0]?.health}, ждали 5`;
+    }
+    s = endPlayerTurn(s);
+    // Откат 10, затем яд −1 → 9
+    if ((s.enemy.slots[0]?.health ?? 0) !== 9) {
+      return `к ходу врага HP ${s.enemy.slots[0]?.health}, ждали 9 (10−1 яд)`;
+    }
+    const pAmt = s.enemy.slots[0]!.statuses
+      .filter((st) => st.type === "poison")
+      .reduce((n, st) => n + st.amount, 0);
+    if (pAmt !== 2) return `сила яда ${pAmt}, ждали 2 после тика`;
+    return null;
+  });
+
+  assert("unpoisoned combat damage fully restores at turn end", () => {
     let s = boardForCreatures();
     s.you.slots[0] = arm(dummy("tank", "t1", 5));
     s.you.slots[0]!.attack = 5;
@@ -938,53 +971,8 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
       return `после удара HP ${s.enemy.slots[0]?.health}, ждали 5`;
     }
     s = endPlayerTurn(s);
-    if ((s.enemy.slots[0]?.health ?? 0) !== 5) {
-      return `к ходу врага HP сбросились: ${s.enemy.slots[0]?.health}, ждали 5`;
-    }
-    s = endEnemyTurn(s);
     if ((s.enemy.slots[0]?.health ?? 0) !== 10) {
-      return `после хода врага должны восстановиться: ${s.enemy.slots[0]?.health}`;
-    }
-    return null;
-  });
-
-  assert("fresh poison skips first tick after apply+hit", () => {
-    let s = createBattle(
-      ["poison", "elf", "skeleton", "zombie"],
-      ["tank", "skeleton", "zombie", "hero_mana"],
-      "hero_death",
-      "hero_hell",
-      "QA",
-      5,
-      5,
-    );
-    s.you.mana = { ...s.you.mana, death: 10, nature: 10 };
-    s.enemy.slots[0] = dummy("tank", "t1", 5);
-    s.enemy.slots[0]!.health = 5;
-    s.you.slots[0] = arm(dummy("elf", "e1", 3));
-    s.you.slots[0]!.attack = 2;
-    s = playCard(s, s.you.hand.indexOf("poison"), 0);
-    s = attackWith(s, 0, 0);
-    if ((s.enemy.slots[0]?.health ?? 0) !== 3) {
-      return `после удара HP ${s.enemy.slots[0]?.health}, ждали 3`;
-    }
-    s = endPlayerTurn(s);
-    // Свежий яд не тикает в этот переход — остаются 3 HP и яд −1 на потом
-    if ((s.enemy.slots[0]?.health ?? 0) !== 3) {
-      return `после конца хода HP ${s.enemy.slots[0]?.health}, ждали 3 (без тика)`;
-    }
-    const pAmt = s.enemy.slots[0]!.statuses
-      .filter((st) => st.type === "poison")
-      .reduce((n, st) => n + st.amount, 0);
-    if (pAmt !== 1) return `сила яда ${pAmt}, ждали 1`;
-    if (s.enemy.slots[0]!.statuses.some((st) => st.fresh)) {
-      return "fresh не снят после пропуска тика";
-    }
-    // Ещё один полный круг → тик яда на старте хода врага
-    s = endEnemyTurn(s);
-    s = endPlayerTurn(s);
-    if ((s.enemy.slots[0]?.health ?? 0) !== 2) {
-      return `после первого тика HP ${s.enemy.slots[0]?.health}, ждали 2`;
+      return `без яда к ходу врага должны быть 10, есть ${s.enemy.slots[0]?.health}`;
     }
     return null;
   });
