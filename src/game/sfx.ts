@@ -514,30 +514,21 @@ async function crossfadeTo(
 ): Promise<void> {
   const toBattle = next === "battle";
   if (toBattle) {
-    if (battleWanted && !menuWanted) {
-      ensureMusicUnlockHook();
-      tryPlayEl(getBattleEl(), true, pauseBattleMusicHard);
-      return;
-    }
     menuWanted = false;
     battleWanted = true;
   } else {
-    if (menuWanted && !battleWanted) {
-      ensureMusicUnlockHook();
-      tryPlayEl(getMenuEl(), true, pauseMenuMusicHard);
-      return;
-    }
     battleWanted = false;
     menuWanted = true;
   }
 
-  ensureMusicUnlockHook();
+  // Mute: только запоминаем желаемый трек, play запрещён.
   if (musicMuted) {
     pauseMenuMusicHard();
     pauseBattleMusicHard();
     return;
   }
 
+  ensureMusicUnlockHook();
   const incoming = toBattle ? getBattleEl() : getMenuEl();
   const outgoing = toBattle ? menuEl : battleEl;
   if (!incoming) return;

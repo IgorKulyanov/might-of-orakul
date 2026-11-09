@@ -105,11 +105,6 @@ export function SplashMenu({
   }, []);
 
   useEffect(() => {
-    unlockSfx();
-    void startMenuMusic();
-  }, []);
-
-  useEffect(() => {
     if (!settingsOpen) return;
     const onDoc = (e: PointerEvent) => {
       const el = settingsRef.current;

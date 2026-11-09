@@ -486,7 +486,7 @@ export default function App() {
     };
   }, [boot, token, screen]);
 
-  // Подготовка треков; старт только если музыку уже включили в меню (mute по умолчанию).
+  // Музыку не автозапускаем: тихий вход. Боевой трек — только если уже включили в ⚙.
   useEffect(() => {
     if (boot) return;
     const inBattle =
@@ -496,23 +496,9 @@ export default function App() {
       screen === "battle_arena" ||
       screen === "battle_pvp" ||
       screen === "battle_dev";
-    if (inBattle) {
-      unlockSfx();
-      void startBattleMusic();
-      return;
-    }
     unlockSfx();
-    void startMenuMusic();
-    const kick = () => {
-      unlockSfx();
-      void startMenuMusic();
-    };
-    window.addEventListener("pointerdown", kick, { passive: true });
-    window.addEventListener("keydown", kick);
-    return () => {
-      window.removeEventListener("pointerdown", kick);
-      window.removeEventListener("keydown", kick);
-    };
+    if (inBattle) void startBattleMusic();
+    else void startMenuMusic(); // при mute только помечает «меню», play нет
   }, [boot, screen]);
 
   useEffect(() => {
@@ -720,9 +706,7 @@ export default function App() {
   const onAuthed = (t: string, u: ApiUser) => {
     setSession(t, u);
     setToken(t);
-    // Логин = жест пользователя → сразу запускаем музыку меню
     unlockSfx();
-    void startMenuMusic();
     void (async () => {
       const flagged = await applyServerAdminFlags(t, u, setCampaign);
       setUser(flagged);

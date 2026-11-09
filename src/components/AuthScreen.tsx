@@ -9,7 +9,7 @@ import {
 import { alog } from "../game/actionLog";
 import { USER_AGREEMENT_URL } from "../game/legal";
 import { getLastLogin, setLastLogin } from "../game/session";
-import { startMenuMusic, unlockSfx } from "../game/sfx";
+import { unlockSfx } from "../game/sfx";
 
 type Props = {
   onAuthed: (token: string, user: ApiUser) => void;
@@ -90,7 +90,6 @@ export function AuthScreen({
     setBusy(true);
     try {
       unlockSfx();
-      void startMenuMusic();
       const id = identity.trim();
 
       if (mode === "verify") {
@@ -178,7 +177,6 @@ export function AuthScreen({
     setBusy(true);
     try {
       unlockSfx();
-      void startMenuMusic();
       const id = identity.trim();
       if (!id.includes("@")) {
         setError("Для восстановления укажи почту в поле выше.");
@@ -212,7 +210,6 @@ export function AuthScreen({
       className="auth-screen"
       onPointerDown={() => {
         unlockSfx();
-        void startMenuMusic();
       }}
     >
       <div className="auth-card">
