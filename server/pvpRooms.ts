@@ -35,6 +35,9 @@ type SeatPlayer = {
   deck: string[];
   level: number;
   ready: boolean;
+  /** false = сокет умер (свернул вкладку), место держим для reclaim. */
+  online: boolean;
+  disconnectedAt: number | null;
 };
 
 type Room = {
@@ -60,7 +63,22 @@ const KNOWN_CARDS = new Set(Object.keys(CARD_MAP));
 const MAX_ROOMS = 200;
 const MAX_MSG_BYTES = 120_000;
 const ROOM_TTL_MS = 2 * 60 * 60 * 1000;
+/** Сколько держим место в лобби после обрыва (Telegram / сворачивание). */
+const LOBBY_RECONNECT_MS = 5 * 60 * 1000;
 const TURN_MS = PVP_TURN_SEC * 1000;
+
+function makeSeat(
+  partial: Omit<SeatPlayer, "online" | "disconnectedAt" | "ready"> & {
+    ready?: boolean;
+  },
+): SeatPlayer {
+  return {
+    ...partial,
+    ready: Boolean(partial.ready),
+    online: true,
+    disconnectedAt: null,
+  };
+}
 
 type QueueEntry = SeatPlayer & { queuedAt: number };
 
@@ -130,7 +148,7 @@ function pairIntoRoom(a: QueueEntry, b: QueueEntry): Room | null {
   }
   const room = getOrCreate(code);
   if (!room) return null;
-  const host: SeatPlayer = {
+  room.host = makeSeat({
     ws: a.ws,
     userId: a.userId,
     name: a.name,
@@ -138,8 +156,8 @@ function pairIntoRoom(a: QueueEntry, b: QueueEntry): Room | null {
     deck: a.deck,
     level: a.level,
     ready: true,
-  };
-  const guest: SeatPlayer = {
+  });
+  room.guest = makeSeat({
     ws: b.ws,
     userId: b.userId,
     name: b.name,
@@ -147,9 +165,7 @@ function pairIntoRoom(a: QueueEntry, b: QueueEntry): Room | null {
     deck: b.deck,
     level: b.level,
     ready: true,
-  };
-  room.host = host;
-  room.guest = guest;
+  });
   room.battle = null;
   room.timeouts = { host: 0, guest: 0 };
   room.endReason = null;
@@ -210,12 +226,33 @@ function lobbyPayload(room: Room, seat: PvpSeat): PvpServerMsg {
     guestName: room.guest?.name ?? null,
     hostReady: Boolean(room.host?.ready),
     guestReady: Boolean(room.guest?.ready),
+    hostOnline: seatOnline(room.host),
+    guestOnline: seatOnline(room.guest),
   };
 }
 
 function broadcastLobby(room: Room) {
-  if (room.host) send(room.host.ws, lobbyPayload(room, "host"));
-  if (room.guest) send(room.guest.ws, lobbyPayload(room, "guest"));
+  if (room.host?.online && isWsOpen(room.host.ws)) {
+    send(room.host.ws, lobbyPayload(room, "host"));
+  }
+  if (room.guest?.online && isWsOpen(room.guest.ws)) {
+    send(room.guest.ws, lobbyPayload(room, "guest"));
+  }
+}
+
+function seatOnline(p: SeatPlayer | null): boolean {
+  return Boolean(p && p.online && isWsOpen(p.ws));
+}
+
+/** Обрыв в лобби: место и код комнаты сохраняем — игрок часто уходит в Telegram. */
+function softDisconnectLobby(room: Room, seat: PvpSeat, ws: WebSocket) {
+  const me = seat === "host" ? room.host : room.guest;
+  if (!me || me.ws !== ws) return;
+  me.online = false;
+  me.ready = false;
+  me.disconnectedAt = Date.now();
+  bindSocketRoom(ws, null);
+  broadcastLobby(room);
 }
 
 /** Если таймер reveal потерялся — не держим стол вечно (без рекурсии broadcast). */
@@ -523,8 +560,8 @@ function detach(
   if (!room.battle) {
     if (room.host) room.host.ready = false;
     if (room.guest) room.guest.ready = false;
-    if (peer) {
-      send(peer.ws, {
+    if (seatOnline(peer)) {
+      send(peer!.ws, {
         type: "peer_left",
         message: "Соперник вышел из комнаты",
       });
@@ -586,10 +623,27 @@ function validateDeck(
 function gcRooms() {
   const now = Date.now();
   for (const [code, room] of rooms) {
-    const alive =
-      (room.host && room.host.ws.readyState === room.host.ws.OPEN) ||
-      (room.guest && room.guest.ws.readyState === room.guest.ws.OPEN);
-    if (!alive && now - room.createdAt > 60_000) {
+    // Просроченный офлайн в лобби → окончательно освобождаем место
+    if (!room.battle) {
+      for (const seat of ["host", "guest"] as const) {
+        const p = seat === "host" ? room.host : room.guest;
+        if (
+          p &&
+          !p.online &&
+          p.disconnectedAt != null &&
+          now - p.disconnectedAt > LOBBY_RECONNECT_MS
+        ) {
+          detach(room, seat, "disconnect");
+        }
+      }
+      if (!rooms.has(code)) continue;
+    }
+
+    const alive = seatOnline(room.host) || seatOnline(room.guest);
+    const waitingReconnect =
+      (!room.battle && room.host && !room.host.online) ||
+      (!room.battle && room.guest && !room.guest.online);
+    if (!alive && !waitingReconnect && now - room.createdAt > 60_000) {
       clearTurnTimer(room);
       rooms.delete(code);
       continue;
@@ -601,7 +655,7 @@ function gcRooms() {
   }
 }
 
-setInterval(gcRooms, 60_000).unref?.();
+setInterval(gcRooms, 15_000).unref?.();
 
 export function getPvpLiveStats(): {
   rooms: number;
@@ -680,10 +734,22 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
       const code = socketRoom.get(ws) ?? null;
       if (!code) return;
       const room = rooms.get(code);
-      bindSocketRoom(ws, null);
-      if (!room) return;
+      if (!room) {
+        bindSocketRoom(ws, null);
+        return;
+      }
       const seat = seatOf(room, ws);
-      if (seat) detach(room, seat, reason);
+      if (!seat) {
+        bindSocketRoom(ws, null);
+        return;
+      }
+      // В лобби при обрыве сети — не сносим комнату (код другу ещё нужен).
+      if (reason === "disconnect" && !room.battle) {
+        softDisconnectLobby(room, seat, ws);
+        return;
+      }
+      bindSocketRoom(ws, null);
+      detach(room, seat, reason);
     };
 
     ws.on("message", (raw) => {
@@ -870,7 +936,7 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           room.endReason = null;
         }
 
-        const player: SeatPlayer = {
+        const player = makeSeat({
           ws,
           userId: user.id,
           name,
@@ -878,24 +944,30 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           deck: deckCheck.deck,
           level: Math.max(1, Math.min(50, Math.floor(Number(msg.level) || 1))),
           ready: false,
-        };
+        });
 
-        if (
-          room.host &&
-          room.host.userId === user.id &&
-          room.host.ws.readyState !== ws.OPEN
-        ) {
-          room.host = player;
-        } else if (!room.host) {
-          room.host = player;
-        } else if (!room.guest) {
-          if (room.host.userId === user.id) {
+        // Вернулся после сворачивания — забираем своё место по userId.
+        if (room.host && room.host.userId === user.id) {
+          if (seatOnline(room.host) && room.host.ws !== ws) {
             send(ws, {
               type: "error",
               message: "Ты уже хост этой комнаты (нужен другой аккаунт)",
             });
             return;
           }
+          room.host = player;
+        } else if (room.guest && room.guest.userId === user.id) {
+          if (seatOnline(room.guest) && room.guest.ws !== ws) {
+            send(ws, {
+              type: "error",
+              message: "Ты уже в этой комнате с другого окна",
+            });
+            return;
+          }
+          room.guest = player;
+        } else if (!room.host) {
+          room.host = player;
+        } else if (!room.guest) {
           room.guest = player;
         } else {
           send(ws, { type: "error", message: "Комната заполнена" });

@@ -65,8 +65,13 @@ export function MultiMenu({
     guestName: string | null;
     hostReady: boolean;
     guestReady: boolean;
+    hostOnline: boolean;
+    guestOnline: boolean;
   } | null>(null);
   const socketRef = useRef<PvpSocket | null>(null);
+  const lobbyRef = useRef(lobby);
+  lobbyRef.current = lobby;
+  const reconnectingRef = useRef(false);
   const startedRef = useRef(false);
   const searchPulse = useRef(0);
   const [, setTick] = useState(0);
@@ -122,6 +127,7 @@ export function MultiMenu({
     }
     if (msg.type === "lobby") {
       clearLobbyWait();
+      reconnectingRef.current = false;
       setSearching(null);
       setLobby({
         code: msg.code,
@@ -130,6 +136,8 @@ export function MultiMenu({
         guestName: msg.guestName,
         hostReady: msg.hostReady,
         guestReady: msg.guestReady,
+        hostOnline: msg.hostOnline !== false,
+        guestOnline: msg.guestOnline !== false,
       });
       setBusy(false);
       setBusyHint(null);
@@ -177,14 +185,6 @@ export function MultiMenu({
     }
   };
 
-  const ensureSocket = async (token: string) => {
-    socketRef.current?.leave();
-    const sock = new PvpSocket();
-    socketRef.current = sock;
-    await sock.connect(token, handleMsg);
-    return sock;
-  };
-
   const pvpDeck = () => {
     const clean = deck.filter((id) => {
       try {
@@ -206,6 +206,93 @@ export function MultiMenu({
       return false;
     }
   };
+
+  const rejoinLobby = async () => {
+    const cur = lobbyRef.current;
+    const token = getToken();
+    if (!cur || !token || startedRef.current) return;
+    if (reconnectingRef.current) return;
+    reconnectingRef.current = true;
+    setMessage("Связь пропала — возвращаем в комнату…");
+    setBusy(true);
+    setBusyHint("Переподключение…");
+    try {
+      const liveDeck = pvpDeck();
+      if (liveDeck.length < 4) {
+        setMessage("Собери колоду в кабинете (минимум 4 карты)");
+        reconnectingRef.current = false;
+        setBusy(false);
+        setBusyHint(null);
+        return;
+      }
+      const sock = await ensureSocket(token, { silentReplace: true });
+      sock.join({
+        mode: "join",
+        code: cur.code,
+        token,
+        heroId,
+        deck: liveDeck,
+        name: displayName,
+        level: playerLevel,
+      });
+      clearLobbyWait();
+      lobbyWaitRef.current = window.setTimeout(() => {
+        reconnectingRef.current = false;
+        setBusy(false);
+        setBusyHint(null);
+        setMessage(
+          "Не удалось вернуться в комнату. Зайди по коду ещё раз или создай новую.",
+        );
+      }, 18_000);
+    } catch (err) {
+      reconnectingRef.current = false;
+      setBusy(false);
+      setBusyHint(null);
+      setMessage(err instanceof Error ? err.message : "Нет связи");
+    }
+  };
+
+  const ensureSocket = async (
+    token: string,
+    opts?: { silentReplace?: boolean },
+  ) => {
+    socketRef.current?.setDropHandler(null);
+    socketRef.current?.leave(
+      opts?.silentReplace ? { silent: true } : undefined,
+    );
+    const sock = new PvpSocket();
+    socketRef.current = sock;
+    sock.setDropHandler(() => {
+      if (startedRef.current) {
+        setMessage("Связь оборвалась. Обнови страницу.");
+        return;
+      }
+      if (lobbyRef.current) {
+        void rejoinLobby();
+        return;
+      }
+      setMessage("Связь оборвалась. Обнови страницу.");
+      setSearching(null);
+      setBusy(false);
+    });
+    await sock.connect(token, handleMsg);
+    return sock;
+  };
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState !== "visible") return;
+      if (!lobbyRef.current || startedRef.current) return;
+      if (socketRef.current?.connected) return;
+      void rejoinLobby();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onVis);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onVis);
+    };
+  }, [heroId, displayName, playerLevel, deck]);
 
   const findOpponent = async () => {
     const token = getToken();
@@ -324,11 +411,16 @@ export function MultiMenu({
   };
 
   const leaveLobby = () => {
+    reconnectingRef.current = false;
+    clearLobbyWait();
+    socketRef.current?.setDropHandler(null);
     socketRef.current?.leave();
     socketRef.current = null;
     setLobby(null);
     setMessage(null);
     setSearching(null);
+    setBusy(false);
+    setBusyHint(null);
     startedRef.current = false;
   };
 
@@ -351,6 +443,8 @@ export function MultiMenu({
       lobby.youAre === "host" ? lobby.hostReady : lobby.guestReady;
     const peerReady =
       lobby.youAre === "host" ? lobby.guestReady : lobby.hostReady;
+    const peerOnline =
+      lobby.youAre === "host" ? lobby.guestOnline : lobby.hostOnline;
 
     return (
       <div className="multi-screen" aria-label="Комната PvP">
@@ -363,7 +457,7 @@ export function MultiMenu({
         </header>
         <div className="multi-panel">
           <p className="hint" style={{ textAlign: "center", marginBottom: 0 }}>
-            Код комнаты — скажи другу:
+            Код комнаты — кинь другу в Telegram:
           </p>
           <p className="multi-room-code" aria-label="Код комнаты">
             {lobby.code}
@@ -373,7 +467,7 @@ export function MultiMenu({
             className="ghost"
             onClick={() => {
               void navigator.clipboard?.writeText(lobby.code).then(
-                () => setMessage("Код скопирован"),
+                () => setMessage("Код скопирован — можно свернуть игру"),
                 () => setMessage(`Код: ${lobby.code}`),
               );
             }}
@@ -383,7 +477,8 @@ export function MultiMenu({
           <p className="hint">
             Ты —{" "}
             <strong>{lobby.youAre === "host" ? "хост" : "гость"}</strong>.
-            Когда оба нажмут «Готов» — начнётся бой.
+            Можно свернуть и отправить код — комната не пропадёт. Когда оба
+            нажмут «Готов» — начнётся бой.
           </p>
           <div className="multi-lobby-status">
             <div>
@@ -396,23 +491,32 @@ export function MultiMenu({
               <em>Соперник</em>
               <strong>
                 {peerName
-                  ? `${peerName} ${peerReady ? "· готов" : "· в комнате"}`
+                  ? `${peerName} ${
+                      !peerOnline
+                        ? "· офлайн…"
+                        : peerReady
+                          ? "· готов"
+                          : "· в комнате"
+                    }`
                   : "ещё нет…"}
               </strong>
             </div>
           </div>
           {message && <p className="hint">{message}</p>}
+          {busyHint && <p className="multi-busy-hint">{busyHint}</p>}
           <button
             type="button"
             className="primary large"
-            disabled={youReady || !peerName}
+            disabled={youReady || !peerName || !peerOnline || busy}
             onClick={readyUp}
           >
             {!peerName
               ? "Ждём соперника…"
-              : youReady
-                ? "Ждём готовности…"
-                : "Готов!"}
+              : !peerOnline
+                ? "Соперник офлайн…"
+                : youReady
+                  ? "Ждём готовности…"
+                  : "Готов!"}
           </button>
           <button type="button" className="ghost large" onClick={onFightBot}>
             Вместо этого — бой с ботом

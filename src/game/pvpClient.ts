@@ -41,11 +41,17 @@ export type PvpQueuePayload = {
 export class PvpSocket {
   private ws: WebSocket | null = null;
   private onMsg: ((m: PvpServerMsg) => void) | null = null;
+  private onDrop: (() => void) | null = null;
   private closedByUser = false;
   private token: string | null = null;
 
   setHandler(onMessage: (m: PvpServerMsg) => void) {
     this.onMsg = onMessage;
+  }
+
+  /** Обрыв не по leave() — лобби может само переподключиться. */
+  setDropHandler(onDrop: (() => void) | null) {
+    this.onDrop = onDrop;
   }
 
   /** token кладём и в query — на части сетей тело первого пакета теряется. */
@@ -117,6 +123,10 @@ export class PvpSocket {
       ws.onclose = () => {
         if (this.ws === ws) this.ws = null;
         if (this.closedByUser || !settled) return;
+        if (this.onDrop) {
+          this.onDrop();
+          return;
+        }
         this.onMsg?.({
           type: "error",
           message: "Связь оборвалась. Обнови страницу.",
@@ -152,19 +162,30 @@ export class PvpSocket {
     this.send({ type: "ready" });
   }
 
-  leave() {
+  /**
+   * @param silent — только закрыть сокет (reconnect в лобби).
+   * Иначе серверу уходит leave и комната снимается.
+   */
+  leave(opts?: { silent?: boolean }) {
     this.closedByUser = true;
+    this.onDrop = null;
+    if (!opts?.silent) {
+      try {
+        this.send({ type: "cancel_queue" });
+      } catch {
+        /* ignore */
+      }
+      try {
+        this.send({ type: "leave" });
+      } catch {
+        /* ignore */
+      }
+    }
     try {
-      this.send({ type: "cancel_queue" });
+      this.ws?.close();
     } catch {
       /* ignore */
     }
-    try {
-      this.send({ type: "leave" });
-    } catch {
-      /* ignore */
-    }
-    this.ws?.close();
     this.ws = null;
   }
 

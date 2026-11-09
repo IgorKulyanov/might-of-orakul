@@ -145,6 +145,9 @@ export type PvpServerMsg =
       guestName: string | null;
       hostReady: boolean;
       guestReady: boolean;
+      /** false = свернул вкладку / Telegram, комната ещё жива */
+      hostOnline?: boolean;
+      guestOnline?: boolean;
     }
   | {
       type: "battle";
