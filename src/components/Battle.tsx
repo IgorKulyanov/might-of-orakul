@@ -209,9 +209,15 @@ function BattleMissile({
       };
     };
 
-    const fromEl = board.querySelector(
-      `[data-board-drop="${fromSide}:${fromSlot ?? 2}"]`,
-    );
+    // Заклинание без fromSlot — из оракула кастера, не из случайного слота 2.
+    const fromEl =
+      fromSlot != null
+        ? board.querySelector(`[data-board-drop="${fromSide}:${fromSlot}"]`)
+        : board.querySelector(
+            fromSide === "you"
+              ? ".you-oracle-bar .oracle-block"
+              : ".enemy-oracle-bar .oracle-block",
+          );
     const toSide = fromSide === "you" ? "enemy" : "you";
     const targetSlot = hitSlots?.[0] ?? toSlot;
     const toEl = hitHero
@@ -220,13 +226,13 @@ function BattleMissile({
             ? ".enemy-oracle-bar .oracle-block"
             : ".you-oracle-bar .oracle-block",
         )
-      : board.querySelector(
-          `[data-board-drop="${toSide}:${targetSlot ?? 2}"]`,
-        );
+      : targetSlot != null
+        ? board.querySelector(`[data-board-drop="${toSide}:${targetSlot}"]`)
+        : null;
 
     const from = mid(fromEl) ?? {
-      x: boardRect.width * (0.12 + (fromSlot ?? 2) * 0.19),
-      y: fromSide === "you" ? boardRect.height * 0.78 : boardRect.height * 0.22,
+      x: boardRect.width * (fromSlot != null ? 0.12 + fromSlot * 0.19 : 0.5),
+      y: fromSide === "you" ? boardRect.height * 0.92 : boardRect.height * 0.08,
     };
     const to = mid(toEl) ?? {
       x: boardRect.width * (0.12 + (targetSlot ?? 2) * 0.19),
@@ -872,7 +878,10 @@ export function Battle({
       (nextFx.kind === "lunge" &&
         (nextFx.motion === "ranged" || nextFx.motion === "bolt")) ||
       (nextFx.kind === "spell" &&
-        (nextFx.vfx === "poison" || nextFx.vfx === "magic"));
+        (nextFx.vfx === "poison" || nextFx.vfx === "magic") &&
+        (!!nextFx.hitHero ||
+          nextFx.toSlot != null ||
+          (Array.isArray(nextFx.hitSlots) && nextFx.hitSlots.length > 0)));
     setFx(nextFx);
     playActionSfx(nextFx, before);
     const apply = () => {
@@ -2050,7 +2059,10 @@ export function Battle({
           (stepFx.kind === "lunge" &&
             (stepFx.motion === "ranged" || stepFx.motion === "bolt")) ||
           (stepFx.kind === "spell" &&
-            (stepFx.vfx === "poison" || stepFx.vfx === "magic"));
+            (stepFx.vfx === "poison" || stepFx.vfx === "magic") &&
+            (!!stepFx.hitHero ||
+              stepFx.toSlot != null ||
+              (Array.isArray(stepFx.hitSlots) && stepFx.hitSlots.length > 0)));
         // Удар в оракула / спелл чуть дольше — чтобы было ясно, отчего урон.
         const hold = isSpellCard
           ? 2200
@@ -2191,8 +2203,15 @@ export function Battle({
     const motion = fx.motion ?? "melee";
     const flyAttack =
       fx.kind === "lunge" && (motion === "ranged" || motion === "bolt");
+    const hasSpellAim =
+      !!fx.hitHero ||
+      fx.toSlot != null ||
+      (Array.isArray(fx.hitSlots) && fx.hitSlots.length > 0);
+    // Без цели (мана, доп. карта, баффы) снаряд не летит — только карта каста.
     const flySpell =
-      fx.kind === "spell" && (fx.vfx === "poison" || fx.vfx === "magic");
+      fx.kind === "spell" &&
+      hasSpellAim &&
+      (fx.vfx === "poison" || fx.vfx === "magic");
     if (!flyAttack && !flySpell) return null;
     if (fx.kind === "spell") return fx.vfx === "poison" ? "poison" : "magic";
     return motion === "bolt" ? "bolt" : "arrow";

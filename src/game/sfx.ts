@@ -14,8 +14,8 @@ const SFX_VOL_KEY = "orakul-sfx-vol";
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 let sfxMuted = loadFlag(SFX_MUTE_KEY);
-/** Музыка: только на сессию (каждый заход — выкл., пока сам не включишь). */
-let musicMuted = true;
+/** Музыка: только на сессию (каждый заход — снова вкл., пока сам не выключишь). */
+let musicMuted = false;
 let musicVolume = loadNum(MUSIC_VOL_KEY, 0.7);
 /** По умолчанию звуки наполовину; дальше — что сохранил игрок. */
 let sfxVolume = loadNum(SFX_VOL_KEY, 0.5);

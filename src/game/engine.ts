@@ -3414,6 +3414,30 @@ export function attackMotionFor(cardId: string): BattleFxMotion {
   return "melee";
 }
 
+/** Летит снаряд только у яда / удара по врагу — не у «доп. карты», маны и т.п. */
+function spellProjectileVfx(
+  effects: SpellEffect[],
+): "poison" | "magic" | undefined {
+  if (effects.some((e) => e.type === "poison" || e.type === "poison_all")) {
+    return "poison";
+  }
+  const need = spellNeedsTarget(effects);
+  if (need === "enemy") return "magic";
+  if (
+    effects.some(
+      (e) =>
+        e.type === "damage_hero" ||
+        e.type === "damage_all_enemies" ||
+        e.type === "damage_undead" ||
+        e.type === "damage_unit" ||
+        e.type === "banish_unit",
+    )
+  ) {
+    return "magic";
+  }
+  return undefined;
+}
+
 /** Дополнить FX по cardId (motion / school / poison). */
 export function normalizeBattleFx(fx: BattleFx): BattleFx {
   const next: BattleFx = { ...fx };
@@ -3427,16 +3451,8 @@ export function normalizeBattleFx(fx: BattleFx): BattleFx {
         next.school = card.school;
       }
       if (!next.vfx) {
-        const effects = card.spellEffects ?? [];
-        if (
-          effects.some(
-            (e) => e.type === "poison" || e.type === "poison_all",
-          )
-        ) {
-          next.vfx = "poison";
-        } else {
-          next.vfx = "magic";
-        }
+        const vfx = spellProjectileVfx(card.spellEffects ?? []);
+        if (vfx) next.vfx = vfx;
       }
     } catch {
       /* ignore */
