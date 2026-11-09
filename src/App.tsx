@@ -566,18 +566,31 @@ export default function App() {
             }
           }
         }
-      } catch {
-        // Релоад / сервер лежит / сеть: не выкидывать на логин, если есть кэш.
-        const cached = getCachedUser();
-        if (!cancelled) {
-          if (cached) {
-            setToken(existing);
-            setUser(cached);
-            setOwned(loadOwned());
-          } else {
+      } catch (e) {
+        const status =
+          e && typeof e === "object" && "status" in e
+            ? Number((e as { status?: number }).status)
+            : 0;
+        // Мёртвый токен: кэш рисовал «как будто вошёл», а в комнату PvP не пускало.
+        if (status === 401 || status === 403) {
+          if (!cancelled) {
             clearSession();
             setToken(null);
             setUser(null);
+          }
+        } else {
+          // Сеть/сервер лежит — оставляем кэш только для одиночки.
+          const cached = getCachedUser();
+          if (!cancelled) {
+            if (cached) {
+              setToken(existing);
+              setUser(cached);
+              setOwned(loadOwned());
+            } else {
+              clearSession();
+              setToken(null);
+              setUser(null);
+            }
           }
         }
       } finally {

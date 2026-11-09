@@ -245,8 +245,16 @@ export function MultiMenu({
     try {
       await apiMe(token);
       return true;
-    } catch {
-      setMessage("Сессия устарела — выйди и войди в аккаунт снова");
+    } catch (e) {
+      const status =
+        e && typeof e === "object" && "status" in e
+          ? Number((e as { status?: number }).status)
+          : 0;
+      setMessage(
+        status === 401 || status === 403
+          ? "Ты не на сервере — нажми «Выйти» и войди заново (иначе в комнату не пустит)"
+          : "Нет связи с сервером — проверь интернет/VPN и зайди ещё раз",
+      );
       return false;
     }
   };

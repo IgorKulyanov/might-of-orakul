@@ -121,9 +121,11 @@ async function request<T>(
       if (!res.ok) {
         const err = new Error(data.error || `Ошибка ${res.status}`) as Error & {
           code?: string;
+          status?: number;
           email?: string;
           login?: string;
         };
+        err.status = res.status;
         if (data.code) err.code = data.code;
         if ("email" in data && data.email) err.email = String(data.email);
         if ("login" in data && (data as { login?: string }).login) {
