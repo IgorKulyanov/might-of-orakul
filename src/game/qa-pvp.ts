@@ -433,39 +433,30 @@ export function pvpDuelAll(fails: QaFail[], ok: string[]): void {
       }
       s = fillMana(r.host);
     }
-    // Танк 2 ATK, скелет 3 HP — мили бьёт только напротив, добиваем на втором цикле
-    {
+    // Танк ~3 ATK, скелет ~8 HP — несколько циклов ударов напротив
+    for (let wave = 0; wave < 5 && s.enemy.slots[0]; wave++) {
       const r = act(s, "host", { kind: "attack", fromSlot: 0, target: 0 });
       if (r.error) {
-        fail(`удар по скелету: ${r.error}`);
+        fail(`удар по скелету #${wave + 1}: ${r.error}`);
         return;
       }
       s = r.host;
-    }
-    if (s.enemy.slots[0]) {
+      if (!s.enemy.slots[0]) break;
       {
-        const r = act(s, "host", { kind: "endTurn" });
-        if (r.error) {
-          fail(`хост пас после удара: ${r.error}`);
+        const end = act(s, "host", { kind: "endTurn" });
+        if (end.error) {
+          fail(`хост пас после удара #${wave + 1}: ${end.error}`);
           return;
         }
-        s = fillMana(r.host);
+        s = fillMana(end.host);
       }
       {
-        const r = act(s, "guest", { kind: "endTurn" });
-        if (r.error) {
-          fail(`гость пас без атаки: ${r.error}`);
+        const end = act(s, "guest", { kind: "endTurn" });
+        if (end.error) {
+          fail(`гость пас #${wave + 1}: ${end.error}`);
           return;
         }
-        s = fillMana(r.host);
-      }
-      {
-        const r = act(s, "host", { kind: "attack", fromSlot: 0, target: 0 });
-        if (r.error) {
-          fail(`добивающий удар: ${r.error}`);
-          return;
-        }
-        s = r.host;
+        s = fillMana(end.host);
       }
     }
     if (s.enemy.slots[0]) {

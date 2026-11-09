@@ -36,8 +36,8 @@
       "manaCost": {
         "life": 2
       },
-      "attack": 3,
-      "health": 4,
+      "attack": 5,
+      "health": 12,
       "attackPattern": "melee_lane3",
       "text": "Бьёт 1 из 3: напротив, слева или справа.",
       "rarity": "common",
@@ -56,8 +56,8 @@
       "manaCost": {
         "life": 2
       },
-      "attack": 2,
-      "health": 5,
+      "attack": 3,
+      "health": 14,
       "attackPattern": "ranged",
       "ability": "riposte",
       "text": "Стрелок. Когда по нему бьёт существо и он выжил — сразу отвечает своей атакой.",
@@ -77,10 +77,10 @@
       "manaCost": {
         "life": 2
       },
-      "attack": 2,
-      "health": 8,
+      "attack": 3,
+      "health": 28,
       "attackPattern": "melee",
-      "text": "Много жизней, мало атаки. Держит линию.",
+      "text": "Много жизней, мало атаки. Держит линию (~28 HP).",
       "rarity": "common",
       "premium": false,
       "art": "жизнь/танк.jpg",
@@ -97,10 +97,10 @@
       "manaCost": {
         "life": 3
       },
-      "attack": 4,
-      "health": 8,
+      "attack": 8,
+      "health": 22,
       "attackPattern": "melee_lane3",
-      "text": "Бьёт 1 из 3 (напротив/лево/право). Каждый свой ход −1 HP безвозвратно.",
+      "text": "Бьёт 1 из 3 (напротив/лево/право). Каждый свой ход −2 HP безвозвратно.",
       "rarity": "rare",
       "premium": false,
       "art": "жизнь/берсерк.jpg",
@@ -119,10 +119,10 @@
         "life": 3,
         "nature": 1
       },
-      "attack": 3,
-      "health": 6,
+      "attack": 4,
+      "health": 16,
       "attackPattern": "ranged",
-      "text": "Действие: удар любому ИЛИ навсегда +1 HP союзнику либо оракулу.",
+      "text": "Действие: удар любому ИЛИ навсегда +3 HP союзнику либо оракулу.",
       "rarity": "rare",
       "premium": false,
       "art": "жизнь/маг.jpg",
@@ -141,8 +141,8 @@
         "life": 4,
         "nature": 1
       },
-      "attack": 4,
-      "health": 8,
+      "attack": 7,
+      "health": 22,
       "attackPattern": "ranged",
       "text": "Бьёт любого ИЛИ перемещается на свободный свой слот.",
       "rarity": "epic",
@@ -163,10 +163,10 @@
         "life": 3,
         "water": 1
       },
-      "attack": 3,
-      "health": 8,
+      "attack": 5,
+      "health": 20,
       "attackPattern": "melee",
-      "text": "Действие: союзник навсегда +1/+1 (или удар).",
+      "text": "Действие: союзник навсегда +2/+2 (или удар).",
       "rarity": "rare",
       "premium": false,
       "art": "жизнь/ангел.jpg",
@@ -184,8 +184,8 @@
       "manaCost": {
         "life": 3
       },
-      "attack": 3,
-      "health": 10,
+      "attack": 4,
+      "health": 26,
       "attackPattern": "melee",
       "text": "Бьёт напротив. Вместо удара может дать союзнику щит (−50% урона на 2 хода).",
       "rarity": "rare",
@@ -206,8 +206,8 @@
         "life": 4,
         "water": 3
       },
-      "attack": 3,
-      "health": 27,
+      "attack": 5,
+      "health": 70,
       "attackPattern": "melee",
       "text": "Титан-танк. Невосприимчив к заклинаниям. Призыв: щит (−50% урона) всей армии на 2 хода.",
       "rarity": "legendary",
@@ -228,10 +228,10 @@
       "manaCost": {
         "death": 1
       },
-      "attack": 2,
-      "health": 3,
+      "attack": 3,
+      "health": 8,
       "attackPattern": "melee",
-      "text": "Стая: 2-й скелет даёт всем +1/+1, каждый следующий ещё +1/+1.",
+      "text": "Стая: 2-й скелет даёт всем +2/+2, каждый следующий ещё +2/+2.",
       "rarity": "common",
       "premium": false,
       "art": "смерть/skeleton.jpg",
@@ -249,10 +249,10 @@
       "manaCost": {
         "death": 2
       },
-      "attack": 2,
-      "health": 4,
+      "attack": 6,
+      "health": 16,
       "attackPattern": "melee",
-      "text": "Укус: навсегда +1/+1. Копится.",
+      "text": "Укус: восстанавливает 5 HP за удар, не выше своего максимума (16).",
       "rarity": "common",
       "premium": false,
       "art": "смерть/vampire.jpg",
@@ -270,8 +270,8 @@
       "manaCost": {
         "death": 3
       },
-      "attack": 4,
-      "health": 4,
+      "attack": 9,
+      "health": 12,
       "attackPattern": "melee",
       "text": "Зверь линии: высокий урон, мало жизней.",
       "rarity": "rare",
@@ -290,8 +290,8 @@
       "manaCost": {
         "death": 2
       },
-      "attack": 3,
-      "health": 6,
+      "attack": 4,
+      "health": 16,
       "attackPattern": "melee",
       "text": "Бьёт напротив. Вместо удара: выбери существо из грейва (последние 5) и верни в пустой слот.",
       "rarity": "rare",
@@ -312,7 +312,7 @@
         "death": 2
       },
       "attack": 3,
-      "health": 5,
+      "health": 15,
       "attackPattern": "melee",
       "text": "Медленный, но живучий мертвец.",
       "rarity": "common",
@@ -332,8 +332,8 @@
         "death": 3,
         "hell": 1
       },
-      "attack": 6,
-      "health": 4,
+      "attack": 10,
+      "health": 14,
       "attackPattern": "melee",
       "text": "Смерть+ад: быстрый удар 4/2.",
       "rarity": "rare",
@@ -352,8 +352,8 @@
       "manaCost": {
         "water": 3
       },
-      "attack": 3,
-      "health": 10,
+      "attack": 4,
+      "health": 28,
       "attackPattern": "melee",
       "text": "Водный танк.",
       "rarity": "common",
@@ -372,8 +372,8 @@
       "manaCost": {
         "water": 2
       },
-      "attack": 3,
-      "health": 4,
+      "attack": 5,
+      "health": 12,
       "attackPattern": "ranged",
       "text": "Лёгкий дух: бьёт любую цель.",
       "rarity": "common",
@@ -393,8 +393,8 @@
         "water": 3,
         "nature": 1
       },
-      "attack": 4,
-      "health": 8,
+      "attack": 7,
+      "health": 22,
       "attackPattern": "melee",
       "text": "Стихия глубин.",
       "rarity": "rare",
@@ -413,8 +413,8 @@
       "manaCost": {
         "water": 3
       },
-      "attack": 3,
-      "health": 6,
+      "attack": 5,
+      "health": 16,
       "attackPattern": "melee",
       "text": "Удар напротив ИЛИ призвать Акулита в свободный слот.",
       "rarity": "rare",
@@ -434,8 +434,8 @@
       "manaCost": {
         "water": 1
       },
-      "attack": 2,
-      "health": 3,
+      "attack": 3,
+      "health": 8,
       "attackPattern": "melee",
       "text": "Rush: атака сразу. Может ударить напротив или сменить слот.",
       "rarity": "common",
@@ -459,10 +459,10 @@
         "water": 4,
         "death": 1
       },
-      "attack": 6,
-      "health": 11,
+      "attack": 9,
+      "health": 30,
       "attackPattern": "melee",
-      "text": "Волшебник глубин. Пока на поле: все водные союзники +1 HP.",
+      "text": "Волшебник глубин. Пока на поле: все водные союзники +3 HP.",
       "rarity": "epic",
       "premium": true,
       "art": "вода/водяной.jpg",
@@ -482,8 +482,8 @@
         "nature": 2,
         "death": 1
       },
-      "attack": 2,
-      "health": 20,
+      "attack": 4,
+      "health": 55,
       "attackPattern": "aoe_all",
       "text": "Бьёт ВСЕХ вражеских существ на 1. Очень много HP.",
       "rarity": "legendary",
@@ -503,8 +503,8 @@
       "manaCost": {
         "hell": 2
       },
-      "attack": 3,
-      "health": 4,
+      "attack": 5,
+      "health": 12,
       "attackPattern": "melee",
       "text": "Быстрый ящер ада.",
       "rarity": "common",
@@ -523,8 +523,8 @@
       "manaCost": {
         "hell": 2
       },
-      "attack": 4,
-      "health": 3,
+      "attack": 8,
+      "health": 8,
       "attackPattern": "ranged",
       "text": "Харкает огнём: любая цель.",
       "rarity": "common",
@@ -544,8 +544,8 @@
         "hell": 3,
         "nature": 1
       },
-      "attack": 4,
-      "health": 8,
+      "attack": 7,
+      "health": 22,
       "attackPattern": "melee",
       "text": "Горячий танк 3/4.",
       "rarity": "rare",
@@ -565,8 +565,8 @@
         "hell": 4,
         "nature": 2
       },
-      "attack": 7,
-      "health": 8,
+      "attack": 12,
+      "health": 24,
       "attackPattern": "cleave3",
       "text": "Дыхание: цель + соседи.",
       "rarity": "epic",
@@ -586,8 +586,8 @@
       "manaCost": {
         "hell": 3
       },
-      "attack": 2,
-      "health": 8,
+      "attack": 3,
+      "health": 26,
       "attackPattern": "lane_cleave3",
       "text": "Слабо, но кусает всех троих: напротив, слева и справа.",
       "rarity": "rare",
@@ -606,10 +606,10 @@
       "manaCost": {
         "hell": 2
       },
-      "attack": 3,
-      "health": 4,
+      "attack": 5,
+      "health": 12,
       "attackPattern": "melee",
-      "text": "Бьёт напротив. При любой атаке дополнительно −1 HP герою врага.",
+      "text": "Бьёт напротив. При любой атаке дополнительно −3 HP герою врага.",
       "rarity": "common",
       "premium": false,
       "art": "ад/имп.jpg",
@@ -629,8 +629,8 @@
         "death": 2,
         "nature": 1
       },
-      "attack": 7,
-      "health": 11,
+      "attack": 12,
+      "health": 32,
       "attackPattern": "ranged",
       "text": "Легенда ада. Бьёт любого одного. Невосприимчив к заклинаниям ада и смерти.",
       "rarity": "legendary",
@@ -650,8 +650,8 @@
       "manaCost": {
         "hell": 2
       },
-      "attack": 3,
-      "health": 4,
+      "attack": 5,
+      "health": 12,
       "attackPattern": "melee",
       "text": "Rush: может ударить напротив сразу в ход появления.",
       "rarity": "common",
@@ -671,8 +671,8 @@
       "manaCost": {
         "nature": 2
       },
-      "attack": 3,
-      "health": 4,
+      "attack": 5,
+      "health": 12,
       "attackPattern": "ranged",
       "text": "Стреляет в кого угодно.",
       "rarity": "common",
@@ -691,8 +691,8 @@
       "manaCost": {
         "nature": 1
       },
-      "attack": 2,
-      "health": 4,
+      "attack": 3,
+      "health": 10,
       "attackPattern": "melee",
       "text": "Бьёт напротив. При ударе по существу — постоянный яд: каждый ход −1 HP, пока не вылечат.",
       "rarity": "common",
@@ -712,10 +712,10 @@
       "manaCost": {
         "nature": 1
       },
-      "attack": 2,
-      "health": 3,
+      "attack": 3,
+      "health": 8,
       "attackPattern": "melee",
-      "text": "Бьёт напротив. Рой: каждый дополнительный шершень (воины и матка) даёт всем шершням +1 атаки.",
+      "text": "Бьёт напротив. Рой: каждый дополнительный шершень (воины и матка) даёт всем шершням +2 атаки.",
       "rarity": "common",
       "premium": false,
       "art": "природа/шершень_воин.jpg",
@@ -733,10 +733,10 @@
       "manaCost": {
         "nature": 2
       },
-      "attack": 1,
-      "health": 4,
+      "attack": 2,
+      "health": 12,
       "attackPattern": "melee",
-      "text": "Пока на поле: в начале твоего хода герой +1 HP (каждый леприкон отдельно).",
+      "text": "Пока на поле: в начале твоего хода герой +3 HP (каждый леприкон отдельно).",
       "rarity": "rare",
       "premium": false,
       "art": "природа/леприкон.jpg",
@@ -755,8 +755,8 @@
         "nature": 3,
         "life": 1
       },
-      "attack": 3,
-      "health": 11,
+      "attack": 4,
+      "health": 32,
       "attackPattern": "melee",
       "text": "Древесный колосс.",
       "rarity": "rare",
@@ -776,8 +776,8 @@
         "nature": 3,
         "life": 1
       },
-      "attack": 4,
-      "health": 8,
+      "attack": 7,
+      "health": 22,
       "attackPattern": "melee_lane3",
       "text": "Бьёт напротив / слева / справа. При ударе по существу — окаменение на следующий ход (не атакует).",
       "rarity": "rare",
@@ -800,8 +800,8 @@
         "nature": 3,
         "life": 1
       },
-      "attack": 3,
-      "health": 10,
+      "attack": 5,
+      "health": 26,
       "attackPattern": "melee",
       "text": "Бьёт напротив. Яд (−1/ход). Вместо удара может создать Шершня-воина. В рое с воинами: каждый доп. шершень даёт всем +1 атаки (и матке тоже).",
       "rarity": "rare",
@@ -825,8 +825,8 @@
       "manaCost": {
         "nature": 3
       },
-      "attack": 4,
-      "health": 6,
+      "attack": 8,
+      "health": 16,
       "attackPattern": "melee",
       "text": "Сбалансированный боец 3/3.",
       "rarity": "common",
@@ -846,8 +846,8 @@
         "nature": 4,
         "life": 1
       },
-      "attack": 4,
-      "health": 13,
+      "attack": 7,
+      "health": 36,
       "attackPattern": "melee",
       "text": "Удар напротив ИЛИ действие: навсегда меняет местами атаку и здоровье выбранного союзника или врага.",
       "rarity": "epic",
@@ -869,8 +869,8 @@
         "life": 2,
         "water": 1
       },
-      "attack": 4,
-      "health": 10,
+      "attack": 7,
+      "health": 28,
       "attackPattern": "melee",
       "text": "Призыв: герой +2 HP.",
       "rarity": "legendary",
@@ -893,8 +893,8 @@
         "hell": 2,
         "nature": 1
       },
-      "attack": 7,
-      "health": 11,
+      "attack": 12,
+      "health": 32,
       "attackPattern": "cleave3",
       "text": "Нейтрал: смерть+ад+природа. Бьёт цель и соседей.",
       "rarity": "legendary",
@@ -915,8 +915,8 @@
         "life": 2,
         "hell": 1
       },
-      "attack": 4,
-      "health": 6,
+      "attack": 8,
+      "health": 16,
       "attackPattern": "melee",
       "text": "Нейтрал: жизнь+ад. Золотая виверна — универсальный боец.",
       "rarity": "rare",
@@ -936,10 +936,10 @@
         "life": 1,
         "hell": 1
       },
-      "attack": 3,
-      "health": 3,
+      "attack": 5,
+      "health": 8,
       "attackPattern": "melee",
-      "text": "Нейтрал: жизнь+ад. Дешёвый ударник 3/3.",
+      "text": "Нейтрал: жизнь+ад. Дешёвый ударник 5/8.",
       "rarity": "common",
       "premium": false,
       "art": "нетральные существа/новобранец.jpg",
@@ -956,14 +956,14 @@
       "manaCost": {
         "death": 2
       },
-      "text": "Отравить врага: в начале его хода −1 HP, потом −2, −3… (растёт каждый ход). Карта висит у колоды, пока яд действует; когда спадёт или цель умрёт — уходит в сброс.",
+      "text": "Отравляет вражеское существо: −2 HP в начале его хода, затем сильнее (+1).",
       "rarity": "common",
       "premium": false,
       "art": "заклинания/poison.jpg",
       "spellEffects": [
         {
           "type": "poison",
-          "amount": 1
+          "amount": 2
         }
       ],
       "priceGold": 43,
@@ -981,14 +981,14 @@
       "manaCost": {
         "hell": 1
       },
-      "text": "3 урона герою врага.",
+      "text": "6 урона вражескому герою.",
       "rarity": "common",
       "premium": false,
       "art": "заклинания/strike.jpg",
       "spellEffects": [
         {
           "type": "damage_hero",
-          "amount": 3
+          "amount": 6
         }
       ],
       "priceGold": 43,
@@ -1003,14 +1003,14 @@
       "manaCost": {
         "death": 2
       },
-      "text": "4 урона всей нежити на поле.",
+      "text": "10 урона всей нежити на поле.",
       "rarity": "common",
       "premium": false,
       "art": "заклинания/undead_strike.jpg",
       "spellEffects": [
         {
           "type": "damage_undead",
-          "amount": 4
+          "amount": 10
         }
       ],
       "priceGold": 43,
@@ -1025,15 +1025,15 @@
       "manaCost": {
         "death": 2
       },
-      "text": "Своя нежить навсегда +1/+1 (только школа смерти).",
+      "text": "Вся нежить на поле навсегда +3/+3.",
       "rarity": "rare",
       "premium": false,
       "art": "заклинания/undead_bonus.jpg",
       "spellEffects": [
         {
           "type": "buff_permanent",
-          "attack": 1,
-          "health": 1,
+          "attack": 3,
+          "health": 3,
           "onlySchool": "death"
         }
       ],
@@ -1049,14 +1049,14 @@
       "manaCost": {
         "nature": 3
       },
-      "text": "3 урона всем вражеским существам.",
+      "text": "6 урона всем вражеским существам.",
       "rarity": "rare",
       "premium": false,
       "art": "заклинания/swamp.jpg",
       "spellEffects": [
         {
           "type": "damage_all_enemies",
-          "amount": 3
+          "amount": 6
         }
       ],
       "priceGold": 136,
@@ -1113,14 +1113,14 @@
       "manaCost": {
         "hell": 3
       },
-      "text": "3 урона всем вражеским существам.",
+      "text": "6 урона всем вражеским существам.",
       "rarity": "rare",
       "premium": false,
       "art": "заклинания/аура огня.jpg",
       "spellEffects": [
         {
           "type": "damage_all_enemies",
-          "amount": 3
+          "amount": 6
         }
       ],
       "priceGold": 136,
@@ -1158,14 +1158,14 @@
         "death": 3,
         "hell": 1
       },
-      "text": "4 урона вражескому герою + добор 1 карты.",
+      "text": "8 урона вражескому герою + добор 1 карты.",
       "rarity": "epic",
       "premium": true,
       "art": "заклинания/захват разума.jpg",
       "spellEffects": [
         {
           "type": "damage_hero",
-          "amount": 4
+          "amount": 8
         },
         {
           "type": "draw",
@@ -1184,14 +1184,14 @@
       "manaCost": {
         "life": 2
       },
-      "text": "Лечит героя на 5.",
+      "text": "Лечит героя на 12.",
       "rarity": "common",
       "premium": false,
       "art": "заклинания/корень жизни.jpg",
       "spellEffects": [
         {
           "type": "heal_hero",
-          "amount": 5
+          "amount": 12
         }
       ],
       "priceGold": 43,
@@ -1206,14 +1206,14 @@
       "manaCost": {
         "water": 2
       },
-      "text": "4 урона одному вражескому существу.",
+      "text": "10 урона одному вражескому существу.",
       "rarity": "common",
       "premium": false,
       "art": "заклинания/ледяная ловушка.jpg",
       "spellEffects": [
         {
           "type": "damage_unit",
-          "amount": 4
+          "amount": 10
         }
       ],
       "priceGold": 43,
@@ -1228,14 +1228,14 @@
       "manaCost": {
         "water": 3
       },
-      "text": "3 урона всем вражеским существам.",
+      "text": "6 урона всем вражеским существам.",
       "rarity": "rare",
       "premium": false,
       "art": "заклинания/наслать волну.jpg",
       "spellEffects": [
         {
           "type": "damage_all_enemies",
-          "amount": 3
+          "amount": 6
         }
       ],
       "priceGold": 136,
@@ -1250,14 +1250,14 @@
       "manaCost": {
         "nature": 3
       },
-      "text": "3 урона всем вражеским существам.",
+      "text": "6 урона всем вражеским существам.",
       "rarity": "rare",
       "premium": false,
       "art": "заклинания/туча стрел.jpg",
       "spellEffects": [
         {
           "type": "damage_all_enemies",
-          "amount": 3
+          "amount": 6
         }
       ],
       "priceGold": 136,
@@ -1298,8 +1298,8 @@
         "water": 3,
         "life": 1
       },
-      "attack": 3,
-      "health": 8,
+      "attack": 5,
+      "health": 20,
       "attackPattern": "melee",
       "text": "Удар напротив ИЛИ усыпить врага-воина на 1 ход (не действует на женщин: валькирия, сукуб, русалка…).",
       "rarity": "rare",
@@ -1320,8 +1320,8 @@
         "hell": 3,
         "death": 1
       },
-      "attack": 4,
-      "health": 6,
+      "attack": 7,
+      "health": 18,
       "attackPattern": "melee",
       "text": "Бьёт напротив. Мужчины не могут её бить (только женщины или магия). ИЛИ усыпить любую мужскую карту на 1 ход.",
       "rarity": "epic",
@@ -1403,14 +1403,14 @@
       "manaCost": {
         "hell": 2
       },
-      "text": "Все твои существа на поле получают +1 атаки до конца хода.",
+      "text": "Все ваши существа +3 атаки до конца хода.",
       "rarity": "common",
       "premium": false,
       "art": "заклинания/в атаку.jpg",
       "spellEffects": [
         {
           "type": "buff_army_attack",
-          "amount": 1
+          "amount": 3
         }
       ],
       "priceGold": 136,
@@ -1427,8 +1427,8 @@
         "death": 1,
         "nature": 1
       },
-      "attack": 4,
-      "health": 8,
+      "attack": 7,
+      "health": 22,
       "attackPattern": "melee",
       "text": "Удар напротив ИЛИ поменять местами две карты соперника на поле.",
       "rarity": "epic",
@@ -1449,8 +1449,8 @@
         "death": 2,
         "nature": 1
       },
-      "attack": 3,
-      "health": 6,
+      "attack": 5,
+      "health": 16,
       "attackPattern": "ranged",
       "text": "Удар по любой цели (существо или герой). При ударе по существу — яд (−1, потом растёт каждый ход), пока не вылечат или не убьют.",
       "rarity": "rare",
@@ -1471,8 +1471,8 @@
         "life": 2,
         "hell": 1
       },
-      "attack": 4,
-      "health": 6,
+      "attack": 7,
+      "health": 16,
       "attackPattern": "melee",
       "text": "Бьёт напротив.",
       "rarity": "rare",
@@ -1492,8 +1492,8 @@
         "death": 3,
         "nature": 1
       },
-      "attack": 3,
-      "health": 6,
+      "attack": 5,
+      "health": 16,
       "attackPattern": "melee",
       "text": "Удар напротив ИЛИ оглушить любое существо врага на 1 ход (бездействие).",
       "rarity": "rare",
@@ -1517,8 +1517,8 @@
         "hell": 2,
         "nature": 1
       },
-      "attack": 6,
-      "health": 10,
+      "attack": 10,
+      "health": 28,
       "attackPattern": "melee",
       "text": "Бьёт напротив. Невосприимчив к магии смерти.",
       "rarity": "epic",
@@ -1539,8 +1539,8 @@
         "death": 4,
         "hell": 1
       },
-      "attack": 3,
-      "health": 6,
+      "attack": 5,
+      "health": 18,
       "attackPattern": "ranged",
       "text": "Удар по любому существу врага ИЛИ призвать Скелета в пустой свой слот.",
       "rarity": "epic",
@@ -1561,10 +1561,10 @@
         "death": 3,
         "water": 1
       },
-      "attack": 4,
-      "health": 8,
+      "attack": 7,
+      "health": 22,
       "attackPattern": "ranged",
-      "text": "Стреляет в кого угодно. При ударе по существу вытягивает жизнь: +2 HP себе.",
+      "text": "Стреляет в кого угодно. При ударе по существу вытягивает жизнь: +5 HP себе (не выше максимума).",
       "rarity": "epic",
       "premium": false,
       "art": "смерть/лич.jpg",
@@ -1583,8 +1583,8 @@
         "hell": 2,
         "nature": 1
       },
-      "attack": 3,
-      "health": 4,
+      "attack": 6,
+      "health": 12,
       "attackPattern": "melee",
       "text": "Бьёт напротив. 30% шанс похитить 1 ману врага (случайной фракции).",
       "rarity": "rare",
@@ -1605,8 +1605,8 @@
         "life": 2,
         "water": 2
       },
-      "attack": 4,
-      "health": 11,
+      "attack": 7,
+      "health": 32,
       "attackPattern": "ranged",
       "text": "Бьёт любую карту врага. Вердикт (повторный клик по Арбитру): все существа на поле становятся 1/1, кроме него.",
       "rarity": "epic",
@@ -1955,14 +1955,14 @@
       "manaCost": {
         "death": 4
       },
-      "text": "Яд на всех вражеских существ: −1, потом −2, −3… каждый ход, пока не снимут. Когда спадёт — в сброс (не в руку).",
+      "text": "Отравляет всех вражеских существ: −2 HP в начале хода, затем сильнее (+1).",
       "rarity": "epic",
       "premium": false,
       "art": "заклинания/mass_poison.jpg",
       "spellEffects": [
         {
           "type": "poison_all",
-          "amount": 1
+          "amount": 2
         }
       ],
       "spellLinger": {
@@ -2146,8 +2146,8 @@
         "life": 1,
         "nature": 1
       },
-      "attack": 2,
-      "health": 4,
+      "attack": 3,
+      "health": 10,
       "attackPattern": "ranged",
       "text": "Нейтрал: жизнь+природа. Стреляет в кого угодно.",
       "rarity": "common",

@@ -89,7 +89,7 @@ export function validateBattleCommit(
   for (const side of ["you", "enemy"] as const) {
     for (const u of nextHost[side].slots ?? []) {
       if (!u) continue;
-      if (u.attack > 40 || u.health > 80 || u.baseHealth > 80) {
+      if (u.attack > 80 || u.health > 160 || u.baseHealth > 160) {
         return { ok: false, error: "Подозрительные статы юнита" };
       }
       if (u.attack < 0 || u.health < -5) {

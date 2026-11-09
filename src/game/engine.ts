@@ -126,7 +126,7 @@ function isHornet(
   );
 }
 
-/** Стая скелетов: 1-й = база, 2-й даёт всем +1/+1, 3-й ещё +1 и т.д. */
+/** Стая скелетов: 1-й = база, 2-й даёт всем +2/+2, 3-й ещё +2 и т.д. */
 function syncSkeletonPack(p: PlayerState, log: string[]): void {
   const pack = p.slots
     .map((s, i) => ({ s, i }))
@@ -134,7 +134,7 @@ function syncSkeletonPack(p: PlayerState, log: string[]): void {
       (x): x is { s: CreatureInstance; i: number } =>
         !!x.s && abilityOf(x.s.cardId, x.s) === "skeleton_pack",
     );
-  const bonus = Math.max(0, pack.length - 1);
+  const bonus = Math.max(0, pack.length - 1) * 2;
   if (!pack.length) return;
 
   let changed = false;
@@ -152,7 +152,7 @@ function syncSkeletonPack(p: PlayerState, log: string[]): void {
   }
 }
 
-/** Рой шершней (матка + воины): каждый доп. даёт всем шершням +1 ATK. */
+/** Рой шершней (матка + воины): каждый доп. даёт всем шершням +2 ATK. */
 function syncHornetPack(p: PlayerState, log: string[]): void {
   const pack = p.slots
     .map((s, i) => ({ s, i }))
@@ -161,7 +161,7 @@ function syncHornetPack(p: PlayerState, log: string[]): void {
         !!x.s && isHornet(x.s.cardId, x.s),
     );
   if (!pack.length) return;
-  const bonus = Math.max(0, pack.length - 1);
+  const bonus = Math.max(0, pack.length - 1) * 2;
 
   let changed = false;
   for (const { s } of pack) {
@@ -181,12 +181,12 @@ function syncHornetPack(p: PlayerState, log: string[]): void {
   }
 }
 
-/** Пока на поле water_tide — все водные союзники +1 к макс. и текущему HP. */
+/** Пока на поле water_tide — все водные союзники +3 к макс. и текущему HP. */
 function syncWaterTide(p: PlayerState, log: string[]): void {
   const active = p.slots.some(
     (s) => s && hasAbility(s.cardId, "water_tide", s),
   );
-  const want = active ? 1 : 0;
+  const want = active ? 3 : 0;
   let gained = false;
   let lost = false;
   for (const s of p.slots) {
@@ -204,7 +204,7 @@ function syncWaterTide(p: PlayerState, log: string[]): void {
     if (next > prev) gained = true;
     if (next < prev) lost = true;
   }
-  if (gained) log.unshift(`Прилив: водные существа +1 HP`);
+  if (gained) log.unshift(`Прилив: водные существа +3 HP`);
   if (lost && !active) log.unshift(`Прилив спал`);
 }
 
@@ -765,7 +765,7 @@ function spawnCreature(
   };
 }
 
-/** Вампир: после укуса +1/+1 навсегда, копится. */
+/** Вампир: после укуса лечит 5 HP, не выше своего максимума. */
 function tryVampireGrow(
   owner: PlayerState,
   fromSlot: number,
@@ -773,13 +773,19 @@ function tryVampireGrow(
 ): void {
   const u = owner.slots[fromSlot];
   if (!u || abilityOf(u.cardId, u) !== "vampire_grow") return;
-  u.permAttack += 1;
-  u.permHealth += 1;
-  u.attack += 1;
-  u.health += 1;
-  log.unshift(
-    `${getCard(u.cardId).name}: укус +1/+1 → ${u.attack}/${u.health}`,
-  );
+  const base = effectiveBase(u);
+  const before = u.health;
+  u.health = Math.min(base.hp, u.health + 5);
+  const gained = u.health - before;
+  if (gained > 0) {
+    log.unshift(
+      `${getCard(u.cardId).name}: укус +${gained} HP → ${u.attack}/${u.health}`,
+    );
+  } else {
+    log.unshift(
+      `${getCard(u.cardId).name}: укус — уже полный запас (${u.health} HP)`,
+    );
+  }
 }
 
 function patternOf(cardId: string): AttackPattern {
@@ -1081,15 +1087,15 @@ function applyOnHitExtras(
     tryStealMana(attackerOwner, defenderOwner, log);
   }
   if (hasAbility(atk.cardId, "imp_burn", atk)) {
-    defenderOwner.hp -= 1;
+    defenderOwner.hp -= 3;
     log.unshift(
-      `${getCard(atk.cardId).name}: искры ада −1 герою врага`,
+      `${getCard(atk.cardId).name}: искры ада −3 герою врага`,
     );
   }
   if (def && hasAbility(atk.cardId, "lich_drain", atk)) {
     const base = effectiveBase(atk);
     const before = atk.health;
-    atk.health = Math.min(base.hp, atk.health + 2);
+    atk.health = Math.min(base.hp, atk.health + 5);
     const gained = atk.health - before;
     if (gained > 0) {
       log.unshift(
@@ -2429,14 +2435,14 @@ export function healWithAngel(
     return next;
   }
 
-  target.permAttack += 1;
-  target.permHealth += 1;
-  target.attack += 1;
-  target.health += 1;
+  target.permAttack += 2;
+  target.permHealth += 2;
+  target.attack += 2;
+  target.health += 2;
   healer.canAttack = false;
   next.selectedSlot = null;
   next.log = [
-    `${getCard(healer.cardId).name} благословляет ${getCard(target.cardId).name}: +1/+1 → ${target.attack}/${target.health}`,
+    `${getCard(healer.cardId).name} благословляет ${getCard(target.cardId).name}: +2/+2 → ${target.attack}/${target.health}`,
     ...next.log,
   ].slice(0, 10);
   return next;
@@ -2448,8 +2454,8 @@ export function angelHealReady(state: BattleState, fromSlot: number): boolean {
 }
 
 /**
- * Маг жизни: вместо удара — навсегда +1 HP союзнику или оракулу.
- * toSlot === "hero" → свой оракул (maxHp и hp +1).
+ * Маг жизни: вместо удара — навсегда +3 HP союзнику или оракулу.
+ * toSlot === "hero" → свой оракул (maxHp и hp +3).
  */
 export function buffWithMage(
   state: BattleState,
@@ -2464,12 +2470,12 @@ export function buffWithMage(
   if (abilityOf(mage.cardId, mage) !== "mage_flex") return state;
 
   if (toSlot === "hero") {
-    me.maxHp += 1;
-    me.hp += 1;
+    me.maxHp += 3;
+    me.hp += 3;
     mage.canAttack = false;
     next.selectedSlot = null;
     next.log = [
-      `${getCard(mage.cardId).name} дарует оракулу +1 HP навсегда → ${me.hp}/${me.maxHp}`,
+      `${getCard(mage.cardId).name} дарует оракулу +3 HP навсегда → ${me.hp}/${me.maxHp}`,
       ...next.log,
     ].slice(0, 10);
     return next;
@@ -2484,12 +2490,12 @@ export function buffWithMage(
     return next;
   }
 
-  target.permHealth += 1;
-  target.health += 1;
+  target.permHealth += 3;
+  target.health += 3;
   mage.canAttack = false;
   next.selectedSlot = null;
   next.log = [
-    `${getCard(mage.cardId).name} дарует ${getCard(target.cardId).name} +1 HP навсегда → ${target.attack}/${target.health}`,
+    `${getCard(mage.cardId).name} дарует ${getCard(target.cardId).name} +3 HP навсегда → ${target.attack}/${target.health}`,
     ...next.log,
   ].slice(0, 10);
   return next;
@@ -3329,7 +3335,7 @@ function grantReadyAttack(u: CreatureInstance): boolean {
 function tickLeprechaun(p: PlayerState, log: string[]): void {
   let heal = 0;
   for (const s of p.slots) {
-    if (s && hasAbility(s.cardId, "leprechaun_aura", s)) heal += 1;
+    if (s && hasAbility(s.cardId, "leprechaun_aura", s)) heal += 3;
   }
   if (heal > 0) {
     p.hp = Math.min(p.maxHp, p.hp + heal);
@@ -3345,10 +3351,10 @@ function tickBerserk(
   for (let i = 0; i < p.slots.length; i++) {
     const s = p.slots[i];
     if (!s || !hasAbility(s.cardId, "berserk_decay", s)) continue;
-    s.baseHealth = Math.max(1, s.baseHealth - 1);
-    s.health = Math.max(1, s.health - 1);
+    s.baseHealth = Math.max(1, s.baseHealth - 2);
+    s.health = Math.max(1, s.health - 2);
     log.unshift(
-      `${getCard(s.cardId).name}: ярость −1 HP (база ${s.baseHealth})`,
+      `${getCard(s.cardId).name}: ярость −2 HP (база ${s.baseHealth})`,
     );
     if (s.health <= 0) removeIfDead(p, i, log, state);
   }
@@ -4779,13 +4785,13 @@ export function takeAiStep(
     if (flex.type === "angel_buff") {
       const t = me.slots[flex.toSlot];
       if (!t) return null;
-      t.permAttack += 1;
-      t.permHealth += 1;
-      t.attack += 1;
-      t.health += 1;
+      t.permAttack += 2;
+      t.permHealth += 2;
+      t.attack += 2;
+      t.health += 2;
       atk.canAttack = false;
       next.log.unshift(
-        `Соперник: ${name} +1/+1 на ${getCard(t.cardId).name}`,
+        `Соперник: ${name} +2/+2 на ${getCard(t.cardId).name}`,
       );
       next.log = next.log.slice(0, 10);
       return {
@@ -4802,11 +4808,11 @@ export function takeAiStep(
     if (flex.type === "mage_buff") {
       const t = me.slots[flex.toSlot];
       if (!t) return null;
-      t.permHealth += 1;
-      t.health += 1;
+      t.permHealth += 3;
+      t.health += 3;
       atk.canAttack = false;
       next.log.unshift(
-        `Соперник: ${name} +1 HP на ${getCard(t.cardId).name}`,
+        `Соперник: ${name} +3 HP на ${getCard(t.cardId).name}`,
       );
       next.log = next.log.slice(0, 10);
       return {
@@ -4821,11 +4827,11 @@ export function takeAiStep(
     }
 
     if (flex.type === "mage_oracle") {
-      me.maxHp += 1;
-      me.hp += 1;
+      me.maxHp += 3;
+      me.hp += 3;
       atk.canAttack = false;
       next.log.unshift(
-        `Соперник: ${name} +1 HP оракулу → ${me.hp}/${me.maxHp}`,
+        `Соперник: ${name} +3 HP оракулу → ${me.hp}/${me.maxHp}`,
       );
       next.log = next.log.slice(0, 10);
       return {

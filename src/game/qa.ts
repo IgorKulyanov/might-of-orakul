@@ -569,8 +569,8 @@ function setupSpellBoard(spellId: string): BattleState {
   s.enemy.hand = [unit, unit, unit, unit];
   s.you.slots[0] = dummy(unit, "you-a");
   s.you.slots[1] = dummy(unit, "you-b");
-  s.enemy.slots[0] = dummy(unit, "en-a", 8);
-  s.enemy.slots[1] = dummy(unit, "en-b", 8);
+  s.enemy.slots[0] = dummy(unit, "en-a", 40);
+  s.enemy.slots[1] = dummy(unit, "en-b", 40);
   return s;
 }
 
@@ -587,7 +587,7 @@ function spellsAll(fails: QaFail[], ok: string[]): void {
         const undead =
           CARDS.find((c) => c.kind === "creature" && c.school === "death")?.id ??
           unit;
-        s.enemy.slots[0] = dummy(undead, "sk", 6);
+        s.enemy.slots[0] = dummy(undead, "sk", 40);
       }
       if (id === "antidote") s.you.slots[0]!.statuses.push({ type: "poison", amount: 2 });
       if (id === "mass_antidote") {
@@ -699,13 +699,13 @@ function spellsAll(fails: QaFail[], ok: string[]): void {
           if (s.you.mana.life !== lifeBefore + 1) bad = `мана ${lifeBefore}→${s.you.mana.life}`;
           break;
         case "strike":
-          if (s.enemy.hp !== hpEn - 3) bad = `урон герою ${hpEn}→${s.enemy.hp}`;
+          if (s.enemy.hp !== hpEn - 6) bad = `урон герою ${hpEn}→${s.enemy.hp}`;
           break;
         case "life_root":
           if (s.you.hp < 5) bad = `хил не прошёл, hp=${s.you.hp}`;
           break;
         case "ice_trap":
-          if ((s.enemy.slots[0]?.health ?? 0) !== enHp0 - 4) {
+          if ((s.enemy.slots[0]?.health ?? 0) !== enHp0 - 10) {
             bad = `урон по юниту ${enHp0}→${s.enemy.slots[0]?.health}`;
           }
           break;
@@ -867,12 +867,16 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
 
   assert("vampire_grow on hit", () => {
     let s = boardForCreatures();
-    s.you.slots[0] = arm(dummy("vampire", "v1", 2));
-    s.enemy.slots[0] = dummy("spearman", "e1", 4);
-    const before = s.you.slots[0]!.attack;
+    const v = arm(dummy("vampire", "v1", 16));
+    v.attack = 6;
+    v.baseAttack = 6;
+    v.baseHealth = 16;
+    v.health = 8;
+    s.you.slots[0] = v;
+    s.enemy.slots[0] = dummy("spearman", "e1", 20);
     s = attackWith(s, 0, 0);
-    if (s.you.slots[0]!.attack !== before + 1) {
-      return `укус ${before}→${s.you.slots[0]!.attack}`;
+    if ((s.you.slots[0]?.health ?? 0) !== 13) {
+      return `укус хил ${s.you.slots[0]?.health}, ждали 13 (8+5)`;
     }
     return null;
   });
@@ -969,14 +973,14 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
       return `после удара HP ${s.enemy.slots[0]?.health}, ждали 5`;
     }
     s = endPlayerTurn(s);
-    // Рана 5, яд −1 → 4 (без отката к базе)
-    if ((s.enemy.slots[0]?.health ?? 0) !== 4) {
-      return `к ходу врага HP ${s.enemy.slots[0]?.health}, ждали 4 (5−1 яд)`;
+    // Рана 5, яд −2 → 3 (без отката к базе); дальше сила 3
+    if ((s.enemy.slots[0]?.health ?? 0) !== 3) {
+      return `к ходу врага HP ${s.enemy.slots[0]?.health}, ждали 3 (5−2 яд)`;
     }
     const pAmt = s.enemy.slots[0]!.statuses
       .filter((st) => st.type === "poison")
       .reduce((n, st) => n + st.amount, 0);
-    if (pAmt !== 2) return `сила яда ${pAmt}, ждали 2 после тика`;
+    if (pAmt !== 3) return `сила яда ${pAmt}, ждали 3 после тика`;
     return null;
   });
 
@@ -998,23 +1002,23 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
     return null;
   });
 
-  assert("angel_heal +1/+1", () => {
+  assert("angel_heal +2/+2", () => {
     let s = boardForCreatures();
     s.you.slots[0] = arm(dummy("angel", "a1", 4));
     s.you.slots[1] = dummy("tank", "t1", 4);
     const before = s.you.slots[1]!.attack;
     s = healWithAngel(s, 0, 1);
-    if (s.you.slots[1]!.attack !== before + 1) return "ангел не бафнул";
+    if (s.you.slots[1]!.attack !== before + 2) return "ангел не бафнул";
     return null;
   });
 
-  assert("mage_flex +1 HP", () => {
+  assert("mage_flex +3 HP", () => {
     let s = boardForCreatures();
     s.you.slots[0] = arm(dummy("mage", "m1", 3));
     s.you.slots[1] = dummy("tank", "t1", 4);
     const before = s.you.slots[1]!.health;
     s = buffWithMage(s, 0, 1);
-    if (s.you.slots[1]!.health !== before + 1) return "маг не дал HP";
+    if (s.you.slots[1]!.health !== before + 3) return "маг не дал HP";
     return null;
   });
 
@@ -1049,21 +1053,22 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
     s.enemy.slots[0] = null;
     const hp = s.enemy.hp;
     s = attackWith(s, 0, "hero");
-    if (s.enemy.hp !== hp - 2 - 1) {
-      return `имп: ждали −3 (2+1), стало ${hp}→${s.enemy.hp}`;
+    if (s.enemy.hp !== hp - 2 - 3) {
+      return `имп: ждали −5 (2+3), стало ${hp}→${s.enemy.hp}`;
     }
     return null;
   });
 
   assert("lich_drain heal self", () => {
     let s = boardForCreatures();
-    const lich = arm(dummy("lich", "l1", 4));
-    lich.health = 2;
+    const lich = arm(dummy("lich", "l1", 22));
+    lich.baseHealth = 22;
+    lich.health = 10;
     s.you.slots[0] = lich;
-    s.enemy.slots[0] = dummy("tank", "t1", 5);
+    s.enemy.slots[0] = dummy("tank", "t1", 20);
     s = attackWith(s, 0, 0);
-    if ((s.you.slots[0]?.health ?? 0) < 4) {
-      return `лич HP после удара ${s.you.slots[0]?.health}`;
+    if ((s.you.slots[0]?.health ?? 0) !== 15) {
+      return `лич HP после удара ${s.you.slots[0]?.health}, ждали 15 (10+5)`;
     }
     return null;
   });
@@ -1102,7 +1107,8 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
   assert("spider_poison on hit", () => {
     let s = boardForCreatures();
     s.you.slots[0] = arm(dummy("spider", "sp1", 2));
-    s.enemy.slots[0] = dummy("tank", "t1", 5);
+    s.you.slots[0]!.attack = 3;
+    s.enemy.slots[0] = dummy("tank", "t1", 40);
     s = attackWith(s, 0, 0);
     if (!s.enemy.slots[0]!.statuses.some((st) => st.type === "poison")) {
       return "яд паука не наложился";
@@ -1113,7 +1119,8 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
   assert("scorpion_poison on hit", () => {
     let s = boardForCreatures();
     s.you.slots[0] = arm(dummy("scorpicora", "sc1", 3));
-    s.enemy.slots[0] = dummy("tank", "t1", 5);
+    s.you.slots[0]!.attack = 5;
+    s.enemy.slots[0] = dummy("tank", "t1", 40);
     s = attackWith(s, 0, 0);
     if (!s.enemy.slots[0]!.statuses.some((st) => st.type === "poison")) {
       return "яд скорпикоры не наложился";
@@ -1124,7 +1131,8 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
   assert("basilisk_gaze sleep", () => {
     let s = boardForCreatures();
     s.you.slots[0] = arm(dummy("basilisk", "b1", 4));
-    s.enemy.slots[0] = dummy("tank", "t1", 5);
+    s.you.slots[0]!.attack = 7;
+    s.enemy.slots[0] = dummy("tank", "t1", 40);
     s = attackWith(s, 0, 0);
     if (!s.enemy.slots[0]!.statuses.some((st) => st.type === "sleep")) {
       return "окаменение не наложилось";
@@ -1132,14 +1140,14 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
     return null;
   });
 
-  assert("water_tide +1 HP water", () => {
+  assert("water_tide +3 HP water", () => {
     let s = boardForCreatures();
     s.you.slots[0] = arm(dummy("water_spirit", "w1", 2));
     s.you.hand = ["clawfiend"];
     s.you.mana.water = 9;
     const before = s.you.slots[0]!.health;
     s = playCard(s, 0, 1);
-    if (s.you.slots[0]!.health !== before + 1) {
+    if (s.you.slots[0]!.health !== before + 3) {
       return `прилив ${before}→${s.you.slots[0]!.health}`;
     }
     return null;
@@ -1163,7 +1171,7 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
     s.you.hp = 10;
     s = endPlayerTurn(s);
     s = endEnemyTurn(s);
-    if (s.you.hp < 11) return `леприкон не хильнул, hp=${s.you.hp}`;
+    if (s.you.hp < 13) return `леприкон не хильнул, hp=${s.you.hp}`;
     return null;
   });
 
