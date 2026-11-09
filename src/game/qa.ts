@@ -311,8 +311,8 @@ function manaRules(fails: QaFail[], ok: string[]): void {
     heroId: "hero_life",
     faction: "life",
     level: 1,
-    hp: 15,
-    maxHp: 15,
+    hp: 35,
+    maxHp: 35,
     mana: emptyMana(),
     deck: [],
     hand: [],
@@ -339,8 +339,8 @@ function manaRules(fails: QaFail[], ok: string[]): void {
   if (p.mana.life !== 3) {
     fails.push({ area: "мана", detail: `ход 3: своя школа ${p.mana.life}, ждали 3` });
   }
-  if (p.mana.water !== 3) {
-    fails.push({ area: "мана", detail: `ход 3: чужая ${p.mana.water}, ждали 3` });
+  if (p.mana.water !== 2) {
+    fails.push({ area: "мана", detail: `ход 3: чужая без тика ${p.mana.water}, ждали 2` });
   }
 
   const unit = firstCreatureId();
@@ -375,7 +375,7 @@ function manaRules(fails: QaFail[], ok: string[]): void {
     }
   }
 
-  // Старт: все школы ≥2, своя ≥3
+  // Старт: все школы ≥1, своя ≥2
   const start = createBattle(
     ["skeleton", "zombie", "hero_mana", "poison"],
     ["tank", "skeleton", "zombie", "hero_mana"],
@@ -387,19 +387,21 @@ function manaRules(fails: QaFail[], ok: string[]): void {
   );
   for (const f of FACTIONS) {
     const n = start.you.mana[f] ?? 0;
-    if (n < 2) {
-      fails.push({ area: "мана", detail: `старт ${f}=${n}, ждали ≥2` });
+    if (n < 1) {
+      fails.push({ area: "мана", detail: `старт ${f}=${n}, ждали ≥1` });
     }
   }
-  if ((start.you.mana.life ?? 0) < 3) {
+  if ((start.you.mana.life ?? 0) < 2) {
     fails.push({
       area: "мана",
-      detail: `старт своей life=${start.you.mana.life}, ждали ≥3`,
+      detail: `старт своей life=${start.you.mana.life}, ждали ≥2`,
     });
   }
 
   if (!fails.some((f) => f.area === "мана")) {
-    ok.push("мана: все школы +1/ход, старт 2+ у всех, своя сильнее, hero_mana +1");
+    ok.push(
+      "мана: своя +1/ход, чужие через ход, старт 1+ у всех, своя сильнее, hero_mana +1",
+    );
   }
 }
 

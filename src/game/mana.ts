@@ -29,7 +29,7 @@ export function manaSchoolOf(
 }
 
 /**
- * Старт боя (в духе Orions): все школы с базы 2, своя чуть сильнее.
+ * Старт боя: все школы с базы 1, своя чуть сильнее.
  * bonus — уровень / эпик / дар воды и т.п. (только на свою школу).
  */
 export function startingManaPool(
@@ -45,17 +45,22 @@ export function startingManaPool(
     nature: 0,
   };
   for (const f of FACTIONS) {
-    // База 2 у всех → сразу можно чужие дешёвые карты, не только «свою».
-    pool[f] = 2;
+    pool[f] = 1;
   }
   const ownExtra = 1 + Math.max(0, Math.floor(bonus));
   pool[own] = Math.min(cap, (pool[own] ?? 0) + ownExtra);
   return pool;
 }
 
-/** Каждая школа +1 в начале своего хода (как в Orions). */
-export function growMana(p: PlayerState, _turn: number, cap = 10): void {
+/**
+ * Рост маны в начале своего хода:
+ * — своя школа всегда +1;
+ * — чужие школы +1 через ход (чётные циклы), чтобы был голод по офф-цвету.
+ */
+export function growMana(p: PlayerState, turn: number, cap = 10): void {
+  const foreignTick = turn > 0 && turn % 2 === 0;
   for (const f of FACTIONS) {
+    if (f !== p.faction && !foreignTick) continue;
     const cur = Number(p.mana[f]) || 0;
     p.mana[f] = Math.min(cap, cur + 1);
   }

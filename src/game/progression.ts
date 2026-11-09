@@ -11,8 +11,9 @@ import {
 } from "./starterDecks";
 
 export const MAX_PLAYER_LEVEL = 50;
-export const START_ORAUL_HP = 15;
-export const MAX_ORAUL_HP = 50;
+/** После раздутия юнитов: оракул толще (~×2.2 к старым 15…50). */
+export const START_ORAUL_HP = 35;
+export const MAX_ORAUL_HP = 110;
 
 /** Опыт, нужный чтобы уйти с level на level+1 */
 export function xpToNextLevel(level: number): number {
@@ -37,13 +38,13 @@ export function xpCumulativeToLevel(level: number): number {
 }
 
 /**
- * HP оракула по уровню: 15, затем +3 каждые 4 уровня → … → 50.
- * Полосы 15→18→21… совпадают с «быстро / медленнее» по XP.
+ * HP оракула по уровню: 35, затем +6 каждые 4 уровня → … → 110.
+ * Раньше было 15…50; юниты раздулись — оракул должен жить дольше.
  */
 export function orakulHpForLevel(level: number): number {
   const lv = Math.min(MAX_PLAYER_LEVEL, Math.max(1, level));
   const tier = Math.min(12, Math.floor((lv - 1) / 4));
-  return Math.min(MAX_ORAUL_HP, START_ORAUL_HP + tier * 3);
+  return Math.min(MAX_ORAUL_HP, START_ORAUL_HP + tier * 6);
 }
 
 /** Бонус стартовой маны своей фракции (лёгкий, не ломает баланс). */

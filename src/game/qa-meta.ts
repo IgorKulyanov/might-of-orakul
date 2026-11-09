@@ -215,8 +215,8 @@ export function economyAll(fails: QaFail[], ok: string[]): void {
       if (getHero(b.you.heroId).tier !== "base") return `${f}: база не base`;
       if (getHero(e.you.heroId).tier !== "epic") return `${f}: эпик не epic`;
 
-      const wantBase = 3;
-      const wantEpic = f === "water" ? 5 : 4;
+      const wantBase = 2;
+      const wantEpic = f === "water" ? 4 : 3;
       if ((b.you.mana[f] ?? 0) !== wantBase) {
         return `${f} база мана ${b.you.mana[f]}, ждали ${wantBase}`;
       }
@@ -225,10 +225,10 @@ export function economyAll(fails: QaFail[], ok: string[]): void {
       }
       for (const sch of FACTIONS) {
         if (sch === f) continue;
-        if ((b.you.mana[sch] ?? 0) !== 2) {
+        if ((b.you.mana[sch] ?? 0) !== 1) {
           return `${f} база ${sch}=${b.you.mana[sch]}`;
         }
-        if ((e.you.mana[sch] ?? 0) !== 2) {
+        if ((e.you.mana[sch] ?? 0) !== 1) {
           return `${f} эпик ${sch}=${e.you.mana[sch]}`;
         }
       }

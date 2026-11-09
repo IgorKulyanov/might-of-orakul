@@ -18,7 +18,7 @@ export const EPIC_HERO_GOLD = 20000;
 export const EPIC_HERO_DIAMONDS = 2000;
 
 const MANA_LINE =
-  "Каждый ход +1 маны каждой школе.\nНа старте у всех школ база, своя чуть сильнее.";
+  "Своя школа +1 маны каждый ход; чужие — через ход.\nНа старте у всех школ база 1, своя чуть сильнее.";
 
 /** Дары — только у эпиков (монетизация облика). Показ на регистрации как «позже». */
 export const EPIC_GIFT_BLURB: Record<Faction, string> = {
@@ -83,7 +83,7 @@ export const BASE_HEROES: HeroDef[] = [
     id: "hero_water",
     name: "Повелитель глубин",
     faction: "water",
-    maxHp: 50,
+    maxHp: 110,
     tier: "base",
     text: baseHeroText(),
   },
@@ -91,7 +91,7 @@ export const BASE_HEROES: HeroDef[] = [
     id: "hero_hell",
     name: "Владыка ада",
     faction: "hell",
-    maxHp: 50,
+    maxHp: 110,
     tier: "base",
     text: baseHeroText(),
   },
@@ -99,7 +99,7 @@ export const BASE_HEROES: HeroDef[] = [
     id: "hero_death",
     name: "Некроархонт",
     faction: "death",
-    maxHp: 50,
+    maxHp: 110,
     tier: "base",
     text: baseHeroText(),
   },
@@ -107,7 +107,7 @@ export const BASE_HEROES: HeroDef[] = [
     id: "hero_life",
     name: "Светоносец",
     faction: "life",
-    maxHp: 50,
+    maxHp: 110,
     tier: "base",
     text: baseHeroText(),
   },
@@ -115,7 +115,7 @@ export const BASE_HEROES: HeroDef[] = [
     id: "hero_nature",
     name: "Хранитель рощи",
     faction: "nature",
-    maxHp: 50,
+    maxHp: 110,
     tier: "base",
     text: baseHeroText(),
   },
@@ -127,7 +127,7 @@ export const EPIC_HEROES: HeroDef[] = [
     id: "hero_water_epic",
     name: "Талассар Пучины",
     faction: "water",
-    maxHp: 50,
+    maxHp: 110,
     tier: "epic",
     priceGold: EPIC_HERO_GOLD,
     priceDiamonds: EPIC_HERO_DIAMONDS,
@@ -137,7 +137,7 @@ export const EPIC_HEROES: HeroDef[] = [
     id: "hero_hell_epic",
     name: "Инфернарх",
     faction: "hell",
-    maxHp: 50,
+    maxHp: 110,
     tier: "epic",
     priceGold: EPIC_HERO_GOLD,
     priceDiamonds: EPIC_HERO_DIAMONDS,
@@ -147,7 +147,7 @@ export const EPIC_HEROES: HeroDef[] = [
     id: "hero_death_epic",
     name: "Эонный Жнец",
     faction: "death",
-    maxHp: 50,
+    maxHp: 110,
     tier: "epic",
     priceGold: EPIC_HERO_GOLD,
     priceDiamonds: EPIC_HERO_DIAMONDS,
@@ -157,7 +157,7 @@ export const EPIC_HEROES: HeroDef[] = [
     id: "hero_life_epic",
     name: "Архион Светоносный",
     faction: "life",
-    maxHp: 50,
+    maxHp: 110,
     tier: "epic",
     priceGold: EPIC_HERO_GOLD,
     priceDiamonds: EPIC_HERO_DIAMONDS,
@@ -167,7 +167,7 @@ export const EPIC_HEROES: HeroDef[] = [
     id: "hero_nature_epic",
     name: "Иггдрас Перволес",
     faction: "nature",
-    maxHp: 50,
+    maxHp: 110,
     tier: "epic",
     priceGold: EPIC_HERO_GOLD,
     priceDiamonds: EPIC_HERO_DIAMONDS,
@@ -201,7 +201,7 @@ export function getHeroForLevel(id: string, level: number): HeroDef {
   const notes = [`HP оракула: ${hp} (ур. ${level}).`];
   if (epic) notes.push(oracleGiftCardText(base.faction, level));
   if (manaBonus > 0) {
-    notes.push(`Старт: у всех школ база 2, своей +${1 + manaBonus}.`);
+    notes.push(`Старт: у всех школ база 1, своей +${1 + manaBonus}.`);
   }
   return {
     ...base,
