@@ -24,8 +24,9 @@ export function getApiBase(): string {
 }
 
 /**
- * База для WebSocket. На pages.dev — напрямую на VPS:
- * прокси CF Functions часто поднимает WS (101), но не отдаёт lobby/battle.
+ * База для WebSocket.
+ * На pages.dev — same-origin (/ws через CF Functions → VPS): так заходят друзья,
+ * у кого прямой IP VPS режется сетью. Прямой sslip — запасной в pvpClient.
  */
 export function getWsOrigin(): string {
   const env = (import.meta.env.VITE_WS_URL as string | undefined)?.replace(
@@ -39,9 +40,12 @@ export function getWsOrigin(): string {
       host === "localhost" ||
       host === "127.0.0.1" ||
       host.endsWith(".local");
-    // Прод (pages / любой https-домен): WS напрямую на VPS.
-    // Same-origin через CF Functions часто даёт 101 без lobby/chat.
     if (!local && window.location.protocol === "https:") {
+      // Игра на Pages: сначала тот же хост (CF → VPS).
+      if (host.endsWith("pages.dev") || host.endsWith("orakul.pages.dev")) {
+        return `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}`;
+      }
+      // Свой домен / sslip-фронт: прямо на API.
       return VPS_PUBLIC_ORIGIN.replace(/^http/, "ws");
     }
   }

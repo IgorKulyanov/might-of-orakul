@@ -9,9 +9,13 @@ import { getWsOrigin, VPS_PUBLIC_ORIGIN } from "./api";
 function wsCandidates(): string[] {
   const primary = `${getWsOrigin()}/ws/pvp`;
   const direct = `${VPS_PUBLIC_ORIGIN.replace(/^http/, "ws")}/ws/pvp`;
-  // same-origin через CF Functions часто даёт 101 без сообщений — не берём.
+  const sameOrigin =
+    typeof window !== "undefined"
+      ? `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws/pvp`
+      : "";
+  // pages.dev → same-origin первым (CF), sslip запасной; hello отсекает мёртвый 101.
   const out: string[] = [];
-  for (const u of [primary, direct]) {
+  for (const u of [primary, sameOrigin, direct]) {
     if (u && !out.includes(u)) out.push(u);
   }
   return out;
