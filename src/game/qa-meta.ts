@@ -239,6 +239,11 @@ export function economyAll(fails: QaFail[], ok: string[]): void {
       const hpEpic = orakulBattleHp(f, 10, "epic");
       if (b10.you.maxHp !== hpBase) return `${f} база HP ${b10.you.maxHp}`;
       if (e10.you.maxHp !== hpEpic) return `${f} эпик HP ${e10.you.maxHp}`;
+      // Уровень больше не даёт стартовую ману
+      const b30 = createBattle(deck, deck, baseId, foe, "QA", 30, 30);
+      if ((b30.you.mana[f] ?? 0) !== wantBase) {
+        return `${f} ур.30 база мана ${b30.you.mana[f]}, ждали ${wantBase}`;
+      }
       if (f === "nature") {
         if (hpEpic <= hpBase) return "дар рощи не дал HP эпику";
       } else if (hpEpic !== hpBase) {

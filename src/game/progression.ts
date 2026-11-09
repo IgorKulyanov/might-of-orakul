@@ -47,9 +47,13 @@ export function orakulHpForLevel(level: number): number {
   return Math.min(MAX_ORAUL_HP, START_ORAUL_HP + tier * 6);
 }
 
-/** Бонус стартовой маны своей фракции (лёгкий, не ломает баланс). */
-export function startManaBonus(level: number): number {
-  return Math.min(4, Math.floor((Math.max(1, level) - 1) / 10));
+/**
+ * Раньше: +1 своей маны на старте каждые 10 уровней.
+ * Убрано — при толстых юнитах старт получался слишком жирным.
+ * Функция оставлена (всегда 0), чтобы не ломать импорты.
+ */
+export function startManaBonus(_level: number): number {
+  return 0;
 }
 
 export type LevelUpReward = { gold: number; diamonds: number };
