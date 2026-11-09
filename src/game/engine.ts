@@ -216,6 +216,8 @@ function syncBoardAuras(p: PlayerState, log: string[]): void {
 
 /**
  * Конец хода: ATK к базе (затем снова вешаем «slow»), HP к базе без яда.
+ * Яд и hold_wound (ответка) сохраняют раны. hold_wound снимается после одного резета —
+ * рана доживает до хода врага, к следующему ресету уже можно восстановиться.
  * Замедление само по себе здесь НЕ снимаем — иначе «Замедлить врага»
  * сгорает до хода жертвы. Срок: expireSlow у владельца после его хода.
  */
@@ -230,11 +232,15 @@ function restoreSurvivors(p: PlayerState): void {
     const base = effectiveBase(s);
     s.attack = base.atk;
     const poisoned = s.statuses.some((st) => st.type === "poison");
-    if (!poisoned) {
-    s.health = base.hp;
+    const holdWound = s.statuses.some((st) => st.type === "hold_wound");
+    if (!poisoned && !holdWound) {
+      s.health = base.hp;
     } else {
-      // яд держит раны, но не выше текущей базы
+      // яд / ответка держат раны, но не выше текущей базы
       s.health = Math.min(s.health, base.hp);
+    }
+    if (holdWound) {
+      s.statuses = s.statuses.filter((st) => st.type !== "hold_wound");
     }
     for (const st of s.statuses) {
       if (st.type === "slow") {
@@ -260,7 +266,9 @@ function expireSlow(p: PlayerState): void {
 
 /**
  * Яд в начале хода владельца: −N HP, затем сила яда +1 к следующему тику
- * (1 → 2 → 3…). При 0 HP — смерть. Несколько стаков суммируются в один.
+ * (1 → 2 → 3…). Свежий яд (только что повесили) первый тик пропускает —
+ * иначе «яд + удар в тот же ход» съедает дважды. При 0 HP — смерть.
+ * Несколько стаков суммируются в один.
  */
 function tickPoison(
   p: PlayerState,
@@ -274,6 +282,19 @@ function tickPoison(
     if (!poison.length) continue;
     const dmg = poison.reduce((sum, st) => sum + st.amount, 0);
     const steady = poison.every((st) => st.steady);
+    const fresh = poison.some((st) => st.fresh);
+    if (fresh) {
+      s.statuses = s.statuses.filter((st) => st.type !== "poison");
+      s.statuses.push({
+        type: "poison",
+        amount: dmg,
+        ...(steady ? { steady: true } : {}),
+      });
+      log.unshift(
+        `${getCard(s.cardId).name}: яд впитывается (−${dmg} со следующего хода)`,
+      );
+      continue;
+    }
     s.health -= dmg;
     if (s.health <= 0) {
       log.unshift(`${getCard(s.cardId).name} погибает от яда (−${dmg})`);
@@ -281,7 +302,7 @@ function tickPoison(
     } else if (steady) {
       s.statuses = s.statuses.filter((st) => st.type !== "poison");
       s.statuses.push({ type: "poison", amount: dmg, steady: true });
-    log.unshift(
+      log.unshift(
         `${getCard(s.cardId).name}: яд −${dmg} → ${s.health} HP (постоянно −${dmg})`,
       );
     } else {
@@ -293,6 +314,26 @@ function tickPoison(
       );
     }
   }
+}
+
+function markHoldWound(unit: CreatureInstance): void {
+  if (unit.health <= 0) return;
+  if (unit.statuses.some((st) => st.type === "hold_wound")) return;
+  unit.statuses.push({ type: "hold_wound", amount: 1 });
+}
+
+function applyPoisonStatus(
+  unit: CreatureInstance,
+  amount: number,
+  opts?: { steady?: boolean },
+): void {
+  const had = unit.statuses.some((st) => st.type === "poison");
+  unit.statuses.push({
+    type: "poison",
+    amount,
+    ...(opts?.steady ? { steady: true } : {}),
+    ...(!had ? { fresh: true } : {}),
+  });
 }
 
 function makePlayer(
@@ -936,6 +977,7 @@ function tryRiposte(
   log.unshift(
     `${getCard(victim.cardId).name}: ответный выстрел по ${getCard(atk.cardId).name} на ${dmg} → ${Math.max(0, atk.health)} HP`,
   );
+  if (atk.health > 0) markHoldWound(atk);
   for (let i = 0; i < attackerOwner.slots.length; i++) {
     removeIfDead(attackerOwner, i, log, state);
   }
@@ -1045,18 +1087,18 @@ function applyOnHitExtras(
 ): void {
   if (def && def.health > 0 && hasAbility(atk.cardId, "scorpion_poison", atk)) {
     if (!def.statuses.some((st) => st.type === "poison")) {
-      def.statuses.push({ type: "poison", amount: 1 });
+      applyPoisonStatus(def, 1);
     }
     log.unshift(
-      `${getCard(def.cardId).name}: яд скорпикоры (−1, растёт каждый ход)`,
+      `${getCard(def.cardId).name}: яд скорпикоры (−1 со след. хода, растёт)`,
     );
   }
   if (def && def.health > 0 && hasAbility(atk.cardId, "spider_poison", atk)) {
     if (!def.statuses.some((st) => st.type === "poison")) {
-      def.statuses.push({ type: "poison", amount: 1, steady: true });
+      applyPoisonStatus(def, 1, { steady: true });
     }
     log.unshift(
-      `${getCard(def.cardId).name}: яд паука (−1 каждый ход, пока не снимут)`,
+      `${getCard(def.cardId).name}: яд паука (−1 со след. хода, пока не снимут)`,
     );
   }
   if (def && def.health > 0 && hasAbility(atk.cardId, "basilisk_gaze", atk)) {
@@ -1290,7 +1332,7 @@ function applySpellEffects(
           );
           break;
         }
-        u.statuses.push({ type: "poison", amount: eff.amount });
+        applyPoisonStatus(u, eff.amount);
         if (lingerMeta) {
           // Яд висит на стороне отравленного
           pushBoardSpell(foe, {
@@ -1304,7 +1346,7 @@ function applySpellEffects(
           });
         }
         log.unshift(
-          `${caster.name}: ${getCard(u.cardId).name} отравлен (−${eff.amount}, затем растёт каждый ход)`,
+          `${caster.name}: ${getCard(u.cardId).name} отравлен (−${eff.amount} со след. хода, затем растёт)`,
         );
         break;
       }
@@ -1708,7 +1750,7 @@ function applySpellEffects(
           if (hasAbility(s.cardId, "immune_hell_death", s)) return;
           if (hasAbility(s.cardId, "immune_death", s)) return;
           if (!s.statuses.some((st) => st.type === "poison")) {
-            s.statuses.push({ type: "poison", amount: eff.amount });
+            applyPoisonStatus(s, eff.amount);
             n += 1;
             if (lingerMeta) {
               pushBoardSpell(foe, {

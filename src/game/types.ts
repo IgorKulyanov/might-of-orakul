@@ -251,10 +251,14 @@ export type StatusEffect = {
     | "traitor"
     | "bunker"
     | "sniper"
-    | "last_gasp";
+    | "last_gasp"
+    /** Урон от ответки: не сбрасывать HP на ближайшем резете хода. */
+    | "hold_wound";
   amount: number;
   /** Яд без эскалации (паук): каждый ход фиксированный −amount. */
   steady?: boolean;
+  /** Яд только что повесили — первый тик пропускаем (не «съедает» в тот же переход). */
+  fresh?: boolean;
 };
 
 export interface CreatureInstance {

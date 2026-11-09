@@ -910,6 +910,63 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
     return null;
   });
 
+  assert("riposte wound persists into enemy turn", () => {
+    let s = boardForCreatures();
+    s.you.slots[0] = arm(dummy("fire_lizard", "liz", 2));
+    s.you.slots[0]!.health = 2;
+    s.enemy.slots[0] = dummy("crossbowman", "cb", 3);
+    s.enemy.slots[0]!.attack = 1;
+    s.enemy.slots[0]!.health = 3;
+    s = attackWith(s, 0, 0);
+    if ((s.you.slots[0]?.health ?? 0) !== 1) return "нет раны от ответки";
+    s = endPlayerTurn(s);
+    if ((s.you.slots[0]?.health ?? 0) !== 1) {
+      return `рана от ответки сбросилась к ходу врага: HP ${s.you.slots[0]?.health}`;
+    }
+    return null;
+  });
+
+  assert("fresh poison skips first tick after apply+hit", () => {
+    let s = createBattle(
+      ["poison", "elf", "skeleton", "zombie"],
+      ["tank", "skeleton", "zombie", "hero_mana"],
+      "hero_death",
+      "hero_hell",
+      "QA",
+      5,
+      5,
+    );
+    s.you.mana = { ...s.you.mana, death: 10, nature: 10 };
+    s.enemy.slots[0] = dummy("tank", "t1", 5);
+    s.enemy.slots[0]!.health = 5;
+    s.you.slots[0] = arm(dummy("elf", "e1", 3));
+    s.you.slots[0]!.attack = 2;
+    s = playCard(s, s.you.hand.indexOf("poison"), 0);
+    s = attackWith(s, 0, 0);
+    if ((s.enemy.slots[0]?.health ?? 0) !== 3) {
+      return `после удара HP ${s.enemy.slots[0]?.health}, ждали 3`;
+    }
+    s = endPlayerTurn(s);
+    // Свежий яд не тикает в этот переход — остаются 3 HP и яд −1 на потом
+    if ((s.enemy.slots[0]?.health ?? 0) !== 3) {
+      return `после конца хода HP ${s.enemy.slots[0]?.health}, ждали 3 (без тика)`;
+    }
+    const pAmt = s.enemy.slots[0]!.statuses
+      .filter((st) => st.type === "poison")
+      .reduce((n, st) => n + st.amount, 0);
+    if (pAmt !== 1) return `сила яда ${pAmt}, ждали 1`;
+    if (s.enemy.slots[0]!.statuses.some((st) => st.fresh)) {
+      return "fresh не снят после пропуска тика";
+    }
+    // Ещё один полный круг → тик яда на старте хода врага
+    s = endEnemyTurn(s);
+    s = endPlayerTurn(s);
+    if ((s.enemy.slots[0]?.health ?? 0) !== 2) {
+      return `после первого тика HP ${s.enemy.slots[0]?.health}, ждали 2`;
+    }
+    return null;
+  });
+
   assert("angel_heal +1/+1", () => {
     let s = boardForCreatures();
     s.you.slots[0] = arm(dummy("angel", "a1", 4));
