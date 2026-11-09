@@ -170,9 +170,12 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 const DIE_FACE = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
 
-/** Снаряд по DOM-точкам — без CSS var в keyframes (iOS их игнорит → opacity 0). */
+type FxImpact = "arrow" | "burn" | "magic" | "poison";
+
+/** Снаряд по DOM-точкам — WAAPI (iOS не любит var() в keyframes). */
 function BattleMissile({
   className,
+  kind,
   boardRef,
   fromSide,
   fromSlot,
@@ -181,6 +184,7 @@ function BattleMissile({
   hitSlots,
 }: {
   className: string;
+  kind: "arrow" | "bolt" | "magic" | "poison";
   boardRef: RefObject<HTMLDivElement | null>;
   fromSide: "you" | "enemy";
   fromSlot?: number;
@@ -235,26 +239,96 @@ function BattleMissile({
           : boardRect.height * 0.78,
     };
 
+    const angle =
+      (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI;
+    // Стрела «торчит» чуть глубже в карту
+    const embed = kind === "arrow" ? 10 : 0;
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const stickX = to.x + (dx / len) * embed;
+    const stickY = to.y + (dy / len) * embed;
+
     el.style.left = "0";
     el.style.top = "0";
     const reduce =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const duration = reduce ? 180 : 560;
+
+    if (kind === "arrow") {
+      const flyMs = reduce ? 160 : 420;
+      const stickMs = reduce ? 200 : 780;
+      const fly = el.animate(
+        [
+          {
+            transform: `translate(${from.x}px, ${from.y}px) rotate(${angle}deg) scale(0.75)`,
+            opacity: 0.4,
+          },
+          {
+            transform: `translate(${from.x}px, ${from.y}px) rotate(${angle}deg) scale(1)`,
+            opacity: 1,
+            offset: 0.08,
+          },
+          {
+            transform: `translate(${stickX}px, ${stickY}px) rotate(${angle}deg) scale(1)`,
+            opacity: 1,
+          },
+        ],
+        {
+          duration: flyMs,
+          easing: "cubic-bezier(0.15, 0.7, 0.2, 1)",
+          fill: "forwards",
+        },
+      );
+      let stick: Animation | null = null;
+      fly.finished
+        .then(() => {
+          stick = el.animate(
+            [
+              {
+                transform: `translate(${stickX}px, ${stickY}px) rotate(${angle}deg)`,
+                opacity: 1,
+              },
+              {
+                transform: `translate(${stickX}px, ${stickY}px) rotate(${angle + 3}deg)`,
+                opacity: 1,
+                offset: 0.55,
+              },
+              {
+                transform: `translate(${stickX}px, ${stickY}px) rotate(${angle}deg)`,
+                opacity: 0,
+              },
+            ],
+            { duration: stickMs, easing: "ease-out", fill: "forwards" },
+          );
+        })
+        .catch(() => {});
+      return () => {
+        fly.cancel();
+        stick?.cancel();
+      };
+    }
+
+    const duration = reduce ? 180 : kind === "poison" ? 620 : 520;
     const anim = el.animate(
       [
         {
-          transform: `translate(${from.x}px, ${from.y}px) scale(0.45)`,
+          transform: `translate(${from.x}px, ${from.y}px) scale(0.4)`,
           opacity: 0.35,
         },
         {
-          transform: `translate(${from.x}px, ${from.y}px) scale(1)`,
+          transform: `translate(${from.x}px, ${from.y}px) scale(1.05)`,
           opacity: 1,
-          offset: 0.12,
+          offset: 0.1,
         },
         {
-          transform: `translate(${to.x}px, ${to.y}px) scale(1.35)`,
-          opacity: 0.2,
+          transform: `translate(${to.x}px, ${to.y}px) scale(1.4)`,
+          opacity: 0.85,
+          offset: 0.82,
+        },
+        {
+          transform: `translate(${to.x}px, ${to.y}px) scale(0.3)`,
+          opacity: 0,
         },
       ],
       {
@@ -267,6 +341,7 @@ function BattleMissile({
   }, [
     boardRef,
     className,
+    kind,
     fromSide,
     fromSlot,
     toSlot,
@@ -274,7 +349,24 @@ function BattleMissile({
     hitSlots,
   ]);
 
-  return <span ref={elRef} className={className} aria-hidden />;
+  return (
+    <span ref={elRef} className={className} aria-hidden>
+      {kind === "arrow" ? (
+        <>
+          <span className="missile-arrow-fletch" />
+          <span className="missile-arrow-shaft" />
+          <span className="missile-arrow-head" />
+        </>
+      ) : kind === "poison" ? (
+        <>
+          <span className="missile-poison-core" />
+          <span className="missile-poison-drip" />
+        </>
+      ) : (
+        <span className="missile-glow-core" />
+      )}
+    </span>
+  );
 }
 
 function BoardCard({
@@ -287,6 +379,7 @@ function BoardCard({
   nod,
   hit,
   poisonBurst,
+  impact,
   playIn,
   heal,
   onClick,
@@ -301,11 +394,14 @@ function BoardCard({
   nod?: boolean;
   hit?: boolean;
   poisonBurst?: boolean;
+  /** Эффект на цели: стрела / огонь / магия / яд. */
+  impact?: FxImpact | null;
   playIn?: boolean;
   heal?: boolean;
   onClick: () => void;
 }) {
   const poisoned = creature.statuses.some((st) => st.type === "poison");
+  const showPoison = poisoned || impact === "poison" || poisonBurst;
   return (
     <div
       className={[
@@ -318,7 +414,10 @@ function BoardCard({
         nod ? "is-nod" : "",
         hit ? "is-hit" : "",
         poisonBurst ? "is-poison-burst" : "",
-        poisoned ? "has-poison" : "",
+        showPoison ? "has-poison" : "",
+        impact === "burn" ? "is-burning" : "",
+        impact === "magic" ? "is-magic-burn" : "",
+        impact === "arrow" ? "is-arrow-stuck" : "",
         playIn ? "is-play-in" : "",
         heal ? "is-heal" : "",
       ]
@@ -349,6 +448,35 @@ function BoardCard({
         onClick={onClick}
       />
       {sleeping && <span className="sleep-tag">сон</span>}
+      {impact === "arrow" ? (
+        <span className="fx-stuck-arrow" aria-hidden>
+          <span className="fx-stuck-shaft" />
+          <span className="fx-stuck-head" />
+        </span>
+      ) : null}
+      {impact === "burn" ? (
+        <span className="fx-burn-layer" aria-hidden>
+          <i />
+          <i />
+          <i />
+          <i />
+        </span>
+      ) : null}
+      {impact === "magic" ? (
+        <span className="fx-magic-layer" aria-hidden>
+          <i />
+          <i />
+          <i />
+        </span>
+      ) : null}
+      {showPoison ? (
+        <span className="fx-poison-smoke" aria-hidden>
+          <i />
+          <i />
+          <i />
+          <i />
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -851,8 +979,12 @@ export function Battle({
       return;
     }
     const faceHit = !!nextFx.hitHero && nextFx.kind !== "heal";
+    const arrowStick = flying && nextFx.motion === "ranged";
     const hold = flying
-      ? Math.max(holdMs, faceHit ? 1600 : 1100)
+      ? Math.max(
+          holdMs,
+          faceHit ? 1700 : arrowStick ? 1500 : nextFx.vfx === "poison" ? 1400 : 1200,
+        )
       : faceHit
         ? Math.max(holdMs, 1800)
         : holdMs;
@@ -1971,10 +2103,44 @@ export function Battle({
     });
   };
 
+  const impactOnTarget = (
+    slot: number,
+    cardSide: "you" | "enemy",
+  ): FxImpact | null => {
+    if (!fx) return null;
+    const targeted =
+      fx.hitSlots?.includes(slot) ||
+      (fx.kind === "spell" && fx.toSlot === slot) ||
+      (fx.kind === "lunge" && fx.toSlot === slot);
+    if (!targeted) return null;
+    // Удар по карте приходит с противоположной стороны
+    if (fx.side === cardSide && fx.kind !== "heal") {
+      // Свои спеллы по своим слотам (бафф) — без «горения»
+      if (fx.kind === "spell" && fx.vfx === "poison") return "poison";
+      return null;
+    }
+    if (fx.side === cardSide) return null;
+    if (fx.kind === "lunge") {
+      const motion = fx.motion ?? "melee";
+      if (motion === "ranged") return "arrow";
+      if (motion === "bolt") {
+        return fx.school === "hell" ? "burn" : "magic";
+      }
+      return null;
+    }
+    if (fx.kind === "spell") {
+      if (fx.vfx === "poison") return "poison";
+      if (fx.school === "hell") return "burn";
+      return "magic";
+    }
+    return null;
+  };
+
   const yourFx = (slot: number) => {
     const attacking =
       fx?.side === "you" && fx.kind === "lunge" && fx.fromSlot === slot;
     const motion = fx?.motion ?? "melee";
+    const impact = impactOnTarget(slot, "you");
     return {
       lunge: !!attacking && motion === "melee",
       nod: !!attacking && motion !== "melee",
@@ -1986,11 +2152,8 @@ export function Battle({
           fx.vfx !== "poison" &&
           fx.toSlot === slot) ||
         false,
-      poisonBurst:
-        !!fx?.vfx &&
-        fx.vfx === "poison" &&
-        fx.side === "enemy" &&
-        !!fx.hitSlots?.includes(slot),
+      poisonBurst: impact === "poison",
+      impact,
       playIn: fx?.side === "you" && fx.kind === "play" && fx.toSlot === slot,
       heal:
         fx?.side === "you" &&
@@ -2003,6 +2166,7 @@ export function Battle({
     const attacking =
       fx?.side === "enemy" && fx.kind === "lunge" && fx.fromSlot === slot;
     const motion = fx?.motion ?? "melee";
+    const impact = impactOnTarget(slot, "enemy");
     return {
       lunge: !!attacking && motion === "melee",
       nod: !!attacking && motion !== "melee",
@@ -2012,10 +2176,8 @@ export function Battle({
           (fx.kind === "heal" || fx.kind === "spell") &&
           (fx.toSlot === slot || fx.hitSlots?.includes(slot))) ||
         false,
-      poisonBurst:
-        !!fx?.vfx &&
-        fx.vfx === "poison" &&
-        !!fx.hitSlots?.includes(slot),
+      poisonBurst: impact === "poison",
+      impact,
       playIn: fx?.side === "enemy" && fx.kind === "play" && fx.toSlot === slot,
       heal:
         fx?.side === "enemy" &&
@@ -2024,7 +2186,7 @@ export function Battle({
     };
   };
 
-  const missileClass = (() => {
+  const missileKind = ((): "arrow" | "bolt" | "magic" | "poison" | null => {
     if (!fx) return null;
     const motion = fx.motion ?? "melee";
     const flyAttack =
@@ -2032,21 +2194,18 @@ export function Battle({
     const flySpell =
       fx.kind === "spell" && (fx.vfx === "poison" || fx.vfx === "magic");
     if (!flyAttack && !flySpell) return null;
-    const kind =
-      fx.kind === "spell"
-        ? fx.vfx === "poison"
-          ? "poison"
-          : "magic"
-        : motion === "bolt"
-          ? "bolt"
-          : "arrow";
-    return [
-      "battle-missile",
-      `is-${kind}`,
-      `from-${fx.side}`,
-      fx.school ? `school-${fx.school}` : "school-neutral",
-    ].join(" ");
+    if (fx.kind === "spell") return fx.vfx === "poison" ? "poison" : "magic";
+    return motion === "bolt" ? "bolt" : "arrow";
   })();
+
+  const missileClass = missileKind
+    ? [
+        "battle-missile",
+        `is-${missileKind}`,
+        `from-${fx!.side}`,
+        fx!.school ? `school-${fx!.school}` : "school-neutral",
+      ].join(" ")
+    : null;
 
   const readyCount = state.you.slots.filter((s) => s?.canAttack).length;
 
@@ -2373,11 +2532,12 @@ export function Battle({
       </div>
 
       <div className="board" ref={boardRef}>
-        {missileClass && fx ? (
+        {missileClass && missileKind && fx ? (
           <div className="battle-fx-layer" aria-hidden>
             <BattleMissile
-              key={`${fx.side}-${fx.kind}-${fx.fromSlot}-${fx.toSlot}-${fx.hitSlots?.join(".") ?? ""}-${fx.vfx ?? ""}`}
+              key={`${fx.side}-${fx.kind}-${fx.fromSlot}-${fx.toSlot}-${fx.hitSlots?.join(".") ?? ""}-${fx.vfx ?? ""}-${missileKind}`}
               className={missileClass}
+              kind={missileKind}
               boardRef={boardRef}
               fromSide={fx.side}
               fromSlot={fx.fromSlot}
@@ -2491,6 +2651,7 @@ export function Battle({
                           nod={anim.nod}
                           hit={anim.hit}
                           poisonBurst={anim.poisonBurst}
+                          impact={anim.impact}
                           playIn={false}
                           heal={anim.heal}
                           onClick={() => onEnemySlot(i)}
@@ -2604,6 +2765,7 @@ export function Battle({
                           nod={anim.nod}
                           hit={anim.hit}
                           poisonBurst={anim.poisonBurst}
+                          impact={anim.impact}
                           playIn={false}
                           heal={anim.heal}
                           onClick={() => onYourSlot(i)}
