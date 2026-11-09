@@ -1710,25 +1710,6 @@ export function Battle({
       return;
     }
 
-    // Режим «умение»: леший — обмен ATK↔HP у любого врага
-    if (wantSkill && leshyReady && enemyUnit) {
-      void runLocked(async () => {
-        await playFx(
-          {
-            side: "you",
-            kind: "spell",
-            fromSlot: from,
-            toSlot: i,
-            cardId: state.you.slots[from]!.cardId,
-          },
-          (s) => swapStatsWithLeshy(s, from, "enemy", i),
-          900,
-          { kind: "swapLeshy", fromSlot: from, side: "enemy", toSlot: i },
-        );
-      });
-      return;
-    }
-
     // Режим «удар» или без выбора: старое поведение для НЕ напротив
     if (
       !wantSkill &&
@@ -1793,31 +1774,8 @@ export function Battle({
       });
       return;
     }
-    if (
-      !wantSkill &&
-      leshyReady &&
-      enemyUnit &&
-      !attackTargets.has(String(i))
-    ) {
-      void runLocked(async () => {
-        await playFx(
-          {
-            side: "you",
-            kind: "spell",
-            fromSlot: from,
-            toSlot: i,
-            cardId: state.you.slots[from]!.cardId,
-          },
-          (s) => swapStatsWithLeshy(s, from, "enemy", i),
-          900,
-          { kind: "swapLeshy", fromSlot: from, side: "enemy", toSlot: i },
-        );
-      });
-      return;
-    }
-
     // В режиме умения не бить — только скилл
-    if (wantSkill && (bansheeReady || mermaidReady || succubusReady || leshyReady)) {
+    if (wantSkill && (bansheeReady || mermaidReady || succubusReady)) {
       pushHint("Режим умения: кликни подходящую цель врага (можно напротив)");
       return;
     }
@@ -2341,9 +2299,7 @@ export function Battle({
           : "Режим удара: напротив = бить. Нажми «Оглушить», чтобы ором бить и напротив";
       }
       if (ab === "leshy_flex") {
-        return flexIntent === "skill"
-          ? "Режим умения: кликни врага или союзника — обмен ATK↔HP"
-          : "Режим удара: напротив = бить. «Умение» — обмен и по клетке напротив";
+        return "Леший: напротив = удар; кликни союзника — навсегда обменять ему ATK↔HP";
       }
       if (ab === "balthazar_flex") {
         return balthSwapFrom != null
@@ -2540,10 +2496,7 @@ export function Battle({
         </aside>
         <div className="battle-hint-stack">
       <p className="battle-hint">{hint}</p>
-          {(bansheeReady ||
-            mermaidReady ||
-            succubusReady ||
-            leshyReady) &&
+          {(bansheeReady || mermaidReady || succubusReady) &&
           !busy &&
           !state.winner ? (
             <div className="flex-intent-bar" role="group" aria-label="Режим действия">
@@ -2559,11 +2512,7 @@ export function Battle({
                 className={`ghost ${flexIntent === "skill" ? "is-on" : ""}`}
                 onClick={() => setFlexIntent("skill")}
               >
-                {bansheeReady
-                  ? "Оглушить"
-                  : mermaidReady || succubusReady
-                    ? "Усыпить"
-                    : "Обмен ATK↔HP"}
+                {bansheeReady ? "Оглушить" : "Усыпить"}
               </button>
             </div>
           ) : null}
@@ -2703,10 +2652,6 @@ export function Battle({
                               state.selectedSlot != null &&
                               (flexIntent === "skill" ||
                                 i !== state.selectedSlot)) ||
-                            (!busy &&
-                              leshyReady &&
-                              flexIntent === "skill" &&
-                              !!s) ||
                             (!busy && balthazarReady && !!s) ||
                             (!busy && balthSwapFrom != null && !!s)
                           }

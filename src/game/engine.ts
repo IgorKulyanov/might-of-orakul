@@ -2815,8 +2815,8 @@ export function verdictWithArbiter(
 }
 
 /**
- * Леший: навсегда меняет местами базовые ATK и HP цели (свои пермы тоже).
- * Цель — союзник или враг (не сам леший).
+ * Леший: навсегда меняет местами базовые ATK и HP союзника (и пермы).
+ * Только свои — врагу «подарок» ATK↔HP не кастуем.
  */
 export function swapStatsWithLeshy(
   state: BattleState,
@@ -2825,20 +2825,28 @@ export function swapStatsWithLeshy(
   toSlot: number,
 ): BattleState {
   if (state.winner || state.active !== "you") return state;
+  if (side !== "you") {
+    const next = structuredClone(state) as BattleState;
+    next.log = ["Леший меняет статы только союзникам", ...next.log].slice(
+      0,
+      10,
+    );
+    return next;
+  }
   const next = structuredClone(state) as BattleState;
   const me = next.you;
   const src = me.slots[fromSlot];
   if (!src || !src.canAttack || abilityOf(src.cardId, src) !== "leshy_flex") {
     return state;
   }
-  if (side === "you" && toSlot === fromSlot) {
+  if (toSlot === fromSlot) {
     next.log = ["Леший не меняет статы сам себе", ...next.log].slice(0, 10);
     return next;
   }
-  const owner = side === "you" ? next.you : next.enemy;
+  const owner = next.you;
   const target = owner.slots[toSlot];
   if (!target) {
-    next.log = ["Нужна цель для обмена статов", ...next.log].slice(0, 10);
+    next.log = ["Нужен союзник для обмена статов", ...next.log].slice(0, 10);
     return next;
   }
 
@@ -4596,27 +4604,14 @@ export function takeAiStep(
 
       if (ab === "leshy_flex" && skill.advancedFlex) {
         for (let j = 0; j < 5; j++) {
-          const t = foe.slots[j];
-          if (!t) continue;
-          // Толстый танк с низким ATK → стеклянная пушка, проще снять
+          if (j === i || !me.slots[j]) continue;
+          const t = me.slots[j]!;
+          // Свой танк (много HP) → ударная сила
           if (t.health >= t.attack + 3 && t.health >= 4) {
             choices.push({
               kind: "flex",
               slot: i,
-              score: (16 + t.health * 2) * fm * skill.tradeMul,
-              flex: { type: "leshy", side: "foe", toSlot: j },
-            });
-          }
-        }
-        for (let j = 0; j < 5; j++) {
-          if (j === i || !me.slots[j]) continue;
-          const t = me.slots[j]!;
-          // Своя стеклянная пушка → танк
-          if (t.attack >= t.health + 2 && t.attack >= 3) {
-            choices.push({
-              kind: "flex",
-              slot: i,
-              score: (12 + t.attack) * fm,
+              score: (18 + t.health * 2) * fm,
               flex: { type: "leshy", side: "ally", toSlot: j },
             });
           }
@@ -4958,9 +4953,11 @@ export function takeAiStep(
     }
 
     if (flex.type === "leshy") {
-      const owner = flex.side === "ally" ? me : foe;
+      // Только союзники бота
+      if (flex.side !== "ally") return null;
+      const owner = me;
       const target = owner.slots[flex.toSlot];
-      if (!target || (flex.side === "ally" && flex.toSlot === i)) return null;
+      if (!target || flex.toSlot === i) return null;
       const before = `${target.attack}/${target.health}`;
       const ba = target.baseAttack;
       target.baseAttack = target.baseHealth;

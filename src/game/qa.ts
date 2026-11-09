@@ -1421,16 +1421,32 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
   assert("leshy swap stats", () => {
     let s = boardForCreatures();
     s.you.slots[0] = arm(dummy("leshy", "ls1", 7));
-    const foe = dummy("werewolf", "ww1", 2);
-    foe.attack = 3;
-    foe.baseAttack = 3;
-    foe.baseHealth = 2;
-    foe.health = 2;
-    s.enemy.slots[0] = foe;
-    s = swapStatsWithLeshy(s, 0, "enemy", 0);
-    const u = s.enemy.slots[0]!;
-    if (u.attack !== 2 || u.health !== 3) {
+    const ally = dummy("tank", "tk1", 4);
+    ally.attack = 3;
+    ally.baseAttack = 3;
+    ally.baseHealth = 28;
+    ally.health = 28;
+    s.you.slots[1] = ally;
+    s = swapStatsWithLeshy(s, 0, "you", 1);
+    const u = s.you.slots[1]!;
+    if (u.attack !== 28 || u.health !== 3) {
       return `обмен статов ${u.attack}/${u.health}`;
+    }
+    const blocked = swapStatsWithLeshy(s, 0, "enemy", 0);
+    if (blocked.enemy.slots[0]) {
+      /* ok if empty */
+    }
+    // По врагу больше нельзя — статы врага не трогаем
+    s.enemy.slots[0] = dummy("werewolf", "ww1", 2);
+    const before = {
+      a: s.enemy.slots[0]!.attack,
+      h: s.enemy.slots[0]!.health,
+    };
+    s.you.slots[0]!.canAttack = true;
+    const again = swapStatsWithLeshy(s, 0, "enemy", 0);
+    const e = again.enemy.slots[0]!;
+    if (e.attack !== before.a || e.health !== before.h) {
+      return "леший не должен менять статы врагу";
     }
     return null;
   });
