@@ -138,6 +138,11 @@ export type PvpEndReason = "combat" | "leave" | "disconnect" | "timeout";
 /** Сервер → клиент */
 export type PvpServerMsg =
   | {
+      /** Сокет живой (отсекает «пустой» 101 через CF Functions). */
+      type: "hello";
+      ok: true;
+    }
+  | {
       type: "lobby";
       code: string;
       youAre: PvpSeat;

@@ -388,6 +388,7 @@ function getHeroSafeFaction(heroId: string) {
 
 export default function App() {
   const [boot, setBoot] = useState(true);
+  const [pvpInviteCode, setPvpInviteCode] = useState("");
   const [token, setToken] = useState<string | null>(() => getToken());
   const [user, setUser] = useState<ApiUser | null>(() => getCachedUser());
   const [screen, setScreen] = useState<Screen>("menu");
@@ -589,6 +590,29 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+
+  // Ссылка из Telegram: ?pvp=CODE → сразу в мульти.
+  useEffect(() => {
+    if (boot) return;
+    if (!token || !user) return;
+    if (user.needsEmailVerify) return;
+    try {
+      const q = new URLSearchParams(window.location.search);
+      const raw = String(q.get("pvp") || q.get("room") || "")
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "");
+      if (raw.length < 3) return;
+      setPvpInviteCode(raw);
+      setScreen("multi");
+      const u = new URL(window.location.href);
+      u.searchParams.delete("pvp");
+      u.searchParams.delete("room");
+      window.history.replaceState({}, "", u.pathname + u.search + u.hash);
+    } catch {
+      /* ignore */
+    }
+  }, [boot, token, user]);
 
   // Возврат с ЮKassa (?paid=1&order=…) — дотянуть алмазы с сервера.
   useEffect(() => {
@@ -1327,7 +1351,11 @@ export default function App() {
         heroId={activeHeroId(owned)}
         displayName={displayName}
         deck={battleDeck(owned)}
-        onBack={() => setScreen("menu")}
+        initialCode={pvpInviteCode}
+        onBack={() => {
+          setPvpInviteCode("");
+          setScreen("menu");
+        }}
         onFightBot={() => {
           setBotSeed(freshBotSeed());
           unlockSfx();

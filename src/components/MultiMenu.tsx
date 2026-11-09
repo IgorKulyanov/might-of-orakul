@@ -10,11 +10,47 @@ import {
 import { getToken } from "../game/session";
 import type { BattleState } from "../game/types";
 
+const LOBBY_KEY = "orakul_pvp_lobby_code";
+
+function readSavedLobbyCode(): string | null {
+  try {
+    const c = String(sessionStorage.getItem(LOBBY_KEY) || "")
+      .trim()
+      .toUpperCase();
+    return c.length >= 3 ? c : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveLobbyCode(code: string | null) {
+  try {
+    if (!code) sessionStorage.removeItem(LOBBY_KEY);
+    else sessionStorage.setItem(LOBBY_KEY, code);
+  } catch {
+    /* ignore */
+  }
+}
+
+function inviteUrl(roomCode: string): string {
+  try {
+    const u = new URL(window.location.href);
+    u.search = "";
+    u.hash = "";
+    u.searchParams.set("pvp", roomCode);
+    return u.toString();
+  } catch {
+    return roomCode;
+  }
+}
+
 type Props = {
   playerLevel: number;
   heroId: string;
   displayName: string;
   deck: string[];
+  /** Код из ссылки ?pvp= */
+  initialCode?: string;
   onBack: () => void;
   /** Бой с ботом уровня игрока ±1 */
   onFightBot: () => void;
@@ -44,12 +80,15 @@ export function MultiMenu({
   heroId,
   displayName,
   deck,
+  initialCode = "",
   onBack,
   onFightBot,
   canStartPvp,
   onPvpStart,
 }: Props) {
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(() =>
+    (initialCode || "").trim().toUpperCase(),
+  );
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [busyHint, setBusyHint] = useState<string | null>(null);
@@ -86,7 +125,8 @@ export function MultiMenu({
   useEffect(() => {
     return () => {
       clearLobbyWait();
-      socketRef.current?.leave();
+      // Тихий close: жёсткий leave() убивал комнату, пока хост кидал код в Telegram.
+      socketRef.current?.leave({ silent: true });
       socketRef.current = null;
     };
   }, []);
@@ -129,6 +169,7 @@ export function MultiMenu({
       clearLobbyWait();
       reconnectingRef.current = false;
       setSearching(null);
+      saveLobbyCode(msg.code);
       setLobby({
         code: msg.code,
         youAre: msg.youAre,
@@ -142,6 +183,9 @@ export function MultiMenu({
       setBusy(false);
       setBusyHint(null);
       setMessage(null);
+      return;
+    }
+    if (msg.type === "hello") {
       return;
     }
     if (msg.type === "peer_left") {
@@ -413,6 +457,7 @@ export function MultiMenu({
   const leaveLobby = () => {
     reconnectingRef.current = false;
     clearLobbyWait();
+    saveLobbyCode(null);
     socketRef.current?.setDropHandler(null);
     socketRef.current?.leave();
     socketRef.current = null;
@@ -423,6 +468,20 @@ export function MultiMenu({
     setBusyHint(null);
     startedRef.current = false;
   };
+
+  const autoJoinOnce = useRef(false);
+  useEffect(() => {
+    if (autoJoinOnce.current) return;
+    const fromLink = (initialCode || "").trim().toUpperCase();
+    const saved = readSavedLobbyCode();
+    const target = fromLink || saved;
+    if (!target) return;
+    autoJoinOnce.current = true;
+    setCode(target);
+    void enterRoom("join", target);
+    // enterRoom стабилен по смыслу на маунте
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const readyUp = () => {
     try {
@@ -473,6 +532,19 @@ export function MultiMenu({
             }}
           >
             Скопировать код
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => {
+              const link = inviteUrl(lobby.code);
+              void navigator.clipboard?.writeText(link).then(
+                () => setMessage("Ссылка скопирована — кинь в Telegram"),
+                () => setMessage(link),
+              );
+            }}
+          >
+            Скопировать ссылку для друга
           </button>
           <p className="hint">
             Ты —{" "}

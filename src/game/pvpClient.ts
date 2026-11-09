@@ -9,12 +9,9 @@ import { getWsOrigin, VPS_PUBLIC_ORIGIN } from "./api";
 function wsCandidates(): string[] {
   const primary = `${getWsOrigin()}/ws/pvp`;
   const direct = `${VPS_PUBLIC_ORIGIN.replace(/^http/, "ws")}/ws/pvp`;
-  const sameOrigin =
-    typeof window !== "undefined"
-      ? `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws/pvp`
-      : "";
+  // same-origin через CF Functions часто даёт 101 без сообщений — не берём.
   const out: string[] = [];
-  for (const u of [primary, direct, sameOrigin]) {
+  for (const u of [primary, direct]) {
     if (u && !out.includes(u)) out.push(u);
   }
   return out;
@@ -88,6 +85,7 @@ export class PvpSocket {
       }
       this.ws = ws;
       let settled = false;
+      let opened = false;
       const timer = window.setTimeout(() => {
         if (settled) return;
         settled = true;
@@ -97,13 +95,17 @@ export class PvpSocket {
           /* ignore */
         }
         if (this.ws === ws) this.ws = null;
-        reject(new Error("Таймаут PvP"));
+        reject(
+          new Error(
+            opened
+              ? "PvP-сокет открылся, но сервер молчит. Ctrl+F5."
+              : "Таймаут PvP",
+          ),
+        );
       }, 8_000);
       ws.onopen = () => {
-        if (settled) return;
-        settled = true;
-        window.clearTimeout(timer);
-        resolve();
+        opened = true;
+        // Ждём hello — иначе «пустой» прокси кажется живым.
       };
       ws.onerror = () => {
         if (settled) return;
@@ -115,6 +117,12 @@ export class PvpSocket {
       ws.onmessage = (ev) => {
         try {
           const msg = JSON.parse(String(ev.data)) as PvpServerMsg;
+          if (!settled && msg.type === "hello") {
+            settled = true;
+            window.clearTimeout(timer);
+            resolve();
+            return;
+          }
           this.onMsg?.(msg);
         } catch {
           /* ignore */
@@ -122,7 +130,13 @@ export class PvpSocket {
       };
       ws.onclose = () => {
         if (this.ws === ws) this.ws = null;
-        if (this.closedByUser || !settled) return;
+        if (!settled) {
+          settled = true;
+          window.clearTimeout(timer);
+          reject(new Error("WebSocket закрылся до входа"));
+          return;
+        }
+        if (this.closedByUser) return;
         if (this.onDrop) {
           this.onDrop();
           return;

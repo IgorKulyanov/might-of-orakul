@@ -730,6 +730,9 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
       return queryUser;
     };
 
+    // Сразу подтверждаем канал — иначе клиент может сидеть на «пустом» WS-прокси.
+    send(ws, { type: "hello", ok: true });
+
     const leaveCurrentRoom = (reason: "leave" | "disconnect") => {
       const code = socketRoom.get(ws) ?? null;
       if (!code) return;
@@ -914,9 +917,18 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           }
           room = rooms.get(code) ?? null;
           if (!room) {
+            console.warn(
+              "[pvp] join miss code=",
+              code,
+              "rooms=",
+              rooms.size,
+              "ip=",
+              ip,
+            );
             send(ws, {
               type: "error",
-              message: "Комната не найдена. Проверь код или создай свою.",
+              message:
+                "Комната не найдена. Хост пусть заново нажмёт «Создать комнату» и пришлёт новый код.",
             });
             return;
           }
