@@ -499,8 +499,11 @@ function tickEndOwnerEffects(p: PlayerState, log: string[]): void {
     if (sp.kind === "shield" && sp.turnsLeft != null) {
       sp.turnsLeft -= 1;
     }
-    // Чистое небо: тик в конце хода жертвы — иначе 1 ход спадает до её атак.
-    if (sp.kind === "mute_ranged" && sp.turnsLeft != null) {
+    // Чистое небо / пыль: тик в конце хода жертвы — иначе 1 ход спадает до её атак.
+    if (
+      (sp.kind === "mute_ranged" || sp.kind === "weaken") &&
+      sp.turnsLeft != null
+    ) {
       sp.turnsLeft -= 1;
     }
   }
@@ -508,6 +511,12 @@ function tickEndOwnerEffects(p: PlayerState, log: string[]): void {
     p.muteRangedTurns -= 1;
     if (p.muteRangedTurns <= 0) {
       log.unshift(`${p.name}: чистое небо — стрелки снова могут бить`);
+    }
+  }
+  if (p.weakenDamageTurns > 0) {
+    p.weakenDamageTurns -= 1;
+    if (p.weakenDamageTurns <= 0) {
+      log.unshift(`${p.name}: пыль в глаза спала — урон полный`);
     }
   }
 }
@@ -1840,6 +1849,16 @@ function applySpellEffects(
       }
       case "weaken_foe_damage": {
         foe.weakenDamageTurns = Math.max(foe.weakenDamageTurns, eff.turns);
+        if (lingerMeta) {
+          pushBoardSpell(foe, {
+            cardId: lingerMeta.cardId,
+            turnsLeft: eff.turns,
+            targetSide: foe.id,
+            casterSide: caster.id,
+            kind: "weaken",
+            mode: "active",
+          });
+        }
         log.unshift(
           `${caster.name}: пыль в глаза — враг бьёт на 50% ${eff.turns} хода`,
         );
@@ -1944,6 +1963,20 @@ function clearSpellEffectsOnBoard(
   state: BattleState,
   sp: LingeringSpell,
 ): void {
+  // Глобальные проклятия на стороне жертвы (без targetUid)
+  if (sp.kind === "mute_ranged" || sp.kind === "weaken") {
+    const victim =
+      sp.targetSide === "you"
+        ? state.you
+        : sp.targetSide === "enemy"
+          ? state.enemy
+          : null;
+    if (victim) {
+      if (sp.kind === "mute_ranged") victim.muteRangedTurns = 0;
+      if (sp.kind === "weaken") victim.weakenDamageTurns = 0;
+    }
+    return;
+  }
   if (!sp.targetUid) return;
   const live = findUnitByUid(state, sp.targetUid);
   if (!live) return;
@@ -3207,12 +3240,6 @@ function tickUnitStatuses(p: PlayerState, log: string[]): void {
     if (p.attackBanTurns <= 0) {
       p.attackBanSchool = null;
       log.unshift(`${p.name}: страх спал — можно бить все школы`);
-    }
-  }
-  if (p.weakenDamageTurns > 0) {
-    p.weakenDamageTurns -= 1;
-    if (p.weakenDamageTurns <= 0) {
-      log.unshift(`${p.name}: пыль в глаза спала — урон полный`);
     }
   }
 }

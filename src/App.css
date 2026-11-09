@@ -2673,7 +2673,7 @@ html.is-hand-dragging .grave-row {
   min-width: 0;
   height: 100%;
   display: grid;
-  grid-template-rows: 0.95em var(--hand-card-h);
+  grid-template-rows: 0.95em var(--hand-card-h) auto;
   gap: 0.15rem;
   align-content: end;
   justify-items: start;
@@ -2733,6 +2733,30 @@ html.is-hand-dragging .grave-row {
   filter: grayscale(0.35) brightness(0.95);
   box-shadow: 0 0 0 2px #9aa0a8;
   opacity: 1;
+}
+
+.grave-row-enemy {
+  height: calc(var(--hand-card-h) * 0.52);
+  min-height: calc(var(--hand-card-h) * 0.52);
+  opacity: 0.9;
+}
+
+.grave-row-enemy .grave-slot-empty,
+.grave-row-enemy .grave-card-wrap {
+  width: calc(var(--hand-card-w) * 0.52);
+  height: calc(var(--hand-card-h) * 0.52);
+}
+
+.grave-row-enemy .grave-card-wrap .card.compact {
+  --card-w: calc(var(--hand-card-w) * 0.52) !important;
+  --card-h: calc(var(--hand-card-h) * 0.52) !important;
+  width: calc(var(--hand-card-w) * 0.52) !important;
+  height: calc(var(--hand-card-h) * 0.52) !important;
+}
+
+.grave-card-wrap.is-enemy-grave {
+  filter: grayscale(1) brightness(0.62) sepia(0.35);
+  opacity: 0.92;
 }
 
 .grave-card-wrap.is-selected {
@@ -3234,13 +3258,13 @@ html.is-hand-dragging .grave-row {
     gap: 0.2rem 0.35rem;
     /* карты слева, «Грейв» справа — без своего скролла */
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: calc(var(--hand-card-h) * 0.62);
+    grid-template-rows: calc(var(--hand-card-h) * 0.62) auto;
     touch-action: manipulation;
   }
 
   .grave-zone .grave-label {
     grid-column: 2;
-    grid-row: 1;
+    grid-row: 1 / span 2;
     writing-mode: horizontal-tb;
     letter-spacing: 0.06em;
     height: auto;
@@ -3257,6 +3281,27 @@ html.is-hand-dragging .grave-row {
     max-width: 100%;
     overflow: hidden;
     touch-action: manipulation;
+  }
+
+  .grave-zone .grave-row-enemy {
+    grid-column: 1;
+    grid-row: 2;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    height: calc(var(--hand-card-h) * 0.42);
+    min-height: calc(var(--hand-card-h) * 0.42);
+  }
+
+  .grave-zone .grave-row-enemy .grave-slot-empty,
+  .grave-zone .grave-row-enemy .grave-card-wrap {
+    height: calc(var(--hand-card-h) * 0.42);
+    max-width: calc(var(--hand-card-w) * 0.42);
+  }
+
+  .grave-zone .grave-row-enemy .grave-card-wrap .card.compact {
+    --card-h: calc(var(--hand-card-h) * 0.42) !important;
+    height: calc(var(--hand-card-h) * 0.42) !important;
   }
 
   .grave-zone .grave-row,

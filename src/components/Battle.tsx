@@ -1097,6 +1097,10 @@ export function Battle({
     () => recentGraveCreatures(state.you.graveyard, 5),
     [state.you.graveyard],
   );
+  const enemyGraveEntries = useMemo(
+    () => recentGraveCreatures(state.enemy.graveyard, 5),
+    [state.enemy.graveyard],
+  );
   const graveReviveReady = gravediggerReady && gravePickIdx != null;
   const tritonSummoning =
     state.selectedSlot != null && tritonFlexReady(state, state.selectedSlot);
@@ -2907,7 +2911,12 @@ export function Battle({
 
       <div className="battle-footer">
         <div className="grave-zone" aria-label="Грейв">
-          <div className="grave-label">Грейв</div>
+          <div className="grave-label">
+            Грейв
+            {enemyGraveEntries.length > 0
+              ? ` · враг ${enemyGraveEntries.length}`
+              : ""}
+          </div>
           <div className={`grave-row ${gravediggerReady ? "is-active" : ""}`}>
             {Array.from({ length: 5 }, (_, i) => {
               const entry = graveEntries[i];
@@ -2923,7 +2932,7 @@ export function Battle({
                   key={`grave-${entry.index}-${entry.cardId}`}
                   className={`grave-card-wrap ${selected ? "is-selected" : ""} ${pickable ? "is-pickable" : ""}`}
                 >
-          <CardView
+                  <CardView
                     cardId={entry.cardId}
                     compact
                     flippable={!pickable}
@@ -2941,6 +2950,33 @@ export function Battle({
               );
             })}
           </div>
+          {enemyGraveEntries.length > 0 && (
+            <div
+              className="grave-row grave-row-enemy"
+              aria-label="Грейв врага"
+              title="Убитые существа врага (только просмотр)"
+            >
+              {Array.from({ length: 5 }, (_, i) => {
+                const entry = enemyGraveEntries[i];
+                if (!entry) {
+                  return (
+                    <div
+                      key={`egrave-empty-${i}`}
+                      className="grave-slot-empty"
+                    />
+                  );
+                }
+                return (
+                  <div
+                    key={`egrave-${entry.index}-${entry.cardId}`}
+                    className="grave-card-wrap is-enemy-grave"
+                  >
+                    <CardView cardId={entry.cardId} compact flippable />
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
         <div className="hand-zone" data-tut="hand" ref={handZoneRef}>
           <div className="hand-label-row">

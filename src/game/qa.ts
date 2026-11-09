@@ -934,6 +934,50 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
     return null;
   });
 
+  assert("dust_eyes hangs as active linger", () => {
+    let s = createBattle(
+      ["dust_eyes", "elf", "spider", "hero_mana"],
+      ["tank", "skeleton", "zombie", "hero_mana"],
+      "hero_nature",
+      "hero_hell",
+      "QA",
+      5,
+      5,
+    );
+    s.you.mana = { ...s.you.mana, nature: 10 };
+    s = playCard(s, s.you.hand.indexOf("dust_eyes"), null);
+    if (s.you.hand.includes("dust_eyes")) return "пыль осталась в руке";
+    const linger = [...s.you.activeSpells, ...s.enemy.activeSpells].find(
+      (sp) => sp.cardId === "dust_eyes" && sp.mode === "active",
+    );
+    if (!linger) {
+      return `пыль не висит на поле (you=${s.you.activeSpells.map((x) => x.cardId).join(",")}; enemy=${s.enemy.activeSpells.map((x) => x.cardId).join(",")})`;
+    }
+    if (linger.kind !== "weaken") return `kind ${linger.kind}, ждали weaken`;
+    if ((linger.turnsLeft ?? 0) < 1) return "turnsLeft сгорел сразу";
+    if (s.enemy.weakenDamageTurns < 1) return "ослабление урона не наложилось";
+    if (s.you.graveyard.includes("dust_eyes") || s.enemy.graveyard.includes("dust_eyes")) {
+      return "пыль уже в грейве — должна висеть";
+    }
+    return null;
+  });
+
+  assert("killed enemy mage goes to enemy grave", () => {
+    let s = boardForCreatures();
+    s.you.slots[0] = arm(dummy("tank", "t1", 28));
+    s.you.slots[0]!.attack = 20;
+    s.enemy.slots[0] = dummy("mage", "mg1", 5);
+    s = attackWith(s, 0, 0);
+    if (s.enemy.slots[0]) return "маг жив";
+    if (!s.enemy.graveyard.includes("mage")) {
+      return `маг не в грейве врага (${s.enemy.graveyard.join(",")})`;
+    }
+    if (s.you.graveyard.includes("mage")) {
+      return "маг врага попал в свой грейв";
+    }
+    return null;
+  });
+
   assert("riposte wound persists into enemy turn", () => {
     let s = boardForCreatures();
     s.you.slots[0] = arm(dummy("fire_lizard", "liz", 2));
