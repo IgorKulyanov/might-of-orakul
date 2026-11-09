@@ -699,13 +699,13 @@ function spellsAll(fails: QaFail[], ok: string[]): void {
           if (s.you.mana.life !== lifeBefore + 1) bad = `мана ${lifeBefore}→${s.you.mana.life}`;
           break;
         case "strike":
-          if (s.enemy.hp !== hpEn - 2) bad = `урон герою ${hpEn}→${s.enemy.hp}`;
+          if (s.enemy.hp !== hpEn - 3) bad = `урон герою ${hpEn}→${s.enemy.hp}`;
           break;
         case "life_root":
           if (s.you.hp < 5) bad = `хил не прошёл, hp=${s.you.hp}`;
           break;
         case "ice_trap":
-          if ((s.enemy.slots[0]?.health ?? 0) !== enHp0 - 3) {
+          if ((s.enemy.slots[0]?.health ?? 0) !== enHp0 - 4) {
             bad = `урон по юниту ${enHp0}→${s.enemy.slots[0]?.health}`;
           }
           break;
@@ -913,9 +913,12 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
     let s = boardForCreatures();
     // Ящер 2/2 бьёт арбалетчика 1/3 напротив → ответка 1, ящер 2/1
     s.you.slots[0] = arm(dummy("fire_lizard", "liz", 2));
+    s.you.slots[0]!.attack = 2;
+    s.you.slots[0]!.baseAttack = 2;
     s.you.slots[0]!.health = 2;
     s.enemy.slots[0] = dummy("crossbowman", "cb", 3);
     s.enemy.slots[0]!.attack = 1;
+    s.enemy.slots[0]!.baseAttack = 1;
     s.enemy.slots[0]!.health = 3;
     s = attackWith(s, 0, 0);
     const liz = s.you.slots[0];
@@ -928,9 +931,12 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
   assert("riposte wound persists into enemy turn", () => {
     let s = boardForCreatures();
     s.you.slots[0] = arm(dummy("fire_lizard", "liz", 2));
+    s.you.slots[0]!.attack = 2;
+    s.you.slots[0]!.baseAttack = 2;
     s.you.slots[0]!.health = 2;
     s.enemy.slots[0] = dummy("crossbowman", "cb", 3);
     s.enemy.slots[0]!.attack = 1;
+    s.enemy.slots[0]!.baseAttack = 1;
     s.enemy.slots[0]!.health = 3;
     s = attackWith(s, 0, 0);
     if ((s.you.slots[0]?.health ?? 0) !== 1) return "нет раны от ответки";
@@ -941,7 +947,7 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
     return null;
   });
 
-  assert("combat damage resets then poison ticks from full", () => {
+  assert("combat wound stays then poison ticks from current HP", () => {
     let s = createBattle(
       ["poison", "elf", "skeleton", "zombie"],
       ["tank", "skeleton", "zombie", "hero_mana"],
@@ -963,9 +969,9 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
       return `после удара HP ${s.enemy.slots[0]?.health}, ждали 5`;
     }
     s = endPlayerTurn(s);
-    // Откат 10, затем яд −1 → 9
-    if ((s.enemy.slots[0]?.health ?? 0) !== 9) {
-      return `к ходу врага HP ${s.enemy.slots[0]?.health}, ждали 9 (10−1 яд)`;
+    // Рана 5, яд −1 → 4 (без отката к базе)
+    if ((s.enemy.slots[0]?.health ?? 0) !== 4) {
+      return `к ходу врага HP ${s.enemy.slots[0]?.health}, ждали 4 (5−1 яд)`;
     }
     const pAmt = s.enemy.slots[0]!.statuses
       .filter((st) => st.type === "poison")
@@ -974,7 +980,7 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
     return null;
   });
 
-  assert("unpoisoned combat damage fully restores at turn end", () => {
+  assert("unpoisoned combat wounds persist at turn end", () => {
     let s = boardForCreatures();
     s.you.slots[0] = arm(dummy("tank", "t1", 5));
     s.you.slots[0]!.attack = 5;
@@ -986,8 +992,8 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
       return `после удара HP ${s.enemy.slots[0]?.health}, ждали 5`;
     }
     s = endPlayerTurn(s);
-    if ((s.enemy.slots[0]?.health ?? 0) !== 10) {
-      return `без яда к ходу врага должны быть 10, есть ${s.enemy.slots[0]?.health}`;
+    if ((s.enemy.slots[0]?.health ?? 0) !== 5) {
+      return `рана должна остаться 5, есть ${s.enemy.slots[0]?.health}`;
     }
     return null;
   });
@@ -1037,7 +1043,9 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
 
   assert("imp_burn hits hero", () => {
     let s = boardForCreatures();
-    s.you.slots[0] = arm(dummy("imp", "i1", 2));
+    s.you.slots[0] = arm(dummy("imp", "i1", 4));
+    s.you.slots[0]!.attack = 2;
+    s.you.slots[0]!.baseAttack = 2;
     s.enemy.slots[0] = null;
     const hp = s.enemy.hp;
     s = attackWith(s, 0, "hero");

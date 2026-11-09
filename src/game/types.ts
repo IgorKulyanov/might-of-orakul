@@ -279,7 +279,7 @@ export interface CreatureInstance {
   guardedByUid?: string;
   /** Ничтожество: супер-умения выключены до конца боя. */
   stripped?: boolean;
-  /** Из последних сил: не сбрасывать ATK/HP к базе в конце хода. */
+  /** Из последних сил: не сбрасывать ATK к базе в конце хода. */
   noRestore?: boolean;
 }
 

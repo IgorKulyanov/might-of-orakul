@@ -433,6 +433,7 @@ export function pvpDuelAll(fails: QaFail[], ok: string[]): void {
       }
       s = fillMana(r.host);
     }
+    // Танк 2 ATK, скелет 3 HP — мили бьёт только напротив, добиваем на втором цикле
     {
       const r = act(s, "host", { kind: "attack", fromSlot: 0, target: 0 });
       if (r.error) {
@@ -440,6 +441,32 @@ export function pvpDuelAll(fails: QaFail[], ok: string[]): void {
         return;
       }
       s = r.host;
+    }
+    if (s.enemy.slots[0]) {
+      {
+        const r = act(s, "host", { kind: "endTurn" });
+        if (r.error) {
+          fail(`хост пас после удара: ${r.error}`);
+          return;
+        }
+        s = fillMana(r.host);
+      }
+      {
+        const r = act(s, "guest", { kind: "endTurn" });
+        if (r.error) {
+          fail(`гость пас без атаки: ${r.error}`);
+          return;
+        }
+        s = fillMana(r.host);
+      }
+      {
+        const r = act(s, "host", { kind: "attack", fromSlot: 0, target: 0 });
+        if (r.error) {
+          fail(`добивающий удар: ${r.error}`);
+          return;
+        }
+        s = r.host;
+      }
     }
     if (s.enemy.slots[0]) {
       fail("скелет жив после удара");
