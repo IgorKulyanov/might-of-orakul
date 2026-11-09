@@ -486,7 +486,7 @@ export default function App() {
     };
   }, [boot, token, screen]);
 
-  // Музыка меню по умолчанию ВКЛ до боя; mute уважается (не форсим play).
+  // Подготовка треков; старт только если музыку уже включили в меню (mute по умолчанию).
   useEffect(() => {
     if (boot) return;
     const inBattle =

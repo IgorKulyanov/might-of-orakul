@@ -14,8 +14,8 @@ const SFX_VOL_KEY = "orakul-sfx-vol";
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 let sfxMuted = loadFlag(SFX_MUTE_KEY);
-/** Музыка: только на сессию (каждый заход — снова вкл., пока сам не выключишь). */
-let musicMuted = false;
+/** Музыка: вход тихий; включают сами в меню (сессия, без автозапуска). */
+let musicMuted = true;
 let musicVolume = loadNum(MUSIC_VOL_KEY, 0.7);
 /** По умолчанию звуки наполовину; дальше — что сохранил игрок. */
 let sfxVolume = loadNum(SFX_VOL_KEY, 0.5);
@@ -121,15 +121,19 @@ export function isMusicMuted(): boolean {
 
 export function setMusicMuted(value: boolean): void {
   musicMuted = value;
-  applyMusicVolume();
   if (value) {
+    applyMusicVolume();
     pauseMenuMusicHard();
     pauseBattleMusicHard();
-  } else if (battleWanted) {
-    void startBattleMusic();
-  } else if (menuWanted) {
-    void startMenuMusic();
+    return;
   }
+  // Сброс «нулевой» громкости после mute — иначе play идёт беззвучно.
+  if (menuEl) menuEl.volume = liveVol();
+  if (battleEl) battleEl.volume = liveVol();
+  applyMusicVolume();
+  if (battleWanted) void startBattleMusic();
+  else if (menuWanted) void startMenuMusic();
+  else void startMenuMusic();
 }
 
 export function getMusicVolume(): number {
@@ -429,10 +433,16 @@ function tryPlayEl(
   startVol?: number,
 ): void {
   if (!wanted || musicMuted || !a) return;
-  if (!a.paused && !a.ended) return;
-  a.volume = startVol ?? liveVol();
+  // Не тащим старый volume=0 с момента, когда музыка была mute.
+  const vol = startVol != null && startVol > 0 ? startVol : liveVol();
+  if (!a.paused && !a.ended) {
+    a.volume = vol;
+    return;
+  }
+  a.volume = vol;
   void a.play().then(() => {
     if (musicMuted || !wanted) stop();
+    else a.volume = liveVol();
   }).catch(() => {
     /* autoplay — ждём жест */
   });
@@ -506,7 +516,7 @@ async function crossfadeTo(
   if (toBattle) {
     if (battleWanted && !menuWanted) {
       ensureMusicUnlockHook();
-      tryPlayEl(getBattleEl(), true, pauseBattleMusicHard, battleEl?.volume);
+      tryPlayEl(getBattleEl(), true, pauseBattleMusicHard);
       return;
     }
     menuWanted = false;
@@ -514,7 +524,7 @@ async function crossfadeTo(
   } else {
     if (menuWanted && !battleWanted) {
       ensureMusicUnlockHook();
-      tryPlayEl(getMenuEl(), true, pauseMenuMusicHard, menuEl?.volume);
+      tryPlayEl(getMenuEl(), true, pauseMenuMusicHard);
       return;
     }
     battleWanted = false;
