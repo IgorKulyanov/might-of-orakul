@@ -1094,12 +1094,19 @@ export function Battle({
     state.selectedSlot != null &&
     gravediggerFlexReady(state, state.selectedSlot);
   const graveEntries = useMemo(
-    () => recentGraveCreatures(state.you.graveyard, 5),
+    () => recentGraveCreatures(state.you.graveyard, 12),
     [state.you.graveyard],
   );
-  const enemyGraveEntries = useMemo(
-    () => recentGraveCreatures(state.enemy.graveyard, 5),
-    [state.enemy.graveyard],
+  const graveCreatureTotal = useMemo(
+    () =>
+      state.you.graveyard.filter((id) => {
+        try {
+          return getCard(id).kind === "creature";
+        } catch {
+          return false;
+        }
+      }).length,
+    [state.you.graveyard],
   );
   const graveReviveReady = gravediggerReady && gravePickIdx != null;
   const tritonSummoning =
@@ -2911,72 +2918,47 @@ export function Battle({
 
       <div className="battle-footer">
         <div className="grave-zone" aria-label="Грейв">
-          <div className="grave-label">
-            Грейв
-            {enemyGraveEntries.length > 0
-              ? ` · враг ${enemyGraveEntries.length}`
-              : ""}
+          <div
+            className="grave-label"
+            title={
+              graveCreatureTotal > 0
+                ? `В сбросе существ: ${graveCreatureTotal}. Если колода кончилась — сброс тасуется обратно в колоду.`
+                : "Сброс существ. Пусто — либо никто не умер, либо сброс уже ушёл в колоду."
+            }
+          >
+            Грейв{graveCreatureTotal > 0 ? ` · ${graveCreatureTotal}` : ""}
           </div>
           <div className={`grave-row ${gravediggerReady ? "is-active" : ""}`}>
-            {Array.from({ length: 5 }, (_, i) => {
-              const entry = graveEntries[i];
-              if (!entry) {
-                return (
+            {graveEntries.length === 0
+              ? Array.from({ length: 5 }, (_, i) => (
                   <div key={`grave-empty-${i}`} className="grave-slot-empty" />
-                );
-              }
-              const pickable = !busy && gravediggerReady;
-              const selected = gravePickIdx === entry.index;
-              return (
-                <div
-                  key={`grave-${entry.index}-${entry.cardId}`}
-                  className={`grave-card-wrap ${selected ? "is-selected" : ""} ${pickable ? "is-pickable" : ""}`}
-                >
-                  <CardView
-                    cardId={entry.cardId}
-                    compact
-                    flippable={!pickable}
-                    selected={selected}
-                    onClick={
-                      pickable
-                        ? () =>
-                            setGravePickIdx(
-                              selected ? null : entry.index,
-                            )
-                        : undefined
-                    }
-                  />
-                </div>
-              );
-            })}
-          </div>
-          {enemyGraveEntries.length > 0 && (
-            <div
-              className="grave-row grave-row-enemy"
-              aria-label="Грейв врага"
-              title="Убитые существа врага (только просмотр)"
-            >
-              {Array.from({ length: 5 }, (_, i) => {
-                const entry = enemyGraveEntries[i];
-                if (!entry) {
+                ))
+              : graveEntries.map((entry) => {
+                  const pickable = !busy && gravediggerReady;
+                  const selected = gravePickIdx === entry.index;
                   return (
                     <div
-                      key={`egrave-empty-${i}`}
-                      className="grave-slot-empty"
-                    />
+                      key={`grave-${entry.index}-${entry.cardId}`}
+                      className={`grave-card-wrap ${selected ? "is-selected" : ""} ${pickable ? "is-pickable" : ""}`}
+                    >
+                      <CardView
+                        cardId={entry.cardId}
+                        compact
+                        flippable={!pickable}
+                        selected={selected}
+                        onClick={
+                          pickable
+                            ? () =>
+                                setGravePickIdx(
+                                  selected ? null : entry.index,
+                                )
+                            : undefined
+                        }
+                      />
+                    </div>
                   );
-                }
-                return (
-                  <div
-                    key={`egrave-${entry.index}-${entry.cardId}`}
-                    className="grave-card-wrap is-enemy-grave"
-                  >
-                    <CardView cardId={entry.cardId} compact flippable />
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                })}
+          </div>
         </div>
         <div className="hand-zone" data-tut="hand" ref={handZoneRef}>
           <div className="hand-label-row">

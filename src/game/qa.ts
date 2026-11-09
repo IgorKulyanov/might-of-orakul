@@ -962,18 +962,20 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
     return null;
   });
 
-  assert("killed enemy mage goes to enemy grave", () => {
+  assert("your mage goes to your grave on death", () => {
     let s = boardForCreatures();
-    s.you.slots[0] = arm(dummy("tank", "t1", 28));
-    s.you.slots[0]!.attack = 20;
-    s.enemy.slots[0] = dummy("mage", "mg1", 5);
+    // Маг 4 ATK / 2 HP бьёт арбалетчика с ответкой 3 → маг умирает в свой грейв
+    s.you.slots[0] = arm(dummy("mage", "mg1", 2));
+    s.you.slots[0]!.attack = 4;
+    s.you.slots[0]!.baseAttack = 4;
+    s.enemy.slots[0] = dummy("crossbowman", "cb", 10);
+    s.enemy.slots[0]!.attack = 3;
+    s.enemy.slots[0]!.baseAttack = 3;
+    s.enemy.slots[0]!.health = 10;
     s = attackWith(s, 0, 0);
-    if (s.enemy.slots[0]) return "маг жив";
-    if (!s.enemy.graveyard.includes("mage")) {
-      return `маг не в грейве врага (${s.enemy.graveyard.join(",")})`;
-    }
-    if (s.you.graveyard.includes("mage")) {
-      return "маг врага попал в свой грейв";
+    if (s.you.slots[0]) return "маг должен был умереть от ответки";
+    if (!s.you.graveyard.includes("mage")) {
+      return `маг не в своём грейве (${s.you.graveyard.join(",")})`;
     }
     return null;
   });
