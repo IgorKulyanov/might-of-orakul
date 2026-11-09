@@ -423,7 +423,6 @@ function BoardCard({
         showPoison ? "has-poison" : "",
         impact === "burn" ? "is-burning" : "",
         impact === "magic" ? "is-magic-burn" : "",
-        impact === "arrow" ? "is-arrow-stuck" : "",
         playIn ? "is-play-in" : "",
         heal ? "is-heal" : "",
       ]
@@ -454,12 +453,6 @@ function BoardCard({
         onClick={onClick}
       />
       {sleeping && <span className="sleep-tag">сон</span>}
-      {impact === "arrow" ? (
-        <span className="fx-stuck-arrow" aria-hidden>
-          <span className="fx-stuck-shaft" />
-          <span className="fx-stuck-head" />
-        </span>
-      ) : null}
       {impact === "burn" ? (
         <span className="fx-burn-layer" aria-hidden>
           <i />
@@ -2134,7 +2127,8 @@ export function Battle({
     if (fx.side === cardSide) return null;
     if (fx.kind === "lunge") {
       const motion = fx.motion ?? "melee";
-      if (motion === "ranged") return "arrow";
+      // Стрела одна — летящая; на карте дубль не рисуем.
+      if (motion === "ranged") return null;
       if (motion === "bolt") {
         return fx.school === "hell" ? "burn" : "magic";
       }

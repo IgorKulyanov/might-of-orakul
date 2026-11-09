@@ -1312,25 +1312,25 @@ button {
   display: block;
 }
 
-/* —— Стрела (форма + оперение) —— */
+/* —— Стрела (тонкая, одна) —— */
 .battle-missile.is-arrow {
-  width: 46px;
-  height: 10px;
-  margin-left: -23px;
-  margin-top: -5px;
+  width: 36px;
+  height: 6px;
+  margin-left: -18px;
+  margin-top: -3px;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
 }
 .missile-arrow-shaft {
   position: absolute;
-  left: 6px;
-  top: 3px;
-  width: 28px;
-  height: 4px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, #c9a66b, #8a6230);
-  box-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
+  left: 5px;
+  top: 2px;
+  width: 22px;
+  height: 2px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, #d4b483, #8a6230);
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.25);
 }
 .missile-arrow-head {
   position: absolute;
@@ -1338,20 +1338,20 @@ button {
   top: 0;
   width: 0;
   height: 0;
-  border-top: 5px solid transparent;
-  border-bottom: 5px solid transparent;
-  border-left: 12px solid #d8dde5;
-  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.4));
+  border-top: 3px solid transparent;
+  border-bottom: 3px solid transparent;
+  border-left: 8px solid #e8ecf2;
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.35));
 }
 .missile-arrow-fletch {
   position: absolute;
   left: 0;
-  top: 1px;
+  top: 0.5px;
   width: 0;
   height: 0;
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-  border-right: 10px solid #c45c3a;
+  border-top: 2.5px solid transparent;
+  border-bottom: 2.5px solid transparent;
+  border-right: 6px solid #c45c3a;
 }
 
 .battle-missile.is-bolt,
@@ -1480,15 +1480,15 @@ button {
     }
   }
   .battle-missile.is-arrow {
-    width: 54px;
-    height: 12px;
-    margin-left: -27px;
-    margin-top: -6px;
+    width: 40px;
+    height: 6px;
+    margin-left: -20px;
+    margin-top: -3px;
   }
   .missile-arrow-shaft {
-    width: 34px;
-    height: 5px;
-    top: 3.5px;
+    width: 24px;
+    height: 2px;
+    top: 2px;
   }
   .battle-missile.is-bolt,
   .battle-missile.is-magic {
@@ -1738,59 +1738,6 @@ button {
   }
 }
 
-/* —— Стрела торчит в карте —— */
-.board-card-wrap.is-arrow-stuck {
-  z-index: 8;
-}
-.fx-stuck-arrow {
-  position: absolute;
-  right: 6%;
-  top: 28%;
-  width: 42px;
-  height: 10px;
-  z-index: 10;
-  pointer-events: none;
-  transform: rotate(-38deg);
-  transform-origin: right center;
-  animation: arrow-embed 0.9s ease-out forwards;
-}
-.fx-stuck-shaft {
-  position: absolute;
-  left: 0;
-  top: 3px;
-  width: 28px;
-  height: 4px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, #c9a66b, #8a6230);
-}
-.fx-stuck-head {
-  position: absolute;
-  right: 0;
-  top: 0;
-  width: 0;
-  height: 0;
-  border-top: 5px solid transparent;
-  border-bottom: 5px solid transparent;
-  border-left: 12px solid #d8dde5;
-}
-
-@keyframes arrow-embed {
-  0% {
-    opacity: 0;
-    transform: rotate(-38deg) translateX(14px);
-  }
-  18% {
-    opacity: 1;
-    transform: rotate(-38deg) translateX(0);
-  }
-  75% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    transform: rotate(-38deg) translateX(0);
-  }
-}
 
 /* Тряска + вспышка у цели */
 .board-card-wrap.is-hit {
