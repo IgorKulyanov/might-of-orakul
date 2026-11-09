@@ -926,6 +926,28 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
     return null;
   });
 
+  assert("combat damage persists into enemy turn", () => {
+    let s = boardForCreatures();
+    s.you.slots[0] = arm(dummy("tank", "t1", 5));
+    s.you.slots[0]!.attack = 5;
+    s.enemy.slots[0] = dummy("tank", "e1", 10);
+    s.enemy.slots[0]!.health = 10;
+    s.enemy.slots[0]!.baseHealth = 10;
+    s = attackWith(s, 0, 0);
+    if ((s.enemy.slots[0]?.health ?? 0) !== 5) {
+      return `после удара HP ${s.enemy.slots[0]?.health}, ждали 5`;
+    }
+    s = endPlayerTurn(s);
+    if ((s.enemy.slots[0]?.health ?? 0) !== 5) {
+      return `к ходу врага HP сбросились: ${s.enemy.slots[0]?.health}, ждали 5`;
+    }
+    s = endEnemyTurn(s);
+    if ((s.enemy.slots[0]?.health ?? 0) !== 10) {
+      return `после хода врага должны восстановиться: ${s.enemy.slots[0]?.health}`;
+    }
+    return null;
+  });
+
   assert("fresh poison skips first tick after apply+hit", () => {
     let s = createBattle(
       ["poison", "elf", "skeleton", "zombie"],

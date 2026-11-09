@@ -421,6 +421,8 @@ function dealToCreature(
       `🛡 Щит: ${raw} → ${dealt} урона по ${getCard(def.cardId).name}`,
     );
   }
+  // Рана доживает до следующего резета хода (враг начинает ход уже битый).
+  if (dealt > 0 && def.health > 0) markHoldWound(def);
   return dealt;
 }
 
@@ -977,7 +979,6 @@ function tryRiposte(
   log.unshift(
     `${getCard(victim.cardId).name}: ответный выстрел по ${getCard(atk.cardId).name} на ${dmg} → ${Math.max(0, atk.health)} HP`,
   );
-  if (atk.health > 0) markHoldWound(atk);
   for (let i = 0; i < attackerOwner.slots.length; i++) {
     removeIfDead(attackerOwner, i, log, state);
   }
@@ -1010,7 +1011,8 @@ function resolveHitVictim(
  * Ближний бой: бьёт только атакующий (инициатива хода).
  * Убил — цели нет, ответки нет. Выжила — ответит уже в свой ход
  * (кроме ability riposte — ответ сразу).
- * Урон копится до конца хода (потом выжившие к базе).
+ * Урон копится и через hold_wound доживает до хода жертвы; на следующем
+ * резете (конец её хода) выжившие без яда возвращаются к базе.
  */
 function meleeStrike(
   attackerOwner: PlayerState,
