@@ -1211,6 +1211,19 @@ button {
   white-space: pre-wrap;
 }
 
+.card-desc-upgrade-plan {
+  margin: 0.35rem 0 0.55rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(242, 233, 220, 0.14);
+  color: #d9cfc0;
+  font: inherit;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
 .card-desc-prem {
   margin: 0;
   color: #ffd166;
@@ -1709,10 +1722,16 @@ button {
   }
 }
 
-/* —— Огонь на карте (короткая вспышка, как яд) —— */
+/* —— Огонь на карте: вспышка при ударе + постоянное горение статуса —— */
 .board-card-wrap.is-burning {
   z-index: 8;
   animation: burn-burst 0.75s ease;
+}
+.board-card-wrap.has-burn {
+  z-index: 7;
+  box-shadow: 0 0 0 2px rgba(255, 120, 30, 0.55),
+    0 0 18px rgba(255, 80, 0, 0.35);
+  filter: saturate(1.15) brightness(1.05);
 }
 .fx-burn-layer {
   position: absolute;
@@ -1739,6 +1758,10 @@ button {
   opacity: 0;
   animation: fire-burst-rise 0.85s ease-out forwards;
   transform-origin: bottom center;
+}
+.board-card-wrap.has-burn .fx-burn-layer i {
+  opacity: 0.85;
+  animation: fire-loop-rise 1.15s ease-in-out infinite;
 }
 .fx-burn-layer i:nth-child(1) {
   left: 14%;
@@ -1767,6 +1790,21 @@ button {
   height: 16px;
   animation-delay: 0.2s;
 }
+.board-card-wrap.has-burn .fx-burn-layer i:nth-child(1) {
+  animation-delay: 0s;
+}
+.board-card-wrap.has-burn .fx-burn-layer i:nth-child(2) {
+  animation-delay: 0.18s;
+}
+.board-card-wrap.has-burn .fx-burn-layer i:nth-child(3) {
+  animation-delay: 0.36s;
+}
+.board-card-wrap.has-burn .fx-burn-layer i:nth-child(4) {
+  animation-delay: 0.12s;
+}
+.board-card-wrap.has-burn .fx-burn-layer i:nth-child(5) {
+  animation-delay: 0.48s;
+}
 
 @keyframes fire-burst-rise {
   0% {
@@ -1778,6 +1816,19 @@ button {
   }
   100% {
     transform: translateY(-38px) scale(1.25);
+    opacity: 0;
+  }
+}
+@keyframes fire-loop-rise {
+  0% {
+    transform: translateY(6px) scale(0.55);
+    opacity: 0.25;
+  }
+  35% {
+    opacity: 0.95;
+  }
+  100% {
+    transform: translateY(-34px) scale(1.2);
     opacity: 0;
   }
 }
@@ -4796,7 +4847,7 @@ html.is-hand-dragging .grave-row {
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 1rem;
+  gap: 1.25rem 1rem;
   margin-top: 1rem;
 }
 
@@ -7061,17 +7112,17 @@ html.is-hand-dragging .grave-row {
   .collection .grid,
   .deck-pool-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.4rem;
+    gap: 0.85rem 0.7rem;
     margin-top: 0.55rem;
   }
 
   .collection .grid-item {
-    gap: 0.28rem;
+    gap: 0.4rem;
     min-width: 0;
   }
 
   .collection .grid-item .card {
-    --card-w: min(100px, calc((100vw - 1.4rem) / 3.25));
+    --card-w: min(100px, calc((100vw - 2.4rem) / 3.35));
     --card-h: calc(var(--card-w) * 1.55);
     width: var(--card-w);
     height: var(--card-h);
@@ -7217,11 +7268,11 @@ html.is-hand-dragging .grave-row {
   .deck-pool-grid,
   .cabinet-card-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.3rem;
+    gap: 0.75rem 0.6rem;
   }
 
   .collection .grid-item .card {
-    --card-w: min(96px, calc((100vw - 1.1rem) / 3.2));
+    --card-w: min(96px, calc((100vw - 2.2rem) / 3.3));
     --card-h: calc(var(--card-w) * 1.55);
   }
 
@@ -7342,11 +7393,11 @@ html.is-hand-dragging .grave-row {
   .deck-pool-grid,
   .cabinet-card-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.28rem;
+    gap: 0.7rem 0.5rem;
   }
 
   .collection .grid-item .card {
-    --card-w: min(78px, calc((100vw - 1.2rem) / 4.35));
+    --card-w: min(78px, calc((100vw - 2.4rem) / 4.5));
     --card-h: calc(var(--card-w) * 1.52);
   }
 
@@ -7427,11 +7478,11 @@ html.is-hand-dragging .grave-row {
   .deck-pool-grid,
   .cabinet-card-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.22rem;
+    gap: 0.65rem 0.45rem;
   }
 
   .collection .grid-item .card {
-    --card-w: min(72px, calc((100vw - 1rem) / 4.3));
+    --card-w: min(72px, calc((100vw - 2.2rem) / 4.45));
     --card-h: calc(var(--card-w) * 1.52);
   }
 
