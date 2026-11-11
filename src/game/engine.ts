@@ -78,6 +78,7 @@ import {
   motardoHeroBonus,
   orcKillStun,
   recruitDeathHeal,
+  resolveSpellEffects,
   rogueStealEvery,
   scorpicoraFastPoison,
   spiderPoisonAmount,
@@ -3009,7 +3010,7 @@ export function playCard(
     const spawned = spawnCreature(
       cardId,
       next.rules,
-      battleUpgradeLevel(next, "you", cardId),
+      battleUpgradeLevel(next, next.active, cardId),
     );
     spawned.paidMana = { ...cost };
     me.slots[slotIndex] = spawned;
@@ -3184,12 +3185,14 @@ export function playCard(
     payMana(me.mana, cost);
     me.hand.splice(handIndex, 1);
     const linger = isLingeringSpell(cardId);
-    const effects =
+    const baseEffects =
       card.spellEffects && card.spellEffects.length > 0
         ? card.spellEffects
         : cardId === "hero_mana"
           ? [{ type: "gain_mana" as const, amount: 1 }]
           : [];
+    const spellLv = battleUpgradeLevel(next, next.active, cardId);
+    const effects = resolveSpellEffects(cardId, baseEffects, spellLv);
     const ownBefore = me.mana[me.faction] ?? 0;
     const ok = applySpellEffects(
       next,
@@ -5935,7 +5938,11 @@ export function takeAiStep(
   if (best.kind === "ramp") {
     const id = me.hand[best.hi]!;
     const card = getCard(id);
-    const effects = card.spellEffects ?? [];
+    const effects = resolveSpellEffects(
+      id,
+      card.spellEffects ?? [],
+      battleUpgradeLevel(next, "enemy", id),
+    );
     payMana(me.mana, costOf(id));
     me.hand.splice(best.hi, 1);
     applySpellEffects(next, me, foe, effects, null, next.log);
@@ -6040,7 +6047,11 @@ export function takeAiStep(
     payMana(me.mana, costOf(id));
     me.hand.splice(best.hi, 1);
     const linger = isLingeringSpell(id);
-    const effects = card.spellEffects ?? [];
+    const effects = resolveSpellEffects(
+      id,
+      card.spellEffects ?? [],
+      battleUpgradeLevel(next, "enemy", id),
+    );
     const massHits = effects.some(
       (e) => e.type === "damage_all_enemies" || e.type === "poison_all",
     )

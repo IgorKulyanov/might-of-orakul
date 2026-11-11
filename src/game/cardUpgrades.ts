@@ -1,10 +1,16 @@
 /**
  * Прокачка карт.
- * Механика: скелет + Жизнь + Смерть + Вода + Ад + Природа + Нейтрал.
+ * Существа всех школ + заклинания: осколки, L1–L3.
  * L2 = текущий полный кит (по умолчанию в сейве), L1 урезано, L3 капстоун.
  */
 import { getCard } from "./cards";
-import type { AttackPattern, CreatureAbility, ManaCost, OwnedState } from "./types";
+import type {
+  AttackPattern,
+  CreatureAbility,
+  ManaCost,
+  OwnedState,
+  SpellEffect,
+} from "./types";
 import { upgradePlanLine } from "./cardUpgradePlan";
 
 export type CardUpgradeLevel = 1 | 2 | 3;
@@ -33,6 +39,19 @@ export type CardUpgradeDef = {
    * Жизнь/скелет = 2, чтобы не ломать текущие колоды.
    */
   defaultLevel?: CardUpgradeLevel;
+  /**
+   * Заклинания: абсолютные числа по уровням.
+   * Ключ = `поле` (amount/turns/attack/health) или `тип.поле` (poison.amount).
+   */
+  spellNums?: Record<string, [number, number, number]>;
+  /** Доп. эффекты, которые появляются с указанного уровня. */
+  spellExtraFrom?: Partial<Record<CardUpgradeLevel, SpellEffect[]>>;
+};
+
+const SPELL_STAT_ZERO: Pick<CardUpgradeDef, "bonusAtk" | "bonusHp" | "defaultLevel"> = {
+  bonusAtk: [0, 0, 0],
+  bonusHp: [0, 0, 0],
+  defaultLevel: 2,
 };
 
 export const LIFE_UPGRADE_IDS = [
@@ -113,6 +132,54 @@ export const NEUTRAL_UPGRADE_IDS = [
   "rogue",
   "arbiter",
   "archer",
+] as const;
+
+/** Все заклинания каталога — те же осколки / L1–L3. */
+export const SPELL_UPGRADE_IDS = [
+  "poison",
+  "strike",
+  "undead_strike",
+  "undead_bonus",
+  "swamp",
+  "hero_mana",
+  "hell_cuffs",
+  "fire_aura",
+  "slow_foe",
+  "mind_grab",
+  "life_root",
+  "ice_trap",
+  "wave",
+  "arrow_cloud",
+  "shield",
+  "calm",
+  "hurricane",
+  "extra_card",
+  "to_attack",
+  "banish",
+  "antidote",
+  "mass_antidote",
+  "return_hand",
+  "reveal_hand",
+  "freeze",
+  "discard_hand",
+  "guardian_bond",
+  "break_spell",
+  "break_all_spells",
+  "traitor",
+  "fear",
+  "marionette",
+  "nothingness",
+  "mana_stones",
+  "mass_poison",
+  "betrayer",
+  "last_stand",
+  "bunker",
+  "clear_sky",
+  "dust_eyes",
+  "sniper",
+  "change_hand",
+  "awakening",
+  "mass_reveille",
 ] as const;
 
 export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
@@ -488,10 +555,234 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
     abilityFrom: { riposte: 3 },
     defaultLevel: 2,
   },
+
+  // —— Заклинания (JSON = ур.2) ——
+  poison: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { amount: [1, 2, 3] },
+  },
+  strike: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { amount: [4, 6, 9] },
+  },
+  undead_strike: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { amount: [7, 10, 14] },
+  },
+  undead_bonus: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { attack: [2, 3, 4], health: [2, 3, 4] },
+  },
+  swamp: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { amount: [4, 6, 9] },
+  },
+  hero_mana: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { amount: [1, 1, 1] },
+    spellExtraFrom: { 3: [{ type: "draw", amount: 1 }] },
+  },
+  hell_cuffs: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { amount: [1, 2, 3] },
+  },
+  fire_aura: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { amount: [4, 6, 9] },
+  },
+  slow_foe: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { amount: [1, 2, 3] },
+  },
+  mind_grab: {
+    ...SPELL_STAT_ZERO,
+    spellNums: {
+      "damage_hero.amount": [5, 8, 11],
+      "draw.amount": [1, 1, 2],
+    },
+  },
+  life_root: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { amount: [8, 12, 18] },
+  },
+  ice_trap: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { amount: [7, 10, 14] },
+  },
+  wave: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { amount: [4, 6, 9] },
+  },
+  arrow_cloud: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { amount: [4, 6, 9] },
+  },
+  shield: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { turns: [2, 3, 4] },
+  },
+  calm: {
+    ...SPELL_STAT_ZERO,
+    spellExtraFrom: { 3: [{ type: "draw", amount: 1 }] },
+  },
+  hurricane: {
+    ...SPELL_STAT_ZERO,
+    spellExtraFrom: { 3: [{ type: "damage_all_enemies", amount: 3 }] },
+  },
+  extra_card: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { turns: [1, 2, 3] },
+  },
+  to_attack: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { amount: [2, 3, 4] },
+  },
+  banish: {
+    ...SPELL_STAT_ZERO,
+    spellExtraFrom: { 3: [{ type: "damage_hero", amount: 4 }] },
+  },
+  antidote: {
+    ...SPELL_STAT_ZERO,
+    spellExtraFrom: { 3: [{ type: "heal_unit", amount: 6 }] },
+  },
+  mass_antidote: {
+    ...SPELL_STAT_ZERO,
+    spellExtraFrom: { 3: [{ type: "heal_hero", amount: 6 }] },
+  },
+  return_hand: {
+    ...SPELL_STAT_ZERO,
+    spellExtraFrom: { 3: [{ type: "damage_hero", amount: 3 }] },
+  },
+  reveal_hand: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { turns: [1, 1, 2] },
+  },
+  freeze: {
+    ...SPELL_STAT_ZERO,
+    spellExtraFrom: { 3: [{ type: "damage_unit", amount: 4 }] },
+  },
+  discard_hand: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { amount: [1, 2, 3] },
+  },
+  guardian_bond: {
+    ...SPELL_STAT_ZERO,
+    spellExtraFrom: { 3: [{ type: "heal_hero", amount: 6 }] },
+  },
+  break_spell: {
+    ...SPELL_STAT_ZERO,
+    spellExtraFrom: { 3: [{ type: "draw", amount: 1 }] },
+  },
+  break_all_spells: {
+    ...SPELL_STAT_ZERO,
+    spellExtraFrom: { 3: [{ type: "heal_hero", amount: 5 }] },
+  },
+  traitor: {
+    ...SPELL_STAT_ZERO,
+    spellExtraFrom: { 3: [{ type: "damage_hero", amount: 4 }] },
+  },
+  fear: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { turns: [1, 2, 3] },
+  },
+  marionette: {
+    ...SPELL_STAT_ZERO,
+    spellExtraFrom: { 3: [{ type: "damage_hero", amount: 3 }] },
+  },
+  nothingness: {
+    ...SPELL_STAT_ZERO,
+    spellExtraFrom: { 3: [{ type: "damage_unit", amount: 3 }] },
+  },
+  mana_stones: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { amount: [1, 1, 2] },
+  },
+  mass_poison: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { amount: [1, 2, 3] },
+  },
+  betrayer: {
+    ...SPELL_STAT_ZERO,
+    spellExtraFrom: { 3: [{ type: "draw", amount: 1 }] },
+  },
+  last_stand: {
+    ...SPELL_STAT_ZERO,
+    spellExtraFrom: { 3: [{ type: "heal_hero", amount: 4 }] },
+  },
+  bunker: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { turns: [2, 3, 4] },
+  },
+  clear_sky: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { turns: [1, 1, 2] },
+  },
+  dust_eyes: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { turns: [1, 2, 3] },
+  },
+  sniper: {
+    ...SPELL_STAT_ZERO,
+    spellNums: { attack: [1, 2, 3], turns: [1, 1, 2] },
+  },
+  change_hand: {
+    ...SPELL_STAT_ZERO,
+    spellExtraFrom: { 3: [{ type: "draw", amount: 1 }] },
+  },
+  awakening: {
+    ...SPELL_STAT_ZERO,
+    spellExtraFrom: {
+      3: [{ type: "buff_permanent", attack: 1, health: 1 }],
+    },
+  },
+  mass_reveille: {
+    ...SPELL_STAT_ZERO,
+    spellExtraFrom: { 3: [{ type: "heal_hero", amount: 8 }] },
+  },
 };
 
 export function isUpgradeableCard(cardId: string): boolean {
   return cardId in CARD_UPGRADE_DEFS;
+}
+
+function spellNumAt(
+  nums: Record<string, [number, number, number]> | undefined,
+  effectType: string,
+  field: string,
+  level: CardUpgradeLevel,
+): number | null {
+  if (!nums) return null;
+  const typed = nums[`${effectType}.${field}`];
+  if (typed) return typed[level - 1] ?? null;
+  const plain = nums[field];
+  if (plain) return plain[level - 1] ?? null;
+  return null;
+}
+
+/** Базовые spellEffects из JSON → с учётом уровня прокачки. */
+export function resolveSpellEffects(
+  cardId: string,
+  base: SpellEffect[],
+  level: CardUpgradeLevel,
+): SpellEffect[] {
+  const def = CARD_UPGRADE_DEFS[cardId];
+  const lv = clampUpgradeLevel(level);
+  const effects: SpellEffect[] = base.map((eff) => {
+    const next = { ...eff } as SpellEffect & Record<string, unknown>;
+    for (const field of ["amount", "turns", "attack", "health"] as const) {
+      if (typeof next[field] !== "number") continue;
+      const scaled = spellNumAt(def?.spellNums, String(next.type), field, lv);
+      if (scaled != null) next[field] = scaled;
+    }
+    return next as SpellEffect;
+  });
+  if (!def?.spellExtraFrom) return effects;
+  for (const need of [1, 2, 3] as const) {
+    if (lv < need) continue;
+    const extra = def.spellExtraFrom[need];
+    if (extra?.length) effects.push(...extra.map((e) => ({ ...e })));
+  }
+  return effects;
 }
 
 export function defaultUpgradeLevel(cardId: string): CardUpgradeLevel {
