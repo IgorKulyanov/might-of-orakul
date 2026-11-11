@@ -825,14 +825,14 @@ button {
   background-color: #0a0c12;
 }
 
-/* Угол рамки карты (не на лице арта), слева от кнопки ↻ */
+/* Ровно в правом верхнем углу рамки карты (↻ внизу справа — не мешает) */
 .card-upgrade-badge {
   position: absolute;
-  top: 0.2rem;
-  right: 1.7rem;
+  top: 0;
+  right: 0;
   z-index: 5;
-  padding: 0.1rem 0.32rem;
-  border-radius: 5px;
+  padding: 0.12rem 0.34rem;
+  border-radius: 0 10px 0 6px;
   font-family: var(--display);
   font-size: 0.58rem;
   font-weight: 700;
@@ -841,8 +841,11 @@ button {
   color: #0a0c12;
   background: linear-gradient(180deg, #ffe8a3, #e0a84a);
   border: 1px solid rgba(255, 255, 255, 0.55);
+  border-top: none;
+  border-right: none;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
   pointer-events: none;
+  line-height: 1.1;
 }
 
 .card-upgrade-badge.is-lv-1 {
@@ -860,26 +863,28 @@ button {
 .card.compact .card-upgrade-badge,
 .card.board .card-upgrade-badge {
   font-size: 0.5rem;
-  padding: 0.06rem 0.24rem;
-  top: 0.12rem;
-  right: 1.35rem;
-}
-
-.card:not(.clickable) .card-upgrade-badge,
-.card.board .card-upgrade-badge {
-  right: 0.22rem;
+  padding: 0.08rem 0.26rem;
+  border-radius: 0 8px 0 5px;
 }
 
 .shop-meta-shards {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.45rem;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  text-align: center;
 }
 
 .shop-meta-shards .shard-count {
+  display: block;
+  width: 100%;
+  text-align: center;
   font-family: var(--display);
   font-weight: 700;
-  font-size: 0.85rem;
-  letter-spacing: 0.04em;
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
   color: #9bdcff;
   font-variant-numeric: tabular-nums;
 }
