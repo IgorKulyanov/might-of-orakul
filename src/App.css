@@ -2294,18 +2294,11 @@ button {
   grid-template-rows: auto auto minmax(0, 1fr) var(--battle-footer-h);
   gap: 0.2rem;
   padding: 0.3rem 0.45rem 0.35rem;
-  background-color: #1a120c;
-  background-image:
-    radial-gradient(
-      ellipse at 50% 42%,
-      rgba(8, 5, 3, 0) 0%,
-      rgba(8, 5, 3, 0.12) 55%,
-      rgba(5, 3, 2, 0.42) 100%
-    ),
-    var(--battle-table, url("/battle-table.jpg"));
-  /* cover — стол на весь экран; центр = игровая плита */
-  background-size: cover, cover;
-  background-position: center center, center center;
+  /* Комната-стол: края с декором видны целиком, центр пустой под бой */
+  background-color: #07060a;
+  background-image: var(--battle-table, url("/battle-table.jpg"));
+  background-size: contain;
+  background-position: center center;
   background-repeat: no-repeat;
   box-sizing: border-box;
   opacity: 0;

@@ -21,7 +21,7 @@ const SCHOOL_TABLE: Record<string, string> = {
 };
 
 /** Версия артов — бамп при замене файлов. */
-export const BATTLE_TABLE_VER = 2;
+export const BATTLE_TABLE_VER = 3;
 
 export function battleTableUrl(path: string): string {
   return `${path}?v=${BATTLE_TABLE_VER}`;
