@@ -3281,11 +3281,20 @@ html.is-hand-dragging .grave-row {
 
   .board {
     padding: 0.15rem 0.1rem;
-    gap: 0.16rem;
+    gap: 0.35rem;
     overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    justify-content: flex-start;
+    /* слоты по центру каменной плиты, не прижаты к верху */
+    justify-content: center;
+  }
+
+  .board-lane.enemy-lane {
+    margin-bottom: 0.15rem;
+  }
+
+  .board-lane.your-lane {
+    margin-top: 0.15rem;
   }
 
   /* Не растягивать карты полевых слотов по высоте */
