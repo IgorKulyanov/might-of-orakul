@@ -197,18 +197,31 @@ export const UNIT_TIER_LABEL: Record<1 | 2 | 3 | 4 | 5, string> = {
 
 /**
  * С какого уровня игрока карта доступна в магазине (яркая + покупка).
- * Ниже — серый замок. Уже купленные всегда видны.
- * 1–9 обычные · 10–19 +редкие · 20–29 +эпик · 30+ легенды.
+ * Тир существа важнее rarity (у части воинов rarity=epic — их не держим до элиты).
+ * I с 1 · II с 10 · III воин с 15 · IV элита с 25 · V/легенда с 30.
+ * Заклинания без unitLevel — по rarity: common 1 / rare 10 / epic 25 / legendary 30.
  */
 export function minPlayerLevelForShopCard(card: {
   rarity?: string;
   unitLevel?: number;
 }): number {
-  const ul = card.unitLevel;
-  if (card.rarity === "legendary" || ul === 5) return 30;
-  if (card.rarity === "epic" || ul === 4) return 20;
-  if (card.rarity === "rare" || ul === 3 || ul === 2) return 10;
-  return 1;
+  const ul = Number(card.unitLevel);
+  if (ul === 5) return 30;
+  if (ul === 4) return 25;
+  if (ul === 3) return 15;
+  if (ul === 2) return 10;
+  if (ul === 1) return 1;
+
+  switch (card.rarity) {
+    case "legendary":
+      return 30;
+    case "epic":
+      return 25;
+    case "rare":
+      return 10;
+    default:
+      return 1;
+  }
 }
 
 export function isCardAvailableInShop(

@@ -332,8 +332,8 @@ export function Collection({
             Оракул: <strong>{catalogStats.unlocked}</strong> /{" "}
             {catalogStats.total} (
             {catalogStats.creatures} существ, {catalogStats.spells} заклинаний).
-            По 1 карте — дальше прокачка осколками. Замок = рано по уровню;
-            доступная ярче, покупка сразу в оракул.
+            По 1 карте — дальше осколки. Тиры: I с 1 · II с 10 · III воин с
+            15 · IV элита с 25 · V с 30. Доступная ярче → покупка в оракул.
           </p>
           {tab === "cards" && (
             <>

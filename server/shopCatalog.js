@@ -40,13 +40,24 @@ function maxCopiesFor(_card) {
   return MAX_COPIES_DEFAULT;
 }
 
-/** Лок магазина по уровню игрока (как на клиенте). */
+/** Лок магазина по уровню игрока (как на клиенте). Тир > rarity. */
 function minLevelForCard(card) {
   const ul = Number(card.unitLevel);
-  if (card.rarity === "legendary" || ul === 5) return 30;
-  if (card.rarity === "epic" || ul === 4) return 20;
-  if (card.rarity === "rare" || ul === 3 || ul === 2) return 10;
-  return 1;
+  if (ul === 5) return 30;
+  if (ul === 4) return 25;
+  if (ul === 3) return 15;
+  if (ul === 2) return 10;
+  if (ul === 1) return 1;
+  switch (card.rarity) {
+    case "legendary":
+      return 30;
+    case "epic":
+      return 25;
+    case "rare":
+      return 10;
+    default:
+      return 1;
+  }
 }
 
 function loadCardsJson() {
