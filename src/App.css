@@ -5416,6 +5416,20 @@ html.is-hand-dragging .grave-row {
   gap: 0.35rem;
 }
 
+.shop-meta.is-price-locked .primary,
+.shop-meta.is-price-locked .ghost {
+  opacity: 0.4;
+  filter: grayscale(0.55);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.ghost:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.35);
+}
+
 .shop-tab-icons {
   display: inline-flex;
   align-items: center;

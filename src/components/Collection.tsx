@@ -508,39 +508,51 @@ export function Collection({
                       })()}
                     </div>
                   ) : null}
-                  {showPrice ? (
-                    <div
-                      className="shop-meta"
-                      data-tut={firstBuy ? "hub-shop-buy" : undefined}
-                    >
-                      <button
-                        type="button"
-                        className="primary"
-                        onClick={() => buy(c.id, false)}
-                        title={
-                          canBuyShards
+                  <div
+                    className={`shop-meta${showPrice ? "" : " is-price-locked"}`}
+                    data-tut={firstBuy ? "hub-shop-buy" : undefined}
+                  >
+                    <button
+                      type="button"
+                      className="primary"
+                      disabled={!showPrice}
+                      onClick={() => showPrice && buy(c.id, false)}
+                      title={
+                        locked
+                          ? `С ${needLv} ур.`
+                          : canBuyShards
                             ? `+${shardsPerShopBuy(c.id)} осколков`
-                            : "В оракул"
-                        }
-                      >
-                        <GameIcon name="gold" size={14} /> {c.priceGold}
-                      </button>
-                      {c.priceDiamonds != null && c.priceDiamonds > 0 && (
-                        <button
-                          type="button"
-                          className="ghost"
-                          onClick={() => buy(c.id, true)}
-                          title={
-                            canBuyShards
-                              ? `+${shardsPerShopBuy(c.id)} осколков`
-                              : "В оракул"
-                          }
-                        >
-                          <GameIcon name="diamond" size={14} /> {c.priceDiamonds}
-                        </button>
-                      )}
-                    </div>
-                  ) : null}
+                            : showPrice
+                              ? "В оракул"
+                              : "Максимум"
+                      }
+                    >
+                      <GameIcon name="gold" size={14} /> {c.priceGold}
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost"
+                      disabled={!showPrice || !(c.priceDiamonds != null && c.priceDiamonds > 0)}
+                      onClick={() =>
+                        showPrice &&
+                        c.priceDiamonds != null &&
+                        c.priceDiamonds > 0 &&
+                        buy(c.id, true)
+                      }
+                      title={
+                        locked
+                          ? `С ${needLv} ур.`
+                          : canBuyShards
+                            ? `+${shardsPerShopBuy(c.id)} осколков`
+                            : showPrice
+                              ? "В оракул"
+                              : "Максимум"
+                      }
+                    >
+                      <GameIcon name="diamond" size={14} />{" "}
+                      {c.priceDiamonds ?? 0}
+                    </button>
+                  </div>
                 </div>
               </div>
             );
