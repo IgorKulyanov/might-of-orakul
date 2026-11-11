@@ -62,6 +62,8 @@ type Props = {
   flippable?: boolean;
   /** Реальная стоимость в бою (арена и т.п.), иначе с карты. */
   manaCostOverride?: ManaCost;
+  /** Уровень прокачки карты (1…3) — бейдж на арте. */
+  upgradeLevel?: 1 | 2 | 3 | null;
   onClick?: () => void;
 };
 
@@ -91,6 +93,7 @@ export function CardView({
   canAttack,
   flippable = true,
   manaCostOverride,
+  upgradeLevel = null,
   onClick,
 }: Props) {
   const c = card ?? (cardId ? getCard(cardId) : null);
@@ -280,6 +283,14 @@ export function CardView({
                 }}
                 aria-hidden
               />
+              {upgradeLevel != null && upgradeLevel >= 1 ? (
+                <span
+                  className={`card-upgrade-badge is-lv-${upgradeLevel}`}
+                  title={`Прокачка карты: уровень ${upgradeLevel}`}
+                >
+                  Ур.{upgradeLevel}
+                </span>
+              ) : null}
               <div className="card-footer">
                 <div className="card-name">{c.name}</div>
               </div>

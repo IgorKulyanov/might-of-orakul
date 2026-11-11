@@ -825,6 +825,87 @@ button {
   background-color: #0a0c12;
 }
 
+.card-upgrade-badge {
+  position: absolute;
+  top: 0.28rem;
+  right: 0.28rem;
+  z-index: 3;
+  padding: 0.12rem 0.35rem;
+  border-radius: 6px;
+  font-family: var(--display);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #0a0c12;
+  background: linear-gradient(180deg, #ffe8a3, #e0a84a);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+.card-upgrade-badge.is-lv-1 {
+  background: linear-gradient(180deg, #d7e3f4, #8fa4c0);
+}
+
+.card-upgrade-badge.is-lv-3 {
+  background: linear-gradient(180deg, #fff4c4, #f0a020 55%, #c45c10);
+  color: #1a0c04;
+  box-shadow:
+    0 0 10px rgba(255, 180, 60, 0.55),
+    0 2px 8px rgba(0, 0, 0, 0.55);
+}
+
+.card.compact .card-upgrade-badge,
+.card.board .card-upgrade-badge {
+  font-size: 0.55rem;
+  padding: 0.08rem 0.28rem;
+  top: 0.18rem;
+  right: 0.18rem;
+}
+
+.shop-upgrade-panel {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  margin: 0.35rem 0 0.55rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid rgba(140, 200, 255, 0.45);
+  background: rgba(30, 55, 90, 0.45);
+}
+
+.shop-upgrade-art {
+  flex: 0 0 auto;
+  width: 2.8rem;
+  height: 3.8rem;
+  border-radius: 7px;
+  border: 1px solid rgba(200, 230, 255, 0.5);
+  background-size: cover;
+  background-position: center top;
+  background-color: #0a0c12;
+}
+
+.shop-upgrade-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.shop-upgrade-copy strong {
+  font-family: var(--display);
+  font-size: 0.95rem;
+  color: #e8f4ff;
+}
+
+.shop-upgrade-copy span {
+  font-size: 0.75rem;
+  color: rgba(200, 220, 240, 0.85);
+  line-height: 1.35;
+}
+
 /* Высокие портреты: cover срезал головы — вписываем по высоте */
 .card[data-card="banshee"] .card-art,
 .card[data-card="basilisk"] .card-art {

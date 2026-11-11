@@ -5,6 +5,8 @@ import {
   DECK_SIZE,
   MIN_DECK_SIZE,
   SCHOOL_LABEL,
+  cardArtUrl,
+  getCard,
   maxCopiesForCard,
   sortCatalogCards,
 } from "../game/cards";
@@ -367,6 +369,52 @@ export function Collection({
 
       {tab === "cards" && (
         <div className="grid">
+          {isUnlocked(owned, "skeleton") ? (
+            <div className="shop-upgrade-panel" style={{ gridColumn: "1 / -1" }}>
+              <span
+                className="shop-upgrade-art"
+                style={{
+                  backgroundImage: `url("${cardArtUrl(getCard("skeleton"))}")`,
+                }}
+                aria-hidden
+              />
+              <div className="shop-upgrade-copy">
+                <strong>
+                  Скелет · прокачка ур.
+                  {getCardUpgradeLevel(owned, "skeleton")}
+                </strong>
+                <span>
+                  {cardUpgradeBlurb(
+                    "skeleton",
+                    getCardUpgradeLevel(owned, "skeleton"),
+                  )}{" "}
+                  Осколки: {getCardShards(owned, "skeleton")}
+                  {shardsNeededForNext(
+                    "skeleton",
+                    getCardUpgradeLevel(owned, "skeleton"),
+                  ) != null
+                    ? ` / ${shardsNeededForNext(
+                        "skeleton",
+                        getCardUpgradeLevel(owned, "skeleton"),
+                      )} до след. уровня`
+                    : " — максимум"}
+                  . Падают после победы над ботом.
+                </span>
+              </div>
+              {shardsNeededForNext(
+                "skeleton",
+                getCardUpgradeLevel(owned, "skeleton"),
+              ) != null ? (
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={() => upgrade("skeleton")}
+                >
+                  Улучшить
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           {list.map((c, idx) => {
             const have = ownedCopies(owned, c.id);
             const locked = have <= 0;
@@ -389,6 +437,11 @@ export function Collection({
                   card={c}
                   locked={locked}
                   flippable
+                  upgradeLevel={
+                    !locked && isUpgradeableCard(c.id)
+                      ? getCardUpgradeLevel(owned, c.id)
+                      : null
+                  }
                   onClick={locked ? undefined : () => addToDeck(c.id)}
                 />
                 <div className="grid-meta">

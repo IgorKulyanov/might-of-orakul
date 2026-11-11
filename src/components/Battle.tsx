@@ -92,11 +92,31 @@ import {
 } from "../game/battleTutorial";
 import { pickBattleTable } from "../game/battleTables";
 import {
+  defaultUpgradeLevel,
+  isUpgradeableCard,
+} from "../game/cardUpgrades";
+import {
   applyPvpAction,
   PVP_OPENING_MS,
   type PvpAction,
 } from "../game/pvpProtocol";
 import type { BattleState, CreatureInstance } from "../game/types";
+
+function upgradeLvFor(
+  state: BattleState,
+  side: "you" | "enemy",
+  cardId: string,
+): 1 | 2 | 3 | null {
+  if (!isUpgradeableCard(cardId)) return null;
+  const map =
+    side === "you" ? state.youCardUpgrades : state.enemyCardUpgrades;
+  const raw = map?.[cardId];
+  if (raw == null) return defaultUpgradeLevel(cardId);
+  const n = Math.floor(Number(raw));
+  if (n >= 3) return 3;
+  if (n <= 1) return 1;
+  return 2;
+}
 
 type NetAction = PvpAction | ((s: BattleState) => PvpAction | null);
 
@@ -540,6 +560,12 @@ function BoardCard({
         packBonus={creature.packBonus}
         statuses={creature.statuses}
         canAttack={ready}
+        upgradeLevel={
+          creature.upgradeLevel ??
+          (isUpgradeableCard(creature.cardId)
+            ? defaultUpgradeLevel(creature.cardId)
+            : null)
+        }
         flippable
         onClick={onClick}
       />
@@ -3361,10 +3387,11 @@ export function Battle({
                   }}
                 >
                   <CardView
-            cardId={id}
-            compact
+                    cardId={id}
+                    compact
                     selected={!busy && state.selectedHand === i}
                     manaCostOverride={battleManaCost(state, id)}
+                    upgradeLevel={upgradeLvFor(state, "you", id)}
                   />
                 </div>
               );
