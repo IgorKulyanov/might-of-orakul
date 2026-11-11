@@ -338,10 +338,8 @@ export function Cabinet({
       {tab === "deck" && (
         <div className="cabinet-cards" data-tut="hub-deck-board">
           <p className="hint cabinet-transfer-hint">
-            Колода до {DECK_SIZE} карт. Обычные — до{" "}
-            <strong>2 копий</strong>, эпик/легенда — 1. В бою колода мешается
-            как есть (две одинаковые = чаще выпадают). Сейчас: {deck.length}/
-            {DECK_SIZE}.
+            Колода до {DECK_SIZE} карт, по <strong>1 копии</strong> каждой —
+            сила через прокачку осколками. Сейчас: {deck.length}/{DECK_SIZE}.
           </p>
 
           <section

@@ -202,8 +202,11 @@ export const DECK_SIZE = 25;
 /** Минимум для боя; старт новичка — 4 карты (см. starterDecks). */
 export const MIN_DECK_SIZE = 4;
 
-/** Дефолтный потолок копий в колоде/коллекции (легенды режутся ниже). */
-export const MAX_COPIES = 2;
+/**
+ * Потолок копий: 1 — идём через прокачку, а не стак одинаковых.
+ * (Эпик/легенда и раньше были 1.)
+ */
+export const MAX_COPIES = 1;
 
 /** Уникальный список без пустых id (порядок сохраняем). */
 export function uniqueCardIds(pool: string[]): string[] {
@@ -217,16 +220,9 @@ export function uniqueCardIds(pool: string[]): string[] {
   return out;
 }
 
-/** Сколько копий карты можно иметь (коллекция и колода). */
-export function maxCopiesForCard(cardId: string): number {
-  try {
-    const c = getCard(cardId);
-    if (c.rarity === "legendary" || c.unitLevel === 5) return 1;
-    if (c.rarity === "epic" || c.unitLevel === 4) return 1;
-    return MAX_COPIES;
-  } catch {
-    return MAX_COPIES;
-  }
+/** Сколько копий карты можно иметь (коллекция / оракул и колода). */
+export function maxCopiesForCard(_cardId: string): number {
+  return MAX_COPIES;
 }
 
 export function countIds(ids: string[]): Record<string, number> {

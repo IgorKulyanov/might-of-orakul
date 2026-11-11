@@ -46,6 +46,8 @@ type Props = {
   card?: CardDef;
   selected?: boolean;
   locked?: boolean;
+  /** Магазин: карта открыта по уровню, ещё не в оракуле — ярче. */
+  shopReady?: boolean;
   compact?: boolean;
   board?: boolean;
   liveAttack?: number;
@@ -81,6 +83,7 @@ export function CardView({
   card,
   selected,
   locked,
+  shopReady,
   compact,
   board,
   liveAttack,
@@ -230,6 +233,7 @@ export function CardView({
           `frame-lv-${frameLv}`,
           selected ? "selected" : "",
           locked ? "locked" : "",
+          shopReady && !locked ? "shop-ready" : "",
           compact ? "compact" : "",
           board ? "board" : "",
           canAttack ? "can-attack" : "",

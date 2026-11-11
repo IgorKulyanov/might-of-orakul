@@ -18,6 +18,8 @@ import { analyzeDeck } from "../game/deckStats";
 import { getHero } from "../game/heroes";
 import {
   UNIT_TIER_LABEL,
+  isCardAvailableInShop,
+  minPlayerLevelForShopCard,
   starterDeckForFaction,
 } from "../game/progression";
 import { apiCreatePayment, apiShopBuy } from "../game/api";
@@ -34,6 +36,7 @@ import {
   exchangeDiamondsAmount,
   isUnlocked,
   ownedCopies,
+  playerLevel,
   saveDeck,
   tryUpgradeCard,
 } from "../game/owned";
@@ -196,12 +199,16 @@ export function Collection({
   const buy = (id: string, withDiamonds = false) => {
     const card = CARDS.find((c) => c.id === id);
     if (!card) return;
-    if (!canBuyAnotherCopy(owned, id)) {
-      say(`Максимум копий «${card.name}»: ${maxCopiesForCard(id)}`);
+    const lv = playerLevel(owned);
+    if (!isCardAvailableInShop(card, lv)) {
+      say(`«${card.name}» с ${minPlayerLevelForShopCard(card)} ур.`);
       return;
     }
-    const have = ownedCopies(owned, id);
-    const label = have > 0 ? `ещё копию «${card.name}»` : `«${card.name}»`;
+    if (ownedCopies(owned, id) >= maxCopiesForCard(id)) {
+      say(`«${card.name}» уже в оракуле`);
+      return;
+    }
+    const label = `«${card.name}»`;
     if (withDiamonds) {
       const price = card.priceDiamonds ?? 0;
       if (!price) return;
@@ -209,7 +216,7 @@ export function Collection({
         alert(`Не хватает алмазов (нужно ${diamondText(price)}).`);
         return;
       }
-      const ok = window.confirm(`Купить ${label} за ${diamondText(price)}?`);
+      const ok = window.confirm(`В оракул ${label} за ${diamondText(price)}?`);
       if (!ok) return;
       void commitBuy(id, "diamonds", () => buyCardWithDiamonds(owned, id));
       return;
@@ -222,7 +229,7 @@ export function Collection({
       );
       return;
     }
-    const ok = window.confirm(`Купить ${label} за ${goldText(price)}?`);
+    const ok = window.confirm(`В оракул ${label} за ${goldText(price)}?`);
     if (!ok) return;
     void commitBuy(id, "gold", () => buyCardWithGold(owned, id));
   };
@@ -232,8 +239,11 @@ export function Collection({
     currency: "gold" | "diamonds",
     localBuy: () => OwnedState,
   ) => {
+    const cardName =
+      CARDS.find((c) => c.id === cardId)?.name ?? cardId;
     if (!authToken) {
       onChange(localBuy());
+      say(`«${cardName}» теперь в оракуле`);
       return;
     }
     try {
@@ -245,11 +255,12 @@ export function Collection({
       const next: OwnedState = {
         ...owned,
         ...user.owned,
-        decks: owned.decks,
-        activeDeckId: owned.activeDeckId,
+        decks: user.owned.decks ?? owned.decks,
+        activeDeckId: user.owned.activeDeckId ?? owned.activeDeckId,
         homeFaction: owned.homeFaction ?? user.owned.homeFaction,
       };
       onChange(next);
+      say(`«${cardName}» теперь в оракуле`);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Покупка не прошла");
     }
@@ -318,10 +329,11 @@ export function Collection({
       {(tab === "cards" || tab === "deck") && (
         <>
           <p className="hint catalog-status">
-            В игре: <strong>{catalogStats.total}</strong> (
+            Оракул: <strong>{catalogStats.unlocked}</strong> /{" "}
+            {catalogStats.total} (
             {catalogStats.creatures} существ, {catalogStats.spells} заклинаний).
-            Открыто типов: <strong>{catalogStats.unlocked}</strong>. Копии
-            тоже платные (обычно до 2 шт.).
+            По 1 карте — дальше прокачка осколками. Замок = рано по уровню;
+            доступная ярче, покупка сразу в оракул.
           </p>
           {tab === "cards" && (
             <>
@@ -368,32 +380,29 @@ export function Collection({
         <div className="grid">
           {list.map((c, idx) => {
             const have = ownedCopies(owned, c.id);
-            const locked = have <= 0;
-            const inDeck = counts[c.id] ?? 0;
-            const cap = maxCopiesForCard(c.id);
+            const inOracle = have > 0;
+            const levelOk = isCardAvailableInShop(c, playerLevel(owned));
+            const locked = !inOracle && !levelOk;
+            const shopReady = !inOracle && levelOk;
             const canBuyMore = canBuyAnotherCopy(owned, c.id);
             const firstBuy =
               canBuyMore &&
               !list
                 .slice(0, idx)
                 .some((x) => canBuyAnotherCopy(owned, x.id));
-            const firstAdd =
-              !locked &&
-              !list
-                .slice(0, idx)
-                .some((x) => ownedCopies(owned, x.id) > 0);
+            const needLv = minPlayerLevelForShopCard(c);
             return (
               <div key={c.id} className="grid-item">
                 <CardView
                   card={c}
                   locked={locked}
-                  flippable
+                  shopReady={shopReady}
+                  flippable={!locked}
                   upgradeLevel={
-                    !locked && isUpgradeableCard(c.id)
+                    inOracle && isUpgradeableCard(c.id)
                       ? getCardUpgradeLevel(owned, c.id)
                       : null
                   }
-                  onClick={locked ? undefined : () => addToDeck(c.id)}
                 />
                 <div className="grid-meta">
                   <div className="card-live-tag inline-icos">
@@ -404,11 +413,12 @@ export function Collection({
                       ? ` · ${UNIT_TIER_LABEL[c.unitLevel]}`
                       : ""}
                     {locked
-                      ? " · нет"
-                      : ` · у тебя ${have}/${cap}`}
-                    {!locked && inDeck > 0 ? ` · в колоде ${inDeck}` : ""}
+                      ? ` · с ${needLv} ур.`
+                      : inOracle
+                        ? " · в оракуле"
+                        : " · доступна"}
                   </div>
-                  {!locked && isUpgradeableCard(c.id) ? (
+                  {inOracle && isUpgradeableCard(c.id) ? (
                     <div className="shop-meta shop-meta-shards">
                       {(() => {
                         const lv = getCardUpgradeLevel(owned, c.id);
@@ -427,7 +437,6 @@ export function Collection({
                           );
                         }
                         const ready = haveSh >= need;
-                        // копим до ур.2 — зелёный; до ур.3 — синий; хватило — золотой
                         const tone = ready
                           ? "is-ready"
                           : lv <= 1
@@ -461,7 +470,6 @@ export function Collection({
                         className="primary"
                         onClick={() => buy(c.id, false)}
                       >
-                        {have > 0 ? "Ещё · " : ""}
                         <GameIcon name="gold" size={14} /> {c.priceGold}
                       </button>
                       {c.priceDiamonds != null && c.priceDiamonds > 0 && (
@@ -475,30 +483,6 @@ export function Collection({
                       )}
                     </div>
                   ) : null}
-                  {!locked && (
-                    <div
-                      className="shop-meta"
-                      data-tut={firstAdd ? "hub-shop-add" : undefined}
-                    >
-                      <button
-                        type="button"
-                        className="primary"
-                        onClick={() => addToDeck(c.id)}
-                        disabled={inDeck >= Math.min(cap, have) || deck.length >= DECK_SIZE}
-                      >
-                        + в колоду
-                      </button>
-                      {inDeck > 0 && (
-                        <button
-                          type="button"
-                          className="ghost"
-                          onClick={() => removeOneFromDeck(c.id)}
-                        >
-                          − из колоды
-                        </button>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
             );
@@ -509,8 +493,8 @@ export function Collection({
       {tab === "deck" && (
         <div className="deck-edit">
           <p className="hint">
-            Старт — 4 карты. Потом докупаешь копии и новые (в колоде до{" "}
-            {DECK_SIZE}, обычные до 2 шт.). Кликни карту — убрать копию. В бою
+            Колода из оракула: до {DECK_SIZE} карт, по 1 копии. Кликни карту —
+            убрать. Новые покупки сами попадают сюда, если есть место. В бою
             колода крутится по кругу.
           </p>
 

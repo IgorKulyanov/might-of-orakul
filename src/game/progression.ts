@@ -196,6 +196,30 @@ export const UNIT_TIER_LABEL: Record<1 | 2 | 3 | 4 | 5, string> = {
 };
 
 /**
+ * С какого уровня игрока карта доступна в магазине (яркая + покупка).
+ * Ниже — серый замок. Уже купленные всегда видны.
+ * 1–9 обычные · 10–19 +редкие · 20–29 +эпик · 30+ легенды.
+ */
+export function minPlayerLevelForShopCard(card: {
+  rarity?: string;
+  unitLevel?: number;
+}): number {
+  const ul = card.unitLevel;
+  if (card.rarity === "legendary" || ul === 5) return 30;
+  if (card.rarity === "epic" || ul === 4) return 20;
+  if (card.rarity === "rare" || ul === 3 || ul === 2) return 10;
+  return 1;
+}
+
+export function isCardAvailableInShop(
+  card: { rarity?: string; unitLevel?: number },
+  playerLevel: number,
+): boolean {
+  const lv = Math.max(1, Math.floor(playerLevel || 1));
+  return lv >= minPlayerLevelForShopCard(card);
+}
+
+/**
  * Старт: 4 карты ×1 (см. starterDecks.ts).
  * Ниже — совместимость со старыми миграциями.
  */

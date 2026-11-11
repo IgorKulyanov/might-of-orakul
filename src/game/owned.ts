@@ -31,6 +31,7 @@ import {
   battleXpPvp,
   battleGoldPvp,
   grantXp,
+  isCardAvailableInShop,
   normalizeProgress,
   starterCollectionForFaction,
   starterDeckForFaction,
@@ -208,7 +209,7 @@ function scrubCollectionForHero(
   for (const [id, n] of Object.entries(collection)) {
     if ((n ?? 0) <= 0) continue;
     if (pool.has(id) && !starters.has(id) && !bought.has(id)) continue;
-    cleaned[id] = n;
+    cleaned[id] = Math.min(maxCopiesForCard(id), Math.floor(Number(n)) || 0);
   }
   return mergeCollection(cleaned, starterCollectionForFaction(faction));
 }
@@ -233,6 +234,12 @@ function withDefaults(parsed: OwnedState): OwnedState {
   }
   for (const id of purchased) {
     if ((collection[id] ?? 0) < 1) collection[id] = 1;
+  }
+  // Прокачка вместо стака: не больше 1 копии в оракуле.
+  for (const [id, n] of Object.entries(collection)) {
+    const capped = Math.min(maxCopiesForCard(id), Math.floor(Number(n)) || 0);
+    if (capped <= 0) delete collection[id];
+    else collection[id] = capped;
   }
 
   const syncedUnlocked = [
@@ -509,9 +516,12 @@ export function isUnlocked(owned: OwnedState, cardId: string): boolean {
   return ownedCopies(owned, cardId) > 0;
 }
 
-/** Можно докупить ещё одну копию? */
+/** Можно купить карту в оракул? (1 копия + открыта по уровню) */
 export function canBuyAnotherCopy(owned: OwnedState, cardId: string): boolean {
-  return ownedCopies(owned, cardId) < maxCopiesForCard(cardId);
+  if (ownedCopies(owned, cardId) >= maxCopiesForCard(cardId)) return false;
+  const card = CARDS.find((c) => c.id === cardId);
+  if (!card) return false;
+  return isCardAvailableInShop(card, playerLevel(owned));
 }
 
 export function playerLevel(owned: OwnedState): number {
@@ -521,6 +531,24 @@ export function playerLevel(owned: OwnedState): number {
 /** @deprecated используй buyCardWithGold */
 export function purchaseCard(owned: OwnedState, cardId: string): OwnedState {
   return buyCardWithGold(owned, cardId);
+}
+
+/** Купленная карта сама попадает в активную колоду, если есть место. */
+function ensureCardInActiveDeck(
+  owned: OwnedState,
+  cardId: string,
+): OwnedState {
+  const deckId = owned.activeDeckId ?? "starter";
+  const decks = { ...(owned.decks ?? {}) };
+  const deck = [...(decks[deckId] ?? [])];
+  const inDeck = deck.filter((x) => x === cardId).length;
+  const have = ownedCopies(owned, cardId);
+  if (inDeck >= have) return owned;
+  if (deck.length >= DECK_SIZE) return owned;
+  if (inDeck >= maxCopiesForCard(cardId)) return owned;
+  deck.push(cardId);
+  decks[deckId] = deck;
+  return { ...owned, decks, activeDeckId: deckId };
 }
 
 function addOwnedCopy(owned: OwnedState, cardId: string): OwnedState {
@@ -535,7 +563,10 @@ function addOwnedCopy(owned: OwnedState, cardId: string): OwnedState {
   const unlocked = owned.unlocked.includes(cardId)
     ? owned.unlocked
     : [...owned.unlocked, cardId];
-  return { ...owned, collection, purchased, unlocked };
+  return ensureCardInActiveDeck(
+    { ...owned, collection, purchased, unlocked },
+    cardId,
+  );
 }
 
 /** Компенсация / админ: выдать копию карты без оплаты. */

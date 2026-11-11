@@ -18,7 +18,8 @@ const UNIT_TIER_PRICE = {
 
 export const EPIC_HERO_GOLD = 20_000;
 export const EPIC_HERO_DIAMONDS = 2_000;
-export const MAX_COPIES_DEFAULT = 2;
+/** 1 копия: прокачка вместо стака. */
+export const MAX_COPIES_DEFAULT = 1;
 
 function shopTier(card) {
   const ul = Number(card.unitLevel);
@@ -35,11 +36,17 @@ function shopTier(card) {
   }
 }
 
-function maxCopiesFor(card) {
-  const ul = Number(card.unitLevel);
-  if (card.rarity === "legendary" || ul === 5) return 1;
-  if (card.rarity === "epic" || ul === 4) return 1;
+function maxCopiesFor(_card) {
   return MAX_COPIES_DEFAULT;
+}
+
+/** Лок магазина по уровню игрока (как на клиенте). */
+function minLevelForCard(card) {
+  const ul = Number(card.unitLevel);
+  if (card.rarity === "legendary" || ul === 5) return 30;
+  if (card.rarity === "epic" || ul === 4) return 20;
+  if (card.rarity === "rare" || ul === 3 || ul === 2) return 10;
+  return 1;
 }
 
 function loadCardsJson() {
@@ -63,7 +70,7 @@ function loadCardsJson() {
 }
 
 const raw = loadCardsJson();
-/** @type {Map<string, { gold: number, diamonds: number, maxCopies: number, name: string }>} */
+/** @type {Map<string, { gold: number, diamonds: number, maxCopies: number, name: string, minLevel: number }>} */
 const CATALOG = new Map();
 
 for (const c of raw.cards || []) {
@@ -77,6 +84,7 @@ for (const c of raw.cards || []) {
     diamonds,
     maxCopies: maxCopiesFor(c),
     name: String(c.name || c.id),
+    minLevel: minLevelForCard(c),
   });
 }
 
@@ -169,13 +177,20 @@ export function applyShopBuy(owned, cardId, currency) {
   if (!owned || typeof owned !== "object") {
     return { ok: false, error: "Нет сейва" };
   }
+  const playerLv = Math.max(1, Math.floor(Number(owned.level)) || 1);
+  if (playerLv < card.minLevel) {
+    return {
+      ok: false,
+      error: `«${card.name}» с ${card.minLevel} уровня (у тебя ${playerLv})`,
+    };
+  }
   const col =
     owned.collection && typeof owned.collection === "object"
       ? { ...owned.collection }
       : {};
   const have = Math.floor(Number(col[cardId])) || 0;
   if (have >= card.maxCopies) {
-    return { ok: false, error: `Максимум копий «${card.name}»` };
+    return { ok: false, error: `Уже в оракуле: «${card.name}»` };
   }
 
   const pay = currency === "diamonds" ? "diamonds" : "gold";
@@ -213,6 +228,23 @@ export function applyShopBuy(owned, cardId, currency) {
   );
   unlocked.add(String(cardId));
   owned.unlocked = [...unlocked].slice(0, 500);
+
+  // Автоматически в активную колоду, если есть место.
+  const DECK_SIZE = 20;
+  const decks =
+    owned.decks && typeof owned.decks === "object" ? { ...owned.decks } : {};
+  const deckId =
+    typeof owned.activeDeckId === "string" && owned.activeDeckId
+      ? owned.activeDeckId
+      : "starter";
+  const deck = Array.isArray(decks[deckId]) ? [...decks[deckId]] : [];
+  const inDeck = deck.filter((x) => String(x) === String(cardId)).length;
+  if (inDeck < 1 && deck.length < DECK_SIZE) {
+    deck.push(String(cardId));
+    decks[deckId] = deck;
+    owned.decks = decks;
+    if (!owned.activeDeckId) owned.activeDeckId = deckId;
+  }
 
   return { ok: true };
 }
