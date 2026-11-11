@@ -577,13 +577,6 @@ function BoardCard({
           <i />
         </span>
       ) : null}
-      {impact === "arrow" ? (
-        <span className="fx-arrow-stuck" aria-hidden>
-          <i />
-          <i />
-          <i />
-        </span>
-      ) : null}
       {showPoison ? (
         <span className="fx-poison-smoke" aria-hidden>
           <i />
@@ -2291,7 +2284,8 @@ export function Battle({
 
     if (fx.kind === "lunge") {
       const motion = fx.motion ?? "melee";
-      if (motion === "ranged") return "arrow";
+      // Стрелы только летят — «палки» на карте не рисуем.
+      if (motion === "ranged") return null;
       if (motion === "bolt") {
         if (fx.school === "hell") return "burn";
         if (fx.school === "water") return "water";
@@ -2303,7 +2297,8 @@ export function Battle({
       if (fx.vfx === "poison") return "poison";
       if (fx.vfx === "burn" || fx.school === "hell") return "burn";
       if (fx.vfx === "water" || fx.school === "water") return "water";
-      if (fx.vfx === "arrow") return "arrow";
+      // Туча стрел: только дождь снарядов, без палок на карте.
+      if (fx.vfx === "arrow") return null;
       if (fx.vfx === "shock") return "shock";
       if (fx.vfx === "magic") return "shock";
       return null;
