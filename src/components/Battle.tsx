@@ -28,11 +28,15 @@ import {
   forwardAttackTarget,
   balthazarFlexReady,
   bansheeFlexReady,
+  breakSpellWithUnicorn,
   buffWithMage,
+  cleaveBreathWithInferno,
   createBattle,
+  infernoFlexReady,
   endEnemyTurn,
   endPlayerTurn,
   healWithAngel,
+  leshyEnemySwapReady,
   leshyFlexReady,
   mageFlexReady,
   mermaidFlexReady,
@@ -65,6 +69,7 @@ import {
   swapStatsWithLeshy,
   takeAiStep,
   tritonFlexReady,
+  unicornFlexReady,
   validAttackTargets,
   verdictWithArbiter,
   BLOOD_FRENZY_AFTER_TURNS,
@@ -514,7 +519,9 @@ function BoardCard({
   onClick: () => void;
 }) {
   const poisoned = creature.statuses.some((st) => st.type === "poison");
+  const burning = creature.statuses.some((st) => st.type === "burn");
   const showPoison = poisoned || impact === "poison" || poisonBurst;
+  const showBurn = burning || impact === "burn";
   return (
     <div
       className={[
@@ -528,6 +535,7 @@ function BoardCard({
         hit ? "is-hit" : "",
         poisonBurst ? "is-poison-burst" : "",
         showPoison ? "has-poison" : "",
+        showBurn ? "has-burn" : "",
         impact === "burn" ? "is-burning" : "",
         impact === "magic" ? "is-magic-burn" : "",
         impact === "water" ? "is-water-hit" : "",
@@ -570,7 +578,7 @@ function BoardCard({
         onClick={onClick}
       />
       {sleeping && <span className="sleep-tag">сон</span>}
-      {impact === "burn" ? (
+      {showBurn ? (
         <span className="fx-burn-layer" aria-hidden>
           <i />
           <i />
@@ -1302,6 +1310,8 @@ export function Battle({
     state.selectedSlot != null && mermaidFlexReady(state, state.selectedSlot);
   const succubusReady =
     state.selectedSlot != null && succubusFlexReady(state, state.selectedSlot);
+  const infernoReady =
+    state.selectedSlot != null && infernoFlexReady(state, state.selectedSlot);
   const bansheeReady =
     state.selectedSlot != null && bansheeFlexReady(state, state.selectedSlot);
   const balthazarReady =
@@ -1313,6 +1323,9 @@ export function Battle({
     hornetQueenFlexReady(state, state.selectedSlot);
   const leshyReady =
     state.selectedSlot != null && leshyFlexReady(state, state.selectedSlot);
+  const leshyEnemyReady =
+    state.selectedSlot != null &&
+    leshyEnemySwapReady(state, state.selectedSlot);
   const moveReady =
     state.selectedSlot != null && moveFlexReady(state, state.selectedSlot);
 
@@ -1689,6 +1702,28 @@ export function Battle({
       return;
     }
 
+    // Единорог уже выбран → повторный клик = разбить заклинание врага
+    if (
+      creature &&
+      state.selectedSlot === i &&
+      unicornFlexReady(state, i)
+    ) {
+      void runLocked(async () => {
+        await playFx(
+          {
+            side: "you",
+            kind: "spell",
+            fromSlot: i,
+            cardId: creature.cardId,
+          },
+          (s) => breakSpellWithUnicorn(s, i),
+          700,
+          { kind: "breakUnicorn", fromSlot: i },
+        );
+      });
+      return;
+    }
+
     // Маг уже выбран → повторный клик = +1 HP себе навсегда
     if (
       creature &&
@@ -1828,6 +1863,26 @@ export function Battle({
     const from = state.selectedSlot;
     const enemyUnit = state.enemy.slots[i];
 
+    // Леший ур.3: обмен ATK↔HP у врага (не удар напротив без умения)
+    if (leshyEnemyReady && enemyUnit && (flexIntent === "skill" || i !== from)) {
+      void runLocked(async () => {
+        await playFx(
+          {
+            side: "you",
+            kind: "spell",
+            fromSlot: from,
+            toSlot: i,
+            cardId: state.you.slots[from]!.cardId,
+            hitSlots: [i],
+          },
+          (s) => swapStatsWithLeshy(s, from, "enemy", i),
+          900,
+          { kind: "swapLeshy", fromSlot: from, side: "enemy", toSlot: i },
+        );
+      });
+      return;
+    }
+
     const wantSkill = flexIntent === "skill";
 
     // Режим «умение»: русалка — усыпить (в т.ч. напротив), не женщину
@@ -1892,6 +1947,26 @@ export function Battle({
           (s) => stunWithBanshee(s, from, i),
           900,
           { kind: "stunBanshee", fromSlot: from, toSlot: i },
+        );
+      });
+      return;
+    }
+
+    // Режим «умение»: инферно — дыхание (cleave) раз за бой
+    if (wantSkill && infernoReady && enemyUnit) {
+      void runLocked(async () => {
+        await playFx(
+          {
+            side: "you",
+            kind: "lunge",
+            fromSlot: from,
+            toSlot: i,
+            cardId: state.you.slots[from]!.cardId,
+            vfx: "burn",
+          },
+          (s) => cleaveBreathWithInferno(s, from, i),
+          900,
+          { kind: "cleaveInferno", fromSlot: from, toSlot: i },
         );
       });
       return;
@@ -1962,7 +2037,10 @@ export function Battle({
       return;
     }
     // В режиме умения не бить — только скилл
-    if (wantSkill && (bansheeReady || mermaidReady || succubusReady)) {
+    if (
+      wantSkill &&
+      (bansheeReady || mermaidReady || succubusReady || infernoReady)
+    ) {
       pushHint("Режим умения: кликни подходящую цель врага (можно напротив)");
       return;
     }
@@ -2510,13 +2588,20 @@ export function Battle({
           ? "Режим умения: кликни мужчину врага (можно напротив) — усыпить"
           : "Режим удара: напротив = бить. «Умение» — усыпить напротив";
       }
+      if (infernoReady) {
+        return flexIntent === "skill"
+          ? "Режим умения: кликни врага — дыхание (cleave) раз за бой"
+          : "Режим удара: любой один. «Дыхание» — cleave раз за бой";
+      }
       if (ab === "banshee_flex") {
         return flexIntent === "skill"
           ? "Режим умения: кликни любое существо врага (можно напротив) — оглушить"
           : "Режим удара: напротив = бить. Нажми «Оглушить», чтобы ором бить и напротив";
       }
       if (ab === "leshy_flex") {
-        return "Леший: напротив = удар; кликни союзника — навсегда обменять ему ATK↔HP";
+        return leshyEnemyReady
+          ? "Леший: напротив = удар; союзник или враг = навсегда ATK↔HP"
+          : "Леший: напротив = удар; кликни союзника — навсегда обменять ему ATK↔HP";
       }
       if (ab === "balthazar_flex") {
         return balthSwapFrom != null
@@ -2531,6 +2616,9 @@ export function Battle({
       }
       if (ab === "arbiter_flex") {
         return "Арбитр: враг/герой = удар (любая цель); кликни Арбитра ещё раз = Вердикт (все 1/1, кроме него)";
+      }
+      if (ab === "unicorn_flex") {
+        return "Единорог: напротив = удар; кликни ещё раз = разбить одно заклинание врага";
       }
       if (c?.stripped) {
         return "Ничтожество: супер-умение снято — можно только бить как обычно";
@@ -2714,7 +2802,11 @@ export function Battle({
         </aside>
         <div className="battle-hint-stack">
       <p className="battle-hint">{hint}</p>
-          {(bansheeReady || mermaidReady || succubusReady) &&
+          {(bansheeReady ||
+            mermaidReady ||
+            succubusReady ||
+            infernoReady ||
+            leshyEnemyReady) &&
           !busy &&
           !state.winner ? (
             <div className="flex-intent-bar" role="group" aria-label="Режим действия">
@@ -2730,7 +2822,13 @@ export function Battle({
                 className={`ghost ${flexIntent === "skill" ? "is-on" : ""}`}
                 onClick={() => setFlexIntent("skill")}
               >
-                {bansheeReady ? "Оглушить" : "Усыпить"}
+                {infernoReady
+                  ? "Дыхание"
+                  : leshyEnemyReady
+                    ? "Статы"
+                    : bansheeReady
+                      ? "Оглушить"
+                      : "Усыпить"}
               </button>
             </div>
           ) : null}

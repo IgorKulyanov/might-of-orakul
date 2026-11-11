@@ -14,6 +14,7 @@ import {
   cardFrameLevel,
   getCard,
 } from "../game/cards";
+import { upgradePlanFullText } from "../game/cardUpgradePlan";
 import type {
   AttackPattern,
   CardDef,
@@ -133,6 +134,17 @@ export function CardView({
       label: `яд ${poisonAmt}`,
       title: `Яд: в начале хода жертвы −${poisonAmt} от текущих HP, потом сильнее (+1), пока не снимут`,
       tone: "curse",
+    });
+  }
+  const burn = statuses.find((s) => s.type === "burn");
+  if (burn) {
+    const left = burn.turns ?? 1;
+    marks.push({
+      key: "burn",
+      icon: "🔥",
+      label: `огонь ${burn.amount}×${left}`,
+      title: `Горение: в начале хода −${burn.amount} HP, ещё ${left} ход.`,
+      tone: "bad",
     });
   }
   const slowAmt = statuses
@@ -359,6 +371,13 @@ export function CardView({
                   </p>
                 )}
                 <p className="card-desc-text">{c.text}</p>
+                {(() => {
+                  const plan = upgradePlanFullText(c.id);
+                  if (!plan) return null;
+                  return (
+                    <pre className="card-desc-upgrade-plan">{plan}</pre>
+                  );
+                })()}
                 {marks.length > 0 && (
                   <ul className="card-desc-effects">
                     {marks.map((m) => (

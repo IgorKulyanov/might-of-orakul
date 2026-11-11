@@ -19,6 +19,8 @@ import {
   summonSkeletonWithNecro,
   swapEnemyWithBalthazar,
   swapStatsWithLeshy,
+  breakSpellWithUnicorn,
+  cleaveBreathWithInferno,
   verdictWithArbiter,
   type MarionetteTarget,
 } from "./engine";
@@ -225,6 +227,8 @@ export type PvpAction =
       toSlot: number;
     }
   | { kind: "verdictArbiter"; fromSlot: number }
+  | { kind: "breakUnicorn"; fromSlot: number }
+  | { kind: "cleaveInferno"; fromSlot: number; toSlot: number }
   | {
       kind: "marionette";
       handIndex: number;
@@ -311,6 +315,14 @@ export function applyPvpAction(
       );
     case "verdictArbiter":
       return verdictWithArbiter(viewedAsYou, action.fromSlot);
+    case "breakUnicorn":
+      return breakSpellWithUnicorn(viewedAsYou, action.fromSlot);
+    case "cleaveInferno":
+      return cleaveBreathWithInferno(
+        viewedAsYou,
+        action.fromSlot,
+        action.toSlot,
+      );
     case "marionette":
       return playMarionette(
         viewedAsYou,

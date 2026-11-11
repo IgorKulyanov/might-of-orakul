@@ -23,11 +23,80 @@ import {
 } from "./oracleGifts";
 import { alog } from "./actionLog";
 import {
+  abilityUnlockedAt,
+  angelBuffAmount,
+  bansheeStunTurns,
+  berserkDecayAmount,
+  berserkRageBonus,
+  boneRexRangedWard,
   clampUpgradeLevel,
+  colossusArmyShieldOnPlay,
+  colossusManaOnPlay,
+  crossbowRiposteHeroChance,
   defaultUpgradeLevel,
+  gravediggerReviveBuff,
+  gravediggerReviveLimit,
+  hellRiderKillMana,
+  hellRiderRangedWardChance,
+  lichDrainAmount,
+  lichHeroPoke,
+  mageHealAmount,
+  mechRefundManaOnDeath,
+  necroSummonCount,
+  paladinShieldTurns,
+  paladinShieldsArmy,
   skeletonHasArrowWard,
   skeletonHasPack,
+  spearmanIgnoresShield,
+  tankSelfShieldOnPlay,
+  upgradeAttackPattern,
   upgradeStatBonus,
+  valkyrieFreeMove,
+  aquiliteFreeMove,
+  arbiterSelfBuff,
+  arbiterSparesAllyLegend,
+  archerHalfRiposte,
+  balthazarSwapAtkLoss,
+  basiliskGazeTurns,
+  blackDragonLineBurn,
+  cerberusCenterMul,
+  clawfiendTideAlways,
+  elfDoubleShot,
+  entUsesBoardHp,
+  fireGolemSplashBurn,
+  goblinStealOnPlay,
+  hornetTempPoison,
+  ifritMeleeRetaliate,
+  impHeroBurn,
+  killGrowAtk,
+  krakenWaterHpBonus,
+  leprechaunAllyHeal,
+  leprechaunHeroHeal,
+  leshyCanTargetEnemy,
+  mercenaryRiposteSplash,
+  mermaidSleepTurns,
+  motardoHeroBonus,
+  orcKillStun,
+  recruitDeathHeal,
+  rogueStealEvery,
+  scorpicoraFastPoison,
+  spiderPoisonAmount,
+  spiderShieldOnPlay,
+  succubusSleepTurns,
+  tritonAquiliteAura,
+  trollRegen,
+  unicornKeepAttackAfterBreak,
+  unicornManaOnPlay,
+  vampireCanOverheal,
+  vampireGainsAtkOnBite,
+  vampireHealAmount,
+  velesHealOnPlay,
+  velesNatureAuraHeal,
+  wandererFreeMove,
+  waterElementalSplash,
+  waterGolemLifesteal,
+  waterSpiritDrawOnKill,
+  zombieDeathTrick,
   type CardUpgradeLevel,
 } from "./cardUpgrades";
 import { startManaBonus } from "./progression";
@@ -116,11 +185,14 @@ function abilityOf(
 ): CreatureAbility | undefined {
   if (host?.stripped) return undefined;
   const ab = getCard(cardId).ability;
+  if (!ab) return undefined;
   if (ab === "skeleton_pack") {
     return skeletonHasPack(hostUpgradeLevel(host, cardId))
       ? "skeleton_pack"
       : undefined;
   }
+  const lv = hostUpgradeLevel(host, cardId);
+  if (!abilityUnlockedAt(cardId, ab, lv)) return undefined;
   return ab;
 }
 
@@ -136,7 +208,8 @@ function hasAbility(
   if (a === "skeleton_pack") {
     return skeletonHasPack(hostUpgradeLevel(host, cardId));
   }
-  return true;
+  const lv = hostUpgradeLevel(host, cardId);
+  return abilityUnlockedAt(cardId, a, lv);
 }
 
 function effectiveBase(c: CreatureInstance): { atk: number; hp: number } {
@@ -150,7 +223,8 @@ function effectiveBase(c: CreatureInstance): { atk: number; hp: number } {
       c.baseHealth +
       c.permHealth +
       (c.packBonus ?? 0) +
-      (c.auraHp ?? 0),
+      (c.auraHp ?? 0) +
+      (c.schoolAuraHp ?? 0),
   };
 }
 
@@ -221,9 +295,13 @@ function syncHornetPack(p: PlayerState, log: string[]): void {
 
 /** Пока на поле water_tide — все водные союзники +3 к макс. и текущему HP. */
 function syncWaterTide(p: PlayerState, log: string[]): void {
-  const active = p.slots.some(
-    (s) => s && hasAbility(s.cardId, "water_tide", s),
-  );
+  const active = p.slots.some((s) => {
+    if (!s || !hasAbility(s.cardId, "water_tide", s)) return false;
+    const lv = hostUpgradeLevel(s, s.cardId);
+    // L3 — всегда; L2 — только если ещё не бил в этот ход
+    if (clawfiendTideAlways(lv)) return true;
+    return s.canAttack;
+  });
   const want = active ? 3 : 0;
   let gained = false;
   let lost = false;
@@ -246,10 +324,40 @@ function syncWaterTide(p: PlayerState, log: string[]): void {
   if (lost && !active) log.unshift(`Прилив спал`);
 }
 
+/** Тритон ур.3: всем акулитам +1/+1. */
+function syncAquiliteAura(p: PlayerState, log: string[]): void {
+  const boost = p.slots.some(
+    (s) =>
+      s &&
+      s.cardId === "triton" &&
+      tritonAquiliteAura(hostUpgradeLevel(s, s.cardId)),
+  );
+  const want = boost ? 1 : 0;
+  let changed = false;
+  for (const s of p.slots) {
+    if (!s || s.cardId !== "aquilite") continue;
+    const prevAtk = s.swarmBonus ?? 0;
+    if (prevAtk !== want) {
+      s.swarmBonus = want;
+      s.attack += want - prevAtk;
+      changed = true;
+    }
+    const prevHp = s.schoolAuraHp ?? 0;
+    if (prevHp !== want) {
+      s.schoolAuraHp = want;
+      s.health += want - prevHp;
+      if (s.health < 1) s.health = 1;
+      changed = true;
+    }
+  }
+  if (changed && boost) log.unshift(`Тритон: акулиты +1/+1`);
+}
+
 function syncBoardAuras(p: PlayerState, log: string[]): void {
   syncSkeletonPack(p, log);
   syncHornetPack(p, log);
   syncWaterTide(p, log);
+  syncAquiliteAura(p, log);
 }
 
 /**
@@ -310,10 +418,37 @@ function tickPoison(
     if (!poison.length) continue;
     const dmg = poison.reduce((sum, st) => sum + st.amount, 0);
     const steady = poison.every((st) => st.steady);
+    const timed = poison.some((st) => st.turns != null);
     s.health -= dmg;
     if (s.health <= 0) {
       log.unshift(`${getCard(s.cardId).name} погибает от яда (−${dmg})`);
       removeIfDead(p, i, log, state);
+    } else if (timed) {
+      const kept: typeof s.statuses = s.statuses.filter(
+        (st) => st.type !== "poison",
+      );
+      let leftMin = 99;
+      for (const st of poison) {
+        const left = Math.max(0, (st.turns ?? 1) - 1);
+        if (left <= 0) continue;
+        kept.push({
+          type: "poison",
+          amount: st.amount,
+          ...(st.steady ? { steady: true } : {}),
+          turns: left,
+        });
+        leftMin = Math.min(leftMin, left);
+      }
+      s.statuses = kept;
+      if (leftMin < 99) {
+        log.unshift(
+          `${getCard(s.cardId).name}: яд −${dmg} → ${s.health} HP (ещё ${leftMin})`,
+        );
+      } else {
+        log.unshift(
+          `${getCard(s.cardId).name}: яд −${dmg} → ${s.health} HP (сошёл)`,
+        );
+      }
     } else if (steady) {
       s.statuses = s.statuses.filter((st) => st.type !== "poison");
       s.statuses.push({ type: "poison", amount: dmg, steady: true });
@@ -321,9 +456,14 @@ function tickPoison(
         `${getCard(s.cardId).name}: яд −${dmg} → ${s.health} HP (постоянно −${dmg})`,
       );
     } else {
-      const next = dmg + 1;
+      const fast = poison.some((st) => st.fast);
+      const next = dmg + (fast ? 2 : 1);
       s.statuses = s.statuses.filter((st) => st.type !== "poison");
-      s.statuses.push({ type: "poison", amount: next });
+      s.statuses.push({
+        type: "poison",
+        amount: next,
+        ...(fast ? { fast: true } : {}),
+      });
       log.unshift(
         `${getCard(s.cardId).name}: яд −${dmg} → ${s.health} HP (далее −${next})`,
       );
@@ -334,13 +474,97 @@ function tickPoison(
 function applyPoisonStatus(
   unit: CreatureInstance,
   amount: number,
-  opts?: { steady?: boolean },
+  opts?: { steady?: boolean; turns?: number; fast?: boolean },
 ): void {
   unit.statuses.push({
     type: "poison",
     amount,
     ...(opts?.steady ? { steady: true } : {}),
+    ...(opts?.turns != null ? { turns: opts.turns } : {}),
+    ...(opts?.fast ? { fast: true } : {}),
   });
+}
+
+/** Горение: фиксированный урон amount, turns ходов (обновляет старый burn). */
+function applyBurnStatus(
+  unit: CreatureInstance,
+  amount: number,
+  turns: number,
+): void {
+  unit.statuses = unit.statuses.filter((st) => st.type !== "burn");
+  unit.statuses.push({ type: "burn", amount, turns });
+}
+
+function applyHeroBurn(
+  p: PlayerState,
+  amount: number,
+  turns: number,
+  log: string[],
+): void {
+  p.heroBurn = { amount: Math.max(1, amount), turns: Math.max(1, turns) };
+  log.unshift(`${p.name}: горит! −${amount} HP/ход, ${turns} хода`);
+}
+
+function tickHeroBurn(p: PlayerState, log: string[]): void {
+  const b = p.heroBurn;
+  if (!b) return;
+  const dmg = Math.max(1, b.amount);
+  p.hp -= dmg;
+  const left = Math.max(0, (b.turns ?? 1) - 1);
+  if (left <= 0) {
+    p.heroBurn = undefined;
+    log.unshift(`${p.name}: огонь −${dmg} HP (потух)`);
+  } else {
+    p.heroBurn = { amount: b.amount, turns: left };
+    log.unshift(`${p.name}: огонь −${dmg} HP (ещё ${left})`);
+  }
+}
+
+function tickBurn(
+  p: PlayerState,
+  log: string[],
+  state?: BattleState,
+): void {
+  for (let i = 0; i < p.slots.length; i++) {
+    const s = p.slots[i];
+    if (!s) continue;
+    const burn = s.statuses.find((st) => st.type === "burn");
+    if (!burn) continue;
+    const dmg = Math.max(1, burn.amount);
+    s.health -= dmg;
+    const left = Math.max(0, (burn.turns ?? 1) - 1);
+    if (s.health <= 0) {
+      log.unshift(`${getCard(s.cardId).name} сгорает (−${dmg})`);
+      removeIfDead(p, i, log, state);
+      continue;
+    }
+    if (left <= 0) {
+      s.statuses = s.statuses.filter((st) => st.type !== "burn");
+      log.unshift(
+        `${getCard(s.cardId).name}: огонь −${dmg} → ${s.health} HP (потух)`,
+      );
+    } else {
+      burn.turns = left;
+      log.unshift(
+        `${getCard(s.cardId).name}: огонь −${dmg} → ${s.health} HP (ещё ${left})`,
+      );
+    }
+  }
+}
+
+function tickSchoolManaAura(p: PlayerState, log: string[]): void {
+  const gained: Partial<Record<Faction, number>> = {};
+  for (const s of p.slots) {
+    if (!s || !hasAbility(s.cardId, "school_mana_aura", s)) continue;
+    const school = getCard(s.cardId).school;
+    if (school === "neutral") continue;
+    addMana(p.mana, school, 1);
+    gained[school] = (gained[school] ?? 0) + 1;
+  }
+  for (const [school, n] of Object.entries(gained)) {
+    if (!n) continue;
+    log.unshift(`Аура школы (${school}): +${n} маны`);
+  }
 }
 
 function makePlayer(
@@ -410,6 +634,7 @@ function dealToCreature(
   raw: number,
   log: string[],
   allySlots?: Slot[],
+  opts?: { ignoreShield?: boolean },
 ): number {
   // Страж: урон с подопечного уходит на того, кто «берёт удар»
   if (raw > 0 && def.guardedByUid && allySlots) {
@@ -418,14 +643,20 @@ function dealToCreature(
       log.unshift(
         `⛓ ${getCard(tank.cardId).name} принимает удар за ${getCard(def.cardId).name}`,
       );
-      return dealToCreature(tank, raw, log);
+      return dealToCreature(tank, raw, log, undefined, opts);
     }
   }
-  const dealt = mitigatedDamage(raw, def);
+  const dealt = opts?.ignoreShield ? Math.max(0, raw) : mitigatedDamage(raw, def);
   def.health -= dealt;
   if (dealt !== raw) {
     log.unshift(
-      `🛡 Щит: ${raw} → ${dealt} урона по ${getCard(def.cardId).name}`,
+      opts?.ignoreShield
+        ? `⚔ Прокол: полный урон ${dealt} по ${getCard(def.cardId).name}`
+        : `🛡 Щит: ${raw} → ${dealt} урона по ${getCard(def.cardId).name}`,
+    );
+  } else if (opts?.ignoreShield && def.statuses.some((st) => st.type === "shield")) {
+    log.unshift(
+      `⚔ Прокол щита: ${dealt} по ${getCard(def.cardId).name}`,
     );
   }
   return dealt;
@@ -828,13 +1059,23 @@ function tryVampireGrow(
 ): void {
   const u = owner.slots[fromSlot];
   if (!u || abilityOf(u.cardId, u) !== "vampire_grow") return;
+  const lv = hostUpgradeLevel(u, u.cardId);
+  const heal = vampireHealAmount(lv);
   const base = effectiveBase(u);
   const before = u.health;
-  u.health = Math.min(base.hp, u.health + 5);
+  const cap = vampireCanOverheal(lv) ? base.hp + heal : base.hp;
+  u.health = Math.min(cap, u.health + heal);
   const gained = u.health - before;
-  if (gained > 0) {
+  if (vampireGainsAtkOnBite(lv)) {
+    u.permAttack += 1;
+    u.attack += 1;
+    u.baseAttack += 1;
+  }
+  if (gained > 0 || vampireGainsAtkOnBite(lv)) {
     log.unshift(
-      `${getCard(u.cardId).name}: укус +${gained} HP → ${u.attack}/${u.health}`,
+      `${getCard(u.cardId).name}: укус +${gained} HP${
+        vampireGainsAtkOnBite(lv) ? " +1 атк" : ""
+      } → ${u.attack}/${u.health}`,
     );
   } else {
     log.unshift(
@@ -843,8 +1084,80 @@ function tryVampireGrow(
   }
 }
 
-function patternOf(cardId: string): AttackPattern {
-  return getCard(cardId).attackPattern ?? "melee";
+/** Награда за убийство (адский гонщик / дух воды и т.п.). */
+function tryKillRewards(
+  killer: CreatureInstance | null | undefined,
+  killerOwner: PlayerState,
+  victimDead: boolean,
+  log: string[],
+  state?: BattleState,
+): void {
+  if (!victimDead || !killer) return;
+  if (killer.cardId === "hell_rider") {
+    const lv = hostUpgradeLevel(killer, killer.cardId);
+    const mode = hellRiderKillMana(lv);
+    const school =
+      mode === "death" ? "death" : getCard(killer.cardId).school;
+    if (school === "neutral") {
+      addMana(killerOwner.mana, "death", 1);
+      log.unshift(`${getCard(killer.cardId).name}: убийство +1 мана смерти`);
+    } else {
+      addMana(killerOwner.mana, school, 1);
+      log.unshift(
+        `${getCard(killer.cardId).name}: убийство +1 мана (${school})`,
+      );
+    }
+  }
+  if (
+    killer.cardId === "water_spirit" &&
+    waterSpiritDrawOnKill(hostUpgradeLevel(killer, killer.cardId))
+  ) {
+    draw(killerOwner, 1, state);
+    log.unshift(`${getCard(killer.cardId).name}: убийство — добор 1`);
+  }
+  {
+    const gain = killGrowAtk(
+      killer.cardId,
+      hostUpgradeLevel(killer, killer.cardId),
+    );
+    if (gain > 0) {
+      killer.permAttack += gain;
+      killer.attack += gain;
+      killer.baseAttack += gain;
+      log.unshift(
+        `${getCard(killer.cardId).name}: убийство +${gain} ATK → ${killer.attack}`,
+      );
+    }
+  }
+}
+
+function patternOf(
+  cardId: string,
+  host?: CreatureInstance | null,
+): AttackPattern {
+  const base = getCard(cardId).attackPattern ?? "melee";
+  return upgradeAttackPattern(
+    cardId,
+    hostUpgradeLevel(host, cardId),
+    base,
+  );
+}
+
+/** Исходящий ATK с учётом ярости берсерка ур.3. */
+function strikePower(atk: CreatureInstance): number {
+  const rage = berserkRageBonus(
+    hostUpgradeLevel(atk, atk.cardId),
+    atk.health,
+    effectiveBase(atk).hp,
+  );
+  return atk.attack + rage;
+}
+
+function strikeIgnoreShield(atk: CreatureInstance): boolean {
+  return (
+    atk.cardId === "spearman" &&
+    spearmanIgnoresShield(hostUpgradeLevel(atk, atk.cardId))
+  );
 }
 
 function cleaveSlots(center: number): number[] {
@@ -870,7 +1183,7 @@ export function validAttackTargets(
 ): Array<"hero" | number> {
   const atk = state.you.slots[fromSlot];
   if (!atk || !atk.canAttack) return [];
-  const pattern = patternOf(atk.cardId);
+  const pattern = patternOf(atk.cardId, atk);
   const foe = state.enemy.slots;
   const me = state.you;
   const targets: Array<"hero" | number> = [];
@@ -956,15 +1269,62 @@ function removeIfDead(
   slot: number,
   log: string[],
   state?: BattleState,
+  opts?: { killer?: CreatureInstance | null },
 ): void {
   const s = owner.slots[slot];
   if (!s) return;
   if (s.health > 0) return;
   const deadUid = s.uid;
   const deadCardId = s.cardId;
+  const lv = hostUpgradeLevel(s, deadCardId);
+
+  // Зомби ур.3: яд убийце, иначе труп 1 HP
+  if (
+    deadCardId === "zombie" &&
+    zombieDeathTrick(lv) &&
+    !s.isCorpse
+  ) {
+    const killer = opts?.killer;
+    if (killer && killer.health > 0) {
+      applyPoisonStatus(killer, 1, { steady: true });
+      log.unshift(
+        `${getCard(deadCardId).name}: предсмертный яд на ${getCard(killer.cardId).name}`,
+      );
+    } else {
+      s.health = 1;
+      s.attack = 0;
+      s.baseAttack = 0;
+      s.canAttack = false;
+      s.stripped = true;
+      s.isCorpse = true;
+      log.unshift(`${getCard(deadCardId).name}: остался труп (1 HP)`);
+      return;
+    }
+  }
+
+  const paid = s.paidMana;
+  const refund =
+    deadCardId === "mech_guardian" &&
+    mechRefundManaOnDeath(lv) &&
+    paid;
+  const recruitHeal = recruitDeathHeal(lv);
+  if (deadCardId === "recruit" && recruitHeal > 0) {
+    owner.hp = Math.min(owner.maxHp, owner.hp + recruitHeal);
+    log.unshift(
+      `${getCard(deadCardId).name}: героизм — герой +${recruitHeal} HP`,
+    );
+  }
   log.unshift(`${getCard(deadCardId).name} уничтожен`);
   owner.graveyard.push(deadCardId);
   owner.slots[slot] = null;
+  if (refund) {
+    for (const [f, n] of Object.entries(paid)) {
+      if (n && n > 0) addMana(owner.mana, f as Faction, n);
+    }
+    log.unshift(
+      `${getCard(deadCardId).name}: мана возвращена (${formatManaCost(paid)})`,
+    );
+  }
   syncBoardAuras(owner, log);
   if (state) {
     clearBondsForUnit(state, deadUid);
@@ -998,17 +1358,46 @@ function tryRiposte(
     );
     return;
   }
+  const lv = hostUpgradeLevel(victim, victim.cardId);
+  let power = victim.attack;
+  if (victim.cardId === "archer" && archerHalfRiposte(lv)) {
+    power = Math.max(1, Math.floor(victim.attack / 2));
+  }
   const dmg = dealToCreature(
     atk,
-    outgoingDamage(defenderOwner, victim.attack),
+    outgoingDamage(defenderOwner, power),
     log,
     attackerOwner.slots,
   );
   log.unshift(
     `${getCard(victim.cardId).name}: ответный выстрел по ${getCard(atk.cardId).name} на ${dmg} → ${Math.max(0, atk.health)} HP`,
   );
+  if (
+    victim.cardId === "mercenary" &&
+    mercenaryRiposteSplash(lv)
+  ) {
+    for (const i of [attackerSlot - 1, attackerSlot + 1]) {
+      if (i < 0 || i > 4) continue;
+      const n = attackerOwner.slots[i];
+      if (!n || n.health <= 0) continue;
+      const splash = Math.max(1, Math.floor(power / 2));
+      dealToCreature(n, splash, log, attackerOwner.slots);
+      log.unshift(
+        `${getCard(victim.cardId).name}: задела ${getCard(n.cardId).name} (−${splash})`,
+      );
+      removeIfDead(attackerOwner, i, log, state);
+    }
+  }
   for (let i = 0; i < attackerOwner.slots.length; i++) {
     removeIfDead(attackerOwner, i, log, state);
+  }
+  const heroChance = crossbowRiposteHeroChance(lv);
+  if (heroChance > 0 && Math.random() < heroChance) {
+    const poke = Math.max(1, Math.floor(victim.attack / 2));
+    attackerOwner.hp -= poke;
+    log.unshift(
+      `${getCard(victim.cardId).name}: ответка задела героя (−${poke})`,
+    );
   }
 }
 
@@ -1064,11 +1453,13 @@ function meleeStrike(
     ? findTankByUid(defenderOwner.slots, def.guardedByUid)
     : null;
   const tankHpBefore = tank?.health ?? null;
+  const power = strikePower(atk);
   const aDmg = dealToCreature(
     def,
-    outgoingDamage(attackerOwner, atk.attack),
+    outgoingDamage(attackerOwner, power),
     log,
     defenderOwner.slots,
+    { ignoreShield: strikeIgnoreShield(atk) },
   );
   atk.canAttack = false;
 
@@ -1078,14 +1469,126 @@ function meleeStrike(
 
   applyOnHitExtras(atk, def, attackerOwner, defenderOwner, log);
   const victim = resolveHitVictim(def, defHpBefore, defenderOwner, tankHpBefore);
-  // если урон ушёл на стража — проверить смерть стража
+  const defWasAlive = defHpBefore > 0;
   for (let i = 0; i < defenderOwner.slots.length; i++) {
-    removeIfDead(defenderOwner, i, log, state);
+    removeIfDead(defenderOwner, i, log, state, { killer: atk });
   }
+  const after = defenderOwner.slots[toSlot];
+  const victimDead =
+    defWasAlive &&
+    (!after || after.uid !== def.uid || after.isCorpse === true);
+  tryKillRewards(atk, attackerOwner, victimDead, log, state);
+  if (victimDead) {
+    tryOrcKillStun(atk, defenderOwner, toSlot, log);
+  }
+  tryWaterOnHit(atk, attackerOwner, defenderOwner, toSlot, aDmg, log, state);
+  tryHellOnHit(atk, defenderOwner, toSlot, log, state);
+  tryIfritRetaliate(def, atk, log);
   if (victim && victim.health > 0) {
     tryRiposte(defenderOwner, attackerOwner, fromSlot, victim, log, state);
   }
   tryVampireGrow(attackerOwner, fromSlot, log);
+  if (hasAbility(atk.cardId, "water_tide", atk)) {
+    syncWaterTide(attackerOwner, log);
+  }
+}
+
+/** Голем хил / элементаль splash после удара. */
+function tryWaterOnHit(
+  atk: CreatureInstance,
+  _attackerOwner: PlayerState,
+  defenderOwner: PlayerState,
+  toSlot: number,
+  dealt: number,
+  log: string[],
+  state?: BattleState,
+): void {
+  const lv = hostUpgradeLevel(atk, atk.cardId);
+  const heal = waterGolemLifesteal(lv);
+  if (atk.cardId === "water_golem" && heal > 0) {
+    const before = atk.health;
+    atk.health = Math.min(effectiveBase(atk).hp, atk.health + heal);
+    const g = atk.health - before;
+    if (g > 0) {
+      log.unshift(`${getCard(atk.cardId).name}: прилив сил +${g} HP`);
+    }
+  }
+  if (
+    atk.cardId === "water_elemental" &&
+    waterElementalSplash(lv) &&
+    dealt > 0
+  ) {
+    const splash = Math.max(1, Math.floor(dealt / 2));
+    for (const i of [toSlot - 1, toSlot + 1]) {
+      if (i < 0 || i > 4) continue;
+      const n = defenderOwner.slots[i];
+      if (!n) continue;
+      dealToCreature(n, splash, log, defenderOwner.slots);
+      log.unshift(
+        `${getCard(atk.cardId).name}: всплеск −${splash} ${getCard(n.cardId).name}`,
+      );
+      removeIfDead(defenderOwner, i, log, state, { killer: atk });
+    }
+  }
+}
+
+/** Орк ур.3: при убийстве оглушает соседа цели. */
+function tryOrcKillStun(
+  atk: CreatureInstance,
+  defenderOwner: PlayerState,
+  deadSlot: number,
+  log: string[],
+): void {
+  if (atk.cardId !== "orc") return;
+  if (!orcKillStun(hostUpgradeLevel(atk, atk.cardId))) return;
+  for (const i of [deadSlot - 1, deadSlot + 1]) {
+    if (i < 0 || i > 4) continue;
+    const n = defenderOwner.slots[i];
+    if (!n || n.health <= 0) continue;
+    n.canAttack = false;
+    n.statuses = n.statuses.filter((st) => st.type !== "sleep");
+    n.statuses.push({ type: "sleep", amount: 1 });
+    log.unshift(
+      `${getCard(atk.cardId).name}: рёв оглушает ${getCard(n.cardId).name}`,
+    );
+    break;
+  }
+}
+
+/** Голем ада: сосед цели тоже чуть горит. */
+function tryHellOnHit(
+  atk: CreatureInstance,
+  defenderOwner: PlayerState,
+  toSlot: number,
+  log: string[],
+  _state?: BattleState,
+): void {
+  const lv = hostUpgradeLevel(atk, atk.cardId);
+  if (atk.cardId !== "fire_golem" || !fireGolemSplashBurn(lv)) return;
+  for (const i of [toSlot - 1, toSlot + 1]) {
+    if (i < 0 || i > 4) continue;
+    const n = defenderOwner.slots[i];
+    if (!n || n.health <= 0) continue;
+    applyBurnStatus(n, 2, 2);
+    log.unshift(
+      `${getCard(atk.cardId).name}: жар − сосед ${getCard(n.cardId).name} горит`,
+    );
+  }
+}
+
+/** Ифрит ур.3: рукопашный атакующий загорается. */
+function tryIfritRetaliate(
+  def: CreatureInstance,
+  atk: CreatureInstance,
+  log: string[],
+): void {
+  if (def.cardId !== "ifrit" || def.health <= 0) return;
+  if (!ifritMeleeRetaliate(hostUpgradeLevel(def, def.cardId))) return;
+  if (atk.health <= 0) return;
+  applyBurnStatus(atk, 2, 2);
+  log.unshift(
+    `${getCard(def.cardId).name}: ответный огонь — ${getCard(atk.cardId).name} горит`,
+  );
 }
 
 function tryStealMana(
@@ -1115,46 +1618,105 @@ function applyOnHitExtras(
   log: string[],
 ): void {
   if (def && def.health > 0 && hasAbility(atk.cardId, "scorpion_poison", atk)) {
+    const fast = scorpicoraFastPoison(
+      hostUpgradeLevel(atk, atk.cardId),
+    );
     if (!def.statuses.some((st) => st.type === "poison")) {
-      applyPoisonStatus(def, 1);
+      applyPoisonStatus(def, 1, fast ? { fast: true } : undefined);
     }
     log.unshift(
-      `${getCard(def.cardId).name}: яд скорпикоры (−1 в начале хода, растёт)`,
+      fast
+        ? `${getCard(def.cardId).name}: яд скорпикоры (−1, растёт быстрее)`
+        : `${getCard(def.cardId).name}: яд скорпикоры (−1 в начале хода, растёт)`,
     );
   }
   if (def && def.health > 0 && hasAbility(atk.cardId, "spider_poison", atk)) {
+    const amt = spiderPoisonAmount(hostUpgradeLevel(atk, atk.cardId));
     if (!def.statuses.some((st) => st.type === "poison")) {
-      applyPoisonStatus(def, 1, { steady: true });
+      applyPoisonStatus(def, amt, { steady: true });
     }
     log.unshift(
-      `${getCard(def.cardId).name}: яд паука (−1 в начале хода, пока не снимут)`,
+      `${getCard(def.cardId).name}: яд паука (−${amt}/ход, пока не снимут)`,
+    );
+  }
+  if (
+    def &&
+    def.health > 0 &&
+    atk.cardId === "hornet_warrior" &&
+    hornetTempPoison(hostUpgradeLevel(atk, atk.cardId))
+  ) {
+    if (!def.statuses.some((st) => st.type === "poison")) {
+      applyPoisonStatus(def, 1, { steady: true, turns: 2 });
+      log.unshift(
+        `${getCard(def.cardId).name}: жало шершня (−1/ход, 2 хода)`,
+      );
+    }
+  }
+  if (def && def.health > 0 && hasAbility(atk.cardId, "flame_burn", atk)) {
+    applyBurnStatus(def, 3, 3);
+    log.unshift(
+      `${getCard(def.cardId).name}: горит! −3 HP/ход, 3 хода`,
     );
   }
   if (def && def.health > 0 && hasAbility(atk.cardId, "basilisk_gaze", atk)) {
+    const turns = basiliskGazeTurns(hostUpgradeLevel(atk, atk.cardId));
     def.canAttack = false;
     def.statuses = def.statuses.filter((st) => st.type !== "sleep");
-    def.statuses.push({ type: "sleep", amount: 1 });
+    def.statuses.push({ type: "sleep", amount: turns });
     log.unshift(
-      `${getCard(atk.cardId).name} окаменяет ${getCard(def.cardId).name} на следующий ход`,
+      `${getCard(atk.cardId).name} окаменяет ${getCard(def.cardId).name} на ${turns} ход.`,
     );
   }
-  if (hasAbility(atk.cardId, "mana_steal", atk) && Math.random() < 0.3) {
+  if (
+    hasAbility(atk.cardId, "mana_steal", atk) &&
+    atk.cardId !== "rogue" &&
+    Math.random() < 0.3
+  ) {
     tryStealMana(attackerOwner, defenderOwner, log);
   }
   if (hasAbility(atk.cardId, "imp_burn", atk)) {
-    defenderOwner.hp -= 3;
-    log.unshift(
-      `${getCard(atk.cardId).name}: искры ада −3 герою врага`,
+    const poke = impHeroBurn(
+      atk.cardId,
+      hostUpgradeLevel(atk, atk.cardId),
     );
+    if (poke > 0) {
+      defenderOwner.hp -= poke;
+      log.unshift(
+        `${getCard(atk.cardId).name}: искры ада −${poke} герою врага`,
+      );
+    }
+  }
+  {
+    const bonus = motardoHeroBonus(hostUpgradeLevel(atk, atk.cardId));
+    if (atk.cardId === "motardo" && bonus > 0) {
+      defenderOwner.hp -= bonus;
+      log.unshift(
+        `${getCard(atk.cardId).name}: бензин в лицо −${bonus} герою`,
+      );
+    }
+  }
+  if (!def && hasAbility(atk.cardId, "flame_burn", atk)) {
+    applyHeroBurn(defenderOwner, 3, 3, log);
   }
   if (def && hasAbility(atk.cardId, "lich_drain", atk)) {
-    const base = effectiveBase(atk);
-    const before = atk.health;
-    atk.health = Math.min(base.hp, atk.health + 5);
-    const gained = atk.health - before;
-    if (gained > 0) {
+    const lv = hostUpgradeLevel(atk, atk.cardId);
+    const drain = lichDrainAmount(lv);
+    if (drain > 0) {
+      const base = effectiveBase(atk);
+      const before = atk.health;
+      atk.health = Math.min(base.hp, atk.health + drain);
+      const gained = atk.health - before;
+      if (gained > 0) {
+        log.unshift(
+          `${getCard(atk.cardId).name} вытягивает жизнь +${gained} HP`,
+        );
+      }
+    }
+    const poke = lichHeroPoke(lv);
+    if (poke > 0) {
+      defenderOwner.hp -= poke;
       log.unshift(
-        `${getCard(atk.cardId).name} вытягивает жизнь +${gained} HP`,
+        `${getCard(atk.cardId).name}: холод могилы −${poke} герою врага`,
       );
     }
   }
@@ -1182,30 +1744,14 @@ function rangedHit(
     ? findTankByUid(defenderOwner.slots, def.guardedByUid)
     : null;
   const tankHpBefore = tank?.health ?? null;
-  let raw = outgoingDamage(attackerOwner, atk.attack);
-  // Скелет ур.3: −50% от стрел (elf / archer / crossbow)
-  const arrowAtk =
-    atk.cardId === "elf" ||
-    atk.cardId === "crossbowman" ||
-    atk.cardId === "archer";
-  if (
-    arrowAtk &&
-    def.cardId === "skeleton" &&
-    skeletonHasArrowWard(hostUpgradeLevel(def, "skeleton"))
-  ) {
-    const halved = Math.floor(raw / 2);
-    if (halved !== raw) {
-      log.unshift(
-        `🦴 Скелет (ур.3): стрелы ${raw} → ${halved}`,
-      );
-    }
-    raw = halved;
-  }
+  let raw = outgoingDamage(attackerOwner, strikePower(atk));
+  raw = applyRangedWards(atk, def, raw, log);
   const dmg = dealToCreature(
     def,
     raw,
     log,
     defenderOwner.slots,
+    { ignoreShield: strikeIgnoreShield(atk) },
   );
   atk.canAttack = false;
   log.unshift(
@@ -1213,13 +1759,72 @@ function rangedHit(
   );
   applyOnHitExtras(atk, def, attackerOwner, defenderOwner, log);
   const victim = resolveHitVictim(def, defHpBefore, defenderOwner, tankHpBefore);
+  const defWasAlive = defHpBefore > 0;
   for (let i = 0; i < defenderOwner.slots.length; i++) {
-    removeIfDead(defenderOwner, i, log, state);
+    removeIfDead(defenderOwner, i, log, state, { killer: atk });
+  }
+  const after = defenderOwner.slots[toSlot];
+  const victimDead =
+    defWasAlive &&
+    (!after || after.uid !== def.uid || after.isCorpse === true);
+  tryKillRewards(atk, attackerOwner, victimDead, log, state);
+  if (victimDead) {
+    tryOrcKillStun(atk, defenderOwner, toSlot, log);
   }
   if (victim && victim.health > 0) {
     tryRiposte(defenderOwner, attackerOwner, fromSlot, victim, log, state);
   }
   tryVampireGrow(attackerOwner, fromSlot, log);
+  if (hasAbility(atk.cardId, "water_tide", atk)) {
+    syncWaterTide(attackerOwner, log);
+  }
+}
+
+/** Снижение дальнего урона: скелет / рекс / гонщик. */
+function applyRangedWards(
+  atk: CreatureInstance,
+  def: CreatureInstance,
+  raw: number,
+  log: string[],
+): number {
+  const arrowAtk =
+    atk.cardId === "elf" ||
+    atk.cardId === "crossbowman" ||
+    atk.cardId === "archer" ||
+    patternOf(atk.cardId, atk) === "ranged";
+  if (!arrowAtk || raw <= 0) return raw;
+  let next = raw;
+  if (
+    def.cardId === "skeleton" &&
+    skeletonHasArrowWard(hostUpgradeLevel(def, "skeleton"))
+  ) {
+    const halved = Math.floor(next / 2);
+    if (halved !== next) {
+      log.unshift(`🦴 Скелет (ур.3): стрелы ${next} → ${halved}`);
+    }
+    next = halved;
+  }
+  if (
+    def.cardId === "bone_rex" &&
+    boneRexRangedWard(hostUpgradeLevel(def, def.cardId))
+  ) {
+    const halved = Math.floor(next / 2);
+    if (halved !== next) {
+      log.unshift(`🦖 Костяной рекс: дальние ${next} → ${halved}`);
+    }
+    next = halved;
+  }
+  const riderChance = hellRiderRangedWardChance(
+    hostUpgradeLevel(def, def.cardId),
+  );
+  if (def.cardId === "hell_rider" && riderChance > 0 && Math.random() < riderChance) {
+    const halved = Math.floor(next / 2);
+    log.unshift(
+      `🏍 Адский гонщик: увернулся от дальних ${next} → ${halved}`,
+    );
+    next = halved;
+  }
+  return next;
 }
 
 function cleaveHit(
@@ -1240,7 +1845,12 @@ function cleaveHit(
 
   const names: string[] = [];
   const riposteVictims: CreatureInstance[] = [];
-  let shown = atk.attack;
+  const power = strikePower(atk);
+  const centerMul =
+    atk.cardId === "cerberus"
+      ? cerberusCenterMul(hostUpgradeLevel(atk, atk.cardId))
+      : 1;
+  let shown = power;
   for (const i of targets) {
     const def = defenderOwner.slots[i]!;
     const defHpBefore = def.health;
@@ -1248,11 +1858,16 @@ function cleaveHit(
       ? findTankByUid(defenderOwner.slots, def.guardedByUid)
       : null;
     const tankHpBefore = tank?.health ?? null;
+    const raw =
+      i === centerSlot && centerMul > 1
+        ? power * centerMul
+        : power;
     shown = dealToCreature(
       def,
-      outgoingDamage(attackerOwner, atk.attack),
+      outgoingDamage(attackerOwner, raw),
       log,
       defenderOwner.slots,
+      { ignoreShield: strikeIgnoreShield(atk) },
     );
     names.push(getCard(def.cardId).name);
     const victim = resolveHitVictim(
@@ -1262,6 +1877,21 @@ function cleaveHit(
       tankHpBefore,
     );
     if (victim) riposteVictims.push(victim);
+    // огнемётчик / огненный дракон: burn только на центр; чёрный дракон ур.3 — вся линия
+    const lineBurn =
+      atk.cardId === "black_dragon" &&
+      blackDragonLineBurn(hostUpgradeLevel(atk, atk.cardId));
+    if (i === centerSlot || lineBurn) {
+      if (lineBurn && def.health > 0) {
+        applyBurnStatus(def, 2, 2);
+        log.unshift(
+          `${getCard(def.cardId).name}: дыхание тьмы — горит`,
+        );
+      }
+      if (i === centerSlot) {
+        applyOnHitExtras(atk, def, attackerOwner, defenderOwner, log);
+      }
+    }
   }
 
   atk.canAttack = false;
@@ -1269,7 +1899,9 @@ function cleaveHit(
     `${getCard(atk.cardId).name} бьёт [${names.join(", ")}] по ~${shown}`,
   );
 
-  for (const i of targets) removeIfDead(defenderOwner, i, log, state);
+  for (const i of targets) {
+    removeIfDead(defenderOwner, i, log, state, { killer: atk });
+  }
   for (const victim of riposteVictims) {
     if (victim.health > 0) {
       tryRiposte(defenderOwner, attackerOwner, fromSlot, victim, log, state);
@@ -2374,26 +3006,104 @@ export function playCard(
     }
     payMana(me.mana, cost);
     me.hand.splice(handIndex, 1);
-    me.slots[slotIndex] = spawnCreature(
+    const spawned = spawnCreature(
       cardId,
       next.rules,
       battleUpgradeLevel(next, "you", cardId),
     );
+    spawned.paidMana = { ...cost };
+    me.slots[slotIndex] = spawned;
     syncBoardAuras(me, next.log);
-    if (hasAbility(cardId, "immune_spells")) {
+    const up = hostUpgradeLevel(spawned, cardId);
+    if (card.school === "nature") {
+      const catalogHp = Math.max(1, card.health ?? 1);
+      me.natureSummonHpTotal = (me.natureSummonHpTotal ?? 0) + catalogHp;
+    }
+    if (cardId === "ent") {
+      let hp = Math.max(1, spawned.baseHealth);
+      if (entUsesBoardHp(up)) {
+        let sum = 0;
+        for (const u of me.slots) {
+          if (!u || u.uid === spawned.uid) continue;
+          sum += Math.max(0, u.health);
+        }
+        hp = Math.max(1, sum || spawned.baseHealth);
+      } else {
+        hp = Math.max(1, me.natureSummonHpTotal ?? spawned.baseHealth);
+      }
+      spawned.baseHealth = hp;
+      spawned.health = hp;
+      next.log = [
+        `${card.name}: корни → ${hp} HP`,
+        ...next.log,
+      ].slice(0, 10);
+    }
+    if (cardId === "spider" && spiderShieldOnPlay(up)) {
+      spawned.statuses = spawned.statuses.filter((st) => st.type !== "shield");
+      spawned.statuses.push({ type: "shield", amount: 3 });
+      next.log = [
+        `${card.name}: панцирь на 3 хода`,
+        ...next.log,
+      ].slice(0, 10);
+    }
+    if (cardId === "unicorn" && unicornManaOnPlay(up)) {
+      addMana(me.mana, "nature", 1);
+      next.log = [`${card.name}: +1 мана природы`, ...next.log].slice(0, 10);
+    }
+    if (cardId === "goblin" && goblinStealOnPlay(up)) {
+      tryStealMana(me, foe, next.log);
+    }
+    if (cardId === "tank" && tankSelfShieldOnPlay(up)) {
+      spawned.statuses = spawned.statuses.filter((st) => st.type !== "shield");
+      spawned.statuses.push({ type: "shield", amount: 2 });
+      next.log = [
+        `${card.name}: призыв — лёгкий щит себе на 2 хода`,
+        ...next.log,
+      ].slice(0, 10);
+    }
+    if (cardId === "colossus" && colossusManaOnPlay(up)) {
+      addMana(me.mana, "life", 1);
+      next.log = [`${card.name}: +1 мана жизни`, ...next.log].slice(0, 10);
+    }
+    if (cardId === "colossus" && colossusArmyShieldOnPlay(up)) {
       let shielded = 0;
       for (const s of me.slots) {
         if (!s) continue;
         s.statuses = s.statuses.filter((st) => st.type !== "shield");
-        s.statuses.push({ type: "shield", amount: 2 });
+        s.statuses.push({ type: "shield", amount: 1 });
         shielded += 1;
       }
       next.log = [
-        `${card.name}: эгида — щит (−50% урона) всей армии на 2 хода (${shielded})`,
+        `${card.name}: щит армии на 1 ход (${shielded})`,
         ...next.log,
       ].slice(0, 10);
     }
-    if (card.onPlayHealHero) {
+    if (cardId === "kraken" && krakenWaterHpBonus(up)) {
+      let waters = 0;
+      for (const side of [me, foe]) {
+        for (const u of side.slots) {
+          if (u && getCard(u.cardId).school === "water") waters += 1;
+        }
+      }
+      if (waters > 0) {
+        spawned.baseHealth += waters;
+        spawned.health += waters;
+        next.log = [
+          `${card.name}: глубина +${waters} HP за водных на поле`,
+          ...next.log,
+        ].slice(0, 10);
+      }
+    }
+    if (cardId === "veles") {
+      const heal = velesHealOnPlay(up);
+      if (heal > 0) {
+        me.hp = Math.min(me.maxHp, me.hp + heal);
+        next.log = [
+          `${card.name}: призыв, герой +${heal}`,
+          ...next.log,
+        ].slice(0, 10);
+      }
+    } else if (card.onPlayHealHero) {
       me.hp = Math.min(me.maxHp, me.hp + card.onPlayHealHero);
       next.log = [
         `${card.name}: призыв, герой +${card.onPlayHealHero}`,
@@ -2401,7 +3111,7 @@ export function playCard(
       ].slice(0, 10);
     }
     next.log = [
-      `${me.name} ставит ${card.name} [${patternOf(cardId)}] в слот ${slotIndex + 1}`,
+      `${me.name} ставит ${card.name} [${patternOf(cardId, spawned)}] в слот ${slotIndex + 1}`,
       ...next.log,
     ].slice(0, 10);
   } else {
@@ -2537,14 +3247,15 @@ export function healWithAngel(
     return next;
   }
 
-  target.permAttack += 2;
-  target.permHealth += 2;
-  target.attack += 2;
-  target.health += 2;
+  const buff = angelBuffAmount(hostUpgradeLevel(healer, healer.cardId));
+  target.permAttack += buff.atk;
+  target.permHealth += buff.hp;
+  target.attack += buff.atk;
+  target.health += buff.hp;
   healer.canAttack = false;
   next.selectedSlot = null;
   next.log = [
-    `${getCard(healer.cardId).name} благословляет ${getCard(target.cardId).name}: +2/+2 → ${target.attack}/${target.health}`,
+    `${getCard(healer.cardId).name} благословляет ${getCard(target.cardId).name}: +${buff.atk}/+${buff.hp} → ${target.attack}/${target.health}`,
     ...next.log,
   ].slice(0, 10);
   return next;
@@ -2571,13 +3282,14 @@ export function buffWithMage(
   if (!mage || !mage.canAttack) return state;
   if (abilityOf(mage.cardId, mage) !== "mage_flex") return state;
 
+  const heal = mageHealAmount(hostUpgradeLevel(mage, mage.cardId));
   if (toSlot === "hero") {
-    me.maxHp += 3;
-    me.hp += 3;
+    me.maxHp += heal;
+    me.hp += heal;
     mage.canAttack = false;
     next.selectedSlot = null;
     next.log = [
-      `${getCard(mage.cardId).name} дарует оракулу +3 HP навсегда → ${me.hp}/${me.maxHp}`,
+      `${getCard(mage.cardId).name} дарует оракулу +${heal} HP навсегда → ${me.hp}/${me.maxHp}`,
       ...next.log,
     ].slice(0, 10);
     return next;
@@ -2592,12 +3304,27 @@ export function buffWithMage(
     return next;
   }
 
-  target.permHealth += 3;
-  target.health += 3;
+  target.permHealth += heal;
+  target.health += heal;
+  // ур.3: вторая цель — соседний союзник (если есть)
+  const lv = hostUpgradeLevel(mage, mage.cardId);
+  if (lv >= 3) {
+    const neighbor = [toSlot - 1, toSlot + 1]
+      .map((i) => (i >= 0 && i <= 4 ? me.slots[i] : null))
+      .find((u) => u && u.uid !== target.uid);
+    if (neighbor) {
+      neighbor.permHealth += heal;
+      neighbor.health += heal;
+      next.log = [
+        `${getCard(mage.cardId).name} также лечит ${getCard(neighbor.cardId).name} +${heal}`,
+        ...next.log,
+      ].slice(0, 10);
+    }
+  }
   mage.canAttack = false;
   next.selectedSlot = null;
   next.log = [
-    `${getCard(mage.cardId).name} дарует ${getCard(target.cardId).name} +3 HP навсегда → ${target.attack}/${target.health}`,
+    `${getCard(mage.cardId).name} дарует ${getCard(target.cardId).name} +${heal} HP навсегда → ${target.attack}/${target.health}`,
     ...next.log,
   ].slice(0, 10);
   return next;
@@ -2608,7 +3335,7 @@ export function mageFlexReady(state: BattleState, fromSlot: number): boolean {
   return !!u && u.canAttack && abilityOf(u.cardId, u) === "mage_flex";
 }
 
-/** Валькирия / Акулит: можно переместиться на пустой свой слот вместо атаки. */
+/** Валькирия / Акулит / Странник: можно переместиться на пустой свой слот. */
 export function moveFlexReady(state: BattleState, fromSlot: number): boolean {
   const u = state.you.slots[fromSlot];
   if (!u || !u.canAttack) return false;
@@ -2642,12 +3369,19 @@ export function moveUnitToEmptySlot(
   }
   me.slots[toSlot] = unit;
   me.slots[fromSlot] = null;
-  unit.canAttack = false;
-  next.selectedSlot = null;
+  const lv = hostUpgradeLevel(unit, unit.cardId);
+  const free =
+    (unit.cardId === "valkyrie" && valkyrieFreeMove(lv)) ||
+    (unit.cardId === "aquilite" && aquiliteFreeMove(lv)) ||
+    (unit.cardId === "wanderer" && wandererFreeMove(lv));
+  if (!free) unit.canAttack = false;
+  next.selectedSlot = free ? toSlot : null;
   next.selectedHand = null;
   syncBoardAuras(me, next.log);
   next.log = [
-    `${getCard(unit.cardId).name} перемещается в слот ${toSlot + 1}`,
+    free
+      ? `${getCard(unit.cardId).name} перемещается в слот ${toSlot + 1} (может ещё ударить)`
+      : `${getCard(unit.cardId).name} перемещается в слот ${toSlot + 1}`,
     ...next.log,
   ].slice(0, 10);
   return next;
@@ -2666,16 +3400,34 @@ export function shieldWithPaladin(
   const target = me.slots[toSlot];
   if (!src || !src.canAttack) return state;
   if (abilityOf(src.cardId, src) !== "paladin_flex") return state;
+  const lv = hostUpgradeLevel(src, src.cardId);
+  const turns = paladinShieldTurns(lv);
+  if (paladinShieldsArmy(lv)) {
+    let n = 0;
+    for (const u of me.slots) {
+      if (!u) continue;
+      u.statuses = u.statuses.filter((st) => st.type !== "shield");
+      u.statuses.push({ type: "shield", amount: turns });
+      n += 1;
+    }
+    src.canAttack = false;
+    next.selectedSlot = null;
+    next.log = [
+      `${getCard(src.cardId).name}: щит всей армии на ${turns} ход (${n})`,
+      ...next.log,
+    ].slice(0, 10);
+    return next;
+  }
   if (!target) {
     next.log = ["Нужен союзник для щита", ...next.log].slice(0, 10);
     return next;
   }
   target.statuses = target.statuses.filter((st) => st.type !== "shield");
-  target.statuses.push({ type: "shield", amount: 2 });
+  target.statuses.push({ type: "shield", amount: turns });
   src.canAttack = false;
   next.selectedSlot = null;
   next.log = [
-    `${getCard(src.cardId).name} даёт щит ${getCard(target.cardId).name} (−50% урона, 2 хода)`,
+    `${getCard(src.cardId).name} даёт щит ${getCard(target.cardId).name} (−50% урона, ${turns} хода)`,
     ...next.log,
   ].slice(0, 10);
   return next;
@@ -2724,17 +3476,41 @@ export function reviveWithGravedigger(
     next.log = ["Эта карта недоступна в грейве", ...next.log].slice(0, 10);
     return next;
   }
+  const lv = hostUpgradeLevel(src, src.cardId);
+  const limit = gravediggerReviveLimit(lv);
+  const used = src.graveRevivesUsed ?? 0;
+  if (limit != null && used >= limit) {
+    next.log = [
+      limit <= 0
+        ? "Могильщик ур.1 не поднимает мёртвых"
+        : "Могильщик уже поднимал в этом бою",
+      ...next.log,
+    ].slice(0, 10);
+    return next;
+  }
   const cardId = me.graveyard.splice(pick.index, 1)[0]!;
-  me.slots[toSlot] = spawnCreature(
+  const raised = spawnCreature(
     cardId,
     next.rules,
     battleUpgradeLevel(next, "you", cardId),
   );
+  if (gravediggerReviveBuff(lv)) {
+    raised.permAttack += 1;
+    raised.permHealth += 1;
+    raised.attack += 1;
+    raised.health += 1;
+    raised.baseAttack += 1;
+    raised.baseHealth += 1;
+  }
+  me.slots[toSlot] = raised;
+  src.graveRevivesUsed = used + 1;
   src.canAttack = false;
   next.selectedSlot = null;
   syncBoardAuras(me, next.log);
   next.log = [
-    `${getCard(src.cardId).name} поднимает ${getCard(cardId).name} из грейва в слот ${toSlot + 1}`,
+    `${getCard(src.cardId).name} поднимает ${getCard(cardId).name} из грейва в слот ${toSlot + 1}${
+      gravediggerReviveBuff(lv) ? " (+1/+1)" : ""
+    }`,
     ...next.log,
   ].slice(0, 10);
   return next;
@@ -2745,7 +3521,13 @@ export function gravediggerFlexReady(
   fromSlot: number,
 ): boolean {
   const u = state.you.slots[fromSlot];
-  return !!u && u.canAttack && abilityOf(u.cardId, u) === "gravedigger_flex";
+  if (!u || !u.canAttack || abilityOf(u.cardId, u) !== "gravedigger_flex") {
+    return false;
+  }
+  const limit = gravediggerReviveLimit(hostUpgradeLevel(u, u.cardId));
+  const used = u.graveRevivesUsed ?? 0;
+  if (limit != null && used >= limit) return false;
+  return true;
 }
 
 /** Тритон: действие хода — призвать Акулита в свободный слот (вместо атаки). */
@@ -2768,10 +3550,18 @@ export function summonAquiliteWithTriton(
     return next;
   }
 
-  me.slots[toSlot] = spawnCreature("aquilite", next.rules);
+  const aqua = spawnCreature(
+    "aquilite",
+    next.rules,
+    battleUpgradeLevel(next, "you", "aquilite"),
+  );
+  // Призыв тритона: акулит всегда с rush
+  aqua.canAttack = true;
+  me.slots[toSlot] = aqua;
   triton.canAttack = false;
   next.selectedSlot = null;
   next.selectedHand = null;
+  syncBoardAuras(me, next.log);
   next.log = [
     `${getCard(triton.cardId).name} призывает Акулита в слот ${toSlot + 1}`,
     ...next.log,
@@ -2831,9 +3621,118 @@ export function leshyFlexReady(state: BattleState, fromSlot: number): boolean {
   return !!u && u.canAttack && abilityOf(u.cardId, u) === "leshy_flex";
 }
 
+export function leshyEnemySwapReady(
+  state: BattleState,
+  fromSlot: number,
+): boolean {
+  const u = state.you.slots[fromSlot];
+  return (
+    !!u &&
+    u.canAttack &&
+    abilityOf(u.cardId, u) === "leshy_flex" &&
+    leshyCanTargetEnemy(hostUpgradeLevel(u, u.cardId))
+  );
+}
+
 export function arbiterFlexReady(state: BattleState, fromSlot: number): boolean {
   const u = state.you.slots[fromSlot];
-  return !!u && u.canAttack && abilityOf(u.cardId, u) === "arbiter_flex";
+  return (
+    !!u &&
+    u.canAttack &&
+    abilityOf(u.cardId, u) === "arbiter_flex" &&
+    !u.arbiterVerdictUsed
+  );
+}
+
+export function unicornFlexReady(state: BattleState, fromSlot: number): boolean {
+  const u = state.you.slots[fromSlot];
+  return !!u && u.canAttack && abilityOf(u.cardId, u) === "unicorn_flex";
+}
+
+export function infernoFlexReady(state: BattleState, fromSlot: number): boolean {
+  const u = state.you.slots[fromSlot];
+  return (
+    !!u &&
+    u.canAttack &&
+    hasAbility(u.cardId, "inferno_flex", u) &&
+    !u.infernoCleaveUsed
+  );
+}
+
+/** Инферно ур.3: раз за бой — дыхание (cleave) вместо одного удара. */
+export function cleaveBreathWithInferno(
+  state: BattleState,
+  fromSlot: number,
+  centerSlot: number,
+): BattleState {
+  if (state.winner || state.active !== "you") return state;
+  const next = structuredClone(state) as BattleState;
+  const me = next.you;
+  const foe = next.enemy;
+  const src = me.slots[fromSlot];
+  if (!src || !src.canAttack) return state;
+  if (!hasAbility(src.cardId, "inferno_flex", src) || src.infernoCleaveUsed) {
+    return state;
+  }
+  if (centerSlot < 0 || centerSlot > 4 || !foe.slots[centerSlot]) {
+    next.log = ["Нужна цель для дыхания", ...next.log].slice(0, 10);
+    return next;
+  }
+  cleaveHit(me, foe, fromSlot, centerSlot, next.log, next);
+  const after = me.slots[fromSlot];
+  if (after && after.uid === src.uid) {
+    after.infernoCleaveUsed = true;
+    after.canAttack = false;
+  }
+  next.selectedSlot = null;
+  next.log = [
+    `${getCard(src.cardId).name}: дыхание инферно!`,
+    ...next.log,
+  ].slice(0, 10);
+  pruneLingering(next);
+  next.log = next.log.slice(0, 10);
+  checkWinner(next);
+  return next;
+}
+
+/**
+ * Единорог: разбить одно длящееся заклинание врага вместо атаки.
+ */
+export function breakSpellWithUnicorn(
+  state: BattleState,
+  fromSlot: number,
+): BattleState {
+  if (state.winner || state.active !== "you") return state;
+  const next = structuredClone(state) as BattleState;
+  const me = next.you;
+  const foe = next.enemy;
+  const src = me.slots[fromSlot];
+  if (!src || !src.canAttack || abilityOf(src.cardId, src) !== "unicorn_flex") {
+    return state;
+  }
+  const removed = breakOneEnemySpell(foe, next, next.log);
+  if (!removed) {
+    const echoOnly = countEnemySpellEchoes(foe, next) > 0;
+    next.log = [
+      echoOnly
+        ? `${getCard(src.cardId).name}: у врага только серые следы — снять нельзя`
+        : `${getCard(src.cardId).name}: у врага нет длящихся заклинаний`,
+      ...next.log,
+    ].slice(0, 10);
+    return next;
+  }
+  const keep = unicornKeepAttackAfterBreak(
+    hostUpgradeLevel(src, src.cardId),
+  );
+  if (!keep) src.canAttack = false;
+  next.selectedSlot = null;
+  next.log = [
+    keep
+      ? `${getCard(src.cardId).name} разбивает заклинание рогом — ещё может ударить`
+      : `${getCard(src.cardId).name} разбивает заклинание рогом`,
+    ...next.log,
+  ].slice(0, 10);
+  return next;
 }
 
 /** Сжать существо до 1/1 навсегда (базы и текущие статы). */
@@ -2865,22 +3764,49 @@ export function verdictWithArbiter(
   if (!src || !src.canAttack || abilityOf(src.cardId, src) !== "arbiter_flex") {
     return state;
   }
+  if (src.arbiterVerdictUsed) {
+    next.log = [
+      `${getCard(src.cardId).name}: вердикт уже вынесен в этом бою`,
+      ...next.log,
+    ].slice(0, 10);
+    return next;
+  }
 
+  const lv = hostUpgradeLevel(src, src.cardId);
+  const spareLegends = arbiterSparesAllyLegend(lv);
   const skipUid = src.uid;
   let n = 0;
   for (const side of [me, foe]) {
     for (const u of side.slots) {
       if (!u || u.uid === skipUid) continue;
+      if (
+        spareLegends &&
+        side === me &&
+        getCard(u.cardId).rarity === "legendary"
+      ) {
+        continue;
+      }
       smashToOneOne(u);
       n++;
     }
   }
 
+  src.arbiterVerdictUsed = true;
+  if (arbiterSelfBuff(lv)) {
+    src.permAttack += 1;
+    src.permHealth += 1;
+    src.baseAttack += 1;
+    src.baseHealth += 1;
+    src.attack += 1;
+    src.health += 1;
+  }
   src.canAttack = false;
   next.selectedSlot = null;
   next.log = [
     n > 0
-      ? `⚖ Вердикт ${getCard(src.cardId).name}: ${n} существ стали 1/1`
+      ? `⚖ Вердикт ${getCard(src.cardId).name}: ${n} существ стали 1/1${
+          arbiterSelfBuff(lv) ? " (+1/+1 себе)" : ""
+        }`
       : `⚖ Вердикт: на поле некого уравнять`,
     ...next.log,
   ].slice(0, 10);
@@ -2888,8 +3814,8 @@ export function verdictWithArbiter(
 }
 
 /**
- * Леший: навсегда меняет местами базовые ATK и HP союзника (и пермы).
- * Только свои — врагу «подарок» ATK↔HP не кастуем.
+ * Леший: навсегда меняет местами базовые ATK и HP
+ * (союзник с ур.2; враг — с ур.3).
  */
 export function swapStatsWithLeshy(
   state: BattleState,
@@ -2898,28 +3824,35 @@ export function swapStatsWithLeshy(
   toSlot: number,
 ): BattleState {
   if (state.winner || state.active !== "you") return state;
-  if (side !== "you") {
-    const next = structuredClone(state) as BattleState;
-    next.log = ["Леший меняет статы только союзникам", ...next.log].slice(
-      0,
-      10,
-    );
-    return next;
-  }
   const next = structuredClone(state) as BattleState;
   const me = next.you;
   const src = me.slots[fromSlot];
   if (!src || !src.canAttack || abilityOf(src.cardId, src) !== "leshy_flex") {
     return state;
   }
-  if (toSlot === fromSlot) {
+  if (
+    side === "enemy" &&
+    !leshyCanTargetEnemy(hostUpgradeLevel(src, src.cardId))
+  ) {
+    next.log = ["Леший меняет статы врагу только с ур.3", ...next.log].slice(
+      0,
+      10,
+    );
+    return next;
+  }
+  if (side === "you" && toSlot === fromSlot) {
     next.log = ["Леший не меняет статы сам себе", ...next.log].slice(0, 10);
     return next;
   }
-  const owner = next.you;
+  const owner = side === "you" ? next.you : next.enemy;
   const target = owner.slots[toSlot];
   if (!target) {
-    next.log = ["Нужен союзник для обмена статов", ...next.log].slice(0, 10);
+    next.log = [
+      side === "you"
+        ? "Нужен союзник для обмена статов"
+        : "Нужен враг для обмена статов",
+      ...next.log,
+    ].slice(0, 10);
     return next;
   }
 
@@ -2965,7 +3898,14 @@ export function stunWithBanshee(
     next.log = ["Нужна цель для оглушения", ...next.log].slice(0, 10);
     return next;
   }
-  putToSleep(tgt, next.log, getCard(src.cardId).name);
+  const turns = bansheeStunTurns(hostUpgradeLevel(src, src.cardId));
+  tgt.canAttack = false;
+  tgt.statuses = tgt.statuses.filter((st) => st.type !== "sleep");
+  tgt.statuses.push({ type: "sleep", amount: turns });
+  next.log = [
+    `${getCard(src.cardId).name} оглушает ${getCard(tgt.cardId).name} на ${turns} ход.`,
+    ...next.log,
+  ].slice(0, 10);
   src.canAttack = false;
   next.selectedSlot = null;
   return next;
@@ -2995,10 +3935,19 @@ export function swapEnemyWithBalthazar(
   }
   foe.slots[slotA] = b;
   foe.slots[slotB] = a;
+  const loss = balthazarSwapAtkLoss(hostUpgradeLevel(src, src.cardId));
+  if (loss > 0) {
+    for (const u of [a, b]) {
+      u.permAttack -= loss;
+      u.attack = Math.max(0, u.attack - loss);
+    }
+  }
   src.canAttack = false;
   next.selectedSlot = null;
   next.log = [
-    `${getCard(src.cardId).name}: обмен ${getCard(a.cardId).name} ↔ ${getCard(b.cardId).name}`,
+    loss > 0
+      ? `${getCard(src.cardId).name}: обмен ${getCard(a.cardId).name} ↔ ${getCard(b.cardId).name} (−${loss} ATK)`
+      : `${getCard(src.cardId).name}: обмен ${getCard(a.cardId).name} ↔ ${getCard(b.cardId).name}`,
     ...next.log,
   ].slice(0, 10);
   return next;
@@ -3020,16 +3969,27 @@ export function summonSkeletonWithNecro(
     next.log = ["Слот занят", ...next.log].slice(0, 10);
     return next;
   }
-  me.slots[toSlot] = spawnCreature(
-    "skeleton",
-    next.rules,
-    battleUpgradeLevel(next, "you", "skeleton"),
-  );
+  const count = necroSummonCount(hostUpgradeLevel(necro, necro.cardId));
+  const slots: number[] = [toSlot];
+  if (count >= 2) {
+    for (let i = 0; i < 5 && slots.length < count; i++) {
+      if (!me.slots[i] && i !== toSlot) slots.push(i);
+    }
+  }
+  for (const slot of slots) {
+    me.slots[slot] = spawnCreature(
+      "skeleton",
+      next.rules,
+      battleUpgradeLevel(next, "you", "skeleton"),
+    );
+  }
   necro.canAttack = false;
   next.selectedSlot = null;
   syncBoardAuras(me, next.log);
   next.log = [
-    `${getCard(necro.cardId).name} призывает Скелета в слот ${toSlot + 1}`,
+    slots.length > 1
+      ? `${getCard(necro.cardId).name} призывает ${slots.length} скелетов`
+      : `${getCard(necro.cardId).name} призывает Скелета в слот ${toSlot + 1}`,
     ...next.log,
   ].slice(0, 10);
   return next;
@@ -3088,7 +4048,14 @@ export function sleepWithMermaid(
     ].slice(0, 10);
     return next;
   }
-  putToSleep(tgt, next.log, getCard(src.cardId).name);
+  const turns = mermaidSleepTurns(hostUpgradeLevel(src, src.cardId));
+  tgt.canAttack = false;
+  tgt.statuses = tgt.statuses.filter((st) => st.type !== "sleep");
+  tgt.statuses.push({ type: "sleep", amount: turns });
+  next.log = [
+    `${getCard(src.cardId).name} усыпляет ${getCard(tgt.cardId).name} на ${turns} ход.`,
+    ...next.log,
+  ].slice(0, 10);
   src.canAttack = false;
   next.selectedSlot = null;
   return next;
@@ -3120,7 +4087,14 @@ export function sleepWithSuccubus(
     ].slice(0, 10);
     return next;
   }
-  putToSleep(tgt, next.log, getCard(src.cardId).name);
+  const turns = succubusSleepTurns(hostUpgradeLevel(src, src.cardId));
+  tgt.canAttack = false;
+  tgt.statuses = tgt.statuses.filter((st) => st.type !== "sleep");
+  tgt.statuses.push({ type: "sleep", amount: turns });
+  next.log = [
+    `${getCard(src.cardId).name} усыпляет ${getCard(tgt.cardId).name} на ${turns} ход.`,
+    ...next.log,
+  ].slice(0, 10);
   src.canAttack = false;
   next.selectedSlot = null;
   return next;
@@ -3169,7 +4143,7 @@ export function attackWith(
   const atk = me.slots[fromSlot];
   if (!atk || !atk.canAttack) return state;
 
-  const pattern = patternOf(atk.cardId);
+  const pattern = patternOf(atk.cardId, atk);
   const valid = validAttackTargets(state, fromSlot);
   if (!valid.includes(target)) {
     next.log = ["Эта цель недоступна для атаки", ...next.log].slice(0, 10);
@@ -3195,7 +4169,7 @@ export function attackWith(
       next.log = ["Слот занят — бей существо", ...next.log].slice(0, 10);
       return next;
     }
-    const hd = outgoingDamage(me, atk.attack);
+    const hd = outgoingDamage(me, strikePower(atk));
     foe.hp -= hd;
     atk.canAttack = false;
     next.log = [
@@ -3246,6 +4220,7 @@ export function attackWith(
     tryVampireGrow(me, fromSlot, next.log);
   }
 
+  tryElfDoubleShot(me.slots[fromSlot]);
   next.selectedSlot = null;
   pruneLingering(next);
   next.log = next.log.slice(0, 10);
@@ -3253,9 +4228,19 @@ export function attackWith(
   return next;
 }
 
+/** Эльф ур.3: вторая стрела в том же ходу. */
+function tryElfDoubleShot(atk: CreatureInstance | null | undefined): void {
+  if (!atk || atk.cardId !== "elf") return;
+  if (!elfDoubleShot(hostUpgradeLevel(atk, atk.cardId))) return;
+  if (atk.elfExtraUsed) return;
+  atk.elfExtraUsed = true;
+  atk.canAttack = true;
+}
+
 function refreshCanAttack(p: PlayerState): void {
   p.slots.forEach((s) => {
     if (!s) return;
+    s.elfExtraUsed = false;
     if (s.statuses.some((st) => st.type === "traitor")) {
       s.canAttack = false;
       return;
@@ -3445,13 +4430,83 @@ function grantReadyAttack(u: CreatureInstance): boolean {
 }
 
 function tickLeprechaun(p: PlayerState, log: string[]): void {
+  let heroHeal = 0;
+  let allyHeal = 0;
+  for (const s of p.slots) {
+    if (!s || !hasAbility(s.cardId, "leprechaun_aura", s)) continue;
+    const lv = hostUpgradeLevel(s, s.cardId);
+    heroHeal += leprechaunHeroHeal(lv);
+    allyHeal += leprechaunAllyHeal(lv);
+  }
+  if (heroHeal > 0) {
+    p.hp = Math.min(p.maxHp, p.hp + heroHeal);
+    log.unshift(`Леприконы: герой +${heroHeal} HP`);
+  }
+  if (allyHeal > 0) {
+    let n = 0;
+    for (const u of p.slots) {
+      if (!u || u.health <= 0) continue;
+      const cap = effectiveBase(u).hp;
+      if (u.health >= cap) continue;
+      u.health = Math.min(cap, u.health + allyHeal);
+      n += 1;
+    }
+    if (n > 0) {
+      log.unshift(`Леприконы: союзники +${allyHeal} HP (${n})`);
+    }
+  }
+}
+
+function tickVelesAura(p: PlayerState, log: string[]): void {
   let heal = 0;
   for (const s of p.slots) {
-    if (s && hasAbility(s.cardId, "leprechaun_aura", s)) heal += 3;
+    if (!s || s.cardId !== "veles") continue;
+    heal += velesNatureAuraHeal(hostUpgradeLevel(s, s.cardId));
   }
-  if (heal > 0) {
-    p.hp = Math.min(p.maxHp, p.hp + heal);
-    log.unshift(`Леприконы: герой +${heal} HP`);
+  if (heal <= 0) return;
+  let n = 0;
+  for (const u of p.slots) {
+    if (!u || u.health <= 0) continue;
+    if (getCard(u.cardId).school !== "nature") continue;
+    const cap = effectiveBase(u).hp;
+    if (u.health >= cap) continue;
+    u.health = Math.min(cap, u.health + heal);
+    n += 1;
+  }
+  if (n > 0) {
+    log.unshift(`Велес: природа +${heal} HP (${n})`);
+  }
+}
+
+function tickTrollRegen(p: PlayerState, log: string[]): void {
+  for (const s of p.slots) {
+    if (!s || s.cardId !== "troll") continue;
+    const regen = trollRegen(hostUpgradeLevel(s, s.cardId));
+    if (regen <= 0) continue;
+    const cap = effectiveBase(s).hp;
+    const before = s.health;
+    s.health = Math.min(cap, s.health + regen);
+    const g = s.health - before;
+    if (g > 0) {
+      log.unshift(`${getCard(s.cardId).name}: реген +${g} HP`);
+    }
+  }
+}
+
+function tickRogueSteal(
+  p: PlayerState,
+  foe: PlayerState | null,
+  log: string[],
+): void {
+  if (!foe) return;
+  for (const s of p.slots) {
+    if (!s || s.cardId !== "rogue") continue;
+    if (!hasAbility(s.cardId, "mana_steal", s)) continue;
+    const every = rogueStealEvery(hostUpgradeLevel(s, s.cardId));
+    if (every == null) continue;
+    s.rogueTurns = (s.rogueTurns ?? 0) + 1;
+    if (s.rogueTurns % every !== 0) continue;
+    tryStealMana(p, foe, log);
   }
 }
 
@@ -3463,10 +4518,11 @@ function tickBerserk(
   for (let i = 0; i < p.slots.length; i++) {
     const s = p.slots[i];
     if (!s || !hasAbility(s.cardId, "berserk_decay", s)) continue;
-    s.baseHealth = Math.max(1, s.baseHealth - 2);
-    s.health = Math.max(1, s.health - 2);
+    const decay = berserkDecayAmount(hostUpgradeLevel(s, s.cardId));
+    s.baseHealth = Math.max(1, s.baseHealth - decay);
+    s.health = Math.max(1, s.health - decay);
     log.unshift(
-      `${getCard(s.cardId).name}: ярость −2 HP (база ${s.baseHealth})`,
+      `${getCard(s.cardId).name}: ярость −${decay} HP (база ${s.baseHealth})`,
     );
     if (s.health <= 0) removeIfDead(p, i, log, state);
   }
@@ -3479,10 +4535,24 @@ function beginTurn(
   opts?: { skipPoison?: boolean; calm?: boolean; state?: BattleState },
 ): void {
   if (!opts?.skipPoison) tickPoison(p, log, opts?.state);
+  tickBurn(p, log, opts?.state);
+  tickHeroBurn(p, log);
   tickBerserk(p, log, opts?.state);
   tickUnitStatuses(p, log);
   growMana(p, turn);
   tickLeprechaun(p, log);
+  tickVelesAura(p, log);
+  tickTrollRegen(p, log);
+  {
+    const foe =
+      opts?.state == null
+        ? null
+        : p.id === "you"
+          ? opts.state.enemy
+          : opts.state.you;
+    tickRogueSteal(p, foe, log);
+  }
+  tickSchoolManaAura(p, log);
   draw(p, 1, opts?.state);
   if (p.bonusDrawTurns > 0) {
     draw(p, 1, opts?.state);
@@ -4880,15 +5950,77 @@ export function takeAiStep(
 
   if (best.kind === "creature") {
     const card = getCard(me.hand[best.hi]!);
-    payMana(me.mana, card.manaCost ?? {});
+    const cost = card.manaCost ?? {};
+    payMana(me.mana, cost);
     const id = me.hand.splice(best.hi, 1)[0]!;
-    me.slots[best.slot] = spawnCreature(
+    const spawned = spawnCreature(
       id,
       next.rules,
       battleUpgradeLevel(next, "enemy", id),
     );
+    spawned.paidMana = { ...cost };
+    me.slots[best.slot] = spawned;
     syncBoardAuras(me, next.log);
-    if (card.onPlayHealHero) {
+    const up = hostUpgradeLevel(spawned, id);
+    if (card.school === "nature") {
+      me.natureSummonHpTotal =
+        (me.natureSummonHpTotal ?? 0) + Math.max(1, card.health ?? 1);
+    }
+    if (id === "ent") {
+      let hp = Math.max(1, spawned.baseHealth);
+      if (entUsesBoardHp(up)) {
+        let sum = 0;
+        for (const u of me.slots) {
+          if (!u || u.uid === spawned.uid) continue;
+          sum += Math.max(0, u.health);
+        }
+        hp = Math.max(1, sum || spawned.baseHealth);
+      } else {
+        hp = Math.max(1, me.natureSummonHpTotal ?? spawned.baseHealth);
+      }
+      spawned.baseHealth = hp;
+      spawned.health = hp;
+    }
+    if (id === "spider" && spiderShieldOnPlay(up)) {
+      spawned.statuses = spawned.statuses.filter((st) => st.type !== "shield");
+      spawned.statuses.push({ type: "shield", amount: 3 });
+    }
+    if (id === "unicorn" && unicornManaOnPlay(up)) {
+      addMana(me.mana, "nature", 1);
+    }
+    if (id === "goblin" && goblinStealOnPlay(up)) {
+      tryStealMana(me, foe, next.log);
+    }
+    if (id === "tank" && tankSelfShieldOnPlay(up)) {
+      spawned.statuses = spawned.statuses.filter((st) => st.type !== "shield");
+      spawned.statuses.push({ type: "shield", amount: 2 });
+    }
+    if (id === "colossus" && colossusManaOnPlay(up)) {
+      addMana(me.mana, "life", 1);
+    }
+    if (id === "colossus" && colossusArmyShieldOnPlay(up)) {
+      for (const s of me.slots) {
+        if (!s) continue;
+        s.statuses = s.statuses.filter((st) => st.type !== "shield");
+        s.statuses.push({ type: "shield", amount: 1 });
+      }
+    }
+    if (id === "kraken" && krakenWaterHpBonus(up)) {
+      let waters = 0;
+      for (const side of [me, foe]) {
+        for (const u of side.slots) {
+          if (u && getCard(u.cardId).school === "water") waters += 1;
+        }
+      }
+      if (waters > 0) {
+        spawned.baseHealth += waters;
+        spawned.health += waters;
+      }
+    }
+    if (id === "veles") {
+      const heal = velesHealOnPlay(up);
+      if (heal > 0) me.hp = Math.min(me.maxHp, me.hp + heal);
+    } else if (card.onPlayHealHero) {
       me.hp = Math.min(me.maxHp, me.hp + card.onPlayHealHero);
     }
     next.log.unshift(`Соперник ставит ${card.name}`);
@@ -5367,7 +6499,7 @@ export function attackFxPreview(
   target: "hero" | number,
 ): BattleFx {
   const atk = state.you.slots[fromSlot];
-  const pattern = atk ? patternOf(atk.cardId) : "melee";
+  const pattern = atk ? patternOf(atk.cardId, atk) : "melee";
   const cardId = atk?.cardId;
   const motion = cardId ? attackMotionFor(cardId) : "melee";
   if (target === "hero") {
@@ -5391,7 +6523,7 @@ export function attackFxPreview(
     });
   }
   if (pattern === "cleave3") {
-    return normalizeBattleFx({
+    const fx = normalizeBattleFx({
       side: "you",
       kind: "lunge",
       fromSlot,
@@ -5399,6 +6531,8 @@ export function attackFxPreview(
       cardId,
       motion,
     });
+    if (cardId && hasAbility(cardId, "flame_burn", atk)) fx.vfx = "burn";
+    return fx;
   }
   if (pattern === "aoe_all") {
     return normalizeBattleFx({
@@ -5412,7 +6546,7 @@ export function attackFxPreview(
       motion,
     });
   }
-  return normalizeBattleFx({
+  const fx = normalizeBattleFx({
     side: "you",
     kind: "lunge",
     fromSlot,
@@ -5420,6 +6554,10 @@ export function attackFxPreview(
     cardId,
     motion,
   });
+  if (cardId && hasAbility(cardId, "flame_burn", atk)) {
+    fx.vfx = "burn";
+  }
+  return fx;
 }
 
 export function selectHand(state: BattleState, index: number | null): BattleState {

@@ -119,6 +119,14 @@ export type CreatureAbility =
   | "succubus_flex"
   | "rush"
   | "leprechaun_aura"
+  /** Пока на поле: в начале хода +1 мана школы этой карты. */
+  | "school_mana_aura"
+  /** Огнемётчик: при ударе по существу — горение 3 хода (−3 HP/ход). */
+  | "flame_burn"
+  /** Инферно ур.3: раз за бой — cleave вместо одного удара. */
+  | "inferno_flex"
+  /** Единорог: удар ИЛИ разбить одно длящееся заклинание врага. */
+  | "unicorn_flex"
   | "berserk_decay"
   | "immune_hell_death"
   | "immune_death"
@@ -245,6 +253,7 @@ export interface CardDef {
 export type StatusEffect = {
   type:
     | "poison"
+    | "burn"
     | "slow"
     | "shield"
     | "sleep"
@@ -257,6 +266,10 @@ export type StatusEffect = {
   amount: number;
   /** Яд без эскалации (паук): каждый ход фиксированный −amount. */
   steady?: boolean;
+  /** Горение / временный яд: сколько ходов ещё тикает (урон = amount). */
+  turns?: number;
+  /** Скорпикора ур.3: яд растёт на +2 вместо +1. */
+  fast?: boolean;
 };
 
 export interface CreatureInstance {
@@ -271,6 +284,8 @@ export interface CreatureInstance {
   swarmBonus?: number;
   /** Аура «прилив»: +HP пока на поле есть water_tide */
   auraHp?: number;
+  /** Аура тритона ур.3: +HP акулитам */
+  schoolAuraHp?: number;
   attack: number;
   health: number;
   canAttack: boolean;
@@ -287,6 +302,20 @@ export interface CreatureInstance {
   stripped?: boolean;
   /** Из последних сил: не сбрасывать ATK к базе в конце хода. */
   noRestore?: boolean;
+  /** Сколько маны заплатили при призыве (возврат стража ур.3). */
+  paidMana?: ManaCost;
+  /** Могильщик: сколько раз уже поднимал за этот бой. */
+  graveRevivesUsed?: number;
+  /** Зомби ур.3: уже стал трупом 1 HP. */
+  isCorpse?: boolean;
+  /** Инферно ур.3: дыхание (cleave) уже использовано в этом бою. */
+  infernoCleaveUsed?: boolean;
+  /** Эльф ур.3: вторая стрела уже потрачена в этом ходу. */
+  elfExtraUsed?: boolean;
+  /** Арбитр: вердикт уже использован в этом бою. */
+  arbiterVerdictUsed?: boolean;
+  /** Разбойник: счётчик своих ходов на поле (для кражи маны). */
+  rogueTurns?: number;
 }
 
 export type Slot = CreatureInstance | null;
@@ -321,6 +350,13 @@ export interface PlayerState {
    */
   attackBanSchool: Faction | null;
   attackBanTurns: number;
+  /** Горение героя: −amount в начале своего хода, turns ходов. */
+  heroBurn?: { amount: number; turns: number };
+  /**
+   * Сумма каталожных HP существ природы, выставленных этим героем в бою
+   * (для энта ур.1–2).
+   */
+  natureSummonHpTotal?: number;
 }
 
 export type AttackTarget = "hero" | number;
