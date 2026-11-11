@@ -67,6 +67,7 @@ import {
   validAttackTargets,
   verdictWithArbiter,
   BLOOD_FRENZY_AFTER_TURNS,
+  enrichSpellFx,
   normalizeBattleFx,
   type BattleFx,
 } from "../game/engine";
@@ -172,7 +173,49 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 const DIE_FACE = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
 
-type FxImpact = "arrow" | "burn" | "magic" | "poison";
+type FxImpact = "arrow" | "burn" | "magic" | "poison" | "water" | "shock";
+
+type DyingGhost = {
+  key: string;
+  side: "you" | "enemy";
+  slot: number;
+  cardId: string;
+};
+
+function ghostCreature(cardId: string): CreatureInstance {
+  try {
+    const c = getCard(cardId);
+    const atk = c.attack ?? 0;
+    const hp = c.health ?? 1;
+    return {
+      uid: `dying-${cardId}`,
+      cardId,
+      baseAttack: atk,
+      baseHealth: hp,
+      permAttack: 0,
+      permHealth: 0,
+      packBonus: 0,
+      attack: atk,
+      health: Math.max(1, hp),
+      canAttack: false,
+      statuses: [],
+    };
+  } catch {
+    return {
+      uid: `dying-${cardId}`,
+      cardId,
+      baseAttack: 0,
+      baseHealth: 1,
+      permAttack: 0,
+      permHealth: 0,
+      packBonus: 0,
+      attack: 0,
+      health: 1,
+      canAttack: false,
+      statuses: [],
+    };
+  }
+}
 
 /** Снаряд по DOM-точкам — WAAPI (iOS не любит var() в keyframes). */
 function BattleMissile({
@@ -184,6 +227,7 @@ function BattleMissile({
   toSlot,
   hitHero,
   hitSlots,
+  fromSky,
 }: {
   className: string;
   kind: "arrow" | "bolt" | "magic" | "poison";
@@ -193,6 +237,8 @@ function BattleMissile({
   toSlot?: number;
   hitHero?: boolean;
   hitSlots?: number[];
+  /** Туча стрел: падение сверху, не из оракула. */
+  fromSky?: boolean;
 }) {
   const elRef = useRef<HTMLSpanElement>(null);
 
@@ -232,10 +278,22 @@ function BattleMissile({
         ? board.querySelector(`[data-board-drop="${toSide}:${targetSlot}"]`)
         : null;
 
-    const from = mid(fromEl) ?? {
-      x: boardRect.width * (fromSlot != null ? 0.12 + fromSlot * 0.19 : 0.5),
-      y: fromSide === "you" ? boardRect.height * 0.92 : boardRect.height * 0.08,
-    };
+    const toGuess = mid(toEl);
+    const from = fromSky
+      ? {
+          x:
+            (toGuess?.x ??
+              boardRect.width * (0.12 + (targetSlot ?? 2) * 0.19)) +
+            (Math.random() * 28 - 14),
+          y: -12 - Math.random() * 36,
+        }
+      : mid(fromEl) ?? {
+          x: boardRect.width * (fromSlot != null ? 0.12 + fromSlot * 0.19 : 0.5),
+          y:
+            fromSide === "you"
+              ? boardRect.height * 0.92
+              : boardRect.height * 0.08,
+        };
     const to = mid(toEl) ?? {
       x: boardRect.width * (0.12 + (targetSlot ?? 2) * 0.19),
       y: hitHero
@@ -355,6 +413,7 @@ function BattleMissile({
     toSlot,
     hitHero,
     hitSlots,
+    fromSky,
   ]);
 
   return (
@@ -390,6 +449,7 @@ function BoardCard({
   impact,
   playIn,
   heal,
+  dying,
   onClick,
 }: {
   creature: CreatureInstance;
@@ -402,10 +462,11 @@ function BoardCard({
   nod?: boolean;
   hit?: boolean;
   poisonBurst?: boolean;
-  /** Эффект на цели: стрела / огонь / магия / яд. */
+  /** Эффект на цели: стрела / огонь / магия / яд / вода / разряд. */
   impact?: FxImpact | null;
   playIn?: boolean;
   heal?: boolean;
+  dying?: boolean;
   onClick: () => void;
 }) {
   const poisoned = creature.statuses.some((st) => st.type === "poison");
@@ -425,8 +486,12 @@ function BoardCard({
         showPoison ? "has-poison" : "",
         impact === "burn" ? "is-burning" : "",
         impact === "magic" ? "is-magic-burn" : "",
+        impact === "water" ? "is-water-hit" : "",
+        impact === "shock" ? "is-shock-hit" : "",
+        impact === "arrow" ? "is-arrow-hit" : "",
         playIn ? "is-play-in" : "",
         heal ? "is-heal" : "",
+        dying ? "is-dying" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -465,6 +530,28 @@ function BoardCard({
       ) : null}
       {impact === "magic" ? (
         <span className="fx-magic-layer" aria-hidden>
+          <i />
+          <i />
+          <i />
+        </span>
+      ) : null}
+      {impact === "water" ? (
+        <span className="fx-water-layer" aria-hidden>
+          <i />
+          <i />
+          <i />
+          <i />
+        </span>
+      ) : null}
+      {impact === "shock" ? (
+        <span className="fx-shock-layer" aria-hidden>
+          <i />
+          <i />
+          <i />
+        </span>
+      ) : null}
+      {impact === "arrow" ? (
+        <span className="fx-arrow-stuck" aria-hidden>
           <i />
           <i />
           <i />
@@ -545,6 +632,8 @@ export function Battle({
   const yourHero = getHero(state.you.heroId);
   const enemyHero = getHero(state.enemy.heroId);
   const [fx, setFx] = useState<BattleFx | null>(null);
+  const [dying, setDying] = useState<DyingGhost[]>([]);
+  const dyingTimers = useRef<number[]>([]);
   const boardRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   const [pvpAwaiting, setPvpAwaiting] = useState(false);
@@ -862,6 +951,38 @@ export function Battle({
     }
   };
 
+  const rememberDeaths = (before: BattleState, after: BattleState) => {
+    const ghosts: DyingGhost[] = [];
+    const stamp = Date.now();
+    for (const side of ["you", "enemy"] as const) {
+      for (let i = 0; i < 5; i++) {
+        const was = before[side].slots[i];
+        const now = after[side].slots[i];
+        if (was && !now) {
+          ghosts.push({
+            key: `${side}-${i}-${was.uid}-${stamp}`,
+            side,
+            slot: i,
+            cardId: was.cardId,
+          });
+        }
+      }
+    }
+    if (!ghosts.length) return;
+    setDying((prev) => [...prev, ...ghosts]);
+    const t = window.setTimeout(() => {
+      setDying((prev) => prev.filter((g) => !ghosts.some((x) => x.key === g.key)));
+    }, 700);
+    dyingTimers.current.push(t);
+  };
+
+  useEffect(() => {
+    return () => {
+      for (const t of dyingTimers.current) window.clearTimeout(t);
+      dyingTimers.current = [];
+    };
+  }, []);
+
   const playFx = async (
     rawFx: BattleFx,
     /** Применить к актуальному state (не к устаревшему из замыкания клика). */
@@ -870,8 +991,11 @@ export function Battle({
     netAction?: NetAction,
   ) => {
     unlockSfx();
-    const nextFx = normalizeBattleFx(rawFx);
     const before = stateRef.current;
+    const nextFx =
+      rawFx.kind === "spell"
+        ? enrichSpellFx(rawFx, before)
+        : normalizeBattleFx(rawFx);
     const isSpellCard = nextFx.kind === "spell" && !!nextFx.cardId;
     const instant = nextFx.kind === "spell" || nextFx.kind === "heal";
     const online = Boolean(networkRef.current);
@@ -879,7 +1003,8 @@ export function Battle({
       (nextFx.kind === "lunge" &&
         (nextFx.motion === "ranged" || nextFx.motion === "bolt")) ||
       (nextFx.kind === "spell" &&
-        (nextFx.vfx === "poison" || nextFx.vfx === "magic") &&
+        !!nextFx.vfx &&
+        nextFx.vfx !== "burn" &&
         (!!nextFx.hitHero ||
           nextFx.toSlot != null ||
           (Array.isArray(nextFx.hitSlots) && nextFx.hitSlots.length > 0)));
@@ -920,6 +1045,7 @@ export function Battle({
         if (after.winner) after = { ...after, winner: null };
         stateRef.current = after;
         setState(after);
+        rememberDeaths(before, after);
         playResultSfx(before, after);
         try {
           networkRef.current.sendAction(action);
@@ -953,6 +1079,7 @@ export function Battle({
       }
       stateRef.current = after;
       setState(after);
+      rememberDeaths(before, after);
       playResultSfx(before, after);
       return after;
     };
@@ -1990,6 +2117,7 @@ export function Battle({
             : after;
         stateRef.current = s;
         setState(s);
+        rememberDeaths(before, s);
         playResultSfx(before, s);
         if (networkRef.current) {
           networkRef.current.sendAction(action);
@@ -2048,7 +2176,8 @@ export function Battle({
           (stepFx.kind === "lunge" &&
             (stepFx.motion === "ranged" || stepFx.motion === "bolt")) ||
           (stepFx.kind === "spell" &&
-            (stepFx.vfx === "poison" || stepFx.vfx === "magic") &&
+            !!stepFx.vfx &&
+            stepFx.vfx !== "burn" &&
             (!!stepFx.hitHero ||
               stepFx.toSlot != null ||
               (Array.isArray(stepFx.hitSlots) && stepFx.hitSlots.length > 0)));
@@ -2075,6 +2204,7 @@ export function Battle({
           s = step.state;
           stateRef.current = s;
           setState(s);
+          rememberDeaths(before, s);
           playResultSfx(before, s);
           await sleep(Math.max(550, hold - 900));
         } else {
@@ -2083,6 +2213,7 @@ export function Battle({
           s = step.state;
           stateRef.current = s;
           setState(s);
+          rememberDeaths(before, s);
           playResultSfx(before, s);
           await sleep(Math.floor(hold * 0.55));
         }
@@ -2123,17 +2254,22 @@ export function Battle({
     if (fx.side === cardSide) return null;
     if (fx.kind === "lunge") {
       const motion = fx.motion ?? "melee";
-      // Стрела одна — летящая; на карте дубль не рисуем.
-      if (motion === "ranged") return null;
+      if (motion === "ranged") return "arrow";
       if (motion === "bolt") {
-        return fx.school === "hell" ? "burn" : "magic";
+        if (fx.school === "hell") return "burn";
+        if (fx.school === "water") return "water";
+        return "shock";
       }
       return null;
     }
     if (fx.kind === "spell") {
       if (fx.vfx === "poison") return "poison";
-      if (fx.school === "hell") return "burn";
-      return "magic";
+      if (fx.vfx === "burn" || fx.school === "hell") return "burn";
+      if (fx.vfx === "water" || fx.school === "water") return "water";
+      if (fx.vfx === "arrow") return "arrow";
+      if (fx.vfx === "shock") return "shock";
+      if (fx.vfx === "magic") return "magic";
+      return "shock";
     }
     return null;
   };
@@ -2198,12 +2334,21 @@ export function Battle({
       fx.toSlot != null ||
       (Array.isArray(fx.hitSlots) && fx.hitSlots.length > 0);
     // Без цели (мана, доп. карта, баффы) снаряд не летит — только карта каста.
+    // burn/water/shock рисуются на картах; arrow/poison/magic ещё и летят.
     const flySpell =
       fx.kind === "spell" &&
       hasSpellAim &&
-      (fx.vfx === "poison" || fx.vfx === "magic");
+      (fx.vfx === "poison" ||
+        fx.vfx === "magic" ||
+        fx.vfx === "arrow" ||
+        fx.vfx === "shock" ||
+        fx.vfx === "water");
     if (!flyAttack && !flySpell) return null;
-    if (fx.kind === "spell") return fx.vfx === "poison" ? "poison" : "magic";
+    if (fx.kind === "spell") {
+      if (fx.vfx === "poison") return "poison";
+      if (fx.vfx === "arrow") return "arrow";
+      return "magic";
+    }
     return motion === "bolt" ? "bolt" : "arrow";
   })();
 
@@ -2536,17 +2681,37 @@ export function Battle({
       <div className="board" ref={boardRef}>
         {missileClass && missileKind && fx ? (
           <div className="battle-fx-layer" aria-hidden>
-            <BattleMissile
-              key={`${fx.side}-${fx.kind}-${fx.fromSlot}-${fx.toSlot}-${fx.hitSlots?.join(".") ?? ""}-${fx.vfx ?? ""}-${missileKind}`}
-              className={missileClass}
-              kind={missileKind}
-              boardRef={boardRef}
-              fromSide={fx.side}
-              fromSlot={fx.fromSlot}
-              toSlot={fx.toSlot}
-              hitHero={fx.hitHero}
-              hitSlots={fx.hitSlots}
-            />
+            {fx.kind === "spell" &&
+            fx.vfx === "arrow" &&
+            Array.isArray(fx.hitSlots) &&
+            fx.hitSlots.length > 1
+              ? fx.hitSlots.map((slot, n) => (
+                  <BattleMissile
+                    key={`rain-${fx.side}-${slot}-${n}-${fx.cardId ?? ""}`}
+                    className={`${missileClass} is-sky-rain`}
+                    kind="arrow"
+                    boardRef={boardRef}
+                    fromSide={fx.side}
+                    fromSlot={undefined}
+                    toSlot={slot}
+                    hitHero={false}
+                    hitSlots={[slot]}
+                    fromSky
+                  />
+                ))
+              : (
+                  <BattleMissile
+                    key={`${fx.side}-${fx.kind}-${fx.fromSlot}-${fx.toSlot}-${fx.hitSlots?.join(".") ?? ""}-${fx.vfx ?? ""}-${missileKind}`}
+                    className={missileClass}
+                    kind={missileKind}
+                    boardRef={boardRef}
+                    fromSide={fx.side}
+                    fromSlot={fx.fromSlot}
+                    toSlot={fx.toSlot}
+                    hitHero={fx.hitHero}
+                    hitSlots={fx.hitSlots}
+                  />
+                )}
           </div>
         ) : null}
         <div className="oracle-bar enemy-oracle-bar" data-tut="enemy-oracle">
@@ -2604,6 +2769,9 @@ export function Battle({
               >
                 {state.enemy.slots.map((s, i) => {
                   const anim = enemyFx(i);
+                  const ghost = !s
+                    ? dying.find((g) => g.side === "enemy" && g.slot === i)
+                    : undefined;
                   return (
                     <div
                       key={`eslot-${i}`}
@@ -2663,6 +2831,14 @@ export function Battle({
                           playIn={false}
                           heal={anim.heal}
                           onClick={() => onEnemySlot(i)}
+                        />
+                      ) : ghost ? (
+                        <BoardCard
+                          key={ghost.key}
+                          creature={ghostCreature(ghost.cardId)}
+                          dying
+                          impact={anim.impact}
+                          onClick={() => {}}
                         />
                       ) : (
                         <EmptySlot
@@ -2730,6 +2906,9 @@ export function Battle({
               >
                 {state.you.slots.map((s, i) => {
                   const anim = yourFx(i);
+                  const ghost = !s
+                    ? dying.find((g) => g.side === "you" && g.slot === i)
+                    : undefined;
                   return (
                     <div
                       key={`yslot-${i}`}
@@ -2781,6 +2960,14 @@ export function Battle({
                           playIn={false}
                           heal={anim.heal}
                           onClick={() => onYourSlot(i)}
+                        />
+                      ) : ghost ? (
+                        <BoardCard
+                          key={ghost.key}
+                          creature={ghostCreature(ghost.cardId)}
+                          dying
+                          impact={anim.impact}
+                          onClick={() => {}}
                         />
                       ) : (
                         <EmptySlot

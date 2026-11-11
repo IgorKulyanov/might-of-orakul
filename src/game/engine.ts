@@ -3426,6 +3426,15 @@ function beginTurn(
 /** Движение атаки: ближний укол / стрела / магический болт. */
 export type BattleFxMotion = "melee" | "ranged" | "bolt";
 
+/** Визуальный эффект попадания / снаряда. */
+export type BattleFxVfx =
+  | "poison"
+  | "magic"
+  | "burn"
+  | "water"
+  | "arrow"
+  | "shock";
+
 /** Визуальный эффект для анимации в UI */
 export type BattleFx = {
   side: "you" | "enemy";
@@ -3438,8 +3447,8 @@ export type BattleFx = {
   cardId?: string;
   /** Для kind=lunge: чем бьют. */
   motion?: BattleFxMotion;
-  /** Для kind=spell: яд / цветная магия. */
-  vfx?: "poison" | "magic";
+  /** Для kind=spell / удара: тема эффекта. */
+  vfx?: BattleFxVfx;
   school?: Faction;
 };
 
@@ -3465,28 +3474,72 @@ export function attackMotionFor(cardId: string): BattleFxMotion {
   return "melee";
 }
 
-/** Летит снаряд только у яда / удара по врагу — не у «доп. карты», маны и т.п. */
+function isOffensiveSpell(effects: SpellEffect[]): boolean {
+  return effects.some(
+    (e) =>
+      e.type === "poison" ||
+      e.type === "poison_all" ||
+      e.type === "damage_hero" ||
+      e.type === "damage_all_enemies" ||
+      e.type === "damage_undead" ||
+      e.type === "damage_unit" ||
+      e.type === "banish_unit",
+  );
+}
+
+/** Тема снаряда/попадания по id карты и школе. */
 function spellProjectileVfx(
+  cardId: string,
   effects: SpellEffect[],
-): "poison" | "magic" | undefined {
+  school?: Faction | "neutral",
+): BattleFxVfx | undefined {
+  if (cardId === "arrow_cloud" || cardId === "sniper") return "arrow";
+  if (cardId === "wave") return "water";
   if (effects.some((e) => e.type === "poison" || e.type === "poison_all")) {
     return "poison";
   }
+  if (!isOffensiveSpell(effects)) return undefined;
+  if (school === "hell" || cardId === "fire_aura") return "burn";
+  if (school === "water") return "water";
+  if (school === "nature" && cardId !== "arrow_cloud") return "shock";
+  if (school === "death") return "magic";
+  if (school === "life") return "shock";
   const need = spellNeedsTarget(effects);
-  if (need === "enemy") return "magic";
-  if (
-    effects.some(
-      (e) =>
-        e.type === "damage_hero" ||
-        e.type === "damage_all_enemies" ||
-        e.type === "damage_undead" ||
-        e.type === "damage_unit" ||
-        e.type === "banish_unit",
-    )
-  ) {
-    return "magic";
+  if (need === "enemy") return "shock";
+  return "shock";
+}
+
+function occupiedSlots(
+  side: BattleState["you"] | BattleState["enemy"],
+): number[] {
+  return side.slots
+    .map((s, i) => (s ? i : -1))
+    .filter((i): i is number => i >= 0);
+}
+
+/**
+ * Дополнить FX: school/vfx + hitSlots для массовых заклинаний
+ * (по состоянию стола ДО применения урона).
+ */
+export function enrichSpellFx(fx: BattleFx, state: BattleState): BattleFx {
+  const next = normalizeBattleFx(fx);
+  if (next.kind !== "spell" || !next.cardId) return next;
+  try {
+    const card = getCard(next.cardId);
+    const effects = card.spellEffects ?? [];
+    const foe = next.side === "you" ? state.enemy : state.you;
+    if (
+      !next.hitSlots?.length &&
+      effects.some(
+        (e) => e.type === "damage_all_enemies" || e.type === "poison_all",
+      )
+    ) {
+      next.hitSlots = occupiedSlots(foe);
+    }
+  } catch {
+    /* ignore */
   }
-  return undefined;
+  return next;
 }
 
 /** Дополнить FX по cardId (motion / school / poison). */
@@ -3502,7 +3555,11 @@ export function normalizeBattleFx(fx: BattleFx): BattleFx {
         next.school = card.school;
       }
       if (!next.vfx) {
-        const vfx = spellProjectileVfx(card.spellEffects ?? []);
+        const vfx = spellProjectileVfx(
+          fx.cardId,
+          card.spellEffects ?? [],
+          card.school,
+        );
         if (vfx) next.vfx = vfx;
       }
     } catch {
@@ -4771,6 +4828,11 @@ export function takeAiStep(
     me.hand.splice(best.hi, 1);
     const linger = isLingeringSpell(id);
     const effects = card.spellEffects ?? [];
+    const massHits = effects.some(
+      (e) => e.type === "damage_all_enemies" || e.type === "poison_all",
+    )
+      ? occupiedSlots(foe)
+      : undefined;
     applySpellEffects(
       next,
       me,
@@ -4791,7 +4853,9 @@ export function takeAiStep(
         kind: "spell",
         cardId: id,
         toSlot: target ?? undefined,
-        hitSlots: need === "enemy" && target != null ? [target] : undefined,
+        hitSlots:
+          massHits ??
+          (need === "enemy" && target != null ? [target] : undefined),
         hitHero: need == null && effects.some((e) => e.type === "damage_hero"),
       }),
     };
