@@ -920,15 +920,15 @@ export default function App() {
     }
 
     void persistOwned(res.owned);
-    const shardBit = res.shardLine ? ` · ${res.shardLine}` : "";
     return {
       won,
       xpGained: res.xpGained,
       gainedLevels: res.gainedLevels,
       goldReward,
       diamondReward,
-      giftLine: giftLine ? `${giftLine}${shardBit}` : res.shardLine,
+      giftLine,
       shardLine: res.shardLine,
+      shardGains: res.shardGains,
       resultEyebrow,
       resultTitle,
       resultLead,

@@ -12,6 +12,7 @@ import { GameIcon, SchoolBadge } from "./GameIcon";
 import { ManaBar } from "./ManaBar";
 import {
   PATTERN_LABEL,
+  cardArtUrl,
   creatureGender,
   formatManaCost,
   getCard,
@@ -107,6 +108,7 @@ type BattleEndInfo = {
   diamondReward: number;
   giftLine?: string | null;
   shardLine?: string | null;
+  shardGains?: Array<{ cardId: string; amount: number; name: string }>;
   /** Праздничный заголовок (например полное прохождение арены). */
   resultEyebrow?: string | null;
   resultTitle?: string | null;
@@ -3505,6 +3507,36 @@ export function Battle({
                     </span>
                   </div>
                 )}
+                {(reward.shardGains?.length ?? 0) > 0 &&
+                  reward.shardGains!.map((g) => {
+                    let art = "";
+                    try {
+                      art = cardArtUrl(getCard(g.cardId));
+                    } catch {
+                      art = "";
+                    }
+                    return (
+                      <div
+                        key={`shard-${g.cardId}`}
+                        className="battle-reward-chip shard"
+                      >
+                        <span className="battle-reward-label">Осколок</span>
+                        <div className="battle-shard-row">
+                          {art ? (
+                            <span
+                              className="battle-shard-portrait"
+                              style={{ backgroundImage: `url("${art}")` }}
+                              aria-hidden
+                            />
+                          ) : null}
+                          <span className="battle-reward-value">
+                            {g.name}
+                            <small> +{g.amount}</small>
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
             )}
             <div className="battle-result-actions">

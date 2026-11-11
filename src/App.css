@@ -4503,6 +4503,45 @@ html.is-hand-dragging .grave-row {
   text-shadow: 0 0 14px rgba(232, 197, 71, 0.35);
 }
 
+.battle-reward-chip.shard {
+  flex: 1 1 100%;
+  border-color: rgba(140, 200, 255, 0.35);
+  background: rgba(40, 70, 110, 0.35);
+}
+
+.battle-shard-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.battle-shard-portrait {
+  flex: 0 0 auto;
+  width: 2.6rem;
+  height: 3.5rem;
+  border-radius: 7px;
+  border: 1px solid rgba(200, 230, 255, 0.45);
+  background-color: #0a0c12;
+  background-size: cover;
+  background-position: center top;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+}
+
+.battle-reward-chip.shard .battle-reward-value {
+  font-size: clamp(1.05rem, 3.2vw, 1.35rem);
+  color: #c8e6ff;
+  text-shadow: 0 0 12px rgba(100, 180, 255, 0.35);
+}
+
+.battle-reward-chip.shard .battle-reward-value small {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.85em;
+  font-weight: 700;
+  color: #9bdcff;
+  letter-spacing: 0.04em;
+}
+
 .battle-result-actions {
   display: grid;
   gap: 0.65rem;

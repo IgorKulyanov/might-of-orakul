@@ -902,6 +902,7 @@ export type BattleRewardResult = {
   giftLine: string | null;
   /** Осколки карт за бой (пилот: скелет). */
   shardLine?: string | null;
+  shardGains?: Array<{ cardId: string; amount: number; name: string }>;
 };
 
 /**
@@ -954,13 +955,16 @@ export function applyBattleResult(
     diamonds: (owned.diamonds ?? 0) + diamondReward,
   };
   let shardLine: string | null = null;
+  let shardGains: Array<{ cardId: string; amount: number; name: string }> =
+    [];
   // Осколки: победа vs бот/тропа/арена (не PvP, не поражение)
   if (won && !pvp && mode !== "dev") {
     const drop = rollBotWinShards(next);
     next = drop.owned;
+    shardGains = drop.gains;
     if (drop.gains.length) {
       shardLine = drop.gains
-        .map((g) => `🦴 ${g.name}: +${g.amount} оскол.`)
+        .map((g) => `+${g.amount} оскол. «${g.name}»`)
         .join(" · ");
     }
   }
@@ -973,6 +977,7 @@ export function applyBattleResult(
     diamondReward,
     giftLine: gift.giftLine,
     shardLine,
+    shardGains,
   };
 }
 
