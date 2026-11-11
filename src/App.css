@@ -2302,9 +2302,10 @@ button {
       rgba(8, 5, 3, 0.55) 62%,
       rgba(5, 3, 2, 0.78) 100%
     ),
-    url("/battle-table.jpg");
+    var(--battle-table, url("/battle-table.jpg"));
+  /* cover — стол на весь экран; центр = игровая плита */
   background-size: cover, cover;
-  background-position: center, center;
+  background-position: center center, center center;
   background-repeat: no-repeat;
   box-sizing: border-box;
   opacity: 0;

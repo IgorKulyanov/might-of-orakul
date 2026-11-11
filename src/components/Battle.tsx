@@ -89,6 +89,7 @@ import {
   hasSeenBattleTutorial,
   markBattleTutorialSeen,
 } from "../game/battleTutorial";
+import { pickBattleTable } from "../game/battleTables";
 import {
   applyPvpAction,
   PVP_OPENING_MS,
@@ -627,6 +628,12 @@ export function Battle({
     return prepareBattle ? prepareBattle(raw) : raw;
   };
   const [state, setState] = useState<BattleState>(() => bootBattle());
+  const [tableBg] = useState(() =>
+    pickBattleTable({
+      school: getHero(yourHeroId).faction,
+      seed: aiSeed ?? undefined,
+    }),
+  );
   const networkRef = useRef(network);
   networkRef.current = network;
   const [turnLeftSec, setTurnLeftSec] = useState<number | null>(null);
@@ -2565,6 +2572,7 @@ export function Battle({
   return (
     <div
       className={`battle ${busy || actionBlocked ? "is-busy" : ""} ${entered ? "is-entered" : ""}`}
+      style={{ ["--battle-table" as string]: `url("${tableBg}")` }}
     >
       <header className="battle-bar">
         <button
