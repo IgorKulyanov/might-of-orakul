@@ -1356,10 +1356,11 @@ button {
 
 .battle-missile.is-bolt,
 .battle-missile.is-magic {
-  width: 28px;
-  height: 28px;
-  margin-left: -14px;
-  margin-top: -14px;
+  width: 32px;
+  height: 32px;
+  margin-left: -16px;
+  margin-top: -16px;
+  background: transparent;
 }
 .missile-glow-core {
   position: absolute;
@@ -1371,46 +1372,59 @@ button {
     0 0 28px rgba(100, 180, 255, 0.5);
   animation: missile-pulse 0.35s ease-in-out infinite alternate;
 }
-.battle-missile.is-bolt.school-hell .missile-glow-core,
-.battle-missile.is-magic.school-hell .missile-glow-core {
-  background: radial-gradient(circle, #fff3e0 0%, #ff8a3d 50%, #c43c12 100%);
+.missile-fire-core {
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff8e1 0%, #ff9800 40%, #e65100 100%);
   box-shadow:
-    0 0 18px 7px rgba(255, 100, 40, 0.9),
-    0 0 30px rgba(255, 120, 40, 0.5);
+    0 0 14px 6px rgba(255, 120, 20, 0.95),
+    0 0 26px rgba(255, 60, 0, 0.55);
+  animation: missile-pulse 0.28s ease-in-out infinite alternate;
 }
-.battle-missile.is-bolt.school-death .missile-glow-core,
-.battle-missile.is-magic.school-death .missile-glow-core {
-  background: radial-gradient(circle, #f3e5ff 0%, #b388ff 45%, #6a1b9a 100%);
-  box-shadow:
-    0 0 18px 7px rgba(160, 80, 255, 0.9),
-    0 0 30px rgba(160, 80, 255, 0.5);
+.missile-fire-tail {
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  width: 14px;
+  height: 22px;
+  margin-left: -7px;
+  border-radius: 40% 40% 55% 55%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 220, 100, 0.95),
+    rgba(255, 80, 0, 0.55),
+    transparent
+  );
+  filter: blur(0.5px);
+  transform-origin: top center;
+  animation: fire-tail-flick 0.22s ease-in-out infinite alternate;
 }
-.battle-missile.is-bolt.school-life .missile-glow-core,
-.battle-missile.is-magic.school-life .missile-glow-core {
-  background: radial-gradient(circle, #fffde7 0%, #ffe082 45%, #f9a825 100%);
-  box-shadow:
-    0 0 18px 7px rgba(255, 200, 60, 0.9),
-    0 0 30px rgba(255, 200, 60, 0.5);
+@keyframes fire-tail-flick {
+  from {
+    transform: scaleY(0.85) scaleX(1.1);
+    opacity: 0.75;
+  }
+  to {
+    transform: scaleY(1.2) scaleX(0.85);
+    opacity: 1;
+  }
 }
-.battle-missile.is-bolt.school-water .missile-glow-core,
-.battle-missile.is-magic.school-water .missile-glow-core {
-  background: radial-gradient(circle, #e0f7fa 0%, #4dd0e1 45%, #00838f 100%);
-  box-shadow:
-    0 0 18px 7px rgba(0, 180, 200, 0.9),
-    0 0 30px rgba(0, 180, 200, 0.5);
+.missile-shock-core {
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, #81d4fa 55%, transparent 75%);
+  box-shadow: 0 0 12px 4px rgba(100, 200, 255, 0.9);
 }
-.battle-missile.is-bolt.school-nature .missile-glow-core,
-.battle-missile.is-magic.school-nature .missile-glow-core {
-  background: radial-gradient(circle, #e8f5e9 0%, #81c784 45%, #2e7d32 100%);
-  box-shadow:
-    0 0 18px 7px rgba(70, 180, 80, 0.9),
-    0 0 30px rgba(70, 180, 80, 0.5);
-}
-.battle-missile.is-magic .missile-glow-core {
-  background: radial-gradient(circle, #fff 0%, #ce93d8 50%, #7b1fa2 100%);
-  box-shadow:
-    0 0 20px 8px rgba(180, 100, 255, 0.85),
-    0 0 34px rgba(180, 100, 255, 0.5);
+.missile-shock-zig {
+  position: absolute;
+  inset: -4px;
+  width: 40px;
+  height: 40px;
+  stroke: #e1f5fe;
+  filter: drop-shadow(0 0 3px #4fc3f7) drop-shadow(0 0 8px #0288d1);
+  animation: missile-pulse 0.2s linear infinite alternate;
 }
 
 .battle-missile.is-poison {
@@ -1590,78 +1604,91 @@ button {
   }
 }
 
-/* —— Огонь на карте —— */
+/* —— Огонь на карте (короткая вспышка, как яд) —— */
 .board-card-wrap.is-burning {
   z-index: 8;
-  animation: burn-card-pulse 0.7s ease;
+  animation: burn-burst 0.75s ease;
 }
 .fx-burn-layer {
   position: absolute;
-  inset: 0;
+  inset: -6% -4% auto;
+  height: 60%;
   pointer-events: none;
   z-index: 9;
-  border-radius: 14px;
-  overflow: hidden;
-  background: linear-gradient(
-    180deg,
-    transparent 35%,
-    rgba(255, 80, 0, 0.22) 70%,
-    rgba(255, 40, 0, 0.45) 100%
-  );
-  box-shadow: inset 0 0 18px rgba(255, 100, 20, 0.35);
+  overflow: visible;
 }
 .fx-burn-layer i {
   position: absolute;
-  bottom: -4px;
+  bottom: 0;
   width: 16px;
-  height: 28px;
-  border-radius: 50% 50% 20% 20%;
-  background: linear-gradient(180deg, #ffe082 0%, #ff6d00 45%, #bf360c 100%);
-  filter: blur(0.4px);
-  opacity: 0.9;
-  animation: flame-flicker 0.45s ease-in-out infinite alternate;
+  height: 22px;
+  border-radius: 50% 50% 35% 35%;
+  background: radial-gradient(
+    circle at 50% 70%,
+    rgba(255, 240, 150, 0.95) 0%,
+    rgba(255, 120, 20, 0.75) 40%,
+    rgba(200, 40, 0, 0.35) 65%,
+    transparent 78%
+  );
+  filter: blur(0.6px);
+  opacity: 0;
+  animation: fire-burst-rise 0.85s ease-out forwards;
   transform-origin: bottom center;
 }
 .fx-burn-layer i:nth-child(1) {
   left: 14%;
-  height: 32px;
   animation-delay: 0s;
 }
 .fx-burn-layer i:nth-child(2) {
-  left: 36%;
-  width: 14px;
-  height: 26px;
-  animation-delay: 0.12s;
+  left: 34%;
+  width: 20px;
+  height: 28px;
+  animation-delay: 0.07s;
 }
 .fx-burn-layer i:nth-child(3) {
-  left: 55%;
-  height: 34px;
-  animation-delay: 0.22s;
+  left: 52%;
+  height: 24px;
+  animation-delay: 0.14s;
 }
 .fx-burn-layer i:nth-child(4) {
-  left: 74%;
-  width: 13px;
-  height: 24px;
-  animation-delay: 0.08s;
+  left: 68%;
+  width: 14px;
+  height: 20px;
+  animation-delay: 0.1s;
+}
+.fx-burn-layer i:nth-child(5) {
+  left: 42%;
+  width: 12px;
+  height: 16px;
+  animation-delay: 0.2s;
 }
 
-@keyframes flame-flicker {
-  from {
-    transform: scaleY(0.85) scaleX(1.05);
-    opacity: 0.7;
+@keyframes fire-burst-rise {
+  0% {
+    transform: translateY(10px) scale(0.45);
+    opacity: 0;
   }
-  to {
-    transform: scaleY(1.15) scaleX(0.9);
+  18% {
     opacity: 1;
   }
+  100% {
+    transform: translateY(-38px) scale(1.25);
+    opacity: 0;
+  }
 }
-@keyframes burn-card-pulse {
-  0%,
+@keyframes burn-burst {
+  0% {
+    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(255, 100, 20, 0);
+  }
+  28% {
+    filter: brightness(1.45) saturate(1.35);
+    box-shadow: 0 0 0 4px rgba(255, 120, 30, 0.85),
+      0 0 28px rgba(255, 80, 0, 0.7);
+  }
   100% {
     filter: brightness(1);
-  }
-  40% {
-    filter: brightness(1.25) saturate(1.2);
+    box-shadow: none;
   }
 }
 
@@ -1811,83 +1838,78 @@ button {
   }
 }
 
-/* —— Электроразряд —— */
-.board-card-wrap.is-shock-hit {
+/* —— Электроразряд (короткий зигзаг тока) —— */
+.board-card-wrap.is-shock-hit,
+.board-card-wrap.is-magic-burn {
   z-index: 8;
-  animation: shock-card-pulse 0.7s ease;
+  animation: shock-burst 0.7s ease;
 }
 .fx-shock-layer {
   position: absolute;
-  inset: -2px;
+  inset: 0;
   pointer-events: none;
   z-index: 9;
-  border-radius: 15px;
+  border-radius: 14px;
   overflow: hidden;
-  box-shadow:
-    inset 0 0 18px rgba(120, 220, 255, 0.55),
-    0 0 12px rgba(80, 200, 255, 0.45);
   background: radial-gradient(
-    circle at 50% 40%,
-    rgba(180, 240, 255, 0.35) 0%,
-    transparent 60%
+    circle at 50% 35%,
+    rgba(180, 240, 255, 0.4) 0%,
+    rgba(80, 160, 255, 0.12) 45%,
+    transparent 70%
   );
 }
-.fx-shock-layer i {
+.fx-shock-bolt {
   position: absolute;
-  width: 2px;
-  height: 28px;
-  background: linear-gradient(
-    180deg,
-    transparent,
-    #e1f5fe 30%,
-    #29b6f6 55%,
-    transparent
-  );
-  box-shadow: 0 0 8px #81d4fa;
-  animation: shock-bolt 0.55s ease-out infinite;
-  transform-origin: top center;
+  left: 18%;
+  top: 8%;
+  width: 42%;
+  height: 78%;
+  stroke: #e3f7ff;
+  filter: drop-shadow(0 0 4px #4fc3f7) drop-shadow(0 0 10px #29b6f6);
+  animation: shock-flash 0.7s ease-out forwards;
+  opacity: 0;
 }
-.fx-shock-layer i:nth-child(1) {
-  left: 28%;
-  top: 18%;
-  transform: rotate(-18deg);
-}
-.fx-shock-layer i:nth-child(2) {
-  left: 52%;
+.fx-shock-bolt.b {
+  left: 42%;
   top: 12%;
-  height: 34px;
-  animation-delay: 0.1s;
-  transform: rotate(8deg);
+  width: 38%;
+  height: 70%;
+  stroke: #b3e5fc;
+  animation-delay: 0.08s;
 }
-.fx-shock-layer i:nth-child(3) {
-  left: 68%;
-  top: 22%;
-  height: 22px;
-  animation-delay: 0.18s;
-  transform: rotate(22deg);
-}
-@keyframes shock-bolt {
-  0%,
-  100% {
-    opacity: 0.25;
+@keyframes shock-flash {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.4);
   }
-  40% {
+  18% {
     opacity: 1;
+    transform: scaleY(1);
   }
-  70% {
-    opacity: 0.5;
+  45% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+    transform: scaleY(1.05);
   }
 }
-@keyframes shock-card-pulse {
-  0%,
-  100% {
+@keyframes shock-burst {
+  0% {
     filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(80, 200, 255, 0);
   }
-  30% {
-    filter: brightness(1.45) saturate(1.3);
+  25% {
+    filter: brightness(1.55) saturate(1.4);
+    box-shadow: 0 0 0 3px rgba(120, 220, 255, 0.9),
+      0 0 24px rgba(40, 180, 255, 0.75);
   }
   55% {
-    filter: brightness(0.95);
+    filter: brightness(1.15);
+  }
+  100% {
+    filter: brightness(1);
+    box-shadow: none;
   }
 }
 

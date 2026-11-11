@@ -3548,13 +3548,13 @@ export function normalizeBattleFx(fx: BattleFx): BattleFx {
   if (fx.kind === "lunge" && fx.cardId && !fx.motion) {
     next.motion = attackMotionFor(fx.cardId);
   }
-  if (fx.kind === "spell" && fx.cardId) {
+  if (fx.cardId && (!next.school || fx.kind === "spell")) {
     try {
       const card = getCard(fx.cardId);
       if (!next.school && card.school && card.school !== "neutral") {
         next.school = card.school;
       }
-      if (!next.vfx) {
+      if (fx.kind === "spell" && !next.vfx) {
         const vfx = spellProjectileVfx(
           fx.cardId,
           card.spellEffects ?? [],

@@ -429,6 +429,24 @@ function BattleMissile({
           <span className="missile-poison-core" />
           <span className="missile-poison-drip" />
         </>
+      ) : kind === "bolt" && className.includes("school-hell") ? (
+        <>
+          <span className="missile-fire-core" />
+          <span className="missile-fire-tail" />
+        </>
+      ) : kind === "bolt" || kind === "magic" ? (
+        <>
+          <span className="missile-shock-core" />
+          <svg className="missile-shock-zig" viewBox="0 0 24 32" aria-hidden>
+            <polyline
+              points="14,1 8,12 14,12 6,30 18,14 12,14 16,1"
+              fill="none"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </>
       ) : (
         <span className="missile-glow-core" />
       )}
@@ -526,25 +544,34 @@ function BoardCard({
           <i />
           <i />
           <i />
+          <i />
         </span>
       ) : null}
-      {impact === "magic" ? (
-        <span className="fx-magic-layer" aria-hidden>
-          <i />
-          <i />
-          <i />
+      {impact === "magic" || impact === "shock" ? (
+        <span className="fx-shock-layer" aria-hidden>
+          <svg viewBox="0 0 40 48" className="fx-shock-bolt" aria-hidden>
+            <polyline
+              points="22,2 12,20 20,20 10,46 30,18 20,18 28,2"
+              fill="none"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <svg viewBox="0 0 40 48" className="fx-shock-bolt b" aria-hidden>
+            <polyline
+              points="18,0 26,16 16,16 24,40 8,22 18,22 14,4"
+              fill="none"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </span>
       ) : null}
       {impact === "water" ? (
         <span className="fx-water-layer" aria-hidden>
           <i />
-          <i />
-          <i />
-          <i />
-        </span>
-      ) : null}
-      {impact === "shock" ? (
-        <span className="fx-shock-layer" aria-hidden>
           <i />
           <i />
           <i />
@@ -2242,16 +2269,26 @@ export function Battle({
     if (!fx) return null;
     const targeted =
       fx.hitSlots?.includes(slot) ||
-      (fx.kind === "spell" && fx.toSlot === slot) ||
-      (fx.kind === "lunge" && fx.toSlot === slot);
+      fx.toSlot === slot ||
+      (fx.kind === "lunge" && fx.hitHero !== true && fx.toSlot === slot);
     if (!targeted) return null;
-    // Удар по карте приходит с противоположной стороны
-    if (fx.side === cardSide && fx.kind !== "heal") {
-      // Свои спеллы по своим слотам (бафф) — без «горения»
-      if (fx.kind === "spell" && fx.vfx === "poison") return "poison";
-      return null;
+
+    // Оффенсив (яд/огонь/удар) всегда на ЧУЖУЮ сторону.
+    // Иначе toSlot=2 цеплял и твою карту в слоте 2.
+    const offensiveSpell =
+      fx.kind === "spell" &&
+      (fx.vfx === "poison" ||
+        fx.vfx === "burn" ||
+        fx.vfx === "water" ||
+        fx.vfx === "arrow" ||
+        fx.vfx === "shock" ||
+        fx.vfx === "magic");
+    if (fx.kind === "lunge" || offensiveSpell) {
+      if (cardSide === fx.side) return null;
+    } else if (fx.kind === "heal" || fx.kind === "spell") {
+      if (cardSide !== fx.side) return null;
     }
-    if (fx.side === cardSide) return null;
+
     if (fx.kind === "lunge") {
       const motion = fx.motion ?? "melee";
       if (motion === "ranged") return "arrow";
@@ -2268,8 +2305,8 @@ export function Battle({
       if (fx.vfx === "water" || fx.school === "water") return "water";
       if (fx.vfx === "arrow") return "arrow";
       if (fx.vfx === "shock") return "shock";
-      if (fx.vfx === "magic") return "magic";
-      return "shock";
+      if (fx.vfx === "magic") return "shock";
+      return null;
     }
     return null;
   };
