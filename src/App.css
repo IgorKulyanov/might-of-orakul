@@ -3107,8 +3107,10 @@ html.is-hand-dragging .grave-row {
   height: var(--hand-card-h) !important;
 }
 
+/* slot-pad-v4: лёгкий голубой намёк, без матового блюра */
 .battle .card.empty-slot,
-.battle .board-slot > .empty-slot {
+.battle .board-slot > .empty-slot,
+.battle .board-slot .card.empty-slot {
   position: absolute;
   inset: 0;
   width: var(--board-card-w) !important;
@@ -3116,15 +3118,13 @@ html.is-hand-dragging .grave-row {
   font-size: 1.1rem;
   box-sizing: border-box;
   margin: 0;
-  color: rgba(200, 230, 255, 0.35);
+  color: rgba(190, 220, 255, 0.25);
   border-radius: 12px;
-  border: 1.5px solid rgba(150, 205, 255, 0.55) !important;
-  background: rgba(100, 180, 255, 0.18) !important;
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
-  box-shadow:
-    inset 0 0 0 1px rgba(220, 240, 255, 0.22),
-    0 0 0 1px rgba(30, 90, 160, 0.2) !important;
+  border: 1px solid rgba(140, 200, 255, 0.42) !important;
+  background: rgba(110, 185, 255, 0.07) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: inset 0 0 0 1px rgba(200, 230, 255, 0.12) !important;
 }
 
 .battle .board-card-wrap {
