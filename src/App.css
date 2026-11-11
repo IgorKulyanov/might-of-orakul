@@ -872,21 +872,62 @@ button {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
   width: 100%;
-  text-align: center;
 }
 
-.shop-meta-shards .shard-count {
-  display: block;
-  width: 100%;
-  text-align: center;
+.shard-upgrade-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 4.2rem;
+  width: auto;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0.32rem 0.7rem;
+  border-radius: 999px;
   font-family: var(--display);
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   letter-spacing: 0.06em;
-  color: #9bdcff;
   font-variant-numeric: tabular-nums;
+  border: 1px solid transparent;
+  cursor: default;
+  line-height: 1.1;
+}
+
+.shard-upgrade-btn.is-farm-green {
+  color: #d8ffe8;
+  background: linear-gradient(180deg, #2f8f5b, #1b5c38);
+  border-color: rgba(140, 255, 190, 0.45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.shard-upgrade-btn.is-farm-blue {
+  color: #e3f2ff;
+  background: linear-gradient(180deg, #3a7ec8, #1e4f8c);
+  border-color: rgba(150, 210, 255, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.shard-upgrade-btn.is-ready {
+  color: #1a1208;
+  background: linear-gradient(180deg, #fff0b0, #e8b84a 55%, #c48a18);
+  border-color: rgba(255, 236, 180, 0.85);
+  box-shadow:
+    0 0 12px rgba(232, 180, 60, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+}
+
+.shard-upgrade-btn.is-ready:hover {
+  filter: brightness(1.06);
+}
+
+.shard-upgrade-btn.is-max {
+  color: rgba(220, 230, 240, 0.7);
+  background: rgba(40, 48, 60, 0.75);
+  border-color: rgba(160, 180, 200, 0.25);
+  cursor: default;
 }
 
 /* Высокие портреты: cover срезал головы — вписываем по высоте */

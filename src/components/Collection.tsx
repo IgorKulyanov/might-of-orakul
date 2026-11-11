@@ -410,28 +410,45 @@ export function Collection({
                   </div>
                   {!locked && isUpgradeableCard(c.id) ? (
                     <div className="shop-meta shop-meta-shards">
-                      <span className="shard-count">
-                        {(() => {
-                          const lv = getCardUpgradeLevel(owned, c.id);
-                          const need = shardsNeededForNext(c.id, lv);
-                          const haveSh = getCardShards(owned, c.id);
-                          return need == null
-                            ? `${haveSh}/макс`
-                            : `${haveSh}/${need}`;
-                        })()}
-                      </span>
-                      {shardsNeededForNext(
-                        c.id,
-                        getCardUpgradeLevel(owned, c.id),
-                      ) != null ? (
-                        <button
-                          type="button"
-                          className="ghost"
-                          onClick={() => upgrade(c.id)}
-                        >
-                          Улучшить
-                        </button>
-                      ) : null}
+                      {(() => {
+                        const lv = getCardUpgradeLevel(owned, c.id);
+                        const need = shardsNeededForNext(c.id, lv);
+                        const haveSh = getCardShards(owned, c.id);
+                        if (need == null) {
+                          return (
+                            <button
+                              type="button"
+                              className="shard-upgrade-btn is-max"
+                              disabled
+                              title="Максимум"
+                            >
+                              макс
+                            </button>
+                          );
+                        }
+                        const ready = haveSh >= need;
+                        // копим до ур.2 — зелёный; до ур.3 — синий; хватило — золотой
+                        const tone = ready
+                          ? "is-ready"
+                          : lv <= 1
+                            ? "is-farm-green"
+                            : "is-farm-blue";
+                        return (
+                          <button
+                            type="button"
+                            className={`shard-upgrade-btn ${tone}`}
+                            disabled={!ready}
+                            onClick={() => ready && upgrade(c.id)}
+                            title={
+                              ready
+                                ? `Улучшить до ур.${lv + 1}`
+                                : `Осколки ${haveSh}/${need}`
+                            }
+                          >
+                            {haveSh}/{need}
+                          </button>
+                        );
+                      })()}
                     </div>
                   ) : null}
                   {canBuyMore ? (
