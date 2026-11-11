@@ -6,7 +6,6 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import {
-  PATTERN_LABEL,
   SCHOOL_COLOR,
   SCHOOL_LABEL,
   cardArtStyle,
@@ -14,7 +13,8 @@ import {
   cardFrameLevel,
   getCard,
 } from "../game/cards";
-import { upgradePlanFullText } from "../game/cardUpgradePlan";
+import { upgradePlanFor } from "../game/cardUpgradePlan";
+import { minPlayerLevelForShopCard } from "../game/progression";
 import type {
   AttackPattern,
   CardDef,
@@ -32,12 +32,12 @@ const PATTERN_ICON: Record<AttackPattern, string> = {
   aoe_all: "🌊",
 };
 
-const PATTERN_HINT: Record<AttackPattern, string> = {
-  melee: "Бьёт только напротив, без ответки",
-  melee_lane3: "Бьёт напротив / слева / справа",
-  ranged: "Бьёт любую цель, без ответки",
-  cleave3: "Бьёт цель и соседей слева/справа, без ответки",
-  lane_cleave3: "Кусает сразу троих: напротив, слева и справа",
+const PATTERN_TITLE: Record<AttackPattern, string> = {
+  melee: "Бьёт только напротив",
+  melee_lane3: "Бьёт напротив, слева или справа",
+  ranged: "Бьёт любую цель",
+  cleave3: "Бьёт цель и соседей",
+  lane_cleave3: "Бьёт сразу троих напротив",
   aoe_all: "Бьёт всех вражеских существ",
 };
 
@@ -267,7 +267,7 @@ export function CardView({
               {c.kind === "creature" ? (
                 <span
                   className={`stats-combat ${wounded ? "is-wounded" : ""}`}
-                  title={PATTERN_HINT[pattern]}
+                  title={PATTERN_TITLE[pattern]}
                 >
                   <span className="combat-nums">
                     {atk}/
@@ -369,17 +369,61 @@ export function CardView({
                     </>
                   )}
                 </p>
-                {c.kind === "creature" && (
-                  <p className="card-desc-pattern">
-                    {PATTERN_HINT[pattern] ?? PATTERN_LABEL[pattern]}
-                  </p>
-                )}
-                <p className="card-desc-text">{c.text}</p>
                 {(() => {
-                  const plan = upgradePlanFullText(c.id);
-                  if (!plan) return null;
+                  const plan = upgradePlanFor(c.id);
+                  const cur =
+                    upgradeLevel != null && upgradeLevel >= 1
+                      ? upgradeLevel
+                      : 1;
+                  const tone =
+                    cur >= 3 ? "is-lv-3" : cur === 2 ? "is-lv-2" : "is-lv-1";
+                  const needAcc = minPlayerLevelForShopCard(c);
+                  const skill =
+                    plan == null
+                      ? null
+                      : cur <= 1
+                        ? plan.l1
+                        : cur === 2
+                          ? plan.l2
+                          : plan.l3;
                   return (
-                    <pre className="card-desc-upgrade-plan">{plan}</pre>
+                    <p className={`card-desc-level ${tone}`}>
+                      <span className="card-desc-level-line">
+                        Нужен {needAcc} ур. аккаунта · сейчас{" "}
+                        <strong>ур.{cur}</strong>
+                        {skill ? " · " : ""}
+                        {skill ?? ""}
+                      </span>
+                    </p>
+                  );
+                })()}
+                {(() => {
+                  const plan = upgradePlanFor(c.id);
+                  if (!plan) return null;
+                  const cur =
+                    upgradeLevel != null && upgradeLevel >= 1
+                      ? upgradeLevel
+                      : 1;
+                  return (
+                    <ul className="card-desc-upgrade-list" aria-label="Уровни">
+                      {(
+                        [
+                          [1, plan.l1],
+                          [2, plan.l2],
+                          [3, plan.l3],
+                        ] as const
+                      ).map(([lv, text]) => (
+                        <li
+                          key={lv}
+                          className={`card-desc-upgrade-item is-lv-${lv}${
+                            cur === lv ? " is-current" : ""
+                          }`}
+                        >
+                          <span className="card-desc-upgrade-lv">Ур.{lv}</span>
+                          <span className="card-desc-upgrade-txt">{text}</span>
+                        </li>
+                      ))}
+                    </ul>
                   );
                 })()}
                 {marks.length > 0 && (

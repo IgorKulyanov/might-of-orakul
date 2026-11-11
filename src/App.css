@@ -1195,33 +1195,85 @@ button {
   color: transparent;
 }
 
-.card-desc-meta,
-.card-desc-pattern {
+.card-desc-meta {
   margin: 0;
   color: #b8c2d6;
   font-size: 0.9rem;
   line-height: 1.35;
 }
 
-.card-desc-text {
-  margin: 0.25rem 0 0.5rem;
-  color: #f2e9dc;
+.card-desc-level {
+  margin: 0.15rem 0 0.35rem;
+  font-family: var(--display);
   font-size: 1.02rem;
-  line-height: 1.5;
-  white-space: pre-wrap;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  font-weight: 600;
 }
 
-.card-desc-upgrade-plan {
-  margin: 0.35rem 0 0.55rem;
+.card-desc-level.is-lv-1 {
+  color: #6fdf8a;
+  text-shadow: 0 0 12px rgba(80, 200, 120, 0.35);
+}
+
+.card-desc-level.is-lv-2 {
+  color: #6eb6ff;
+  text-shadow: 0 0 12px rgba(80, 150, 255, 0.35);
+}
+
+.card-desc-level.is-lv-3 {
+  color: #ffd56a;
+  text-shadow: 0 0 14px rgba(255, 200, 80, 0.4);
+}
+
+.card-desc-level-line {
+  display: block;
+}
+
+.card-desc-upgrade-list {
+  list-style: none;
+  margin: 0.2rem 0 0.5rem;
   padding: 0.55rem 0.65rem;
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.28);
   border: 1px solid rgba(242, 233, 220, 0.14);
-  color: #d9cfc0;
-  font: inherit;
-  font-size: 0.88rem;
-  line-height: 1.45;
-  white-space: pre-wrap;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.card-desc-upgrade-item {
+  display: grid;
+  grid-template-columns: 3.2rem 1fr;
+  gap: 0.45rem;
+  align-items: start;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: #c9c0b2;
+  opacity: 0.78;
+}
+
+.card-desc-upgrade-item.is-current {
+  opacity: 1;
+}
+
+.card-desc-upgrade-lv {
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.card-desc-upgrade-item.is-lv-1 .card-desc-upgrade-lv {
+  color: #6fdf8a;
+}
+.card-desc-upgrade-item.is-lv-2 .card-desc-upgrade-lv {
+  color: #6eb6ff;
+}
+.card-desc-upgrade-item.is-lv-3 .card-desc-upgrade-lv {
+  color: #ffd56a;
+}
+
+.card-desc-upgrade-txt {
+  color: #e8dfd2;
 }
 
 .card-desc-prem {
