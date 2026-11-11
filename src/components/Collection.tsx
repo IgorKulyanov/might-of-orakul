@@ -458,12 +458,16 @@ export function Collection({
                         ? " · в оракуле"
                         : " · доступна"}
                   </div>
-                  {inOracle && isUpgradeableCard(c.id) ? (
+                  {isUpgradeableCard(c.id) ? (
                     <div className="shop-meta shop-meta-shards">
                       {(() => {
-                        const lv = getCardUpgradeLevel(owned, c.id);
+                        const lv = inOracle
+                          ? getCardUpgradeLevel(owned, c.id)
+                          : 1;
                         const need = shardsNeededForNext(c.id, lv);
-                        const haveSh = getCardShards(owned, c.id);
+                        const haveSh = inOracle
+                          ? getCardShards(owned, c.id)
+                          : 0;
                         if (need == null) {
                           return (
                             <button
@@ -476,7 +480,7 @@ export function Collection({
                             </button>
                           );
                         }
-                        const ready = haveSh >= need;
+                        const ready = inOracle && haveSh >= need;
                         const tone = ready
                           ? "is-ready"
                           : lv <= 1
@@ -489,9 +493,13 @@ export function Collection({
                             disabled={!ready}
                             onClick={() => ready && upgrade(c.id)}
                             title={
-                              ready
-                                ? `Улучшить до ур.${lv + 1}`
-                                : `Осколки ${haveSh}/${need}`
+                              locked
+                                ? `С ${needLv} ур. · кач ${need} осколков`
+                                : !inOracle
+                                  ? `Прокачка с ур.1: ${need} осколков`
+                                  : ready
+                                    ? `Улучшить до ур.${lv + 1}`
+                                    : `Осколки ${haveSh}/${need}`
                             }
                           >
                             {haveSh}/{need}
