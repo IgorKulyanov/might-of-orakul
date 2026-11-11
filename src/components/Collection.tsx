@@ -5,8 +5,6 @@ import {
   DECK_SIZE,
   MIN_DECK_SIZE,
   SCHOOL_LABEL,
-  cardArtUrl,
-  getCard,
   maxCopiesForCard,
   sortCatalogCards,
 } from "../game/cards";
@@ -24,7 +22,6 @@ import {
 } from "../game/progression";
 import { apiCreatePayment, apiShopBuy } from "../game/api";
 import {
-  cardUpgradeBlurb,
   getCardShards,
   getCardUpgradeLevel,
   isUpgradeableCard,
@@ -369,52 +366,6 @@ export function Collection({
 
       {tab === "cards" && (
         <div className="grid">
-          {isUnlocked(owned, "skeleton") ? (
-            <div className="shop-upgrade-panel" style={{ gridColumn: "1 / -1" }}>
-              <span
-                className="shop-upgrade-art"
-                style={{
-                  backgroundImage: `url("${cardArtUrl(getCard("skeleton"))}")`,
-                }}
-                aria-hidden
-              />
-              <div className="shop-upgrade-copy">
-                <strong>
-                  Скелет · прокачка ур.
-                  {getCardUpgradeLevel(owned, "skeleton")}
-                </strong>
-                <span>
-                  {cardUpgradeBlurb(
-                    "skeleton",
-                    getCardUpgradeLevel(owned, "skeleton"),
-                  )}{" "}
-                  Осколки: {getCardShards(owned, "skeleton")}
-                  {shardsNeededForNext(
-                    "skeleton",
-                    getCardUpgradeLevel(owned, "skeleton"),
-                  ) != null
-                    ? ` / ${shardsNeededForNext(
-                        "skeleton",
-                        getCardUpgradeLevel(owned, "skeleton"),
-                      )} до след. уровня`
-                    : " — максимум"}
-                  . Падают после победы над ботом.
-                </span>
-              </div>
-              {shardsNeededForNext(
-                "skeleton",
-                getCardUpgradeLevel(owned, "skeleton"),
-              ) != null ? (
-                <button
-                  type="button"
-                  className="primary"
-                  onClick={() => upgrade("skeleton")}
-                >
-                  Улучшить
-                </button>
-              ) : null}
-            </div>
-          ) : null}
           {list.map((c, idx) => {
             const have = ownedCopies(owned, c.id);
             const locked = have <= 0;
@@ -456,27 +407,18 @@ export function Collection({
                       ? " · нет"
                       : ` · у тебя ${have}/${cap}`}
                     {!locked && inDeck > 0 ? ` · в колоде ${inDeck}` : ""}
-                    {!locked && isUpgradeableCard(c.id)
-                      ? ` · прокачка ур.${getCardUpgradeLevel(owned, c.id)}`
-                      : ""}
                   </div>
                   {!locked && isUpgradeableCard(c.id) ? (
-                    <div className="shop-meta">
-                      <span className="hint" style={{ fontSize: "0.72rem" }}>
-                        {cardUpgradeBlurb(
-                          c.id,
-                          getCardUpgradeLevel(owned, c.id),
-                        )}{" "}
-                        Осколки: {getCardShards(owned, c.id)}
-                        {shardsNeededForNext(
-                          c.id,
-                          getCardUpgradeLevel(owned, c.id),
-                       ) != null
-                          ? ` / ${shardsNeededForNext(
-                              c.id,
-                              getCardUpgradeLevel(owned, c.id),
-                            )}`
-                          : " (макс)"}
+                    <div className="shop-meta shop-meta-shards">
+                      <span className="shard-count">
+                        {(() => {
+                          const lv = getCardUpgradeLevel(owned, c.id);
+                          const need = shardsNeededForNext(c.id, lv);
+                          const haveSh = getCardShards(owned, c.id);
+                          return need == null
+                            ? `${haveSh}/макс`
+                            : `${haveSh}/${need}`;
+                        })()}
                       </span>
                       {shardsNeededForNext(
                         c.id,

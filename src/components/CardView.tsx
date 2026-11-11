@@ -232,6 +232,14 @@ export function CardView({
         role={interactive ? "button" : undefined}
         tabIndex={interactive ? 0 : undefined}
       >
+        {upgradeLevel != null && upgradeLevel >= 1 ? (
+          <span
+            className={`card-upgrade-badge is-lv-${upgradeLevel}`}
+            title={`Прокачка: ур.${upgradeLevel}`}
+          >
+            Ур.{upgradeLevel}
+          </span>
+        ) : null}
         <div className="card-inner">
           <span className="card-frame-ornament" aria-hidden />
           <div className="card-face card-front">
@@ -283,14 +291,6 @@ export function CardView({
                 }}
                 aria-hidden
               />
-              {upgradeLevel != null && upgradeLevel >= 1 ? (
-                <span
-                  className={`card-upgrade-badge is-lv-${upgradeLevel}`}
-                  title={`Прокачка карты: уровень ${upgradeLevel}`}
-                >
-                  Ур.{upgradeLevel}
-                </span>
-              ) : null}
               <div className="card-footer">
                 <div className="card-name">{c.name}</div>
               </div>

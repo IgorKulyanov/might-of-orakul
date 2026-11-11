@@ -101,18 +101,15 @@ export function upgradeStatBonus(
   return { atk: def.bonusAtk[i] ?? 0, hp: def.bonusHp[i] ?? 0 };
 }
 
+/** Короткая подпись текущего уровня (для плашки, не под картой). */
 export function cardUpgradeBlurb(
   cardId: string,
   level: CardUpgradeLevel,
 ): string {
   if (cardId !== "skeleton") return "";
-  if (level <= 1) {
-    return "Ур.1: обычный скелет (без стаи).";
-  }
-  if (level === 2) {
-    return "Ур.2: стая (+2/+2 за каждого доп. скелета), +1/+2 к базе.";
-  }
-  return "Ур.3: стая, +2/+4 к базе, −50% урона от стрел.";
+  if (level <= 1) return "Ур.1 — 3/8";
+  if (level === 2) return "Ур.2 — 4/10, стая";
+  return "Ур.3 — 5/12, стая, −50% стрел";
 }
 
 /** Выдать осколки (победа с ботом и т.п.). */

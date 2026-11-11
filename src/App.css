@@ -825,17 +825,18 @@ button {
   background-color: #0a0c12;
 }
 
+/* Угол рамки карты (не на лице арта), слева от кнопки ↻ */
 .card-upgrade-badge {
   position: absolute;
-  top: 0.28rem;
-  right: 0.28rem;
-  z-index: 3;
-  padding: 0.12rem 0.35rem;
-  border-radius: 6px;
+  top: 0.2rem;
+  right: 1.7rem;
+  z-index: 5;
+  padding: 0.1rem 0.32rem;
+  border-radius: 5px;
   font-family: var(--display);
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: #0a0c12;
   background: linear-gradient(180deg, #ffe8a3, #e0a84a);
@@ -858,52 +859,29 @@ button {
 
 .card.compact .card-upgrade-badge,
 .card.board .card-upgrade-badge {
-  font-size: 0.55rem;
-  padding: 0.08rem 0.28rem;
-  top: 0.18rem;
-  right: 0.18rem;
+  font-size: 0.5rem;
+  padding: 0.06rem 0.24rem;
+  top: 0.12rem;
+  right: 1.35rem;
 }
 
-.shop-upgrade-panel {
-  display: flex;
+.card:not(.clickable) .card-upgrade-badge,
+.card.board .card-upgrade-badge {
+  right: 0.22rem;
+}
+
+.shop-meta-shards {
   align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  margin: 0.35rem 0 0.55rem;
-  padding: 0.65rem 0.75rem;
-  border-radius: 12px;
-  border: 1px solid rgba(140, 200, 255, 0.45);
-  background: rgba(30, 55, 90, 0.45);
+  gap: 0.45rem;
 }
 
-.shop-upgrade-art {
-  flex: 0 0 auto;
-  width: 2.8rem;
-  height: 3.8rem;
-  border-radius: 7px;
-  border: 1px solid rgba(200, 230, 255, 0.5);
-  background-size: cover;
-  background-position: center top;
-  background-color: #0a0c12;
-}
-
-.shop-upgrade-copy {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: grid;
-  gap: 0.15rem;
-}
-
-.shop-upgrade-copy strong {
+.shop-meta-shards .shard-count {
   font-family: var(--display);
-  font-size: 0.95rem;
-  color: #e8f4ff;
-}
-
-.shop-upgrade-copy span {
-  font-size: 0.75rem;
-  color: rgba(200, 220, 240, 0.85);
-  line-height: 1.35;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  color: #9bdcff;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Высокие портреты: cover срезал головы — вписываем по высоте */
