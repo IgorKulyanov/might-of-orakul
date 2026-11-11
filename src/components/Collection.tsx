@@ -28,11 +28,15 @@ import {
   getCardUpgradeLevel,
   isUpgradeableCard,
   shardsNeededForNext,
+  shardsPerShopBuy,
 } from "../game/cardUpgrades";
 import {
   buyCardWithDiamonds,
   buyCardWithGold,
+  buyShardsWithDiamonds,
+  buyShardsWithGold,
   canBuyAnotherCopy,
+  canBuyShardsForCard,
   exchangeDiamondsAmount,
   isUnlocked,
   ownedCopies,
@@ -204,11 +208,16 @@ export function Collection({
       say(`«${card.name}» с ${minPlayerLevelForShopCard(card)} ур.`);
       return;
     }
-    if (ownedCopies(owned, id) >= maxCopiesForCard(id)) {
-      say(`«${card.name}» уже в оракуле`);
+    const inOracle = ownedCopies(owned, id) >= maxCopiesForCard(id);
+    const shardBuy = inOracle && canBuyShardsForCard(owned, id);
+    if (inOracle && !shardBuy) {
+      say(`«${card.name}» уже макс — ценник не нужен`);
       return;
     }
-    const label = `«${card.name}»`;
+    const shardN = shardsPerShopBuy(id);
+    const label = inOracle
+      ? `+${shardN} осколков «${card.name}»`
+      : `«${card.name}» в оракул`;
     if (withDiamonds) {
       const price = card.priceDiamonds ?? 0;
       if (!price) return;
@@ -216,34 +225,56 @@ export function Collection({
         alert(`Не хватает алмазов (нужно ${diamondText(price)}).`);
         return;
       }
-      const ok = window.confirm(`В оракул ${label} за ${diamondText(price)}?`);
+      const ok = window.confirm(`${label} за ${diamondText(price)}?`);
       if (!ok) return;
-      void commitBuy(id, "diamonds", () => buyCardWithDiamonds(owned, id));
+      void commitBuy(
+        id,
+        "diamonds",
+        () =>
+          inOracle
+            ? buyShardsWithDiamonds(owned, id)
+            : buyCardWithDiamonds(owned, id),
+        inOracle ? "shards" : "card",
+        shardN,
+      );
       return;
     }
     const price = card.priceGold ?? 0;
     const gold = owned.gold ?? 0;
     if (gold < price) {
       alert(
-        `Не хватает золота на ${label}.\nНужно ${goldText(price)}, у тебя ${goldText(gold)}`,
+        `Не хватает золота.\nНужно ${goldText(price)}, у тебя ${goldText(gold)}`,
       );
       return;
     }
-    const ok = window.confirm(`В оракул ${label} за ${goldText(price)}?`);
+    const ok = window.confirm(`${label} за ${goldText(price)}?`);
     if (!ok) return;
-    void commitBuy(id, "gold", () => buyCardWithGold(owned, id));
+    void commitBuy(
+      id,
+      "gold",
+      () =>
+        inOracle ? buyShardsWithGold(owned, id) : buyCardWithGold(owned, id),
+      inOracle ? "shards" : "card",
+      shardN,
+    );
   };
 
   const commitBuy = async (
     cardId: string,
     currency: "gold" | "diamonds",
     localBuy: () => OwnedState,
+    kind: "card" | "shards",
+    shardN: number,
   ) => {
     const cardName =
       CARDS.find((c) => c.id === cardId)?.name ?? cardId;
     if (!authToken) {
       onChange(localBuy());
-      say(`«${cardName}» теперь в оракуле`);
+      say(
+        kind === "shards"
+          ? `«${cardName}» +${shardN} осколков`
+          : `«${cardName}» теперь в оракуле`,
+      );
       return;
     }
     try {
@@ -260,7 +291,11 @@ export function Collection({
         homeFaction: owned.homeFaction ?? user.owned.homeFaction,
       };
       onChange(next);
-      say(`«${cardName}» теперь в оракуле`);
+      say(
+        kind === "shards"
+          ? `«${cardName}» +${shardN} осколков`
+          : `«${cardName}» теперь в оракуле`,
+      );
     } catch (e) {
       alert(e instanceof Error ? e.message : "Покупка не прошла");
     }
@@ -330,11 +365,9 @@ export function Collection({
         <>
           <p className="hint catalog-status">
             Оракул: <strong>{catalogStats.unlocked}</strong> /{" "}
-            {catalogStats.total} (
-            {catalogStats.creatures} существ, {catalogStats.spells} заклинаний).
-            По 1 карте (существа и магия) — дальше осколки L1–L3. Тиры
-            существ: I с 1 · II с 10 · III с 15 · IV с 25 · V с 30. Магия — по
-            редкости. Доступная ярче → в оракул.
+            {catalogStats.total}. По 1 карте — кач осколками (0→30→80 и
+            дороже у крутых). Ценник всегда: нет карты → в оракул, есть →
+            осколки. Тиры I–V: с 1 / 10 / 15 / 25 / 30 ур.
           </p>
           {tab === "cards" && (
             <>
@@ -385,12 +418,18 @@ export function Collection({
             const levelOk = isCardAvailableInShop(c, playerLevel(owned));
             const locked = !inOracle && !levelOk;
             const shopReady = !inOracle && levelOk;
-            const canBuyMore = canBuyAnotherCopy(owned, c.id);
+            const canBuyCard = canBuyAnotherCopy(owned, c.id);
+            const canBuyShards = canBuyShardsForCard(owned, c.id);
+            const showPrice = canBuyCard || canBuyShards;
             const firstBuy =
-              canBuyMore &&
+              showPrice &&
               !list
                 .slice(0, idx)
-                .some((x) => canBuyAnotherCopy(owned, x.id));
+                .some(
+                  (x) =>
+                    canBuyAnotherCopy(owned, x.id) ||
+                    canBuyShardsForCard(owned, x.id),
+                );
             const needLv = minPlayerLevelForShopCard(c);
             return (
               <div key={c.id} className="grid-item">
@@ -461,7 +500,7 @@ export function Collection({
                       })()}
                     </div>
                   ) : null}
-                  {canBuyMore ? (
+                  {showPrice ? (
                     <div
                       className="shop-meta"
                       data-tut={firstBuy ? "hub-shop-buy" : undefined}
@@ -470,6 +509,11 @@ export function Collection({
                         type="button"
                         className="primary"
                         onClick={() => buy(c.id, false)}
+                        title={
+                          canBuyShards
+                            ? `+${shardsPerShopBuy(c.id)} осколков`
+                            : "В оракул"
+                        }
                       >
                         <GameIcon name="gold" size={14} /> {c.priceGold}
                       </button>
@@ -478,6 +522,11 @@ export function Collection({
                           type="button"
                           className="ghost"
                           onClick={() => buy(c.id, true)}
+                          title={
+                            canBuyShards
+                              ? `+${shardsPerShopBuy(c.id)} осколков`
+                              : "В оракул"
+                          }
                         >
                           <GameIcon name="diamond" size={14} /> {c.priceDiamonds}
                         </button>

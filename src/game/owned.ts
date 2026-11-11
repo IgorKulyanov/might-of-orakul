@@ -8,9 +8,14 @@ import {
   maxCopiesForCard,
 } from "./cards";
 import {
+  grantCardShards,
+  isUpgradeableCard,
   migrateCardUpgrades,
   rollBotWinShards,
+  shardsNeededForNext,
+  shardsPerShopBuy,
   tryUpgradeCard,
+  getCardUpgradeLevel,
 } from "./cardUpgrades";
 import {
   claimDaily,
@@ -280,6 +285,7 @@ function withDefaults(parsed: OwnedState): OwnedState {
     unlockedHeroes: [...new Set(parsed.unlockedHeroes ?? [])],
     cardUpgrades: parsed.cardUpgrades,
     cardShards: parsed.cardShards,
+    upgradeEpoch: parsed.upgradeEpoch,
   });
 }
 
@@ -563,10 +569,74 @@ function addOwnedCopy(owned: OwnedState, cardId: string): OwnedState {
   const unlocked = owned.unlocked.includes(cardId)
     ? owned.unlocked
     : [...owned.unlocked, cardId];
+  const cardUpgrades = { ...(owned.cardUpgrades ?? {}) };
+  // Новая карта в оракуле всегда с 1 уровня.
+  if (isUpgradeableCard(cardId) && cardUpgrades[cardId] == null) {
+    cardUpgrades[cardId] = 1;
+  }
   return ensureCardInActiveDeck(
-    { ...owned, collection, purchased, unlocked },
+    { ...owned, collection, purchased, unlocked, cardUpgrades },
     cardId,
   );
+}
+
+/** Можно докупить осколки по ценнику? (карта уже в оракуле, не макс). */
+export function canBuyShardsForCard(
+  owned: OwnedState,
+  cardId: string,
+): boolean {
+  if (!isUpgradeableCard(cardId)) return false;
+  if (ownedCopies(owned, cardId) <= 0) return false;
+  const card = CARDS.find((c) => c.id === cardId);
+  if (!card) return false;
+  if (!isCardAvailableInShop(card, playerLevel(owned))) return false;
+  const lv = getCardUpgradeLevel(owned, cardId);
+  return shardsNeededForNext(cardId, lv) != null;
+}
+
+function payCardPrice(
+  owned: OwnedState,
+  cardId: string,
+  currency: "gold" | "diamonds",
+): OwnedState | null {
+  const card = CARDS.find((c) => c.id === cardId);
+  if (!card) return null;
+  if (currency === "diamonds") {
+    const price = card.priceDiamonds ?? 0;
+    if (!price) return null;
+    const dia = owned.diamonds ?? 0;
+    if (dia < price) return null;
+    return { ...owned, diamonds: dia - price };
+  }
+  const price = card.priceGold ?? 0;
+  const gold = owned.gold ?? 0;
+  if (gold < price) return null;
+  return { ...owned, gold: gold - price };
+}
+
+/** Купить пачку осколков по цене карты (золото/алмазы). */
+export function buyShardsWithGold(
+  owned: OwnedState,
+  cardId: string,
+): OwnedState {
+  if (!canBuyShardsForCard(owned, cardId)) return owned;
+  const paid = payCardPrice(owned, cardId, "gold");
+  if (!paid) return owned;
+  const next = grantCardShards(paid, cardId, shardsPerShopBuy(cardId));
+  saveOwned(next);
+  return next;
+}
+
+export function buyShardsWithDiamonds(
+  owned: OwnedState,
+  cardId: string,
+): OwnedState {
+  if (!canBuyShardsForCard(owned, cardId)) return owned;
+  const paid = payCardPrice(owned, cardId, "diamonds");
+  if (!paid) return owned;
+  const next = grantCardShards(paid, cardId, shardsPerShopBuy(cardId));
+  saveOwned(next);
+  return next;
 }
 
 /** Компенсация / админ: выдать копию карты без оплаты. */

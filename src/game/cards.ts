@@ -28,8 +28,16 @@ function shopTier(card: CardDef): 1 | 2 | 3 | 4 | 5 {
 export const CARDS: CardDef[] = (data.cards as CardDef[]).map((c) => {
   const tier = shopTier(c);
   const price = UNIT_TIER_PRICE[tier];
+  // Магия без unitLevel — тир по цене/редкости (не всё «I новичок»).
+  const unitLevel =
+    c.unitLevel && c.unitLevel >= 1 && c.unitLevel <= 5
+      ? c.unitLevel
+      : c.kind === "spell"
+        ? tier
+        : c.unitLevel;
   return {
     ...c,
+    unitLevel,
     cost: c.cost ?? manaCostTotal(c.manaCost ?? {}),
     priceGold: c.id === "mana_stones" ? 2000 : price.gold,
     priceDiamonds: c.id === "mana_stones" ? 200 : price.diamonds,

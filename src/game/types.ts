@@ -468,4 +468,6 @@ export interface OwnedState {
   cardUpgrades?: Record<string, number>;
   /** Осколки карты для прокачки (cardId → число). */
   cardShards?: Record<string, number>;
+  /** 1 = старт прокачки с ур.1 (сброс бесплатного ур.2). */
+  upgradeEpoch?: number;
 }

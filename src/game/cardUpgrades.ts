@@ -1,7 +1,7 @@
 /**
  * Прокачка карт.
  * Существа всех школ + заклинания: осколки, L1–L3.
- * L2 = текущий полный кит (по умолчанию в сейве), L1 урезано, L3 капстоун.
+ * Старт с ур.1; L2/L3 — за осколки (в бою или за золото/алмазы в магазине).
  */
 import { getCard } from "./cards";
 import type {
@@ -15,12 +15,56 @@ import { upgradePlanLine } from "./cardUpgradePlan";
 
 export type CardUpgradeLevel = 1 | 2 | 3;
 
-/** Стоимость осколков: до ур.2 / до ур.3. */
+/**
+ * База: 0→30 до ур.2, затем 80 до ур.3.
+ * Круче карта (тир/редкость) — дороже и дольше качать.
+ */
+export const SHARD_COST_BY_TIER: Record<
+  1 | 2 | 3 | 4 | 5,
+  { to2: number; to3: number }
+> = {
+  1: { to2: 30, to3: 80 },
+  2: { to2: 40, to3: 100 },
+  3: { to2: 50, to3: 130 },
+  4: { to2: 70, to3: 180 },
+  5: { to2: 100, to3: 250 },
+};
+
+/** Сколько осколков даёт одна покупка по ценнику карты. */
+export const SHARDS_PER_SHOP_BUY: Record<1 | 2 | 3 | 4 | 5, number> = {
+  1: 10,
+  2: 12,
+  3: 15,
+  4: 18,
+  5: 22,
+};
+
+/** @deprecated алиас на тир-1 */
 export const SHARD_COST_COMMON = {
   unlock: 20,
-  to2: 80,
-  to3: 150,
+  to2: SHARD_COST_BY_TIER[1].to2,
+  to3: SHARD_COST_BY_TIER[1].to3,
 } as const;
+
+export function shardTierForCard(cardId: string): 1 | 2 | 3 | 4 | 5 {
+  try {
+    const c = getCard(cardId);
+    const ul = Number(c.unitLevel);
+    if (ul >= 1 && ul <= 5) return ul as 1 | 2 | 3 | 4 | 5;
+    switch (c.rarity) {
+      case "legendary":
+        return 5;
+      case "epic":
+        return 4;
+      case "rare":
+        return 3;
+      default:
+        return 1;
+    }
+  } catch {
+    return 1;
+  }
+}
 
 export type CardUpgradeDef = {
   /** Бонус ATK/HP к базе из каталога (JSON ≈ ур.2 для жизни; скелет JSON = ур.1). */
@@ -51,7 +95,7 @@ export type CardUpgradeDef = {
 const SPELL_STAT_ZERO: Pick<CardUpgradeDef, "bonusAtk" | "bonusHp" | "defaultLevel"> = {
   bonusAtk: [0, 0, 0],
   bonusHp: [0, 0, 0],
-  defaultLevel: 2,
+  defaultLevel: 1,
 };
 
 export const LIFE_UPGRADE_IDS = [
@@ -188,272 +232,272 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
     bonusHp: [0, 2, 4],
     packFrom: 2,
     arrowWardFrom: 3,
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   vampire: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { vampire_grow: 1 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   gravedigger: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { gravedigger_flex: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   zombie: {
     bonusAtk: [0, 0, 0],
     bonusHp: [-4, 0, 4],
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   hell_rider: {
     bonusAtk: [-2, 0, 0],
     bonusHp: [2, 0, 0],
     abilityFrom: { rush: 3 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   banshee: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { banshee_flex: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   bone_rex: {
     bonusAtk: [0, 0, 0],
     bonusHp: [-4, 0, 0],
     abilityFrom: { immune_death: 2, immune_spells: 3 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   necro_mage: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { necro_flex: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   lich: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { lich_drain: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   water_golem: {
     bonusAtk: [-1, 0, 0],
     bonusHp: [-4, 0, 2],
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   water_spirit: {
     bonusAtk: [-2, 0, 0],
     bonusHp: [-2, 0, 0],
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   water_elemental: {
     bonusAtk: [-2, 0, 1],
     bonusHp: [-2, 0, 0],
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   triton: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { triton_flex: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   aquilite: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { rush: 1, aquilite_swap: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   clawfiend: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { water_tide: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   kraken: {
     bonusAtk: [-2, 0, 0],
     bonusHp: [-8, 0, 0],
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   mermaid: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { mermaid_flex: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   spearman: {
     // JSON = L2 (lane3). L1 только напротив.
     bonusAtk: [0, 0, 1],
     bonusHp: [0, 0, 0],
     patternByLevel: { 1: "melee", 2: "melee_lane3", 3: "melee_lane3" },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   crossbowman: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { riposte: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   tank: {
     // L1 меньше мяса, L3 чуть толще + щит призывом
     bonusAtk: [0, 0, 0],
     bonusHp: [-4, 0, 4],
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   berserk: {
     // L1 тоньше (−3/ход), L2 толще (−2/ход)
     bonusAtk: [0, 0, 0],
     bonusHp: [-4, 0, 0],
     abilityFrom: { berserk_decay: 1 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   mage: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { mage_flex: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   valkyrie: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { valkyrie_flex: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   angel: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { angel_heal: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   paladin: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { paladin_flex: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   colossus: {
     // Иммун убран с плана; L2 мана, L3 щит армии
     bonusAtk: [0, 0, 0],
     bonusHp: [-8, 0, 0],
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   mech_guardian: {
     bonusAtk: [0, 0, 0],
     bonusHp: [-6, 0, 0],
     abilityFrom: { immune_spells: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   flamethrower: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { flame_burn: 3 },
     patternByLevel: { 1: "melee", 2: "cleave3", 3: "cleave3" },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   fire_lizard: {
     bonusAtk: [-2, 0, 1],
     bonusHp: [-2, 0, 0],
     abilityFrom: { rush: 3 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   fire_gopnik: {
     bonusAtk: [-3, 0, 0],
     bonusHp: [-2, 0, 0],
     abilityFrom: { flame_burn: 3 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   fire_golem: {
     bonusAtk: [-2, 0, 0],
     bonusHp: [-6, 0, 2],
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   fire_dragon: {
     bonusAtk: [-2, 0, 0],
     bonusHp: [-4, 0, 0],
     abilityFrom: { flame_burn: 3 },
     patternByLevel: { 1: "melee", 2: "cleave3", 3: "cleave3" },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   cerberus: {
     bonusAtk: [-1, 0, 0],
     bonusHp: [-6, 0, 0],
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   imp: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { imp_burn: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   inferno: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { immune_hell_death: 2, inferno_flex: 3 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   motardo: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { rush: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   succubus: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { succubus_flex: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   balthazar: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { balthazar_flex: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   ifrit: {
     bonusAtk: [-2, 0, 0],
     bonusHp: [-4, 0, 0],
     abilityFrom: { imp_burn: 2, school_mana_aura: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   werewolf: {
     bonusAtk: [-3, 0, 0],
     bonusHp: [4, 0, 0],
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   elf: {
     bonusAtk: [-2, 0, 0],
     bonusHp: [-2, 0, 0],
     abilityFrom: { riposte: 3 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   spider: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { spider_poison: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   hornet_warrior: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { hornet_pack: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   leprechaun: {
     bonusAtk: [0, 0, 0],
     bonusHp: [-2, 0, 0],
     abilityFrom: { leprechaun_aura: 1 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   ent: {
     bonusAtk: [-2, 0, 0],
     bonusHp: [0, 0, 0],
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   basilisk: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { basilisk_gaze: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   hornet_queen: {
     bonusAtk: [0, 0, 0],
@@ -464,23 +508,23 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
       spider_poison: 1,
       school_mana_aura: 3,
     },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   arch_orc: {
     bonusAtk: [-2, 0, 0],
     bonusHp: [-2, 0, 0],
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   leshy: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { leshy_flex: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   veles: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   unicorn: {
     bonusAtk: [0, 0, 0],
@@ -490,70 +534,70 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
       immune_spells: 2,
       school_mana_aura: 2,
     },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   orc: {
     bonusAtk: [-2, 0, 1],
     bonusHp: [-2, 0, 0],
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   troll: {
     bonusAtk: [0, 0, 0],
     bonusHp: [-8, 0, 4],
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   goblin: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { rush: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   black_dragon: {
     bonusAtk: [-2, 0, 0],
     bonusHp: [-4, 0, 0],
     patternByLevel: { 1: "melee", 2: "cleave3", 3: "cleave3" },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   mercenary: {
     bonusAtk: [-2, 0, 0],
     bonusHp: [-2, 0, 0],
     abilityFrom: { riposte: 3 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   recruit: {
     bonusAtk: [-2, 0, 0],
     bonusHp: [-2, 0, 0],
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   scorpicora: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { scorpion_poison: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   wanderer: {
     bonusAtk: [-2, 0, 0],
     bonusHp: [-2, 0, 0],
     abilityFrom: { aquilite_swap: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   rogue: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { mana_steal: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   arbiter: {
     bonusAtk: [0, 0, 0],
     bonusHp: [0, 0, 0],
     abilityFrom: { arbiter_flex: 2 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
   archer: {
     bonusAtk: [-1, 0, 0],
     bonusHp: [-2, 0, 0],
     abilityFrom: { riposte: 3 },
-    defaultLevel: 2,
+    defaultLevel: 1,
   },
 
   // —— Заклинания (JSON = ур.2) ——
@@ -818,8 +862,14 @@ export function shardsNeededForNext(
 ): number | null {
   if (!isUpgradeableCard(cardId)) return null;
   if (level >= 3) return null;
-  if (level <= 1) return SHARD_COST_COMMON.to2;
-  return SHARD_COST_COMMON.to3;
+  const cost = SHARD_COST_BY_TIER[shardTierForCard(cardId)];
+  if (level <= 1) return cost.to2;
+  return cost.to3;
+}
+
+/** Осколки за одну оплату ценника карты в магазине. */
+export function shardsPerShopBuy(cardId: string): number {
+  return SHARDS_PER_SHOP_BUY[shardTierForCard(cardId)];
 }
 
 export function skeletonHasPack(level: CardUpgradeLevel): boolean {
@@ -1279,10 +1329,28 @@ export function tryUpgradeCard(
   };
 }
 
-/** Миграция: открытые прокачиваемые карты без записи → defaultLevel (обычно 2). */
+/** Миграция: старт с ур.1; осколки сохраняем. */
 export function migrateCardUpgrades(owned: OwnedState): OwnedState {
   const upgrades = { ...(owned.cardUpgrades ?? {}) };
   let changed = false;
+
+  // Epoch 1: убираем бесплатный «ур.2 по умолчанию» — кач с нуля (0/30).
+  if ((owned.upgradeEpoch ?? 0) < 1) {
+    for (const cardId of Object.keys(CARD_UPGRADE_DEFS)) {
+      const has =
+        (owned.collection?.[cardId] ?? 0) > 0 ||
+        owned.unlocked.includes(cardId);
+      if (!has) continue;
+      upgrades[cardId] = 1;
+      changed = true;
+    }
+    return {
+      ...owned,
+      cardUpgrades: upgrades,
+      upgradeEpoch: 1,
+    };
+  }
+
   for (const cardId of Object.keys(CARD_UPGRADE_DEFS)) {
     const has =
       (owned.collection?.[cardId] ?? 0) > 0 ||

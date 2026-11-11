@@ -197,9 +197,8 @@ export const UNIT_TIER_LABEL: Record<1 | 2 | 3 | 4 | 5, string> = {
 
 /**
  * С какого уровня игрока карта доступна в магазине (яркая + покупка).
- * Тир существа важнее rarity (у части воинов rarity=epic — их не держим до элиты).
- * I с 1 · II с 10 · III воин с 15 · IV элита с 25 · V/легенда с 30.
- * Заклинания без unitLevel — по rarity: common 1 / rare 10 / epic 25 / legendary 30.
+ * Тир (unitLevel / цена магии) важнее голой rarity.
+ * I с 1 · II с 10 · III с 15 · IV с 25 · V с 30.
  */
 export function minPlayerLevelForShopCard(card: {
   rarity?: string;
@@ -218,7 +217,7 @@ export function minPlayerLevelForShopCard(card: {
     case "epic":
       return 25;
     case "rare":
-      return 10;
+      return 15;
     default:
       return 1;
   }
