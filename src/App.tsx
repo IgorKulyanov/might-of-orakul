@@ -920,13 +920,15 @@ export default function App() {
     }
 
     void persistOwned(res.owned);
+    const shardBit = res.shardLine ? ` · ${res.shardLine}` : "";
     return {
       won,
       xpGained: res.xpGained,
       gainedLevels: res.gainedLevels,
       goldReward,
       diamondReward,
-      giftLine,
+      giftLine: giftLine ? `${giftLine}${shardBit}` : res.shardLine,
+      shardLine: res.shardLine,
       resultEyebrow,
       resultTitle,
       resultLead,
@@ -1102,6 +1104,7 @@ export default function App() {
         yourName={displayName}
         yourLevel={level}
         enemyLevel={foeLv}
+        cardUpgrades={owned.cardUpgrades}
         aiPersona={bot.persona}
         aiSeed={bot.seed}
         prepareBattle={

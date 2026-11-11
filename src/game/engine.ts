@@ -22,6 +22,14 @@ import {
   waterGiftStartMana,
 } from "./oracleGifts";
 import { alog } from "./actionLog";
+import {
+  clampUpgradeLevel,
+  defaultUpgradeLevel,
+  skeletonHasArrowWard,
+  skeletonHasPack,
+  upgradeStatBonus,
+  type CardUpgradeLevel,
+} from "./cardUpgrades";
 import { startManaBonus } from "./progression";
 import type {
   AttackPattern,
@@ -35,6 +43,26 @@ import type {
   Slot,
   SpellEffect,
 } from "./types";
+
+function battleUpgradeLevel(
+  state: BattleState | null | undefined,
+  side: "you" | "enemy",
+  cardId: string,
+): CardUpgradeLevel {
+  const map =
+    side === "you" ? state?.youCardUpgrades : state?.enemyCardUpgrades;
+  const raw = map?.[cardId];
+  if (raw == null) return defaultUpgradeLevel(cardId);
+  return clampUpgradeLevel(raw);
+}
+
+function hostUpgradeLevel(
+  host?: CreatureInstance | null,
+  cardId?: string,
+): CardUpgradeLevel {
+  if (host?.upgradeLevel != null) return clampUpgradeLevel(host.upgradeLevel);
+  return defaultUpgradeLevel(cardId ?? host?.cardId ?? "");
+}
 
 /** Стоимость карты с учётом правил боя (тяжёлые заклинания и т.п.). */
 export function battleManaCost(
@@ -87,7 +115,13 @@ function abilityOf(
   host?: CreatureInstance | null,
 ): CreatureAbility | undefined {
   if (host?.stripped) return undefined;
-  return getCard(cardId).ability;
+  const ab = getCard(cardId).ability;
+  if (ab === "skeleton_pack") {
+    return skeletonHasPack(hostUpgradeLevel(host, cardId))
+      ? "skeleton_pack"
+      : undefined;
+  }
+  return ab;
 }
 
 function hasAbility(
@@ -97,8 +131,12 @@ function hasAbility(
 ): boolean {
   if (host?.stripped) return false;
   const c = getCard(cardId);
-  if (c.ability === a) return true;
-  return (c.abilities ?? []).includes(a);
+  const listed = c.ability === a || (c.abilities ?? []).includes(a);
+  if (!listed) return false;
+  if (a === "skeleton_pack") {
+    return skeletonHasPack(hostUpgradeLevel(host, cardId));
+  }
+  return true;
 }
 
 function effectiveBase(c: CreatureInstance): { atk: number; hp: number } {
@@ -711,10 +749,15 @@ function checkWinner(state: BattleState): void {
 function spawnCreature(
   cardId: string,
   rules?: BattleState["rules"] | null,
+  upgradeLevel?: CardUpgradeLevel,
 ): CreatureInstance {
   const c = getCard(cardId);
-  let atk = c.attack ?? 0;
-  let hp = c.health ?? 1;
+  const up = clampUpgradeLevel(
+    upgradeLevel ?? defaultUpgradeLevel(cardId),
+  );
+  const bonus = upgradeStatBonus(cardId, up);
+  let atk = (c.attack ?? 0) + bonus.atk;
+  let hp = (c.health ?? 1) + bonus.hp;
   let permAttack = 0;
   let permHealth = 0;
   if (rules?.undeadSurge && c.school === "death") {
@@ -751,27 +794,30 @@ function spawnCreature(
   if (rules?.fragileBoard) {
     hp = Math.max(1, hp - 1);
   }
-  const rush = hasAbility(cardId, "rush");
-  const baseHp = Math.max(
-    1,
-    (c.health ?? 1) -
-      (rules?.fragileBoard ? 1 : 0) +
-      (rules?.ironBoard ? 1 : 0),
-  );
-  return {
+  const unit: CreatureInstance = {
     uid: uid(),
     cardId,
-    baseAttack: c.attack ?? 0,
-    baseHealth: baseHp,
+    baseAttack: (c.attack ?? 0) + bonus.atk,
+    baseHealth: Math.max(
+      1,
+      (c.health ?? 1) +
+        bonus.hp -
+        (rules?.fragileBoard ? 1 : 0) +
+        (rules?.ironBoard ? 1 : 0),
+    ),
     permAttack,
     permHealth,
     packBonus: 0,
     swarmBonus: 0,
     attack: atk,
     health: hp,
-    canAttack: rush,
+    canAttack: false,
     statuses: [],
+    upgradeLevel: up,
   };
+  // rush смотрим после upgradeLevel на инстансе
+  unit.canAttack = hasAbility(cardId, "rush", unit);
+  return unit;
 }
 
 /** Вампир: после укуса лечит 5 HP, не выше своего максимума. */
@@ -1136,9 +1182,28 @@ function rangedHit(
     ? findTankByUid(defenderOwner.slots, def.guardedByUid)
     : null;
   const tankHpBefore = tank?.health ?? null;
+  let raw = outgoingDamage(attackerOwner, atk.attack);
+  // Скелет ур.3: −50% от стрел (elf / archer / crossbow)
+  const arrowAtk =
+    atk.cardId === "elf" ||
+    atk.cardId === "crossbowman" ||
+    atk.cardId === "archer";
+  if (
+    arrowAtk &&
+    def.cardId === "skeleton" &&
+    skeletonHasArrowWard(hostUpgradeLevel(def, "skeleton"))
+  ) {
+    const halved = Math.floor(raw / 2);
+    if (halved !== raw) {
+      log.unshift(
+        `🦴 Скелет (ур.3): стрелы ${raw} → ${halved}`,
+      );
+    }
+    raw = halved;
+  }
   const dmg = dealToCreature(
     def,
-    outgoingDamage(attackerOwner, atk.attack),
+    raw,
     log,
     defenderOwner.slots,
   );
@@ -2309,7 +2374,11 @@ export function playCard(
     }
     payMana(me.mana, cost);
     me.hand.splice(handIndex, 1);
-    me.slots[slotIndex] = spawnCreature(cardId, next.rules);
+    me.slots[slotIndex] = spawnCreature(
+      cardId,
+      next.rules,
+      battleUpgradeLevel(next, "you", cardId),
+    );
     syncBoardAuras(me, next.log);
     if (hasAbility(cardId, "immune_spells")) {
       let shielded = 0;
@@ -2656,7 +2725,11 @@ export function reviveWithGravedigger(
     return next;
   }
   const cardId = me.graveyard.splice(pick.index, 1)[0]!;
-  me.slots[toSlot] = spawnCreature(cardId, next.rules);
+  me.slots[toSlot] = spawnCreature(
+    cardId,
+    next.rules,
+    battleUpgradeLevel(next, "you", cardId),
+  );
   src.canAttack = false;
   next.selectedSlot = null;
   syncBoardAuras(me, next.log);
@@ -2947,7 +3020,11 @@ export function summonSkeletonWithNecro(
     next.log = ["Слот занят", ...next.log].slice(0, 10);
     return next;
   }
-  me.slots[toSlot] = spawnCreature("skeleton", next.rules);
+  me.slots[toSlot] = spawnCreature(
+    "skeleton",
+    next.rules,
+    battleUpgradeLevel(next, "you", "skeleton"),
+  );
   necro.canAttack = false;
   next.selectedSlot = null;
   syncBoardAuras(me, next.log);
@@ -4805,7 +4882,11 @@ export function takeAiStep(
     const card = getCard(me.hand[best.hi]!);
     payMana(me.mana, card.manaCost ?? {});
     const id = me.hand.splice(best.hi, 1)[0]!;
-    me.slots[best.slot] = spawnCreature(id, next.rules);
+    me.slots[best.slot] = spawnCreature(
+      id,
+      next.rules,
+      battleUpgradeLevel(next, "enemy", id),
+    );
     syncBoardAuras(me, next.log);
     if (card.onPlayHealHero) {
       me.hp = Math.min(me.maxHp, me.hp + card.onPlayHealHero);
@@ -4951,7 +5032,11 @@ export function takeAiStep(
 
     if (flex.type === "summon") {
       if (me.slots[flex.toSlot]) return null;
-      me.slots[flex.toSlot] = spawnCreature(flex.cardId, next.rules);
+      me.slots[flex.toSlot] = spawnCreature(
+        flex.cardId,
+        next.rules,
+        battleUpgradeLevel(next, "enemy", flex.cardId),
+      );
       atk.canAttack = false;
       syncBoardAuras(me, next.log);
       next.log.unshift(
@@ -4997,7 +5082,11 @@ export function takeAiStep(
       const pick = visible.find((e) => e.index === flex.graveIndex);
       if (!pick) return null;
       const cardId = me.graveyard.splice(pick.index, 1)[0]!;
-      me.slots[flex.toSlot] = spawnCreature(cardId, next.rules);
+      me.slots[flex.toSlot] = spawnCreature(
+        cardId,
+        next.rules,
+        battleUpgradeLevel(next, "enemy", cardId),
+      );
       atk.canAttack = false;
       syncBoardAuras(me, next.log);
       next.log.unshift(

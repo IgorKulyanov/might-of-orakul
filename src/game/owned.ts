@@ -8,6 +8,11 @@ import {
   maxCopiesForCard,
 } from "./cards";
 import {
+  migrateCardUpgrades,
+  rollBotWinShards,
+  tryUpgradeCard,
+} from "./cardUpgrades";
+import {
   claimDaily,
   trackBattleForDailies,
   type DailyQuestId,
@@ -33,6 +38,8 @@ import {
 } from "./progression";
 import { GOLD_EXCHANGE_MAP, goldForDiamonds } from "./shop";
 import type { Faction, OwnedState } from "./types";
+
+export { tryUpgradeCard };
 
 /** v4 key; миграция копий — флаг COPIES_FLAG. */
 const KEY = "arcane-duel-owned-v4";
@@ -247,7 +254,7 @@ function withDefaults(parsed: OwnedState): OwnedState {
     level: parsed.level,
     xp: parsed.xp,
   });
-  return {
+  return migrateCardUpgrades({
     unlocked: syncedUnlocked,
     collection,
     decks,
@@ -264,7 +271,9 @@ function withDefaults(parsed: OwnedState): OwnedState {
     xp: progress.xp,
     purchased,
     unlockedHeroes: [...new Set(parsed.unlockedHeroes ?? [])],
-  };
+    cardUpgrades: parsed.cardUpgrades,
+    cardShards: parsed.cardShards,
+  });
 }
 
 function starterDeckFor(heroId: string): string[] {
@@ -891,6 +900,8 @@ export type BattleRewardResult = {
   diamondReward: number;
   /** Строка дара оракула для таблички после боя. */
   giftLine: string | null;
+  /** Осколки карт за бой (пилот: скелет). */
+  shardLine?: string | null;
 };
 
 /**
@@ -935,13 +946,24 @@ export function applyBattleResult(
   const goldReward =
     (xpOnly ? 0 : granted.totalGold + goldBonus) + gift.giftGold;
   const diamondReward = xpOnly ? 0 : granted.totalDiamonds;
-  const next: OwnedState = {
+  let next: OwnedState = {
     ...owned,
     level: granted.level,
     xp: granted.xp,
     gold: (owned.gold ?? 0) + goldReward,
     diamonds: (owned.diamonds ?? 0) + diamondReward,
   };
+  let shardLine: string | null = null;
+  // Осколки: победа vs бот/тропа/арена (не PvP, не поражение)
+  if (won && !pvp && mode !== "dev") {
+    const drop = rollBotWinShards(next);
+    next = drop.owned;
+    if (drop.gains.length) {
+      shardLine = drop.gains
+        .map((g) => `🦴 ${g.name}: +${g.amount} оскол.`)
+        .join(" · ");
+    }
+  }
   saveOwned(next);
   return {
     owned: next,
@@ -950,6 +972,7 @@ export function applyBattleResult(
     goldReward,
     diamondReward,
     giftLine: gift.giftLine,
+    shardLine,
   };
 }
 

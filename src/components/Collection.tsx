@@ -22,6 +22,13 @@ import {
 } from "../game/progression";
 import { apiCreatePayment, apiShopBuy } from "../game/api";
 import {
+  cardUpgradeBlurb,
+  getCardShards,
+  getCardUpgradeLevel,
+  isUpgradeableCard,
+  shardsNeededForNext,
+} from "../game/cardUpgrades";
+import {
   buyCardWithDiamonds,
   buyCardWithGold,
   canBuyAnotherCopy,
@@ -29,6 +36,7 @@ import {
   isUnlocked,
   ownedCopies,
   saveDeck,
+  tryUpgradeCard,
 } from "../game/owned";
 import type { CardKind, OwnedState, School } from "../game/types";
 import { USER_AGREEMENT_URL } from "../game/legal";
@@ -174,6 +182,16 @@ export function Collection({
     const idx = deck.lastIndexOf(id);
     if (idx < 0) return;
     commitDeck(deck.filter((_, i) => i !== idx));
+  };
+
+  const upgrade = (id: string) => {
+    const res = tryUpgradeCard(owned, id);
+    if (!res.ok) {
+      say(res.reason ?? "Нельзя улучшить");
+      return;
+    }
+    onChange(res.owned);
+    say(`«${CARDS.find((c) => c.id === id)?.name ?? id}» → ур.${getCardUpgradeLevel(res.owned, id)}`);
   };
 
   const buy = (id: string, withDiamonds = false) => {
@@ -385,7 +403,42 @@ export function Collection({
                       ? " · нет"
                       : ` · у тебя ${have}/${cap}`}
                     {!locked && inDeck > 0 ? ` · в колоде ${inDeck}` : ""}
+                    {!locked && isUpgradeableCard(c.id)
+                      ? ` · прокачка ур.${getCardUpgradeLevel(owned, c.id)}`
+                      : ""}
                   </div>
+                  {!locked && isUpgradeableCard(c.id) ? (
+                    <div className="shop-meta">
+                      <span className="hint" style={{ fontSize: "0.72rem" }}>
+                        {cardUpgradeBlurb(
+                          c.id,
+                          getCardUpgradeLevel(owned, c.id),
+                        )}{" "}
+                        Осколки: {getCardShards(owned, c.id)}
+                        {shardsNeededForNext(
+                          c.id,
+                          getCardUpgradeLevel(owned, c.id),
+                       ) != null
+                          ? ` / ${shardsNeededForNext(
+                              c.id,
+                              getCardUpgradeLevel(owned, c.id),
+                            )}`
+                          : " (макс)"}
+                      </span>
+                      {shardsNeededForNext(
+                        c.id,
+                        getCardUpgradeLevel(owned, c.id),
+                      ) != null ? (
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={() => upgrade(c.id)}
+                        >
+                          Улучшить
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
                   {canBuyMore ? (
                     <div
                       className="shop-meta"

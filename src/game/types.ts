@@ -275,6 +275,12 @@ export interface CreatureInstance {
   health: number;
   canAttack: boolean;
   statuses: StatusEffect[];
+  /**
+   * Уровень прокачки карты в этом бою (1…3).
+   * Скелет: 1 без стаи, 2 стая, 3 стая + защита от стрел.
+   * Если не задан — движок считает как 2 (совместимость).
+   */
+  upgradeLevel?: 1 | 2 | 3;
   /** uid стража, который принимает урон вместо этой карты */
   guardedByUid?: string;
   /** Ничтожество: супер-умения выключены до конца боя. */
@@ -389,6 +395,10 @@ export interface BattleState {
     | "swarm";
   /** Seed боя: разброс среди почти равных ходов. */
   aiSeed?: number;
+  /** Прокачка карт игрока (cardId → 1…3). */
+  youCardUpgrades?: Record<string, number>;
+  /** Прокачка карт соперника (бот/PvP). */
+  enemyCardUpgrades?: Record<string, number>;
 }
 
 export interface OwnedState {
@@ -418,4 +428,8 @@ export interface OwnedState {
   purchased?: string[];
   /** Купленные эпические оракулы. */
   unlockedHeroes?: string[];
+  /** Уровень прокачки карты (cardId → 1…3). */
+  cardUpgrades?: Record<string, number>;
+  /** Осколки карты для прокачки (cardId → число). */
+  cardShards?: Record<string, number>;
 }

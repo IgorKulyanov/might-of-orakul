@@ -157,6 +157,8 @@ function dummy(cardId: string, uid: string, hp = 6): CreatureInstance {
     health: hp,
     canAttack: false,
     statuses: [],
+    // Скелет без уровня считался бы ур.2; для тестов стаи явно ставим 2
+    upgradeLevel: cardId === "skeleton" ? 2 : 1,
   };
 }
 
@@ -855,6 +857,7 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
 
   assert("skeleton_pack +1/+1", () => {
     let s = boardForCreatures();
+    s.youCardUpgrades = { skeleton: 2 };
     s.you.slots[0] = arm(dummy("skeleton", "sk1", 1));
     s.you.slots[1] = arm(dummy("skeleton", "sk2", 1));
     s.you.hand = ["skeleton"];
@@ -863,6 +866,58 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
     const a = s.you.slots[0]!;
     if ((a.packBonus ?? 0) < 1 || a.attack < 2) {
       return `стая pack=${a.packBonus} atk=${a.attack}`;
+    }
+    return null;
+  });
+
+  assert("skeleton L1 no pack", () => {
+    let s = boardForCreatures();
+    s.youCardUpgrades = { skeleton: 1 };
+    s.you.hand = ["skeleton", "skeleton"];
+    s.you.mana.death = 9;
+    s = playCard(s, 0, 0);
+    s = playCard(s, 0, 1);
+    const a = s.you.slots[0]!;
+    const b = s.you.slots[1]!;
+    if ((a.packBonus ?? 0) !== 0 || (b.packBonus ?? 0) !== 0) {
+      return `L1 не должен иметь стаю pack=${a.packBonus}/${b.packBonus}`;
+    }
+    if (a.attack !== 3 || a.baseHealth !== 8) {
+      return `L1 статы ${a.attack}/${a.baseHealth}, ждали 3/8`;
+    }
+    return null;
+  });
+
+  assert("skeleton L3 arrow ward", () => {
+    let s = boardForCreatures();
+    const sk = arm(dummy("skeleton", "sk3", 12));
+    sk.upgradeLevel = 3;
+    sk.attack = 5;
+    sk.baseAttack = 5;
+    sk.baseHealth = 12;
+    sk.health = 12;
+    s.you.slots[0] = sk;
+    const elf = arm(dummy("elf", "elf1", 8));
+    elf.attack = 4;
+    elf.baseAttack = 4;
+    s.enemy.slots[0] = elf;
+    s.active = "enemy";
+    // враг бьёт через attackWith с точки зрения you — крутим вручную через swap
+    s = {
+      ...s,
+      you: s.enemy,
+      enemy: s.you,
+      active: "you",
+    };
+    // теперь «you» = эльф бьёт скелета напротив
+    s.you.slots = [elf, null, null, null, null];
+    s.enemy.slots = [sk, null, null, null, null];
+    s = attackWith(s, 0, 0);
+    const after = s.enemy.slots[0];
+    if (!after) return "скелет умер от 4 урона при ward";
+    // 4 → 2 урона, 12-2=10
+    if (after.health !== 10) {
+      return `ward: HP=${after.health}, ждали 10`;
     }
     return null;
   });

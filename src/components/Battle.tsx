@@ -106,6 +106,7 @@ type BattleEndInfo = {
   goldReward: number;
   diamondReward: number;
   giftLine?: string | null;
+  shardLine?: string | null;
   /** Праздничный заголовок (например полное прохождение арены). */
   resultEyebrow?: string | null;
   resultTitle?: string | null;
@@ -121,6 +122,8 @@ type Props = {
   yourName?: string;
   yourLevel?: number;
   enemyLevel?: number;
+  /** Прокачка карт игрока (cardId → 1…3). */
+  cardUpgrades?: Record<string, number>;
   /** После createBattle — арена и др. модификаторы. */
   prepareBattle?: (state: BattleState) => BattleState;
   /** Скрыть «Ещё раз» (забеги с прогрессом). */
@@ -598,6 +601,7 @@ export function Battle({
   yourName = "Ты",
   yourLevel = 1,
   enemyLevel = yourLevel,
+  cardUpgrades,
   prepareBattle,
   allowRematch = true,
   exitPolicy = "free",
@@ -625,6 +629,7 @@ export function Battle({
     );
     if (aiPersona) raw.aiPersona = aiPersona;
     if (aiSeed != null) raw.aiSeed = aiSeed;
+    if (cardUpgrades) raw.youCardUpgrades = { ...cardUpgrades };
     return prepareBattle ? prepareBattle(raw) : raw;
   };
   const [state, setState] = useState<BattleState>(() => bootBattle());
