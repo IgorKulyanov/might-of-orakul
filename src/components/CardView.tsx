@@ -14,7 +14,6 @@ import {
   getCard,
 } from "../game/cards";
 import { upgradePlanFor } from "../game/cardUpgradePlan";
-import { minPlayerLevelForShopCard } from "../game/progression";
 import type {
   AttackPattern,
   CardDef,
@@ -377,7 +376,6 @@ export function CardView({
                       : 1;
                   const tone =
                     cur >= 3 ? "is-lv-3" : cur === 2 ? "is-lv-2" : "is-lv-1";
-                  const needAcc = minPlayerLevelForShopCard(c);
                   const skill =
                     plan == null
                       ? null
@@ -386,13 +384,11 @@ export function CardView({
                         : cur === 2
                           ? plan.l2
                           : plan.l3;
+                  if (!skill) return null;
                   return (
                     <p className={`card-desc-level ${tone}`}>
                       <span className="card-desc-level-line">
-                        Нужен {needAcc} ур. аккаунта · сейчас{" "}
-                        <strong>ур.{cur}</strong>
-                        {skill ? " · " : ""}
-                        {skill ?? ""}
+                        Ур.{cur} — {skill}
                       </span>
                     </p>
                   );
