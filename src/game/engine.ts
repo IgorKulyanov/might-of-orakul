@@ -2917,27 +2917,12 @@ function clearEchoSpells(state: BattleState): void {
   }
 }
 
-/** Рамп маны (доп. мана / камни) — для ИИ, не для особого грейва. */
+/** Рамп маны (доп. мана / камни) — для ИИ и тяжёлых заклинаний. */
 function isManaRampSpell(effects: SpellEffect[]): boolean {
   if (!effects.length) return false;
   return effects.every(
     (e) => e.type === "gain_mana" || e.type === "gain_mana_all",
   );
-}
-
-function isManaRampCardId(cardId: string): boolean {
-  try {
-    const card = getCard(cardId);
-    const effects =
-      card.spellEffects && card.spellEffects.length > 0
-        ? card.spellEffects
-        : cardId === "hero_mana"
-          ? ([{ type: "gain_mana" as const, amount: 1 }] as SpellEffect[])
-          : [];
-    return isManaRampSpell(effects);
-  } catch {
-    return false;
-  }
 }
 
 function addSpellEcho(
