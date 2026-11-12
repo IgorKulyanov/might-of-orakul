@@ -7022,6 +7022,381 @@ html.is-hand-dragging .grave-row {
   color: #f0d5a8;
 }
 
+/* —— Книга ОРАКУЛ —— */
+.oracle-book {
+  position: relative;
+  overflow: visible;
+}
+
+.oracle-book-head {
+  text-align: center;
+  margin: 0.15rem 0 0.85rem;
+}
+
+.oracle-book-gem-title {
+  margin: 0;
+  font-family: var(--display-ornate);
+  font-size: clamp(1.7rem, 5vw, 2.55rem);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  line-height: 1.15;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.02em;
+}
+
+.oracle-gem-letter {
+  display: inline-block;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 0 rgba(40, 20, 8, 0.55))
+    drop-shadow(0 0 10px rgba(232, 197, 71, 0.22));
+  animation: oracle-gem-shine 3.6s ease-in-out infinite;
+}
+
+.oracle-gem-letter.is-gem-1 {
+  background-image: linear-gradient(
+    160deg,
+    #fff6d0 8%,
+    #f0d060 32%,
+    #c48a3a 58%,
+    #ffe9a0 88%
+  );
+}
+.oracle-gem-letter.is-gem-2 {
+  background-image: linear-gradient(
+    160deg,
+    #e8fff4 8%,
+    #2ec4a0 36%,
+    #0b6b55 62%,
+    #9ff0d4 90%
+  );
+}
+.oracle-gem-letter.is-gem-3 {
+  background-image: linear-gradient(
+    160deg,
+    #ffe8f0 8%,
+    #e23d5b 34%,
+    #7a1028 60%,
+    #ffb0c0 90%
+  );
+}
+.oracle-gem-letter.is-gem-4 {
+  background-image: linear-gradient(
+    160deg,
+    #e8f4ff 8%,
+    #3d8bfd 36%,
+    #163d7a 62%,
+    #a8d0ff 90%
+  );
+}
+.oracle-gem-letter.is-gem-5 {
+  background-image: linear-gradient(
+    160deg,
+    #fff0e0 8%,
+    #e85d04 34%,
+    #7a2e08 60%,
+    #ffc089 90%
+  );
+}
+
+@keyframes oracle-gem-shine {
+  0%,
+  100% {
+    filter: drop-shadow(0 2px 0 rgba(40, 20, 8, 0.55))
+      drop-shadow(0 0 8px rgba(232, 197, 71, 0.18));
+    transform: translateY(0);
+  }
+  50% {
+    filter: drop-shadow(0 2px 0 rgba(40, 20, 8, 0.45))
+      drop-shadow(0 0 14px rgba(255, 236, 170, 0.35));
+    transform: translateY(-1px);
+  }
+}
+
+.oracle-book-sub {
+  margin: 0.35rem 0 0;
+  font-family: var(--ui);
+  font-size: 0.82rem;
+  color: #d9c3a0;
+  letter-spacing: 0.02em;
+}
+
+.oracle-book-shell {
+  display: grid;
+  grid-template-columns: minmax(92px, 118px) 1fr;
+  gap: 0.65rem;
+  align-items: stretch;
+  min-height: 280px;
+}
+
+.oracle-book-ribbons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.35rem 0;
+}
+
+.oracle-book-ribbon {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.42rem 0.45rem 0.42rem 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--school, #c48a3a) 55%, #000);
+  border-right: none;
+  border-radius: 10px 0 0 10px;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--school, #c48a3a) 42%, #1a1208) 0%,
+      color-mix(in srgb, var(--school, #c48a3a) 18%, #2a1a0c) 100%
+    );
+  color: #f2e9dc;
+  font-family: var(--ui);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: left;
+  transform-origin: right center;
+  transition:
+    transform 0.18s ease,
+    filter 0.18s ease,
+    box-shadow 0.18s ease;
+  box-shadow: -2px 2px 0 rgba(0, 0, 0, 0.25);
+}
+
+.oracle-book-ribbon:hover {
+  transform: translateX(-4px);
+}
+
+.oracle-book-ribbon.is-on {
+  transform: translateX(-8px) scale(1.03);
+  filter: brightness(1.12);
+  box-shadow:
+    -3px 3px 0 rgba(0, 0, 0, 0.28),
+    0 0 0 1px color-mix(in srgb, var(--school, #e8c547) 50%, transparent);
+}
+
+.oracle-book-ribbon-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.oracle-book-ribbon-n {
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
+.oracle-book-spread {
+  position: relative;
+  border-radius: 4px 14px 14px 4px;
+  border: 1.5px solid rgba(160, 110, 55, 0.65);
+  background:
+    linear-gradient(90deg, rgba(50, 28, 12, 0.55) 0 10px, transparent 18px),
+    linear-gradient(
+      155deg,
+      #c9a36a 0%,
+      #e6d2a8 18%,
+      #f0e2c0 48%,
+      #dcc49a 78%,
+      #b8925c 100%
+    );
+  box-shadow:
+    inset 8px 0 14px rgba(60, 30, 10, 0.28),
+    inset 0 0 0 1px rgba(255, 245, 220, 0.35),
+    0 10px 28px rgba(0, 0, 0, 0.35);
+  min-height: 260px;
+  overflow: hidden;
+}
+
+.oracle-book-spread.is-flip {
+  animation: oracle-page-turn 0.42s ease;
+}
+
+@keyframes oracle-page-turn {
+  0% {
+    transform: perspective(900px) rotateY(-8deg);
+    opacity: 0.55;
+  }
+  100% {
+    transform: perspective(900px) rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+.oracle-book-page {
+  padding: 0.75rem 0.85rem 1rem 1.1rem;
+  color: #2a1c10;
+}
+
+.oracle-book-page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  margin-bottom: 0.55rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid rgba(80, 50, 20, 0.28);
+}
+
+.oracle-book-page-school {
+  font-family: var(--display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #3a2612;
+}
+
+.oracle-book-page-hint {
+  font-size: 0.75rem;
+  color: rgba(60, 40, 20, 0.7);
+}
+
+.oracle-book-tiers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.oracle-book-tier {
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(90, 55, 20, 0.35);
+  background: rgba(255, 248, 230, 0.55);
+  color: #3a2612;
+  font-family: var(--ui);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.oracle-book-tier.is-on {
+  background: linear-gradient(180deg, #5a3a18, #3a2410);
+  border-color: #8a5a28;
+  color: #f5e6c8;
+}
+
+.oracle-book-tier:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.oracle-book-empty {
+  margin: 1.2rem 0.4rem;
+  padding: 1rem;
+  text-align: center;
+  border: 1px dashed rgba(90, 55, 20, 0.4);
+  border-radius: 10px;
+  background: rgba(255, 250, 235, 0.35);
+  color: #5a4024;
+  font-size: 0.9rem;
+}
+
+.oracle-book-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 0.7rem;
+}
+
+.oracle-book-slot {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.45rem;
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(255, 252, 240, 0.55), rgba(230, 210, 170, 0.4));
+  border: 1px solid rgba(90, 55, 20, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+.oracle-book-slot.in-deck {
+  border-color: color-mix(in srgb, var(--ok) 50%, #5a3a18);
+}
+
+.oracle-book-slot-frame {
+  position: relative;
+  border-radius: 8px;
+  padding: 0.28rem;
+  background:
+    radial-gradient(
+      ellipse at 30% 20%,
+      rgba(255, 255, 255, 0.35),
+      transparent 55%
+    ),
+    linear-gradient(160deg, #6e4a22, #3a2410 55%, #2a1a0c);
+  box-shadow:
+    inset 0 0 0 1px rgba(232, 197, 71, 0.35),
+    0 2px 6px rgba(0, 0, 0, 0.28);
+}
+
+.oracle-book-slot-meta {
+  display: grid;
+  gap: 0.12rem;
+  font-size: 0.76rem;
+  color: #2a1c10;
+}
+
+.oracle-book-slot-meta strong {
+  font-size: 0.84rem;
+  color: #1f140a;
+}
+
+.oracle-book-slot-meta .badge-in-case {
+  color: #6a4a28;
+}
+
+.oracle-book-slot-meta .tier-chip {
+  color: #5a3a18;
+  border-color: rgba(90, 55, 20, 0.3);
+  background: rgba(255, 248, 230, 0.65);
+}
+
+.oracle-book-slot.is-draggable {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.oracle-book-slot.is-draggable:active {
+  cursor: grabbing;
+  opacity: 0.88;
+}
+
+@media (max-width: 720px) {
+  .oracle-book-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .oracle-book-ribbons {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .oracle-book-ribbon {
+    border-right: 1px solid color-mix(in srgb, var(--school, #c48a3a) 55%, #000);
+    border-radius: 10px;
+    transform: none;
+  }
+
+  .oracle-book-ribbon.is-on,
+  .oracle-book-ribbon:hover {
+    transform: none;
+  }
+
+  .oracle-book-spread {
+    border-radius: 12px;
+  }
+
+  .oracle-book-gem-title {
+    letter-spacing: 0.12em;
+  }
+}
+
 .cabinet-zone-deck.is-drop-target {
   border-color: #52b788;
   box-shadow: 0 0 0 2px rgba(82, 183, 136, 0.35);
