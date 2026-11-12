@@ -25,6 +25,7 @@ import {
 import { apiCreatePayment, apiShopBuy } from "../game/api";
 import {
   getCardShards,
+  defaultUpgradeLevel,
   getCardUpgradeLevel,
   isUpgradeableCard,
   shardsNeededForNext,
@@ -439,8 +440,10 @@ export function Collection({
                   shopReady={shopReady}
                   flippable={!locked}
                   upgradeLevel={
-                    inOracle && isUpgradeableCard(c.id)
-                      ? getCardUpgradeLevel(owned, c.id)
+                    isUpgradeableCard(c.id)
+                      ? inOracle
+                        ? getCardUpgradeLevel(owned, c.id)
+                        : defaultUpgradeLevel(c.id)
                       : null
                   }
                 />

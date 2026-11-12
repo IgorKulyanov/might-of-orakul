@@ -14,6 +14,11 @@ import {
   getCard,
 } from "../game/cards";
 import { upgradePlanFor } from "../game/cardUpgradePlan";
+import {
+  defaultUpgradeLevel,
+  isUpgradeableCard,
+  upgradeStatBonus,
+} from "../game/cardUpgrades";
 import type {
   AttackPattern,
   CardDef,
@@ -107,10 +112,23 @@ export function CardView({
   const frameLv = cardFrameLevel(c);
   const art = cardArtUrl(c);
   const artStyle = cardArtStyle(c);
-  const atk = liveAttack ?? c.attack ?? 0;
-  const hp = liveHealth ?? c.health ?? 0;
-  const fullHp = maxHealth ?? c.health ?? hp;
-  const fullAtk = maxAttack ?? c.attack ?? atk;
+  // JSON = статы ур.2. На лице показываем статы текущего/стартового уровня прокачки.
+  const displayLv =
+    upgradeLevel != null && upgradeLevel >= 1
+      ? upgradeLevel
+      : c.kind === "creature" && isUpgradeableCard(c.id)
+        ? defaultUpgradeLevel(c.id)
+        : null;
+  const statBonus =
+    displayLv != null && liveAttack == null && liveHealth == null
+      ? upgradeStatBonus(c.id, displayLv)
+      : { atk: 0, hp: 0 };
+  const baseAtk = (c.attack ?? 0) + statBonus.atk;
+  const baseHp = (c.health ?? 0) + statBonus.hp;
+  const atk = liveAttack ?? baseAtk;
+  const hp = liveHealth ?? baseHp;
+  const fullHp = maxHealth ?? baseHp;
+  const fullAtk = maxAttack ?? baseAtk;
   const pattern = (c.attackPattern ?? "melee") as AttackPattern;
   const manaCost = manaCostOverride ?? c.manaCost ?? {};
   const interactive = Boolean(onClick) && !(locked && !onClick);

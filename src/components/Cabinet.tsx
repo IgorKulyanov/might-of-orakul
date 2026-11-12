@@ -9,6 +9,10 @@ import {
   sortCatalogCards,
 } from "../game/cards";
 import {
+  getCardUpgradeLevel,
+  isUpgradeableCard,
+} from "../game/cardUpgrades";
+import {
   activeDeck,
   activeHeroId,
   isUnlocked,
@@ -395,7 +399,16 @@ export function Cabinet({
                       onDragEnd={() => setDragOver(null)}
                       title="Убрать одну копию из колоды"
                     >
-                      <CardView card={card} compact flippable />
+                      <CardView
+                        card={card}
+                        compact
+                        flippable
+                        upgradeLevel={
+                          isUpgradeableCard(card.id)
+                            ? getCardUpgradeLevel(owned, card.id)
+                            : null
+                        }
+                      />
                       <div className="cabinet-card-meta">
                         <strong>{card.name}</strong>
                         <span className="badge-in-deck">
@@ -471,7 +484,16 @@ export function Cabinet({
                     onDragEnd={() => setDragOver(null)}
                     title="Добавить копию в колоду"
                   >
-                    <CardView card={card} compact flippable />
+                    <CardView
+                      card={card}
+                      compact
+                      flippable
+                      upgradeLevel={
+                        isUpgradeableCard(card.id)
+                          ? getCardUpgradeLevel(owned, card.id)
+                          : null
+                      }
+                    />
                     <div className="cabinet-card-meta">
                       <strong>{card.name}</strong>
                       <span
