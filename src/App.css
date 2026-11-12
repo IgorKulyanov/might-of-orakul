@@ -5468,11 +5468,6 @@ html.is-hand-dragging .grave-row {
   gap: 0.35rem;
 }
 
-.shop-shard-gain {
-  font-weight: 700;
-  opacity: 0.9;
-}
-
 .shop-meta.is-price-locked .primary,
 .shop-meta.is-price-locked .ghost {
   opacity: 0.4;

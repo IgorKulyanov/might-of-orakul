@@ -525,6 +525,14 @@ export function applyShopBuy(owned, cardId, currency) {
   if (upgrades[cardId] == null) upgrades[cardId] = 1;
   owned.cardUpgrades = upgrades;
 
+  // Ценник = 1 осколок: открытие карты тоже сразу даёт осколок.
+  const openShards =
+    owned.cardShards && typeof owned.cardShards === "object"
+      ? { ...owned.cardShards }
+      : {};
+  openShards[cardId] = (Math.floor(Number(openShards[cardId])) || 0) + 1;
+  owned.cardShards = openShards;
+
   // Автоматически в активную колоду, если есть место.
   const DECK_SIZE = 12;
   const decks =

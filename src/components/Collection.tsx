@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CardView } from "./CardView";
 import {
   CARDS,
@@ -201,8 +201,11 @@ export function Collection({
     say(`«${CARDS.find((c) => c.id === id)?.name ?? id}» → ур.${getCardUpgradeLevel(res.owned, id)}`);
   };
 
-  /** Золото / алмазы под картой: сразу обмен на осколки (или первая покупка в оракул). Без confirm. */
+  const shopBusy = useRef(false);
+
+  /** Золото / алмазы: в оракул (+осколок) или докупка осколка. Без confirm, без гонки кликов. */
   const buy = (id: string, withDiamonds = false) => {
+    if (shopBusy.current) return;
     const card = CARDS.find((c) => c.id === id);
     if (!card) return;
     const lv = playerLevel(owned);
@@ -259,19 +262,20 @@ export function Collection({
     kind: "card" | "shards",
     shardN: number,
   ) => {
+    if (shopBusy.current) return;
+    shopBusy.current = true;
     const cardName =
       CARDS.find((c) => c.id === cardId)?.name ?? cardId;
     const before = owned;
-    // Сразу двигаем счётчик осколков / кошелёк — не ждём сеть.
     const optimistic = localBuy();
     onChange(optimistic);
     say(
       kind === "shards"
         ? `«${cardName}» +${shardN} осколок`
-        : `«${cardName}» теперь в оракуле`,
+        : `«${cardName}» в оракуле · +${shardN} осколок`,
     );
-    if (!authToken) return;
     try {
+      if (!authToken) return;
       const { user } = await apiShopBuy(authToken, cardId, currency);
       if (!user.owned) {
         onChange(before);
@@ -291,6 +295,8 @@ export function Collection({
     } catch (e) {
       onChange(before);
       alert(e instanceof Error ? e.message : "Покупка не прошла");
+    } finally {
+      shopBusy.current = false;
     }
   };
 
@@ -515,19 +521,13 @@ export function Collection({
                         locked
                           ? `С ${needLv} ур.`
                           : canBuyShards
-                            ? `Золото → +${shardsPerShopBuy(c.id)} осколок`
+                            ? `Купить ${shardsPerShopBuy(c.id)} осколок за золото`
                             : showPrice
-                              ? "Купить в оракул"
+                              ? "В оракул + 1 осколок"
                               : "Максимум"
                       }
                     >
                       <GameIcon name="gold" size={14} /> {c.priceGold}
-                      {canBuyShards ? (
-                        <span className="shop-shard-gain">
-                          {" "}
-                          +{shardsPerShopBuy(c.id)}
-                        </span>
-                      ) : null}
                     </button>
                     <button
                       type="button"
@@ -543,20 +543,14 @@ export function Collection({
                         locked
                           ? `С ${needLv} ур.`
                           : canBuyShards
-                            ? `Алмазы → +${shardsPerShopBuy(c.id)} осколок`
+                            ? `Купить ${shardsPerShopBuy(c.id)} осколок за алмазы`
                             : showPrice
-                              ? "Купить в оракул"
+                              ? "В оракул + 1 осколок"
                               : "Максимум"
                       }
                     >
                       <GameIcon name="diamond" size={14} />{" "}
                       {c.priceDiamonds ?? 0}
-                      {canBuyShards ? (
-                        <span className="shop-shard-gain">
-                          {" "}
-                          +{shardsPerShopBuy(c.id)}
-                        </span>
-                      ) : null}
                     </button>
                   </div>
                 </div>

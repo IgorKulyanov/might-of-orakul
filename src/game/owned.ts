@@ -681,10 +681,9 @@ export function buyCardWithGold(
   const price = card.priceGold ?? 0;
   const gold = owned.gold ?? 0;
   if (gold < price) return owned;
-  const next = addOwnedCopy(
-    { ...owned, gold: gold - price },
-    cardId,
-  );
+  // Ценник = осколок: первая покупка открывает карту и сразу даёт осколок.
+  let next = addOwnedCopy({ ...owned, gold: gold - price }, cardId);
+  next = grantCardShards(next, cardId, shardsPerShopBuy(cardId));
   saveOwned(next);
   return next;
 }
@@ -698,10 +697,11 @@ export function buyCardWithDiamonds(
   if (!canBuyAnotherCopy(owned, cardId)) return owned;
   const dia = owned.diamonds ?? 0;
   if (dia < card.priceDiamonds) return owned;
-  const next = addOwnedCopy(
+  let next = addOwnedCopy(
     { ...owned, diamonds: dia - card.priceDiamonds },
     cardId,
   );
+  next = grantCardShards(next, cardId, shardsPerShopBuy(cardId));
   saveOwned(next);
   return next;
 }
