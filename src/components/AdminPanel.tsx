@@ -6,6 +6,7 @@ import {
   apiAdminMute,
   apiAdminPing,
   apiAdminResetCampaign,
+  apiAdminWipeOwned,
   apiAdminStats,
   apiAdminUnmute,
   apiAdminUsers,
@@ -204,6 +205,32 @@ export function AdminPanel({ open, onClose }: Props) {
     }
   };
 
+  const doWipeOwned = async () => {
+    if (!key) return;
+    const login = actionLogin.trim();
+    if (!login) {
+      setStatus("Укажи логин");
+      return;
+    }
+    if (
+      !window.confirm(
+        `ПОЛНЫЙ СБРОС «${login}»?\n\nУровень 1, пустой кейс, школа с нуля. Необратимо.\n\nДа — сбросить. Нет — отмена.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await apiAdminWipeOwned(key, login);
+      setStatus(res.message);
+      await refresh(key);
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "Ошибка");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="community-overlay" role="dialog" aria-label="Админка">
       <div className="community-panel admin-panel">
@@ -372,10 +399,18 @@ export function AdminPanel({ open, onClose }: Props) {
                 >
                   Сбросить кампанию
                 </button>
+                <button
+                  type="button"
+                  className="ghost"
+                  disabled={busy || !actionLogin.trim()}
+                  onClick={() => void doWipeOwned()}
+                >
+                  Полный сброс
+                </button>
               </div>
               <p className="hint">
-                Обе кнопки спрашивают «да / нет». Кампания сбросится у игрока
-                при следующем входе.
+                Кнопки спрашивают «да / нет». Полный сброс: ур.1, пустой кейс,
+                выбор школы заново — при следующем входе.
               </p>
             </section>
 
@@ -514,6 +549,7 @@ export function AdminPanel({ open, onClose }: Props) {
                         : ""}
                       {u.pvpBanned ? " · бан PvP" : ""}
                       {u.pendingResetCampaign ? " · сброс тропы" : ""}
+                      {u.pendingWipeOwned ? " · полный сброс" : ""}
                     </strong>
                     <span className="inline-icos">
                       {u.displayName || "—"} · ур.{u.level} · {u.gold}{" "}

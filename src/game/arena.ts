@@ -129,6 +129,13 @@ export function saveArena(state: ArenaState): void {
   }
 }
 
+/** Полный сброс арены (админ-wipe). */
+export function resetArenaProgress(): ArenaState {
+  const next = freshArena();
+  saveArena(next);
+  return next;
+}
+
 export function refreshArenaDay(state: ArenaState): ArenaState {
   const next = normalizeArena(state);
   saveArena(next);

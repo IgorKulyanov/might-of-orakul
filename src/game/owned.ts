@@ -450,6 +450,16 @@ export function backupOwnedForLogin(login: string, state: OwnedState): void {
   }
 }
 
+export function clearOwnedBackup(login: string): void {
+  const key = login.trim().toLowerCase();
+  if (!key) return;
+  try {
+    localStorage.removeItem(`${OWNED_BACKUP_PREFIX}${key}`);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function loadOwnedBackup(login: string): OwnedState | null {
   const key = login.trim().toLowerCase();
   if (!key) return null;

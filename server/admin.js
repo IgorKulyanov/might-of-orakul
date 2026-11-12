@@ -369,6 +369,61 @@ export function mountAdminRoutes(app, deps) {
     },
   );
 
+  /** Полный сброс прогресса: ур.1, пустой кейс, старт заново. */
+  app.post(
+    "/api/admin/wipe-owned",
+    adminAuth,
+    rateLimitMiddleware({ name: "admin-wipe-owned", maxN: 20, windowMs: 60_000 }),
+    async (req, res) => {
+      try {
+        const login = String(req.body?.login || "").trim();
+        if (!login) {
+          res.status(400).json({ error: "Укажи логин" });
+          return;
+        }
+        const blankOwned = {
+          unlocked: [],
+          collection: {},
+          decks: { starter: [] },
+          activeDeckId: "starter",
+          heroId: "hero_life",
+          gold: 500,
+          diamonds: 25,
+          level: 1,
+          xp: 0,
+          purchased: [],
+          unlockedHeroes: [],
+          cardUpgrades: {},
+          cardShards: {},
+        };
+        const result = await withDb((db) => {
+          const user = findUser(db, login);
+          if (!user) return { missing: true };
+          user.owned = blankOwned;
+          user.heroId = null;
+          user.pendingGrants = { gold: 0, diamonds: 0, cards: [] };
+          user.pendingWipeOwned = true;
+          user.pendingResetCampaign = true;
+          persistLiveDb();
+          return { login: user.login, displayName: user.displayName ?? null };
+        });
+        if (result.missing) {
+          res.status(404).json({ error: "Игрок не найден" });
+          return;
+        }
+        res.json({
+          ok: true,
+          message: `Сброс прогресса: ${result.login}${
+            result.displayName ? ` (${result.displayName})` : ""
+          } — применится при входе/обновлении`,
+        });
+      } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: "Не удалось сбросить прогресс" });
+      }
+    },
+  );
+
   app.get("/api/admin/users", adminAuth, (req, res) => {
     const q = String(req.query?.q || "")
       .trim()
@@ -404,6 +459,7 @@ export function mountAdminRoutes(app, deps) {
         pvpBanned: banUntil > now,
         pvpBannedUntil: banUntil > now ? banUntil : null,
         pendingResetCampaign: Boolean(u.pendingResetCampaign),
+        pendingWipeOwned: Boolean(u.pendingWipeOwned),
       };
     });
     res.json({ users: out });

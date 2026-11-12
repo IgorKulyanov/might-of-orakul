@@ -77,6 +77,7 @@ export type ApiUser = {
   lastLoginAt?: string | null;
   dormant?: boolean;
   pendingResetCampaign?: boolean;
+  pendingWipeOwned?: boolean;
   pendingClearPvpBan?: boolean;
   pvpFlee?: {
     day: string;
@@ -226,6 +227,7 @@ export function apiUpdateMe(
     heroId?: string;
     owned?: OwnedState;
     clearPendingResetCampaign?: boolean;
+    clearPendingWipeOwned?: boolean;
     clearPendingClearPvpBan?: boolean;
     pvpFlee?: {
       day: string;
@@ -532,6 +534,17 @@ export function apiAdminClearPvpBan(adminKey: string, login: string) {
 export function apiAdminResetCampaign(adminKey: string, login: string) {
   return adminRequest<{ ok: boolean; message: string }>(
     "/api/admin/reset-campaign",
+    {
+      method: "POST",
+      adminKey,
+      body: JSON.stringify({ login }),
+    },
+  );
+}
+
+export function apiAdminWipeOwned(adminKey: string, login: string) {
+  return adminRequest<{ ok: boolean; message: string }>(
+    "/api/admin/wipe-owned",
     {
       method: "POST",
       adminKey,

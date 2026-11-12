@@ -32,6 +32,7 @@ import {
   arenaModsForRound,
   loadArena,
   refreshArenaDay,
+  resetArenaProgress,
   resetArenaRun,
   type ArenaState,
 } from "./game/arena";
@@ -73,6 +74,7 @@ import {
   backupOwnedForLogin,
   claimDailyQuest,
   clearActiveOwned,
+  clearOwnedBackup,
   hasOwnedProgress,
   loadOwned,
   loadOwnedBackup,
@@ -347,11 +349,12 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
   return next;
 }
 
-/** Админ-флаги с сервера: сброс тропы / снятие бана PvP. */
+/** Админ-флаги с сервера: полный wipe / сброс тропы / снятие бана PvP. */
 async function applyServerAdminFlags(
   token: string,
   user: ApiUser,
   setCampaignState: (c: CampaignState) => void,
+  setArenaState?: (a: ArenaState) => void,
 ): Promise<ApiUser> {
   const patch: Parameters<typeof apiUpdateMe>[1] = {};
   if (user.pendingClearPvpBan) {
@@ -360,7 +363,14 @@ async function applyServerAdminFlags(
   } else if (user.pvpFlee) {
     syncPvpFleeFromServer(user.pvpFlee);
   }
-  if (user.pendingResetCampaign) {
+  if (user.pendingWipeOwned) {
+    clearActiveOwned();
+    if (user.login) clearOwnedBackup(user.login);
+    setCampaignState(resetCampaignProgress());
+    setArenaState?.(resetArenaProgress());
+    patch.clearPendingWipeOwned = true;
+    patch.clearPendingResetCampaign = true;
+  } else if (user.pendingResetCampaign) {
     setCampaignState(resetCampaignProgress());
     patch.clearPendingResetCampaign = true;
   }
@@ -521,6 +531,7 @@ export default function App() {
             res.token,
             res.user,
             setCampaign,
+            setArena,
           );
           setUser(flagged);
           setOwned(mergeOwnedFromServer(flagged));
@@ -544,6 +555,7 @@ export default function App() {
           existing,
           me,
           setCampaign,
+          setArena,
         );
         updateCachedUser(flagged);
         setUser(flagged);
@@ -745,7 +757,7 @@ export default function App() {
     setToken(t);
     unlockSfx();
     void (async () => {
-      const flagged = await applyServerAdminFlags(t, u, setCampaign);
+      const flagged = await applyServerAdminFlags(t, u, setCampaign, setArena);
       setUser(flagged);
       const next = mergeOwnedFromServer(flagged);
       setOwned(next);

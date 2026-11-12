@@ -386,6 +386,7 @@ function publicUser(u) {
     lastLoginAt: u.lastLoginAt ?? null,
     dormant: Boolean(u.dormant),
     pendingResetCampaign: Boolean(u.pendingResetCampaign),
+    pendingWipeOwned: Boolean(u.pendingWipeOwned),
     pendingClearPvpBan: Boolean(u.pendingClearPvpBan),
     pvpFlee: u.pvpFlee
       ? {
@@ -941,11 +942,17 @@ app.put(
           const h = sanitizeHeroId(body.heroId);
           if (h) user.heroId = h;
         }
+        if (body.clearPendingWipeOwned) {
+          user.pendingWipeOwned = false;
+        }
         if (body.owned && typeof body.owned === "object") {
-          user.owned = sanitizeOwned(body.owned, user.owned);
-          if (user.owned?.heroId) {
-            const h = sanitizeHeroId(user.owned.heroId);
-            if (h) user.heroId = h;
+          // Пока висит полный сброс — не принимать старый локальный прогресс обратно.
+          if (!user.pendingWipeOwned) {
+            user.owned = sanitizeOwned(body.owned, user.owned);
+            if (user.owned?.heroId) {
+              const h = sanitizeHeroId(user.owned.heroId);
+              if (h) user.heroId = h;
+            }
           }
         }
         if (body.clearPendingResetCampaign) {
