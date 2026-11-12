@@ -407,6 +407,8 @@ export function mountAdminRoutes(app, deps) {
           const saved = pushOwnedSnapshot(user, "before-wipe");
           user.owned = blankOwned;
           user.heroId = null;
+          // Ник тоже сбрасываем — иначе «старый герой» визуально остаётся в шапке.
+          user.displayName = null;
           user.pendingGrants = { gold: 0, diamonds: 0, cards: [] };
           user.pendingWipeOwned = true;
           user.pendingResetCampaign = true;

@@ -976,6 +976,8 @@ app.put(
         if (body.clearPendingWipeOwned) {
           user.pendingWipeOwned = false;
           user.heroId = null;
+          // На всякий случай не оставляем старый ник после wipe.
+          if (!user.owned?.homeFaction) user.displayName = null;
         }
         if (body.clearPendingResetCampaign) {
           user.pendingResetCampaign = false;

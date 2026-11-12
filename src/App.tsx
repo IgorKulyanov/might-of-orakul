@@ -216,22 +216,32 @@ function forceBlankFromServerWipe(user: ApiUser): OwnedState {
 }
 
 function mergeOwnedFromServer(user: ApiUser): OwnedState {
-  const backup = user.login ? loadOwnedBackup(user.login) : null;
-  const localRaw = loadOwned();
   const wipeId = Math.max(0, Math.floor(Number(user.ownedWipeId) || 0));
   const wipeSeen = user.login ? readWipeSeen(user.login) : 0;
-  // Новый wipe с сервера — полный локальный сброс (уровень, кейс, осколки).
-  // После «отката из снимка» на сервере снова есть школа/прогресс — не затираем.
   const serverHasProgress =
     Boolean(user.owned?.homeFaction) ||
     hasOwnedProgress(user.owned as OwnedState);
-  if (
-    user.pendingWipeOwned ||
-    (wipeId > 0 && wipeId > wipeSeen && !serverHasProgress)
-  ) {
+  // Любой wipe: пока на сервере нет школы/прогресса — чистый лист.
+  // Нельзя поднимать старый локальный/бэкап (ПК и телефон откатывали wipe).
+  if (user.pendingWipeOwned || (wipeId > 0 && !serverHasProgress)) {
     return forceBlankFromServerWipe(user);
   }
-  if (user.login && wipeId > wipeSeen) writeWipeSeen(user.login, wipeId);
+  // Wipe уже применён на сервере, тут ещё старый сейв — выкинуть локальное.
+  const dropStaleLocal = Boolean(user.login) && wipeId > 0 && wipeId > wipeSeen;
+  if (dropStaleLocal && user.login) {
+    clearOwnedBackup(user.login);
+    clearActiveOwned();
+    writeWipeSeen(user.login, wipeId);
+  } else if (user.login && wipeId > wipeSeen) {
+    writeWipeSeen(user.login, wipeId);
+  }
+
+  const backup = dropStaleLocal
+    ? null
+    : user.login
+      ? loadOwnedBackup(user.login)
+      : null;
+  const localRaw = dropStaleLocal ? blankOnboardingOwned() : loadOwned();
 
   // Новый/пустой аккаунт: не тянуть чужой локальный сейв с этого ПК
   // и не угадывать школу по hero_life по умолчанию.
@@ -239,12 +249,20 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
     // Сервер уже знает школу — не сбрасывать в blank (это возвращало 500 зол.).
     if (user.owned?.homeFaction || hasOwnedProgress(user.owned as OwnedState)) {
       /* fall through to normal merge */
-    } else if (backup?.homeFaction && hasOwnedProgress(backup)) {
-      // Восстановление после сброса сервера — свой бэкап по логину
+    } else if (
+      // Только если аккаунт НИКОГДА не вайпили — иначе wipe снова «оживёт».
+      wipeId <= 0 &&
+      backup?.homeFaction &&
+      hasOwnedProgress(backup)
+    ) {
       const restored = { ...backup };
       saveOwned(restored);
       return restored;
-    } else if (localRaw.homeFaction && hasOwnedProgress(localRaw)) {
+    } else if (
+      wipeId <= 0 &&
+      localRaw.homeFaction &&
+      hasOwnedProgress(localRaw)
+    ) {
       saveOwned(localRaw);
       return localRaw;
     } else {
@@ -287,6 +305,12 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
           }
         : localRaw;
   const serverOwned = user.owned;
+  // После wipe сервер — источник правды по герою/уровню/школе.
+  const serverLeads =
+    dropStaleLocal ||
+    (wipeId > 0 &&
+      Boolean(serverOwned?.homeFaction) &&
+      local.homeFaction !== serverOwned?.homeFaction);
   // Оракул/эпики/кейсы — локальный сейв главнее: иначе после покупки эпика
   // сервер со старым heroId откатывал облик на базового.
   // Эпики только с сервера (касса); без сервера — локальный сейв.
@@ -305,29 +329,36 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
   const serverHero =
     user.heroId ?? serverOwned?.heroId ?? null;
   const localHero = local.heroId ?? null;
-  // Локальный сейв главнее, НО если раса разошлась с аккаунтом на сервере —
-  // это след бага «угадай расу по кейсу»; тогда верим серверу/аккаунту.
-  let heroId =
-    localHero && localHero !== "hero_life"
-      ? localHero
-      : (serverHero ?? localHero ?? "hero_life");
-  if (
-    serverHero &&
-    localHero &&
-    getHeroSafeFaction(serverHero) !== getHeroSafeFaction(localHero) &&
-    // Пустой аккаунт после wipe сервера не должен сбрасывать локальную расу
-    (Number(serverOwned?.level) || 1) > 1
-  ) {
-    heroId = serverHero;
+  let heroId: string;
+  if (serverLeads) {
+    heroId = serverHero ?? localHero ?? "hero_life";
+  } else {
+    // Локальный сейв главнее, НО если раса разошлась с аккаунтом на сервере —
+    // это след бага «угадай расу по кейсу»; тогда верим серверу/аккаунту.
+    heroId =
+      localHero && localHero !== "hero_life"
+        ? localHero
+        : (serverHero ?? localHero ?? "hero_life");
+    if (
+      serverHero &&
+      localHero &&
+      getHeroSafeFaction(serverHero) !== getHeroSafeFaction(localHero) &&
+      (Number(serverOwned?.level) || 1) > 1
+    ) {
+      heroId = serverHero;
+    }
   }
   // homeFaction только явный (свой/сервер) — НЕ выводить из hero_life по умолчанию
-  const homeFaction =
-    local.homeFaction ??
-    serverOwned?.homeFaction ??
-    (serverHero ? getHeroSafeFaction(serverHero) : undefined) ??
-    (localHero && localHero !== "hero_life"
-      ? getHeroSafeFaction(localHero)
-      : undefined);
+  const homeFaction = serverLeads
+    ? (serverOwned?.homeFaction ??
+      (serverHero ? getHeroSafeFaction(serverHero) : undefined) ??
+      local.homeFaction)
+    : (local.homeFaction ??
+      serverOwned?.homeFaction ??
+      (serverHero ? getHeroSafeFaction(serverHero) : undefined) ??
+      (localHero && localHero !== "hero_life"
+        ? getHeroSafeFaction(localHero)
+        : undefined));
   if (!homeFaction) {
     return blankOnboardingOwned();
   }
@@ -342,7 +373,7 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
       const v = Math.max(0, Math.floor(Number(n) || 0));
       if (v > 0) collection[id] = v;
     }
-  } else {
+  } else if (!serverLeads) {
     for (const [id, n] of Object.entries(local.collection ?? {})) {
       const v = Math.max(0, Math.floor(Number(n) || 0));
       if (v > 0) collection[id] = v;
@@ -350,16 +381,28 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
   }
   const unlocked = [
     ...new Set([
-      ...(serverOwned?.unlocked ?? local.unlocked ?? []),
+      ...(serverOwned?.unlocked ?? (serverLeads ? [] : local.unlocked) ?? []),
       ...Object.keys(collection),
     ]),
   ];
   const purchased = [
-    ...new Set([
-      ...(serverOwned?.purchased ?? local.purchased ?? []),
-    ]),
+    ...new Set([...(serverOwned?.purchased ?? (serverLeads ? [] : local.purchased) ?? [])]),
   ];
-  const decks = richerDecks(local.decks, serverOwned?.decks);
+  const decks = serverLeads
+    ? richerDecks(serverOwned?.decks, { starter: [] })
+    : richerDecks(local.decks, serverOwned?.decks);
+  const serverLevel = Math.max(1, Number(serverOwned?.level) || 1);
+  const localLevel = Math.max(1, Number(local.level) || 1);
+  const level = serverLeads
+    ? serverLevel
+    : serverOwned != null
+      ? Math.max(serverLevel, localLevel)
+      : localLevel;
+  const xp = serverLeads
+    ? (serverOwned?.xp ?? 0)
+    : serverOwned?.level && serverOwned.level > (local.level ?? 1)
+      ? (serverOwned.xp ?? local.xp)
+      : (local.xp ?? serverOwned?.xp);
   const merged: OwnedState = {
     ...local,
     // Валюта: сервер главнее (покупки/штрафы). Награды боя уходят PUT-ом до релогина.
@@ -371,13 +414,8 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
       serverOwned != null && serverOwned.diamonds != null
         ? Math.max(0, Number(serverOwned.diamonds) || 0)
         : Math.max(0, Number(local.diamonds) || 0),
-    level: Math.max(
-      Number(serverOwned?.level) || 1,
-      Number(local.level) || 1,
-    ),
-    xp: serverOwned?.level && serverOwned.level > (local.level ?? 1)
-      ? (serverOwned.xp ?? local.xp)
-      : (local.xp ?? serverOwned?.xp),
+    level,
+    xp,
     heroId,
     homeFaction,
     unlockedHeroes,
@@ -385,7 +423,15 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
     purchased,
     collection,
     decks,
-    activeDeckId: local.activeDeckId ?? serverOwned?.activeDeckId ?? "starter",
+    cardUpgrades: serverLeads
+      ? (serverOwned?.cardUpgrades ?? {})
+      : (local.cardUpgrades ?? serverOwned?.cardUpgrades ?? {}),
+    cardShards: serverLeads
+      ? (serverOwned?.cardShards ?? {})
+      : (local.cardShards ?? serverOwned?.cardShards ?? {}),
+    activeDeckId: serverLeads
+      ? (serverOwned?.activeDeckId ?? "starter")
+      : (local.activeDeckId ?? serverOwned?.activeDeckId ?? "starter"),
   };
   const next = setHero(merged, heroId);
   saveOwned(next);
@@ -407,8 +453,14 @@ async function applyServerAdminFlags(
   } else if (user.pvpFlee) {
     syncPvpFleeFromServer(user.pvpFlee);
   }
-  if (user.pendingWipeOwned) {
-    // Не пишем wipeSeen здесь — только после forceBlank в merge, иначе Math.max вернёт ур.
+  const wipeId = Math.max(0, Math.floor(Number(user.ownedWipeId) || 0));
+  const wipeSeen = user.login ? readWipeSeen(user.login) : 0;
+  const serverBlank =
+    !user.owned?.homeFaction &&
+    !(user.owned && hasOwnedProgress(user.owned as OwnedState));
+  // pendingWipe ИЛИ уже очищенный сервер при новом wipeId — снести локальное на этом устройстве.
+  if (user.pendingWipeOwned || (wipeId > 0 && wipeId > wipeSeen && serverBlank)) {
+    // wipeSeen пишем только в forceBlank/merge — иначе Math.max вернёт ур.
     clearActiveOwned();
     if (user.login) clearOwnedBackup(user.login);
     try {
@@ -427,8 +479,12 @@ async function applyServerAdminFlags(
     clearActiveOwned();
     setCampaignState(resetCampaignProgress());
     setArenaState?.(resetArenaProgress());
-    patch.clearPendingWipeOwned = true;
-    patch.clearPendingResetCampaign = true;
+    if (user.pendingWipeOwned) {
+      patch.clearPendingWipeOwned = true;
+      patch.clearPendingResetCampaign = true;
+    } else if (user.pendingResetCampaign) {
+      patch.clearPendingResetCampaign = true;
+    }
   } else if (user.pendingResetCampaign) {
     setCampaignState(resetCampaignProgress());
     patch.clearPendingResetCampaign = true;
