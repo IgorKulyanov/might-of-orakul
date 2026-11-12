@@ -192,8 +192,8 @@ function checkPlayer(tag: string, p: PlayerState, fails: QaFail[]): void {
   if (p.slots.length !== 5) {
     fails.push({ area: "инвариант", detail: `${tag}: слотов ${p.slots.length}, надо 5` });
   }
-  if (p.hand.length > 7) {
-    fails.push({ area: "инвариант", detail: `${tag}: рука ${p.hand.length} > 7` });
+  if (p.hand.length > 5) {
+    fails.push({ area: "инвариант", detail: `${tag}: рука ${p.hand.length} > 5` });
   }
   for (const f of FACTIONS) {
     const n = p.mana[f];

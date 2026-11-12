@@ -883,6 +883,9 @@ export function createBattle(
   return battle;
 }
 
+/** Лимит руки: при крутящейся колоде 7 жирно, 5 — выбор без голода. */
+export const MAX_HAND_SIZE = 5;
+
 /** После стольких циклов ходов (turn > N) начинается буйство крови. */
 export const BLOOD_FRENZY_AFTER_TURNS = 20;
 
@@ -949,8 +952,8 @@ function draw(p: PlayerState, n = 1, state?: BattleState): void {
       continue;
     }
     }
-    // Рука полна (7) → карта с колоды сгорает в грейв, в руке не появляется
-    if (p.hand.length >= 7) {
+    // Рука полна → карта с колоды сгорает в грейв, в руке не появляется
+    if (p.hand.length >= MAX_HAND_SIZE) {
       const burned = p.deck.shift()!;
       p.graveyard.push(burned);
       if (state) {
@@ -2247,7 +2250,7 @@ function applySpellEffects(
           );
           break;
         }
-        if (foe.hand.length >= 7) {
+        if (foe.hand.length >= MAX_HAND_SIZE) {
           log.unshift(`${caster.name}: рука врага полна — карта в сброс`);
           foe.graveyard.push(u.cardId);
         } else {
@@ -2465,7 +2468,7 @@ function applySpellEffects(
         foe.slots[targetSlot] = null;
         syncBoardAuras(foe, log);
         clearBondsForUnit(state, u.uid);
-        if (caster.hand.length >= 7) {
+        if (caster.hand.length >= MAX_HAND_SIZE) {
           caster.graveyard.push(id);
           log.unshift(
             `${caster.name}: предатель — рука полна, ${getCard(id).name} в сброс`,
@@ -4857,7 +4860,7 @@ function aiScoreSpell(
         break;
       }
       case "draw":
-        score += me.hand.length >= 6 ? 1 : 5 + eff.amount * 3;
+        score += me.hand.length >= MAX_HAND_SIZE - 1 ? 1 : 5 + eff.amount * 3;
         break;
       case "refresh_hand": {
         const n = me.hand.length;
