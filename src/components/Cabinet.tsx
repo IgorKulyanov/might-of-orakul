@@ -72,10 +72,11 @@ function GemTitle({ text }: { text: string }) {
       {[...text].map((ch, i) => (
         <span
           key={`${ch}-${i}`}
-          className={`oracle-gem-letter is-gem-${(i % 5) + 1}`}
-          style={{ animationDelay: `${i * 0.08}s` }}
+          className={`oracle-gem-bezel is-gem-${(i % 5) + 1}`}
+          style={{ animationDelay: `${i * 0.07}s` }}
         >
-          {ch === " " ? "\u00a0" : ch}
+          <span className="oracle-gem-facet" aria-hidden="true" />
+          <span className="oracle-gem-letter">{ch === " " ? "\u00a0" : ch}</span>
         </span>
       ))}
     </h2>
@@ -583,21 +584,28 @@ export function Cabinet({
             onDragLeave={() => setDragOver((z) => (z === "case" ? null : z))}
             onDrop={onDropToCase}
           >
-            <header className="oracle-book-head">
-              <GemTitle text="ОРАКУЛ" />
-              <p className="oracle-book-sub">
-                Фолиант карт · {caseCards.length}{" "}
-                {caseCards.length === 1 ? "лист" : "листов"} · закладки школ
-              </p>
-            </header>
-
             <div className="oracle-folio" aria-label="Фолиант оракула">
               <div className="oracle-folio-cover">
-                <div className="oracle-folio-spine" aria-hidden="true" />
+                <div className="oracle-folio-spine" aria-hidden="true">
+                  <span className="oracle-folio-spine-band" />
+                  <span className="oracle-folio-spine-band" />
+                  <span className="oracle-folio-spine-band" />
+                </div>
+                <div className="oracle-folio-clasp" aria-hidden="true" />
                 <div className="oracle-folio-corner oracle-folio-corner-tl" />
                 <div className="oracle-folio-corner oracle-folio-corner-tr" />
                 <div className="oracle-folio-corner oracle-folio-corner-bl" />
                 <div className="oracle-folio-corner oracle-folio-corner-br" />
+
+                <header className="oracle-book-head">
+                  <div className="oracle-title-plaque">
+                    <GemTitle text="ОРАКУЛ" />
+                  </div>
+                  <p className="oracle-book-sub">
+                    Древний фолиант · {caseCards.length}{" "}
+                    {caseCards.length === 1 ? "лист" : "листов"}
+                  </p>
+                </header>
 
                 <nav className="oracle-book-ribbons" aria-label="Школы">
                   {BOOK_SCHOOLS.map((s) => {
@@ -617,7 +625,7 @@ export function Cabinet({
                         title={`${SCHOOL_LABEL[s]} · ${n}`}
                         aria-pressed={on}
                       >
-                        <SchoolBadge school={s} size={13} />
+                        <SchoolBadge school={s} size={12} hideLabel />
                         <span className="oracle-book-ribbon-name">
                           {SCHOOL_LABEL[s]}
                         </span>
@@ -632,14 +640,19 @@ export function Cabinet({
                   className="oracle-book-spread is-flip"
                   data-school={bookSchool}
                 >
+                  <div className="oracle-book-page-edge" aria-hidden="true" />
                   <div className="oracle-book-page">
                     <div className="oracle-book-page-head">
-                      <span className="oracle-book-page-school inline-icos">
-                        <SchoolBadge school={bookSchool} size={16} />{" "}
+                      <span className="oracle-book-page-school">
+                        <SchoolBadge
+                          school={bookSchool}
+                          size={16}
+                          hideLabel
+                        />{" "}
                         {SCHOOL_LABEL[bookSchool]}
                       </span>
                       <span className="oracle-book-page-hint">
-                        Листать по силе
+                        Глава школы
                       </span>
                     </div>
 
@@ -670,7 +683,7 @@ export function Cabinet({
 
                     {bookPageCards.length === 0 ? (
                       <p className="oracle-book-empty">
-                        Пустая страница этой школы
+                        Пустая глава этой школы
                         {bookTier !== "all"
                           ? ` · ${UNIT_TIER_LABEL[bookTier]}`
                           : ""}
@@ -689,7 +702,6 @@ export function Cabinet({
                             inDeck < cap &&
                             deck.length < DECK_SIZE &&
                             have > 0;
-                          const tier = cardBookTier(card);
                           return (
                             <div
                               key={card.id}
@@ -706,7 +718,7 @@ export function Cabinet({
                                   ? () => setDragOver(null)
                                   : undefined
                               }
-                              title="Добавить в колоду"
+                              title={`${card.name} · в колоду`}
                             >
                               <div className="oracle-book-slot-frame">
                                 <CardView
@@ -721,11 +733,6 @@ export function Cabinet({
                                 />
                               </div>
                               <div className="oracle-book-slot-meta">
-                                <strong>{card.name}</strong>
-                                <span className="tier-chip">
-                                  {UNIT_TIER_LABEL[tier].split(" · ")[0]}
-                                  {card.kind === "spell" ? " · маг." : ""}
-                                </span>
                                 <span
                                   className={
                                     inDeck > 0
@@ -734,7 +741,7 @@ export function Cabinet({
                                   }
                                 >
                                   {inDeck > 0
-                                    ? `Колода ×${inDeck}`
+                                    ? `колода ×${inDeck}`
                                     : `×${have}`}
                                 </span>
                                 <div className="cabinet-card-actions">
