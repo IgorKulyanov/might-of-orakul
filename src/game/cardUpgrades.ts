@@ -397,8 +397,9 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
     defaultLevel: 1,
   },
   fire_gopnik: {
-    bonusAtk: [-3, 0, 0],
-    bonusHp: [-2, 0, 0],
+    // JSON = L1 (8/8). Раньше JSON≈L2, а L1 резали до 5/6.
+    bonusAtk: [0, 2, 3],
+    bonusHp: [0, 2, 3],
     abilityFrom: { flame_burn: 3 },
     defaultLevel: 1,
   },

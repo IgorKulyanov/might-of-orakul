@@ -529,7 +529,7 @@
       "attack": 8,
       "health": 8,
       "attackPattern": "ranged",
-      "text": "Ур.1 — слабый ranged.\\nУр.2 — нормальный ranged.\\nУр.3 — при атаке поджигает цель (юнит или героя).",
+      "text": "Ур.1 — ranged 8/8.\\nУр.2 — ranged 10/10.\\nУр.3 — ranged 11/11; при атаке поджигает цель (юнит или героя).",
       "rarity": "common",
       "premium": false,
       "art": "ад/fire_gopnik.jpg",
