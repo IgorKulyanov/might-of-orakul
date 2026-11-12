@@ -154,12 +154,13 @@ function richerDecks(
 
 /** Аккаунт ещё не прошёл создание оракула/ника. */
 function accountNeedsOnboarding(user: ApiUser): boolean {
-  // Уже есть школа на сервере — не гоняем снова на выбор оракула.
-  if (user.owned?.homeFaction || user.owned?.heroId) return false;
-  if (user.heroId && user.displayName) return false;
+  // Школа выбрана — онбординг не нужен. Голый hero_life без homeFaction = после wipe.
+  if (user.owned?.homeFaction) return false;
+  const hero = user.heroId || user.owned?.heroId || null;
+  if (hero && hero !== "hero_life" && user.displayName) return false;
   if (user.needsOnboarding) return true;
   if (!user.displayName) return true;
-  if (!user.heroId && !user.owned?.homeFaction) return true;
+  if (!user.owned?.homeFaction) return true;
   return false;
 }
 
@@ -185,9 +186,52 @@ function blankOnboardingOwned(): OwnedState {
   return next;
 }
 
+function wipeSeenKey(login: string): string {
+  return `orakul-wipe-seen:${login.trim().toLowerCase()}`;
+}
+
+function readWipeSeen(login: string): number {
+  try {
+    return Math.max(0, Math.floor(Number(localStorage.getItem(wipeSeenKey(login))) || 0));
+  } catch {
+    return 0;
+  }
+}
+
+function writeWipeSeen(login: string, id: number): void {
+  try {
+    localStorage.setItem(wipeSeenKey(login), String(Math.max(0, id)));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Админский wipe: не поднимать старый локальный ур./кейсы поверх сервера. */
+function forceBlankFromServerWipe(user: ApiUser): OwnedState {
+  if (user.login) clearOwnedBackup(user.login);
+  const blank = blankOnboardingOwned();
+  saveOwned(blank);
+  if (user.login && user.ownedWipeId) writeWipeSeen(user.login, user.ownedWipeId);
+  return blank;
+}
+
 function mergeOwnedFromServer(user: ApiUser): OwnedState {
   const backup = user.login ? loadOwnedBackup(user.login) : null;
   const localRaw = loadOwned();
+  const wipeId = Math.max(0, Math.floor(Number(user.ownedWipeId) || 0));
+  const wipeSeen = user.login ? readWipeSeen(user.login) : 0;
+  // Новый wipe с сервера — полный локальный сброс (уровень, кейс, осколки).
+  // После «отката из снимка» на сервере снова есть школа/прогресс — не затираем.
+  const serverHasProgress =
+    Boolean(user.owned?.homeFaction) ||
+    hasOwnedProgress(user.owned as OwnedState);
+  if (
+    user.pendingWipeOwned ||
+    (wipeId > 0 && wipeId > wipeSeen && !serverHasProgress)
+  ) {
+    return forceBlankFromServerWipe(user);
+  }
+  if (user.login && wipeId > wipeSeen) writeWipeSeen(user.login, wipeId);
 
   // Новый/пустой аккаунт: не тянуть чужой локальный сейв с этого ПК
   // и не угадывать школу по hero_life по умолчанию.
@@ -366,6 +410,7 @@ async function applyServerAdminFlags(
   if (user.pendingWipeOwned) {
     clearActiveOwned();
     if (user.login) clearOwnedBackup(user.login);
+    if (user.login && user.ownedWipeId) writeWipeSeen(user.login, user.ownedWipeId);
     setCampaignState(resetCampaignProgress());
     setArenaState?.(resetArenaProgress());
     patch.clearPendingWipeOwned = true;

@@ -391,7 +391,6 @@ export function mountAdminRoutes(app, deps) {
           collection: {},
           decks: { starter: [] },
           activeDeckId: "starter",
-          heroId: "hero_life",
           gold: 500,
           diamonds: 25,
           level: 1,
@@ -411,12 +410,14 @@ export function mountAdminRoutes(app, deps) {
           user.pendingGrants = { gold: 0, diamonds: 0, cards: [] };
           user.pendingWipeOwned = true;
           user.pendingResetCampaign = true;
+          user.ownedWipeId = Math.max(0, Math.floor(Number(user.ownedWipeId) || 0)) + 1;
           persistLiveDb();
           return {
             login: user.login,
             displayName: user.displayName ?? null,
             snapshotSaved: saved,
             snapshots: snapshotMeta(user).length,
+            ownedWipeId: user.ownedWipeId,
           };
         });
         if (result.missing) {

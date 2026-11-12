@@ -78,6 +78,8 @@ export type ApiUser = {
   dormant?: boolean;
   pendingResetCampaign?: boolean;
   pendingWipeOwned?: boolean;
+  /** Увеличивается при каждом полном wipe — клиент сбрасывает локальный сейв. */
+  ownedWipeId?: number;
   pendingClearPvpBan?: boolean;
   pvpFlee?: {
     day: string;

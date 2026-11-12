@@ -379,17 +379,20 @@ function publicUser(u) {
     email: maskEmail(u.email),
     emailVerified: verified,
     needsEmailVerify: Boolean(u.email) && !verified,
-    // Школа может жить только в owned — top-level heroId иногда пуст после сбоя синка.
+    // Школа = homeFaction. Голый hero_life без школы — ещё онбординг (после wipe).
     needsOnboarding: !(
       sanitizeDisplayName(u.displayName) &&
-      (u.heroId ||
-        u.owned?.heroId ||
-        u.owned?.homeFaction)
+      (u.owned?.homeFaction ||
+        (u.heroId && u.heroId !== "hero_life") ||
+        (u.owned?.heroId &&
+          u.owned.heroId !== "hero_life" &&
+          u.owned?.homeFaction))
     ),
     lastLoginAt: u.lastLoginAt ?? null,
     dormant: Boolean(u.dormant),
     pendingResetCampaign: Boolean(u.pendingResetCampaign),
     pendingWipeOwned: Boolean(u.pendingWipeOwned),
+    ownedWipeId: Math.max(0, Math.floor(Number(u.ownedWipeId) || 0)),
     pendingClearPvpBan: Boolean(u.pendingClearPvpBan),
     pvpFlee: u.pvpFlee
       ? {
