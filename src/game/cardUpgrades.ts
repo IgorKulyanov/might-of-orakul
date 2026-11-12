@@ -1390,9 +1390,15 @@ function shuffleIds(ids: string[]): string[] {
   return arr;
 }
 
+function playerHasCard(owned: OwnedState, cardId: string): boolean {
+  if ((owned.collection?.[cardId] ?? 0) > 0) return true;
+  return Array.isArray(owned.unlocked) && owned.unlocked.includes(cardId);
+}
+
 /**
- * Победа: N осколков из пула по уровню (не только из своих).
- * Стараемся размазать по разным картам (по 1), пока N не кончится.
+ * Победа: N осколков из пула по уровню.
+ * Сначала свои карты (книга/кейс), потом остальной открытый магазин —
+ * иначе 2–3 дропа тонут в ~27 картах L1 и в магазине «всё на нуле».
  * Бот/тропа/арена: 2–3 · PvP: 3–5. Поражение — не вызывать.
  */
 export function rollBattleWinShards(
@@ -1409,18 +1415,22 @@ export function rollBattleWinShards(
   const pool = shardDropPoolForLevel(level);
   if (!pool.length || total <= 0) return { owned, gains: [] };
 
+  const mine = shuffleIds(pool.filter((id) => playerHasCard(owned, id)));
+  const rest = shuffleIds(pool.filter((id) => !playerHasCard(owned, id)));
+  // Свои первыми, чужие — добор, если своих мало.
+  const order = mine.length ? [...mine, ...rest] : shuffleIds(pool);
+
   const amounts: Record<string, number> = {};
-  const order = shuffleIds(pool);
-  // Сначала по одной на разные карты.
   let left = total;
   for (const id of order) {
     if (left <= 0) break;
     amounts[id] = (amounts[id] ?? 0) + 1;
     left -= 1;
   }
-  // Если осколков больше, чем карт в пуле — докидываем рандомно.
   while (left > 0) {
-    const id = order[Math.floor(Math.random() * order.length)]!;
+    // Лишние — тоже чаще в свои.
+    const bag = mine.length ? mine : order;
+    const id = bag[Math.floor(Math.random() * bag.length)]!;
     amounts[id] = (amounts[id] ?? 0) + 1;
     left -= 1;
   }

@@ -1069,7 +1069,7 @@ export function applyBattleResult(
   let shardGains: Array<{ cardId: string; amount: number; name: string }> =
     [];
   // Осколки только за победу: бот/тропа/арена 2–3, PvP 3–5.
-  // Пул — любые карты тиров, уже открытых уровнем (не только свои).
+  // Пул по уровню; приоритет — карты из книги, иначе открытый магазин.
   if (won && mode !== "dev") {
     const drop = rollBattleWinShards(
       next,

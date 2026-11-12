@@ -853,6 +853,8 @@ export default function App() {
           unlockedHeroes: me.owned.unlockedHeroes ?? next.unlockedHeroes,
           level: me.owned.level ?? next.level,
           xp: me.owned.xp ?? next.xp,
+          cardShards: me.owned.cardShards ?? next.cardShards,
+          cardUpgrades: me.owned.cardUpgrades ?? next.cardUpgrades,
         };
         saveOwned(synced);
         setOwned(synced);

@@ -468,9 +468,8 @@ export function Collection({
                           ? getCardUpgradeLevel(owned, c.id)
                           : 1;
                         const need = shardsNeededForNext(c.id, lv);
-                        const haveSh = inOracle
-                          ? getCardShards(owned, c.id)
-                          : 0;
+                        // Осколки копятся и до покупки — не прячем нули чужим пулом.
+                        const haveSh = getCardShards(owned, c.id);
                         if (need == null) {
                           return (
                             <button
