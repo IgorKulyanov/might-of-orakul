@@ -188,6 +188,48 @@ export function sanitizeOwned(raw, prev) {
     ].slice(0, 50);
   }
 
+  // Прокачка карт: max(клиент, сервер) — телефон с пустым {} не затирает покупки с ПК.
+  {
+    const prevUp =
+      base.cardUpgrades && typeof base.cardUpgrades === "object"
+        ? base.cardUpgrades
+        : {};
+    const nextUp =
+      next.cardUpgrades && typeof next.cardUpgrades === "object"
+        ? next.cardUpgrades
+        : {};
+    const up = {};
+    for (const src of [prevUp, nextUp]) {
+      for (const [k, v] of Object.entries(src)) {
+        const n = Math.floor(Number(v));
+        if (!Number.isFinite(n) || n < 1) continue;
+        const id = String(k).slice(0, 64);
+        up[id] = Math.min(3, Math.max(up[id] || 1, n));
+      }
+    }
+    next.cardUpgrades = up;
+  }
+  {
+    const prevSh =
+      base.cardShards && typeof base.cardShards === "object"
+        ? base.cardShards
+        : {};
+    const nextSh =
+      next.cardShards && typeof next.cardShards === "object"
+        ? next.cardShards
+        : {};
+    const sh = {};
+    for (const src of [prevSh, nextSh]) {
+      for (const [k, v] of Object.entries(src)) {
+        const n = Math.floor(Number(v));
+        if (!Number.isFinite(n) || n <= 0) continue;
+        const id = String(k).slice(0, 64);
+        sh[id] = Math.min(50_000, Math.max(sh[id] || 0, n));
+      }
+    }
+    next.cardShards = sh;
+  }
+
   // Клиент после ложного онбординга шлёт «чистый лист» — не затирать прогресс.
   const prevHome = base.homeFaction;
   const nextHome = next.homeFaction;

@@ -215,6 +215,39 @@ function forceBlankFromServerWipe(user: ApiUser): OwnedState {
   return blank;
 }
 
+/** Слить осколки: по каждой карте берём большее (ПК/телефон не затирают друг друга). */
+function mergeShardMaps(
+  a?: Record<string, number> | null,
+  b?: Record<string, number> | null,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const src of [a, b]) {
+    if (!src || typeof src !== "object") continue;
+    for (const [k, v] of Object.entries(src)) {
+      const n = Math.max(0, Math.floor(Number(v) || 0));
+      if (n <= 0) continue;
+      out[k] = Math.max(out[k] ?? 0, n);
+    }
+  }
+  return out;
+}
+
+function mergeUpgradeMaps(
+  a?: Record<string, number> | null,
+  b?: Record<string, number> | null,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const src of [a, b]) {
+    if (!src || typeof src !== "object") continue;
+    for (const [k, v] of Object.entries(src)) {
+      const n = Math.min(3, Math.max(1, Math.floor(Number(v) || 0)));
+      if (!Number.isFinite(n)) continue;
+      out[k] = Math.max(out[k] ?? 1, n);
+    }
+  }
+  return out;
+}
+
 function mergeOwnedFromServer(user: ApiUser): OwnedState {
   const wipeId = Math.max(0, Math.floor(Number(user.ownedWipeId) || 0));
   const wipeSeen = user.login ? readWipeSeen(user.login) : 0;
@@ -423,12 +456,15 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
     purchased,
     collection,
     decks,
-    cardUpgrades: serverLeads
-      ? (serverOwned?.cardUpgrades ?? {})
-      : (local.cardUpgrades ?? serverOwned?.cardUpgrades ?? {}),
-    cardShards: serverLeads
-      ? (serverOwned?.cardShards ?? {})
-      : (local.cardShards ?? serverOwned?.cardShards ?? {}),
+    // Осколки/кач: max(локаль, сервер) — иначе пустой {} с телефона затирает покупки с ПК.
+    cardUpgrades: mergeUpgradeMaps(
+      serverLeads ? undefined : local.cardUpgrades,
+      serverOwned?.cardUpgrades,
+    ),
+    cardShards: mergeShardMaps(
+      serverLeads ? undefined : local.cardShards,
+      serverOwned?.cardShards,
+    ),
     activeDeckId: serverLeads
       ? (serverOwned?.activeDeckId ?? "starter")
       : (local.activeDeckId ?? serverOwned?.activeDeckId ?? "starter"),
@@ -853,8 +889,11 @@ export default function App() {
           unlockedHeroes: me.owned.unlockedHeroes ?? next.unlockedHeroes,
           level: me.owned.level ?? next.level,
           xp: me.owned.xp ?? next.xp,
-          cardShards: me.owned.cardShards ?? next.cardShards,
-          cardUpgrades: me.owned.cardUpgrades ?? next.cardUpgrades,
+          cardShards: mergeShardMaps(next.cardShards, me.owned.cardShards),
+          cardUpgrades: mergeUpgradeMaps(
+            next.cardUpgrades,
+            me.owned.cardUpgrades,
+          ),
         };
         saveOwned(synced);
         setOwned(synced);
