@@ -12,6 +12,11 @@ import {
 import { getPresenceStats } from "./presence.ts";
 import { getPvpLiveStats } from "./pvpRooms.ts";
 import { LIMITS, sanitizeDisplayName } from "./security.js";
+import {
+  pushOwnedSnapshot,
+  restoreOwnedFromSnapshot,
+  snapshotMeta,
+} from "./ownedSnapshots.js";
 
 function safeEqualStr(a, b) {
   // Сравниваем хеши — длина секрета не светится по early-return.
@@ -399,13 +404,20 @@ export function mountAdminRoutes(app, deps) {
         const result = await withDb((db) => {
           const user = findUser(db, login);
           if (!user) return { missing: true };
+          // Всегда снимок ДО wipe — иначе прогресс не вернуть.
+          const saved = pushOwnedSnapshot(user, "before-wipe");
           user.owned = blankOwned;
           user.heroId = null;
           user.pendingGrants = { gold: 0, diamonds: 0, cards: [] };
           user.pendingWipeOwned = true;
           user.pendingResetCampaign = true;
           persistLiveDb();
-          return { login: user.login, displayName: user.displayName ?? null };
+          return {
+            login: user.login,
+            displayName: user.displayName ?? null,
+            snapshotSaved: saved,
+            snapshots: snapshotMeta(user).length,
+          };
         });
         if (result.missing) {
           res.status(404).json({ error: "Игрок не найден" });
@@ -415,7 +427,10 @@ export function mountAdminRoutes(app, deps) {
           ok: true,
           message: `Сброс прогресса: ${result.login}${
             result.displayName ? ` (${result.displayName})` : ""
-          } — применится при входе/обновлении`,
+          } — применится при входе/обновлении. Снимок для отката: ${
+            result.snapshotSaved ? "сохранён" : "нечего было сохранять"
+          } (${result.snapshots} шт.)`,
+          snapshotSaved: result.snapshotSaved,
         });
       } catch (e) {
         console.error(e);
@@ -423,6 +438,72 @@ export function mountAdminRoutes(app, deps) {
       }
     },
   );
+
+  /** Откат прогресса из серверного снимка (после wipe / сбоя). */
+  app.post(
+    "/api/admin/restore-owned",
+    adminAuth,
+    rateLimitMiddleware({
+      name: "admin-restore-owned",
+      maxN: 20,
+      windowMs: 60_000,
+    }),
+    async (req, res) => {
+      try {
+        const login = String(req.body?.login || "").trim();
+        const index = Math.floor(Number(req.body?.index) || 0);
+        if (!login) {
+          res.status(400).json({ error: "Укажи логин" });
+          return;
+        }
+        const result = await withDb((db) => {
+          const user = findUser(db, login);
+          if (!user) return { missing: true };
+          const restored = restoreOwnedFromSnapshot(user, index);
+          if (!restored.ok) return restored;
+          // Клиент подтянет прогресс при входе (не wipe).
+          user.pendingWipeOwned = false;
+          persistLiveDb();
+          return {
+            login: user.login,
+            displayName: user.displayName ?? null,
+            ...restored,
+            snapshots: snapshotMeta(user),
+          };
+        });
+        if (result.missing) {
+          res.status(404).json({ error: "Игрок не найден" });
+          return;
+        }
+        if (!result.ok) {
+          res.status(400).json({ error: result.error || "Нет снимка" });
+          return;
+        }
+        res.json({
+          ok: true,
+          message: `Откат ${result.login}: ур.${result.level} из снимка ${result.at} (${result.reason}). Игрок — обновить страницу / войти.`,
+          snapshots: result.snapshots,
+        });
+      } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: "Не удалось откатить прогресс" });
+      }
+    },
+  );
+
+  app.get("/api/admin/owned-snapshots", adminAuth, (req, res) => {
+    const login = String(req.query?.login || "").trim();
+    if (!login) {
+      res.status(400).json({ error: "Укажи login" });
+      return;
+    }
+    const user = findUser(getLiveDb(), login);
+    if (!user) {
+      res.status(404).json({ error: "Игрок не найден" });
+      return;
+    }
+    res.json({ login: user.login, snapshots: snapshotMeta(user) });
+  });
 
   app.get("/api/admin/users", adminAuth, (req, res) => {
     const q = String(req.query?.q || "")
@@ -460,6 +541,8 @@ export function mountAdminRoutes(app, deps) {
         pvpBannedUntil: banUntil > now ? banUntil : null,
         pendingResetCampaign: Boolean(u.pendingResetCampaign),
         pendingWipeOwned: Boolean(u.pendingWipeOwned),
+        snapshots: snapshotMeta(u).length,
+        lastSnapshotAt: snapshotMeta(u)[0]?.at ?? null,
       };
     });
     res.json({ users: out });

@@ -553,4 +553,37 @@ export function apiAdminWipeOwned(adminKey: string, login: string) {
   );
 }
 
+export function apiAdminRestoreOwned(
+  adminKey: string,
+  login: string,
+  index = 0,
+) {
+  return adminRequest<{ ok: boolean; message: string }>(
+    "/api/admin/restore-owned",
+    {
+      method: "POST",
+      adminKey,
+      body: JSON.stringify({ login, index }),
+    },
+  );
+}
+
+export function apiAdminOwnedSnapshots(adminKey: string, login: string) {
+  return adminRequest<{
+    login: string;
+    snapshots: Array<{
+      index: number;
+      at: string | null;
+      reason: string | null;
+      level: number | null;
+      gold: number | null;
+      diamonds: number | null;
+      col: number;
+      homeFaction: string | null;
+    }>;
+  }>(`/api/admin/owned-snapshots?login=${encodeURIComponent(login)}`, {
+    adminKey,
+  });
+}
+
 export { API_URL };

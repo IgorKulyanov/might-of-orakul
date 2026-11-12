@@ -33,6 +33,7 @@ import {
   sanitizeOwned,
 } from "./security.js";
 import { applyHeroBuy, applyShopBuy } from "./shopCatalog.js";
+import { maybeAutoSnapshot } from "./ownedSnapshots.js";
 
 const VERIFY_TTL_MS = 15 * 60 * 1000;
 
@@ -95,6 +96,8 @@ function touchSeen(user) {
   if (!user) return;
   user.lastLoginAt = nowIso();
   if (user.dormant) user.dormant = false;
+  // Редкий автоснимок прогресса — страховка от сбоев/ошибочного wipe.
+  maybeAutoSnapshot(user);
 }
 
 /** Админ-поощрения: добить pending поверх owned (после мержа клиента). */

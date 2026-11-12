@@ -7,6 +7,7 @@ import {
   apiAdminPing,
   apiAdminResetCampaign,
   apiAdminWipeOwned,
+  apiAdminRestoreOwned,
   apiAdminStats,
   apiAdminUnmute,
   apiAdminUsers,
@@ -214,7 +215,7 @@ export function AdminPanel({ open, onClose }: Props) {
     }
     if (
       !window.confirm(
-        `ПОЛНЫЙ СБРОС «${login}»?\n\nУровень 1, пустой кейс, школа с нуля. Необратимо.\n\nДа — сбросить. Нет — отмена.`,
+        `ПОЛНЫЙ СБРОС «${login}»?\n\nУровень 1, пустой кейс, школа с нуля.\nПеред сбросом сохранится снимок — откат из админки.\n\nДа — сбросить. Нет — отмена.`,
       )
     ) {
       return;
@@ -222,6 +223,32 @@ export function AdminPanel({ open, onClose }: Props) {
     setBusy(true);
     try {
       const res = await apiAdminWipeOwned(key, login);
+      setStatus(res.message);
+      await refresh(key);
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "Ошибка");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doRestoreOwned = async () => {
+    if (!key) return;
+    const login = actionLogin.trim();
+    if (!login) {
+      setStatus("Укажи логин");
+      return;
+    }
+    if (
+      !window.confirm(
+        `Откатить прогресс «${login}» из последнего серверного снимка?\n\nДа — откатить. Нет — отмена.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await apiAdminRestoreOwned(key, login, 0);
       setStatus(res.message);
       await refresh(key);
     } catch (e) {
@@ -407,10 +434,18 @@ export function AdminPanel({ open, onClose }: Props) {
                 >
                   Полный сброс
                 </button>
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={busy || !actionLogin.trim()}
+                  onClick={() => void doRestoreOwned()}
+                >
+                  Откат из снимка
+                </button>
               </div>
               <p className="hint">
-                Кнопки спрашивают «да / нет». Полный сброс: ур.1, пустой кейс,
-                выбор школы заново — при следующем входе.
+                Полный сброс сначала пишет снимок на сервер. «Откат из снимка»
+                возвращает последний сохранённый прогресс — без потери данных.
               </p>
             </section>
 
@@ -550,6 +585,7 @@ export function AdminPanel({ open, onClose }: Props) {
                       {u.pvpBanned ? " · бан PvP" : ""}
                       {u.pendingResetCampaign ? " · сброс тропы" : ""}
                       {u.pendingWipeOwned ? " · полный сброс" : ""}
+                      {u.snapshots ? ` · снимков ${u.snapshots}` : ""}
                     </strong>
                     <span className="inline-icos">
                       {u.displayName || "—"} · ур.{u.level} · {u.gold}{" "}
