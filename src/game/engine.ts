@@ -2906,11 +2906,9 @@ function clearEchoSpells(state: BattleState): void {
       if (sp.mode === "echo" || sp.kind === "echo") {
         const caster =
           sp.casterSide === "enemy" ? state.enemy : state.you;
-        // Рамп («Доп. мана» / «Камни») после розыгрыша из боя — иначе в колоде
-        // из 4 карт она крутится каждый ход, пока существа стоят на столе.
-        if (!isManaRampCardId(sp.cardId)) {
-          caster.graveyard.push(sp.cardId);
-        }
+        // В т.ч. рамп («Доп. мана» / «Камни») — раньше сжигали из боя,
+        // и в стартовой колоде из 4 карт она вылезала в руку один раз.
+        caster.graveyard.push(sp.cardId);
         continue;
       }
       keep.push(sp);

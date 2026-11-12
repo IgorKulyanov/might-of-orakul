@@ -492,7 +492,7 @@ function shortDeckAndShuffle(fails: QaFail[], ok: string[]): void {
     });
   }
 
-  // Доп. мана в эхе до конца хода — не тасуется в руку, пока остальные карты «заняты»
+  // Доп. мана: эхо до конца хода, потом в сброс и снова в колоду (не сжигать).
   let m = createBattle(
     ["skeleton", "zombie", "hero_mana", "poison"],
     ["fire_gopnik", "fire_lizard", "hero_mana", "strike"],
@@ -508,11 +508,10 @@ function shortDeckAndShuffle(fails: QaFail[], ok: string[]): void {
   m = playCard(m, 0, 0); // скелет на стол
   m = playCard(m, m.you.hand.indexOf("hero_mana"), null);
   m = playCard(m, m.you.hand.indexOf("poison"), 0);
-  // Колода пуста, в грейве не должно быть hero_mana (она в эхе)
   if (m.you.graveyard.includes("hero_mana")) {
     fails.push({
       area: "доп.мана",
-      detail: "hero_mana уже в грейве до конца хода — будет снова лезть в руку",
+      detail: "hero_mana уже в грейве до конца хода",
     });
   }
   if (!m.you.activeSpells.some((sp) => sp.cardId === "hero_mana")) {
@@ -521,28 +520,28 @@ function shortDeckAndShuffle(fails: QaFail[], ok: string[]): void {
       detail: "hero_mana должна висеть эхом до конца хода",
     });
   }
-  // Добор при пустой колоде не должен вытянуть только рамп из грейва
   const beforeHand = [...m.you.hand];
   m = endPlayerTurn(m);
-  // после конца хода рамп сгорает (не в грейв); на ходе врага свой добор не идёт
   if (m.you.hand.join() !== beforeHand.join()) {
     fails.push({
       area: "доп.мана",
       detail: `рука изменилась на конце хода: ${beforeHand.join()} → ${m.you.hand.join()}`,
     });
   }
-  if (m.you.graveyard.includes("hero_mana")) {
+  if (!m.you.graveyard.includes("hero_mana")) {
     fails.push({
       area: "доп.мана",
-      detail: "hero_mana попала в грейв — снова зациклится в короткой колоде",
+      detail: "после эха hero_mana должна лечь в грейв (не сгорать)",
     });
   }
-  // полный цикл: ход врага → твой добор — рамп не должен вернуться
   m = endEnemyTurn(m);
-  if (m.you.hand.includes("hero_mana") || m.you.deck.includes("hero_mana")) {
+  if (
+    !m.you.hand.includes("hero_mana") &&
+    !m.you.deck.includes("hero_mana")
+  ) {
     fails.push({
       area: "доп.мана",
-      detail: "hero_mana вернулась после полного круга ходов",
+      detail: "после круга хода hero_mana должна вернуться из сброса",
     });
   }
 
@@ -553,7 +552,7 @@ function shortDeckAndShuffle(fails: QaFail[], ok: string[]): void {
     )
   ) {
     ok.push(
-      "буйство/ураган/доп.мана: короткий старт ок, шафл двигает, рамп не циклится в руку",
+      "буйство/ураган/доп.мана: короткий старт ок, рамп в сброс и снова в колоду",
     );
   }
 }
