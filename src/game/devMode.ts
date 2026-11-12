@@ -38,7 +38,7 @@ export type DevDeckMode = "starter" | "school" | "bot_pool";
 
 /**
  * Колода только для тестового боя — не пишется в owned.
- * starter — 4 карты; school — до 25 из школы+нейтрал ×лимит; bot_pool — как у бота уровня.
+ * starter — 4 карты; school — до DECK_SIZE из школы+нейтрал ×лимит; bot_pool — как у бота уровня.
  */
 export function buildDevDeck(
   faction: Faction,

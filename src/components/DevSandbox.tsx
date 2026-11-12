@@ -15,7 +15,7 @@ type Props = {
 
 const DECK_MODES: Array<{ id: DevDeckMode; label: string }> = [
   { id: "starter", label: "Старт (4 карты)" },
-  { id: "school", label: "Вся школа (до 25)" },
+  { id: "school", label: "Вся школа (до 12)" },
   { id: "bot_pool", label: "Как бот уровня" },
 ];
 

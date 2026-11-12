@@ -97,15 +97,15 @@ export function analyzeDeck(
     .sort((a, b) => b.count - a.count);
 
   const advice: DeckAdvice[] = [];
-  if (size < 8) {
+  if (size < 6) {
     advice.push({
       level: "bad",
-      text: `Мало карт (${size}). Добавь хотя бы 8–12 — иначе добор повторяет одно и то же.`,
+      text: `Мало карт (${size}). Набери хотя бы 6–8 — иначе добор слишком предсказуем.`,
     });
-  } else if (size < 15) {
+  } else if (size < 10) {
     advice.push({
       level: "warn",
-      text: `В колоде ${size} карт — можно, но 15–25 даёт стабильнее добор.`,
+      text: `В колоде ${size} карт — нормально, к 10–12 добор стабильнее без размыва.`,
     });
   }
 
@@ -135,14 +135,14 @@ export function analyzeDeck(
       level: "warn",
       text: `Средняя цена ${avgCost} — колода тяжёлая. Добавь дешёвые карты (0–2 маны), иначе первые ходы пустые.`,
     });
-  } else if (size > 0 && avgCost <= 1.2 && size >= 8) {
+  } else if (size > 0 && avgCost <= 1.2 && size >= 6) {
     advice.push({
       level: "warn",
       text: `Средняя цена ${avgCost} — очень лёгкая колода. Поздно может не хватить силы.`,
     });
   }
 
-  if (size >= 8 && creatures > 0 && spells / size > 0.55) {
+  if (size >= 6 && creatures > 0 && spells / size > 0.55) {
     advice.push({
       level: "warn",
       text: `Много заклинаний (${spells} из ${size}). Без существ на поле сложно держать линию.`,

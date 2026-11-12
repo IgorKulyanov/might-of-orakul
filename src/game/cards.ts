@@ -201,8 +201,9 @@ export function sortCatalogCards(cards: CardDef[]): CardDef[] {
 /**
  * Колода в бою = ровно собранные карты (с копиями), перемешанные.
  * Размер сейва/боя: DECK_SIZE. Минимум для выхода в бой: MIN_DECK_SIZE.
+ * При крутящейся колоде 25 размывает ключи — потолок 12.
  */
-export const DECK_SIZE = 25;
+export const DECK_SIZE = 12;
 /** Минимум для боя; старт новичка — 4 карты (см. starterDecks). */
 export const MIN_DECK_SIZE = 4;
 

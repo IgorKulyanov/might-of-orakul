@@ -257,7 +257,7 @@ function withDefaults(parsed: OwnedState): OwnedState {
     decks[id] = normalizeDeck(list ?? [], collection);
   }
   if (!decks.starter) decks.starter = [];
-  // Пустая / слишком короткая колода → стартовая 25
+  // Пустая / слишком короткая колода → стартовая школы
   if (decks.starter.length < MIN_DECK_SIZE) {
     decks.starter = normalizeDeck(starterDeckForFaction(faction), collection);
   }
@@ -385,7 +385,7 @@ export function loadOwned(): OwnedState {
         }
         const next = withDefaults(parsed);
         if (!localStorage.getItem(COPIES_FLAG)) {
-          // Миграция на копии: стартовая колода 25 + коллекция с копиями
+          // Миграция на копии: стартовая колода школы + коллекция
           const faction =
             next.homeFaction ?? getHero(next.heroId ?? "hero_life").faction;
           next.collection = mergeCollection(
@@ -1138,7 +1138,7 @@ export function claimDailyQuest(
   };
 }
 
-/** Сброс кейса/колоды до стартового набора фракции (25 карт с копиями). */
+/** Сброс кейса/колоды до стартового набора фракции. */
 export function resetCaseToStarters(owned: OwnedState): OwnedState {
   const heroId = owned.heroId ?? "hero_life";
   const faction = getHero(heroId).faction;

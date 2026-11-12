@@ -170,16 +170,15 @@ export function botPoolForLevel(level: number, school: School): string[] {
 }
 
 /**
- * Размер колоды бота: на старте чуть короче, дальше быстро догоняет игрока.
+ * Размер колоды бота: на старте чуть короче, дальше догоняет потолок игрока.
  */
 export function botDeckSizeForLevel(level: number): number {
   const lv = Math.max(1, level);
   if (lv <= 1) return 6;
   if (lv === 2) return 8;
-  if (lv === 3) return 10;
-  if (lv <= 5) return 14;
-  if (lv <= 7) return 18;
-  if (lv <= 11) return 22;
+  if (lv === 3) return 9;
+  if (lv <= 5) return 10;
+  if (lv <= 8) return 11;
   return DECK_SIZE;
 }
 
