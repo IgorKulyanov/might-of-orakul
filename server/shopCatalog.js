@@ -534,21 +534,7 @@ export function applyShopBuy(owned, cardId, currency) {
   owned.cardShards = openShards;
 
   // Автоматически в активную колоду, если есть место.
-  const DECK_SIZE = 12;
-  const decks =
-    owned.decks && typeof owned.decks === "object" ? { ...owned.decks } : {};
-  const deckId =
-    typeof owned.activeDeckId === "string" && owned.activeDeckId
-      ? owned.activeDeckId
-      : "starter";
-  const deck = Array.isArray(decks[deckId]) ? [...decks[deckId]] : [];
-  const inDeck = deck.filter((x) => String(x) === String(cardId)).length;
-  if (inDeck < 1 && deck.length < DECK_SIZE) {
-    deck.push(String(cardId));
-    decks[deckId] = deck;
-    owned.decks = decks;
-    if (!owned.activeDeckId) owned.activeDeckId = deckId;
-  }
+  // В колоду не пихаем — только в книгу; колоду игрок собирает сам.
 
   return { ok: true, kind: "card" };
 }

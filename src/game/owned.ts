@@ -549,24 +549,6 @@ export function purchaseCard(owned: OwnedState, cardId: string): OwnedState {
   return buyCardWithGold(owned, cardId);
 }
 
-/** Купленная карта сама попадает в активную колоду, если есть место. */
-function ensureCardInActiveDeck(
-  owned: OwnedState,
-  cardId: string,
-): OwnedState {
-  const deckId = owned.activeDeckId ?? "starter";
-  const decks = { ...(owned.decks ?? {}) };
-  const deck = [...(decks[deckId] ?? [])];
-  const inDeck = deck.filter((x) => x === cardId).length;
-  const have = ownedCopies(owned, cardId);
-  if (inDeck >= have) return owned;
-  if (deck.length >= DECK_SIZE) return owned;
-  if (inDeck >= maxCopiesForCard(cardId)) return owned;
-  deck.push(cardId);
-  decks[deckId] = deck;
-  return { ...owned, decks, activeDeckId: deckId };
-}
-
 function addOwnedCopy(owned: OwnedState, cardId: string): OwnedState {
   const have = ownedCopies(owned, cardId);
   const cap = maxCopiesForCard(cardId);
@@ -584,10 +566,8 @@ function addOwnedCopy(owned: OwnedState, cardId: string): OwnedState {
   if (isUpgradeableCard(cardId) && cardUpgrades[cardId] == null) {
     cardUpgrades[cardId] = 1;
   }
-  return ensureCardInActiveDeck(
-    { ...owned, collection, purchased, unlocked, cardUpgrades },
-    cardId,
-  );
+  // В колоду сам не пихаем — игрок кладёт из книги.
+  return { ...owned, collection, purchased, unlocked, cardUpgrades };
 }
 
 /** Можно докупить осколки по ценнику? (карта уже в оракуле, не макс). */
