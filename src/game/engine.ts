@@ -1929,6 +1929,27 @@ function applySpellEffects(
         foe.hp -= eff.amount;
         log.unshift(`${caster.name}: ${eff.amount} урона герою`);
         break;
+      case "damage_enemy": {
+        if (targetSlot == null) {
+          foe.hp -= eff.amount;
+          log.unshift(`${caster.name}: ${eff.amount} урона оракулу врага`);
+          break;
+        }
+        if (!foe.slots[targetSlot]) return false;
+        const u = foe.slots[targetSlot]!;
+        if (hasAbility(u.cardId, "immune_spells", u)) {
+          log.unshift(
+            `${caster.name}: ${getCard(u.cardId).name} невосприимчив к заклинаниям`,
+          );
+          break;
+        }
+        const dealt = dealToCreature(u, eff.amount, log);
+        log.unshift(
+          `${caster.name}: ${getCard(u.cardId).name} получает ${dealt} → ${u.health} HP`,
+        );
+        removeIfDead(foe, targetSlot, log, state);
+        break;
+      }
       case "heal_hero":
         caster.hp = Math.min(caster.maxHp, caster.hp + eff.amount);
         log.unshift(`${caster.name}: +${eff.amount} HP`);
@@ -2785,10 +2806,11 @@ function breakAllEnemySpells(
 
 function spellNeedsTarget(
   effects: SpellEffect[],
-): "ally" | "enemy" | "ally_pair" | "marionette" | null {
+): "ally" | "enemy" | "enemy_or_hero" | "ally_pair" | "marionette" | null {
   for (const e of effects) {
     if (e.type === "guardian_bond") return "ally_pair";
     if (e.type === "marionette") return "marionette";
+    if (e.type === "damage_enemy") return "enemy_or_hero";
     if (
       e.type === "buff_permanent" ||
       e.type === "heal_unit" ||
@@ -2832,11 +2854,12 @@ function boardSideForSpellEffects(
   foeId: "you" | "enemy",
 ): "you" | "enemy" {
   const need = spellNeedsTarget(effects);
-  if (need === "enemy") return foeId;
+  if (need === "enemy" || need === "enemy_or_hero") return foeId;
   if (need === "ally" || need === "ally_pair") return casterId;
   for (const e of effects) {
     if (
       e.type === "damage_hero" ||
+      e.type === "damage_enemy" ||
       e.type === "damage_all_enemies" ||
       e.type === "damage_undead" ||
       e.type === "discard_enemy_hand" ||
@@ -3110,9 +3133,13 @@ export function playCard(
       );
       return next;
     }
-    if (need && slotIndex == null) {
+    if (need && need !== "enemy_or_hero" && slotIndex == null) {
       next.log = [
-        need === "ally" ? "Выбери своё существо" : "Выбери вражеское существо",
+        need === "ally"
+          ? "Выбери своё существо"
+          : need === "enemy"
+            ? "Выбери вражеское существо"
+            : "Выбери цель",
         ...next.log,
       ].slice(0, 10);
       return next;
@@ -3145,7 +3172,18 @@ export function playCard(
       return next;
     }
     if (
-      need === "enemy" &&
+      need === "enemy_or_hero" &&
+      slotIndex != null &&
+      !foe.slots[slotIndex]
+    ) {
+      next.log = [
+        "Кликни существо врага или его оракула",
+        ...next.log,
+      ].slice(0, 10);
+      return next;
+    }
+    if (
+      (need === "enemy" || need === "enemy_or_hero") &&
       slotIndex != null &&
       foe.slots[slotIndex] &&
       spellBlockedByImmunity(card.school, foe.slots[slotIndex]!.cardId, foe.slots[slotIndex]!)
@@ -4616,6 +4654,7 @@ function isOffensiveSpell(effects: SpellEffect[]): boolean {
       e.type === "poison" ||
       e.type === "poison_all" ||
       e.type === "damage_hero" ||
+      e.type === "damage_enemy" ||
       e.type === "damage_all_enemies" ||
       e.type === "damage_undead" ||
       e.type === "damage_unit" ||
@@ -4827,6 +4866,38 @@ function aiScoreSpell(
       case "damage_hero":
         score += foe.hp <= eff.amount ? 100 : 8 + eff.amount * 2;
         break;
+      case "damage_enemy": {
+        const face = foe.hp <= eff.amount ? 100 : 8 + eff.amount * 2;
+        const cands = foeUnits
+          .filter(({ s }) => canHit(s))
+          .map(({ s, i }) => ({
+            i,
+            kill: s.health <= eff.amount,
+            overkill: Math.max(0, eff.amount - s.health),
+            threat: s.attack * 2 + s.health,
+            chip: Math.min(eff.amount, s.health) * 2,
+          }))
+          .sort(
+            (a, b) =>
+              Number(b.kill) - Number(a.kill) ||
+              a.overkill - b.overkill ||
+              b.threat - a.threat,
+          );
+        const bestUnit = cands[0];
+        const unitScore = bestUnit
+          ? bestUnit.kill
+            ? 22 + (foe.slots[bestUnit.i]?.attack ?? 0)
+            : 6 + bestUnit.chip
+          : -30;
+        if (unitScore > face && bestUnit) {
+          target = bestUnit.i;
+          score += unitScore;
+        } else {
+          target = null;
+          score += face;
+        }
+        break;
+      }
       case "heal_hero": {
         const miss = me.maxHp - me.hp;
         if (miss <= 0) score -= 20;
@@ -5580,12 +5651,23 @@ export function takeAiStep(
       if (need === "enemy" && (ev.target == null || !foe.slots[ev.target])) {
         continue;
       }
+      if (
+        need === "enemy_or_hero" &&
+        ev.target != null &&
+        !foe.slots[ev.target]
+      ) {
+        continue;
+      }
       if (need === "ally" && (ev.target == null || !me.slots[ev.target])) {
         continue;
       }
       let sc = ev.score + skill.spellBias;
       const effects = card.spellEffects ?? [];
-      if (effects.some((e) => e.type === "damage_hero")) {
+      if (
+        effects.some(
+          (e) => e.type === "damage_hero" || e.type === "damage_enemy",
+        )
+      ) {
         sc +=
           (mission.canLethal || foe.hp <= 8 ? 40 : 10) + skill.faceBias * 0.5;
       }
@@ -5597,6 +5679,7 @@ export function takeAiStep(
         effects.some(
           (e) =>
             e.type === "damage_unit" ||
+            e.type === "damage_enemy" ||
             e.type === "banish_unit" ||
             e.type === "bounce_enemy_hand" ||
             e.type === "poison",
@@ -5604,7 +5687,12 @@ export function takeAiStep(
       ) {
         sc += Math.min(18, mission.foeBoardThreat * 0.15) * skill.tradeMul;
       }
-      if (mission.canLethal && !effects.some((e) => e.type === "damage_hero")) {
+      if (
+        mission.canLethal &&
+        !effects.some(
+          (e) => e.type === "damage_hero" || e.type === "damage_enemy",
+        )
+      ) {
         sc -= 25;
       }
       const spellFloor = boardCount < 2 ? 12 : 6;
@@ -5892,7 +5980,7 @@ export function takeAiStep(
       const id = me.hand[c.hi];
       if (!id) return false;
       return (getCard(id).spellEffects ?? []).some(
-        (e) => e.type === "damage_hero",
+        (e) => e.type === "damage_hero" || e.type === "damage_enemy",
       );
     });
   } else if (mission.mustDefend) {
@@ -6065,8 +6153,14 @@ export function takeAiStep(
         toSlot: target ?? undefined,
         hitSlots:
           massHits ??
-          (need === "enemy" && target != null ? [target] : undefined),
-        hitHero: need == null && effects.some((e) => e.type === "damage_hero"),
+          ((need === "enemy" || need === "enemy_or_hero") &&
+          target != null
+            ? [target]
+            : undefined),
+        hitHero:
+          (need == null &&
+            effects.some((e) => e.type === "damage_hero")) ||
+          (need === "enemy_or_hero" && target == null),
       }),
     };
   }
@@ -6567,7 +6661,7 @@ export function selectSlot(state: BattleState, index: number | null): BattleStat
 
 export function spellTargetMode(
   state: BattleState,
-): "ally" | "enemy" | "ally_pair" | "marionette" | null {
+): "ally" | "enemy" | "enemy_or_hero" | "ally_pair" | "marionette" | null {
   if (state.selectedHand == null) return null;
   const id = state.you.hand[state.selectedHand];
   if (!id) return null;

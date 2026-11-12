@@ -94,6 +94,7 @@ const KNOWN_ABILITIES = new Set<CreatureAbility>([
 
 const KNOWN_EFFECTS = new Set<SpellEffect["type"]>([
   "damage_hero",
+  "damage_enemy",
   "heal_hero",
   "damage_all_enemies",
   "damage_undead",
@@ -706,7 +707,8 @@ function spellsAll(fails: QaFail[], ok: string[]): void {
           if (s.you.mana.life !== lifeBefore + 1) bad = `мана ${lifeBefore}→${s.you.mana.life}`;
           break;
         case "strike":
-          if (s.enemy.hp !== hpEn - 6) bad = `урон герою ${hpEn}→${s.enemy.hp}`;
+          // L1 = 4; цель — оракул (slot null при enemy_or_hero)
+          if (s.enemy.hp !== hpEn - 4) bad = `урон оракулу ${hpEn}→${s.enemy.hp}`;
           break;
         case "life_root":
           if (s.you.hp < 5) bad = `хил не прошёл, hp=${s.you.hp}`;

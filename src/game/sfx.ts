@@ -272,6 +272,7 @@ const ARROW_CARD_IDS = new Set(["elf", "crossbowman", "archer"]);
 /** Эффекты «боль / неудобство» врагу или его юнитам. */
 const OFFENSIVE_SPELL_EFFECTS = new Set<SpellEffect["type"]>([
   "damage_hero",
+  "damage_enemy",
   "damage_all_enemies",
   "damage_undead",
   "damage_unit",

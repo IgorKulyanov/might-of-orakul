@@ -137,6 +137,8 @@ function spellEffectScore(e: SpellEffect): number {
       return 14 + (e.amount ?? 0) * 3;
     case "damage_hero":
       return 8 + (e.amount ?? 0) * 2;
+    case "damage_enemy":
+      return 10 + (e.amount ?? 0) * 2;
     case "damage_unit":
       return 7 + (e.amount ?? 0) * 2;
     case "damage_undead":

@@ -992,13 +992,13 @@
       "manaCost": {
         "hell": 1
       },
-      "text": "6 урона вражескому герою.",
+      "text": "Урон существу или оракулу врага.\\nУр.1 — 4.\\nУр.2 — 6.\\nУр.3 — 9.",
       "rarity": "common",
       "premium": false,
       "art": "заклинания/strike.jpg",
       "spellEffects": [
         {
-          "type": "damage_hero",
+          "type": "damage_enemy",
           "amount": 6
         }
       ],

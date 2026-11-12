@@ -25,6 +25,8 @@ export type CreatureGender = "male" | "female" | "none";
 
 export type SpellEffect =
   | { type: "damage_hero"; amount: number }
+  /** Урон выбранной цели: существо врага или его оракул. */
+  | { type: "damage_enemy"; amount: number }
   | { type: "heal_hero"; amount: number }
   | { type: "damage_all_enemies"; amount: number }
   | { type: "damage_undead"; amount: number }

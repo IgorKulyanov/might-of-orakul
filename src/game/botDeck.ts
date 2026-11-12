@@ -388,6 +388,7 @@ function fillDeckAggressive(
       let s = 0;
       for (const e of effects) {
         if (e.type === "damage_unit") s += 6 + (e.amount ?? 0);
+        else if (e.type === "damage_enemy") s += 7 + (e.amount ?? 0);
         else if (e.type === "damage_hero") s += 5 + (e.amount ?? 0);
         else if (e.type === "banish_unit" || e.type === "bounce_enemy_hand") s += 10;
         else if (e.type === "poison") s += 8;

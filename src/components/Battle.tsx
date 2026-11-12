@@ -1837,7 +1837,10 @@ export function Battle({
       return;
     }
 
-    if (state.selectedHand != null && spellMode === "enemy") {
+    if (
+      state.selectedHand != null &&
+      (spellMode === "enemy" || spellMode === "enemy_or_hero")
+    ) {
       const hand = state.selectedHand;
       if (!assertHandMana(hand, { clearHand: true })) return;
       void runLocked(async () => {
@@ -2109,6 +2112,25 @@ export function Battle({
 
   const onEnemyHero = () => {
     if (actionBlocked) return;
+
+    if (state.selectedHand != null && spellMode === "enemy_or_hero") {
+      const hand = state.selectedHand;
+      if (!assertHandMana(hand, { clearHand: true })) return;
+      void runLocked(async () => {
+        await playFx(
+          {
+            side: "you",
+            kind: "spell",
+            cardId: state.you.hand[hand],
+            hitHero: true,
+          },
+          (s) => playCard(s, hand, null),
+          1400,
+          { kind: "playCard", handIndex: hand, slotIndex: null },
+        );
+      });
+      return;
+    }
 
     if (
       state.selectedHand != null &&
@@ -2551,6 +2573,8 @@ export function Battle({
     }
     if (state.selectedHand != null && spellMode === "enemy")
       return "Заклинание: кликни существо врага";
+    if (state.selectedHand != null && spellMode === "enemy_or_hero")
+      return "Атака: кликни существо врага или его оракула";
     if (state.selectedHand != null) {
       const sid = state.you.hand[state.selectedHand];
       if (sid && getCard(sid).kind === "spell" && !spellMode) {
@@ -2890,6 +2914,7 @@ export function Battle({
               type="button"
             className={`oracle-block ${
               attackTargets.has("hero") ||
+              (!busy && spellMode === "enemy_or_hero") ||
               (!busy &&
                 spellMode === "marionette" &&
                 marionettePuppet != null &&
@@ -2966,6 +2991,7 @@ export function Battle({
                           targetable={
                             (!busy && attackTargets.has(String(i))) ||
                             (!busy && spellMode === "enemy") ||
+                            (!busy && spellMode === "enemy_or_hero") ||
                             (!busy &&
                               spellMode === "marionette" &&
                               (marionettePuppet == null ||
