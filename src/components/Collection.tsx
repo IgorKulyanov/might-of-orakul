@@ -203,19 +203,25 @@ export function Collection({
 
   const shopBusy = useRef(false);
 
-  /** Золото / алмазы: в оракул (+осколок) или докупка осколка. Без confirm, без гонки кликов. */
+  /** Золото / алмазы: ровно 1 осколок за клик (онлайн — только через API, без локального +серверного двойного начисления). */
   const buy = (id: string, withDiamonds = false) => {
     if (shopBusy.current) return;
+    shopBusy.current = true;
     const card = CARDS.find((c) => c.id === id);
-    if (!card) return;
+    if (!card) {
+      shopBusy.current = false;
+      return;
+    }
     const lv = playerLevel(owned);
     if (!isCardAvailableInShop(card, lv)) {
+      shopBusy.current = false;
       say(`«${card.name}» с ${minPlayerLevelForShopCard(card)} ур.`);
       return;
     }
     const inOracle = ownedCopies(owned, id) >= maxCopiesForCard(id);
     const shardBuy = inOracle && canBuyShardsForCard(owned, id);
     if (inOracle && !shardBuy) {
+      shopBusy.current = false;
       say(`«${card.name}» уже макс — ценник не нужен`);
       return;
     }
@@ -223,8 +229,12 @@ export function Collection({
     const currency = withDiamonds ? "diamonds" : "gold";
     if (withDiamonds) {
       const price = card.priceDiamonds ?? 0;
-      if (!price) return;
+      if (!price) {
+        shopBusy.current = false;
+        return;
+      }
       if ((owned.diamonds ?? 0) < price) {
+        shopBusy.current = false;
         alert(`Не хватает алмазов (нужно ${diamondText(price)}).`);
         return;
       }
@@ -232,12 +242,14 @@ export function Collection({
       const price = card.priceGold ?? 0;
       const gold = owned.gold ?? 0;
       if (gold < price) {
+        shopBusy.current = false;
         alert(
           `Не хватает золота.\nНужно ${goldText(price)}, у тебя ${goldText(gold)}`,
         );
         return;
       }
     }
+    const kind = inOracle ? "shards" : "card";
     const localBuy = () =>
       inOracle
         ? withDiamonds
@@ -246,13 +258,7 @@ export function Collection({
         : withDiamonds
           ? buyCardWithDiamonds(owned, id)
           : buyCardWithGold(owned, id);
-    void commitBuy(
-      id,
-      currency,
-      localBuy,
-      inOracle ? "shards" : "card",
-      shardN,
-    );
+    void commitBuy(id, currency, localBuy, kind, shardN);
   };
 
   const commitBuy = async (
@@ -262,38 +268,42 @@ export function Collection({
     kind: "card" | "shards",
     shardN: number,
   ) => {
-    if (shopBusy.current) return;
-    shopBusy.current = true;
     const cardName =
       CARDS.find((c) => c.id === cardId)?.name ?? cardId;
     const before = owned;
-    const optimistic = localBuy();
-    onChange(optimistic);
-    say(
-      kind === "shards"
-        ? `«${cardName}» +${shardN} осколок`
-        : `«${cardName}» в оракуле · +${shardN} осколок`,
-    );
     try {
-      if (!authToken) return;
+      // Офлайн: только локально. Онлайн: только API — иначе PUT сейва + POST покупки
+      // начисляют осколок дважды за один клик.
+      if (!authToken) {
+        onChange(localBuy());
+        say(
+          kind === "shards"
+            ? `«${cardName}» +${shardN} осколок`
+            : `«${cardName}» в оракуле · +${shardN} осколок`,
+        );
+        return;
+      }
       const { user } = await apiShopBuy(authToken, cardId, currency);
       if (!user.owned) {
-        onChange(before);
         alert("Сервер не вернул сейв после покупки");
         return;
       }
       const next: OwnedState = {
-        ...optimistic,
+        ...before,
         ...user.owned,
-        cardShards: user.owned.cardShards ?? optimistic.cardShards,
-        cardUpgrades: user.owned.cardUpgrades ?? optimistic.cardUpgrades,
-        decks: user.owned.decks ?? optimistic.decks,
-        activeDeckId: user.owned.activeDeckId ?? optimistic.activeDeckId,
+        cardShards: user.owned.cardShards ?? before.cardShards,
+        cardUpgrades: user.owned.cardUpgrades ?? before.cardUpgrades,
+        decks: user.owned.decks ?? before.decks,
+        activeDeckId: user.owned.activeDeckId ?? before.activeDeckId,
         homeFaction: before.homeFaction ?? user.owned.homeFaction,
       };
       onChange(next);
+      say(
+        kind === "shards"
+          ? `«${cardName}» +${shardN} осколок`
+          : `«${cardName}» в оракуле · +${shardN} осколок`,
+      );
     } catch (e) {
-      onChange(before);
       alert(e instanceof Error ? e.message : "Покупка не прошла");
     } finally {
       shopBusy.current = false;
