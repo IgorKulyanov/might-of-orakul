@@ -526,7 +526,7 @@ export function applyShopBuy(owned, cardId, currency) {
   owned.cardUpgrades = upgrades;
 
   // Автоматически в активную колоду, если есть место.
-  const DECK_SIZE = 20;
+  const DECK_SIZE = 12;
   const decks =
     owned.decks && typeof owned.decks === "object" ? { ...owned.decks } : {};
   const deckId =

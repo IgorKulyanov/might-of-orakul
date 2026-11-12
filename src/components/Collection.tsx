@@ -201,6 +201,7 @@ export function Collection({
     say(`«${CARDS.find((c) => c.id === id)?.name ?? id}» → ур.${getCardUpgradeLevel(res.owned, id)}`);
   };
 
+  /** Золото / алмазы под картой: сразу обмен на осколки (или первая покупка в оракул). Без confirm. */
   const buy = (id: string, withDiamonds = false) => {
     const card = CARDS.find((c) => c.id === id);
     if (!card) return;
@@ -216,9 +217,7 @@ export function Collection({
       return;
     }
     const shardN = shardsPerShopBuy(id);
-    const label = inOracle
-      ? `+${shardN} осколок «${card.name}»`
-      : `«${card.name}» в оракул`;
+    const currency = withDiamonds ? "diamonds" : "gold";
     if (withDiamonds) {
       const price = card.priceDiamonds ?? 0;
       if (!price) return;
@@ -226,35 +225,28 @@ export function Collection({
         alert(`Не хватает алмазов (нужно ${diamondText(price)}).`);
         return;
       }
-      const ok = window.confirm(`${label} за ${diamondText(price)}?`);
-      if (!ok) return;
-      void commitBuy(
-        id,
-        "diamonds",
-        () =>
-          inOracle
-            ? buyShardsWithDiamonds(owned, id)
-            : buyCardWithDiamonds(owned, id),
-        inOracle ? "shards" : "card",
-        shardN,
-      );
-      return;
+    } else {
+      const price = card.priceGold ?? 0;
+      const gold = owned.gold ?? 0;
+      if (gold < price) {
+        alert(
+          `Не хватает золота.\nНужно ${goldText(price)}, у тебя ${goldText(gold)}`,
+        );
+        return;
+      }
     }
-    const price = card.priceGold ?? 0;
-    const gold = owned.gold ?? 0;
-    if (gold < price) {
-      alert(
-        `Не хватает золота.\nНужно ${goldText(price)}, у тебя ${goldText(gold)}`,
-      );
-      return;
-    }
-    const ok = window.confirm(`${label} за ${goldText(price)}?`);
-    if (!ok) return;
+    const localBuy = () =>
+      inOracle
+        ? withDiamonds
+          ? buyShardsWithDiamonds(owned, id)
+          : buyShardsWithGold(owned, id)
+        : withDiamonds
+          ? buyCardWithDiamonds(owned, id)
+          : buyCardWithGold(owned, id);
     void commitBuy(
       id,
-      "gold",
-      () =>
-        inOracle ? buyShardsWithGold(owned, id) : buyCardWithGold(owned, id),
+      currency,
+      localBuy,
       inOracle ? "shards" : "card",
       shardN,
     );
@@ -269,35 +261,35 @@ export function Collection({
   ) => {
     const cardName =
       CARDS.find((c) => c.id === cardId)?.name ?? cardId;
-    if (!authToken) {
-      onChange(localBuy());
-      say(
-        kind === "shards"
-          ? `«${cardName}» +${shardN} осколок`
-          : `«${cardName}» теперь в оракуле`,
-      );
-      return;
-    }
+    const before = owned;
+    // Сразу двигаем счётчик осколков / кошелёк — не ждём сеть.
+    const optimistic = localBuy();
+    onChange(optimistic);
+    say(
+      kind === "shards"
+        ? `«${cardName}» +${shardN} осколок`
+        : `«${cardName}» теперь в оракуле`,
+    );
+    if (!authToken) return;
     try {
       const { user } = await apiShopBuy(authToken, cardId, currency);
       if (!user.owned) {
+        onChange(before);
         alert("Сервер не вернул сейв после покупки");
         return;
       }
       const next: OwnedState = {
-        ...owned,
+        ...optimistic,
         ...user.owned,
-        decks: user.owned.decks ?? owned.decks,
-        activeDeckId: user.owned.activeDeckId ?? owned.activeDeckId,
-        homeFaction: owned.homeFaction ?? user.owned.homeFaction,
+        cardShards: user.owned.cardShards ?? optimistic.cardShards,
+        cardUpgrades: user.owned.cardUpgrades ?? optimistic.cardUpgrades,
+        decks: user.owned.decks ?? optimistic.decks,
+        activeDeckId: user.owned.activeDeckId ?? optimistic.activeDeckId,
+        homeFaction: before.homeFaction ?? user.owned.homeFaction,
       };
       onChange(next);
-      say(
-        kind === "shards"
-          ? `«${cardName}» +${shardN} осколок`
-          : `«${cardName}» теперь в оракуле`,
-      );
     } catch (e) {
+      onChange(before);
       alert(e instanceof Error ? e.message : "Покупка не прошла");
     }
   };
@@ -523,13 +515,19 @@ export function Collection({
                         locked
                           ? `С ${needLv} ур.`
                           : canBuyShards
-                            ? `+${shardsPerShopBuy(c.id)} осколок`
+                            ? `Золото → +${shardsPerShopBuy(c.id)} осколок`
                             : showPrice
-                              ? "В оракул"
+                              ? "Купить в оракул"
                               : "Максимум"
                       }
                     >
                       <GameIcon name="gold" size={14} /> {c.priceGold}
+                      {canBuyShards ? (
+                        <span className="shop-shard-gain">
+                          {" "}
+                          +{shardsPerShopBuy(c.id)}
+                        </span>
+                      ) : null}
                     </button>
                     <button
                       type="button"
@@ -545,14 +543,20 @@ export function Collection({
                         locked
                           ? `С ${needLv} ур.`
                           : canBuyShards
-                            ? `+${shardsPerShopBuy(c.id)} осколок`
+                            ? `Алмазы → +${shardsPerShopBuy(c.id)} осколок`
                             : showPrice
-                              ? "В оракул"
+                              ? "Купить в оракул"
                               : "Максимум"
                       }
                     >
                       <GameIcon name="diamond" size={14} />{" "}
                       {c.priceDiamonds ?? 0}
+                      {canBuyShards ? (
+                        <span className="shop-shard-gain">
+                          {" "}
+                          +{shardsPerShopBuy(c.id)}
+                        </span>
+                      ) : null}
                     </button>
                   </div>
                 </div>
