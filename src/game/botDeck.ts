@@ -137,12 +137,14 @@ function botForbiddenCard(id: string, level: number): boolean {
  */
 export function offFactionMixRatio(level: number): number {
   const lv = Math.max(1, level);
-  if (lv <= 4) return 0;
-  if (lv <= 7) return 0.1;
-  if (lv <= 11) return 0.18;
-  if (lv <= 17) return 0.24;
-  if (lv <= 27) return 0.3;
-  return 0.32;
+  // Чуть раньше микс — меньше «вечный один и тот же пул школы»
+  if (lv <= 2) return 0;
+  if (lv <= 4) return 0.12;
+  if (lv <= 7) return 0.18;
+  if (lv <= 11) return 0.24;
+  if (lv <= 17) return 0.3;
+  if (lv <= 27) return 0.34;
+  return 0.38;
 }
 
 function isOwnOrNeutral(school: School, cardSchool: School): boolean {
@@ -244,7 +246,13 @@ export function botDeckForLevel(
             : Math.abs(level) % FACTIONS.length
         ]!;
 
+  // Ур.1–3: раньше только старт (при max=1 копия → вечно 4 одни и те же карты).
+  // Берём весь тир-пул школы + персону, чтобы бои отличались.
   if (level <= 3) {
+    const earlyPool = botPoolForLevel(level, faction);
+    if (earlyPool.length >= 5 && rng) {
+      return fillDeckAggressive(earlyPool, level, faction, persona, rng);
+    }
     return fillDeckTutorial(faction, level, rng);
   }
 
@@ -357,10 +365,10 @@ function fillDeckAggressive(
     );
 
   if (rng) {
-    // Лёгкий шаффл внутри «похожих» по стоимости — не одна и та же пачка
+    // Сильный джиттер — иначе топ value всегда одни и те же «жирные»
     const jittered = allCreatures.map((id, i) => ({
       id,
-      k: personaCreatureBias(id, faction, persona) + rng() * 2.4 + i * 0.001,
+      k: personaCreatureBias(id, faction, persona) + rng() * 6.5 + i * 0.001,
     }));
     jittered.sort((a, b) => a.k - b.k);
     allCreatures = jittered.map((x) => x.id);
@@ -423,7 +431,7 @@ function fillDeckAggressive(
   if (rng && spells.length > 1) {
     const jittered = spells.map((id) => ({
       id,
-      k: -spellImpact(id) + rng() * 2.5,
+      k: -spellImpact(id) + rng() * 5.5,
     }));
     jittered.sort((a, b) => a.k - b.k);
     spells = jittered.map((x) => x.id);
@@ -488,19 +496,23 @@ function fillDeckAggressive(
     guard++;
   }
 
-  // Ядро колоды — лучшие ~65% своей школы, не весь слабый хвост пула
+  // Ядро: широкий топ школы; с rng — случайная выборка, не один и тот же цикл
   const eliteOwn = ownCreatures.slice(
     0,
-    Math.max(4, Math.ceil(ownCreatures.length * 0.65)),
+    Math.max(5, Math.ceil(ownCreatures.length * 0.85)),
   );
+  const ownPick =
+    rng && eliteOwn.length > 1
+      ? shuffleInPlace([...eliteOwn], rng)
+      : eliteOwn;
   let ci = 0;
   guard = 0;
   while (
     out.length < creatureSlots &&
-    eliteOwn.length > 0 &&
+    ownPick.length > 0 &&
     guard < target * 80
   ) {
-    push(eliteOwn[ci % eliteOwn.length]!);
+    push(ownPick[ci % ownPick.length]!);
     ci++;
     guard++;
   }

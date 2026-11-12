@@ -895,7 +895,8 @@ export function tryUnlockCardFromShards(
     return { owned, ok: false, reason: "Эту карту нельзя открыть осколками" };
   }
   const copies = Math.floor(Number(owned.collection?.[cardId])) || 0;
-  if (copies > 0 || owned.unlocked.includes(cardId)) {
+  const unlockedList = Array.isArray(owned.unlocked) ? owned.unlocked : [];
+  if (copies > 0 || unlockedList.includes(cardId)) {
     return { owned, ok: false, reason: "Уже в оракуле" };
   }
   const need = shardsNeededForUnlock(cardId);
@@ -913,9 +914,9 @@ export function tryUnlockCardFromShards(
   const shards = { ...(owned.cardShards ?? {}) };
   shards[cardId] = have - need;
   const collection = { ...(owned.collection ?? {}), [cardId]: 1 };
-  const unlocked = owned.unlocked.includes(cardId)
-    ? owned.unlocked
-    : [...owned.unlocked, cardId];
+  const unlocked = unlockedList.includes(cardId)
+    ? unlockedList
+    : [...unlockedList, cardId];
   const purchased = [...new Set([...(owned.purchased ?? []), cardId])];
   const cardUpgrades = { ...(owned.cardUpgrades ?? {}) };
   if (cardUpgrades[cardId] == null) cardUpgrades[cardId] = 1;
@@ -1454,15 +1455,78 @@ function shuffleIds(ids: string[]): string[] {
 }
 
 function playerHasCard(owned: OwnedState, cardId: string): boolean {
-  if ((owned.collection?.[cardId] ?? 0) > 0) return true;
+  if ((Math.floor(Number(owned.collection?.[cardId])) || 0) > 0) return true;
   return Array.isArray(owned.unlocked) && owned.unlocked.includes(cardId);
+}
+
+type ShardDropCand = {
+  id: string;
+  w: number;
+  kind: "unlock" | "upgrade";
+};
+
+function homeFactionOfOwned(owned: OwnedState): string | null {
+  return owned.homeFaction ? String(owned.homeFaction) : null;
+}
+
+function shardDropCandidates(owned: OwnedState, pool: string[]): ShardDropCand[] {
+  const home = homeFactionOfOwned(owned);
+  const out: ShardDropCand[] = [];
+  for (const id of pool) {
+    if (!isUpgradeableCard(id)) continue;
+    let school: string | null = null;
+    try {
+      school = getCard(id).school;
+    } catch {
+      continue;
+    }
+    const homeBoost = home && school === home ? 1.35 : 1;
+    if (!playerHasCard(owned, id)) {
+      const need = shardsNeededForUnlock(id);
+      if (need == null || need <= 0) continue;
+      const have = getCardShards(owned, id);
+      if (have >= need) continue;
+      // Неоткрытые тоже падают — иначе вечно одни и те же из книги.
+      let w = 2.6 * homeBoost;
+      if (have > 0) w += 1.8; // добить начатый прогресс
+      const missingRatio = (need - have) / need;
+      w += missingRatio * 0.6;
+      out.push({ id, w, kind: "unlock" });
+      continue;
+    }
+    const lv = getCardUpgradeLevel(owned, id);
+    const need = shardsNeededForNext(id, lv);
+    if (need == null) continue; // макс
+    const have = getCardShards(owned, id);
+    let w = 2.1 * homeBoost;
+    const missing = Math.max(0, need - have);
+    w += (missing / need) * 1.7;
+    if (have > 0 && have >= need * 0.55) w += 0.9; // почти кач
+    out.push({ id, w, kind: "upgrade" });
+  }
+  return out;
+}
+
+function pickWeightedId(
+  cands: ShardDropCand[],
+  rng: () => number,
+): ShardDropCand | null {
+  if (!cands.length) return null;
+  let sum = 0;
+  for (const c of cands) sum += Math.max(0.01, c.w);
+  let r = rng() * sum;
+  for (const c of cands) {
+    r -= Math.max(0.01, c.w);
+    if (r <= 0) return c;
+  }
+  return cands[cands.length - 1] ?? null;
 }
 
 /**
  * Победа: N осколков из пула по уровню.
- * Сначала свои карты (книга/кейс), потом остальной открытый магазин —
- * иначе 2–3 дропа тонут в ~27 картах L1 и в магазине «всё на нуле».
- * Бот/тропа/арена: 2–3 · PvP: 3–5. Поражение — не вызывать.
+ * Микс: прокачка своих + прогресс к открытию новых (без «всегда одни и те же»).
+ * Без повторов в одном дропе, пока пул позволяет.
+ * Бот/тропа/арена: 3–4 · PvP: 3–5. Поражение — не вызывать.
  */
 export function rollBattleWinShards(
   owned: OwnedState,
@@ -1478,24 +1542,46 @@ export function rollBattleWinShards(
   const pool = shardDropPoolForLevel(level);
   if (!pool.length || total <= 0) return { owned, gains: [] };
 
-  const mine = shuffleIds(pool.filter((id) => playerHasCard(owned, id)));
-  const rest = shuffleIds(pool.filter((id) => !playerHasCard(owned, id)));
-  // Свои первыми, чужие — добор, если своих мало.
-  const order = mine.length ? [...mine, ...rest] : shuffleIds(pool);
+  let cands = shardDropCandidates(owned, pool);
+  if (!cands.length) {
+    // Все прокачаны — лёгкий добор по пулу (на будущее / косметика прогресса).
+    cands = shuffleIds(pool).map((id) => ({
+      id,
+      w: 1,
+      kind: "upgrade" as const,
+    }));
+  }
+
+  const rng = () => Math.random();
+  const picked: string[] = [];
+  const unlocks = cands.filter((c) => c.kind === "unlock");
+  const upgrades = cands.filter((c) => c.kind === "upgrade");
+
+  // Квота разнообразия: при 2+ осколках стараемся взять и свою, и новую.
+  if (total >= 2 && unlocks.length && upgrades.length) {
+    const u = pickWeightedId(unlocks, rng);
+    const g = pickWeightedId(upgrades, rng);
+    if (u) picked.push(u.id);
+    if (g && g.id !== u?.id) picked.push(g.id);
+  }
+
+  let guard = 0;
+  while (picked.length < total && guard < total * 40) {
+    guard++;
+    const left = cands.filter((c) => !picked.includes(c.id));
+    const bag = left.length ? left : cands;
+    const hit = pickWeightedId(bag, rng);
+    if (!hit) break;
+    if (left.length && picked.includes(hit.id)) continue;
+    picked.push(hit.id);
+  }
+  while (picked.length < total && cands.length) {
+    picked.push(cands[Math.floor(rng() * cands.length)]!.id);
+  }
 
   const amounts: Record<string, number> = {};
-  let left = total;
-  for (const id of order) {
-    if (left <= 0) break;
+  for (const id of picked.slice(0, total)) {
     amounts[id] = (amounts[id] ?? 0) + 1;
-    left -= 1;
-  }
-  while (left > 0) {
-    // Лишние — тоже чаще в свои.
-    const bag = mine.length ? mine : order;
-    const id = bag[Math.floor(Math.random() * bag.length)]!;
-    amounts[id] = (amounts[id] ?? 0) + 1;
-    left -= 1;
   }
 
   let next = owned;
@@ -1519,7 +1605,7 @@ export function rollBotWinShards(owned: OwnedState): {
   owned: OwnedState;
   gains: Array<{ cardId: string; amount: number; name: string }>;
 } {
-  return rollBattleWinShards(owned, { min: 2, max: 3 });
+  return rollBattleWinShards(owned, { min: 3, max: 4 });
 }
 
 /** Сумма маны в стоимости (для лога возврата). */
