@@ -505,10 +505,10 @@
       "manaCost": {
         "hell": 2
       },
-      "attack": 5,
-      "health": 12,
+      "attack": 3,
+      "health": 15,
       "attackPattern": "melee",
-      "text": "Ур.1 — обычный удар.\\nУр.2 — быстрее / больнее.\\nУр.3 — rush.",
+      "text": "Бьёт напротив.\\nУр.1 — атака 3, жизни 15.\\nУр.2 — атака 5, жизни 18.\\nУр.3 — атака 6, жизни 18; бьёт сразу в ход появления.",
       "rarity": "common",
       "premium": false,
       "art": "ад/fire_lizard.jpg",

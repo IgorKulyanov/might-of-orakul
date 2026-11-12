@@ -389,8 +389,9 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
     defaultLevel: 1,
   },
   fire_lizard: {
-    bonusAtk: [-2, 0, 1],
-    bonusHp: [-2, 0, 0],
+    // JSON = L1 (3/15). Раньше L1 был 3/10 — первый бой ада не тянул.
+    bonusAtk: [0, 2, 3],
+    bonusHp: [0, 3, 3],
     abilityFrom: { rush: 3 },
     defaultLevel: 1,
   },
