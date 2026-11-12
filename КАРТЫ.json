@@ -279,7 +279,7 @@
       "gender": "male",
       "unitLevel": 2,
       "priceDiamonds": 6,
-      "artFit": "height"
+      "artFocus": "center 28%"
     },
     {
       "id": "gravedigger",
@@ -2235,7 +2235,7 @@
       "art": "жизнь/flamethrower.png",
       "gender": "male",
       "unitLevel": 3,
-      "artFit": "height",
+      "artFocus": "center 30%",
       "ability": "flame_burn"
     },
     {
@@ -2281,7 +2281,7 @@
       "art": "нетральные существа/orc.png",
       "gender": "male",
       "unitLevel": 2,
-      "artFit": "height"
+      "artFocus": "center 32%"
     },
     {
       "id": "troll",
@@ -2301,7 +2301,7 @@
       "art": "нетральные существа/troll.png",
       "gender": "male",
       "unitLevel": 3,
-      "artFit": "height"
+      "artFocus": "center 35%"
     },
     {
       "id": "goblin",
@@ -2322,7 +2322,7 @@
       "art": "нетральные существа/goblin.png",
       "gender": "male",
       "unitLevel": 1,
-      "artFit": "height"
+      "artFocus": "center 30%"
     },
     {
       "id": "mech_guardian",
@@ -2343,7 +2343,7 @@
       "gender": "none",
       "unitLevel": 4,
       "priceStars": 180,
-      "artFit": "height"
+      "artFocus": "center 22%"
     },
     {
       "id": "unicorn",
@@ -2369,7 +2369,7 @@
       "gender": "male",
       "unitLevel": 4,
       "priceStars": 180,
-      "artFit": "height"
+      "artFocus": "center 40%"
     }
   ]
 }

@@ -70,7 +70,7 @@ export function manaCostTotal(cost: ManaCost): number {
 }
 
 /** Сброс кэша браузера/CDN после замены JPG (бампай при новых артах). */
-const CARD_ART_VER = "20261112a";
+const CARD_ART_VER = "20261112b";
 
 export function cardArtUrl(card: CardDef): string {
   const art = card.art ?? `${card.id}.png`;
