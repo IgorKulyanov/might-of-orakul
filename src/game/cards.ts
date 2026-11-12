@@ -6,41 +6,24 @@ import type {
   School,
 } from "./types";
 import data from "../../КАРТЫ.json" with { type: "json" };
-import { UNIT_TIER_PRICE } from "./progression";
-
-function shopTier(card: CardDef): 1 | 2 | 3 | 4 | 5 {
-  if (card.unitLevel && card.unitLevel >= 1 && card.unitLevel <= 5) {
-    return card.unitLevel;
-  }
-  switch (card.rarity) {
-    case "legendary":
-      return 5;
-    case "epic":
-      return 4;
-    case "rare":
-      return 3;
-    case "common":
-    default:
-      return 1;
-  }
-}
+import { shopPriceForCard, shopTierOf } from "./cardEconomy";
 
 export const CARDS: CardDef[] = (data.cards as CardDef[]).map((c) => {
-  const tier = shopTier(c);
-  const price = UNIT_TIER_PRICE[tier];
-  // Магия без unitLevel — тир по цене/редкости (не всё «I новичок»).
+  const tier = shopTierOf(c);
+  // Магия без unitLevel — тир по редкости (не всё «I новичок»).
   const unitLevel =
     c.unitLevel && c.unitLevel >= 1 && c.unitLevel <= 5
       ? c.unitLevel
       : c.kind === "spell"
         ? tier
         : c.unitLevel;
+  const withTier: CardDef = { ...c, unitLevel };
+  const price = shopPriceForCard(withTier);
   return {
-    ...c,
-    unitLevel,
+    ...withTier,
     cost: c.cost ?? manaCostTotal(c.manaCost ?? {}),
-    priceGold: c.id === "mana_stones" ? 2000 : price.gold,
-    priceDiamonds: c.id === "mana_stones" ? 200 : price.diamonds,
+    priceGold: price.gold,
+    priceDiamonds: price.diamonds,
   };
 });
 

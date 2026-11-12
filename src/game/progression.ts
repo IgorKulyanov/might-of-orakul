@@ -173,18 +173,18 @@ export function battleGoldPvp(won: boolean, playerLevel: number): number {
 }
 
 /**
- * Цены по тиру — намеренно жёсткие (гринд / донат).
- * Золото с боёв копит медленно; легенду не закрыть за вечер.
+ * База ценника за 1 осколок по тиру (÷10 от старых).
+ * Фактическая цена карты — через cardEconomy (сила/полезность).
  */
 export const UNIT_TIER_PRICE: Record<
   1 | 2 | 3 | 4 | 5,
   { gold: number; diamonds: number }
 > = {
-  1: { gold: 400, diamonds: 50 },
-  2: { gold: 1100, diamonds: 120 },
-  3: { gold: 2800, diamonds: 280 },
-  4: { gold: 6500, diamonds: 550 },
-  5: { gold: 14000, diamonds: 1000 },
+  1: { gold: 40, diamonds: 5 },
+  2: { gold: 110, diamonds: 12 },
+  3: { gold: 280, diamonds: 28 },
+  4: { gold: 650, diamonds: 55 },
+  5: { gold: 1400, diamonds: 100 },
 };
 
 export const UNIT_TIER_LABEL: Record<1 | 2 | 3 | 4 | 5, string> = {

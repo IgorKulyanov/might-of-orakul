@@ -217,7 +217,7 @@ export function Collection({
     }
     const shardN = shardsPerShopBuy(id);
     const label = inOracle
-      ? `+${shardN} осколков «${card.name}»`
+      ? `+${shardN} осколок «${card.name}»`
       : `«${card.name}» в оракул`;
     if (withDiamonds) {
       const price = card.priceDiamonds ?? 0;
@@ -273,7 +273,7 @@ export function Collection({
       onChange(localBuy());
       say(
         kind === "shards"
-          ? `«${cardName}» +${shardN} осколков`
+          ? `«${cardName}» +${shardN} осколок`
           : `«${cardName}» теперь в оракуле`,
       );
       return;
@@ -294,7 +294,7 @@ export function Collection({
       onChange(next);
       say(
         kind === "shards"
-          ? `«${cardName}» +${shardN} осколков`
+          ? `«${cardName}» +${shardN} осколок`
           : `«${cardName}» теперь в оракуле`,
       );
     } catch (e) {
@@ -366,9 +366,9 @@ export function Collection({
         <>
           <p className="hint catalog-status">
             Оракул: <strong>{catalogStats.unlocked}</strong> /{" "}
-            {catalogStats.total}. По 1 карте — кач осколками (0→30→80 и
-            дороже у крутых). Ценник всегда: нет карты → в оракул, есть →
-            осколки. Тиры I–V: с 1 / 10 / 15 / 25 / 30 ур.
+            {catalogStats.total}. Ценник = цена за <strong>1 осколок</strong>{" "}
+            (и за первую карту в оракул). Крутые карты дороже и дольше качаются.
+            Тиры I–V: с 1 / 10 / 15 / 25 / 30 ур.
           </p>
           {tab === "cards" && (
             <>
@@ -524,7 +524,7 @@ export function Collection({
                         locked
                           ? `С ${needLv} ур.`
                           : canBuyShards
-                            ? `+${shardsPerShopBuy(c.id)} осколков`
+                            ? `+${shardsPerShopBuy(c.id)} осколок`
                             : showPrice
                               ? "В оракул"
                               : "Максимум"
@@ -546,7 +546,7 @@ export function Collection({
                         locked
                           ? `С ${needLv} ур.`
                           : canBuyShards
-                            ? `+${shardsPerShopBuy(c.id)} осколков`
+                            ? `+${shardsPerShopBuy(c.id)} осколок`
                             : showPrice
                               ? "В оракул"
                               : "Максимум"

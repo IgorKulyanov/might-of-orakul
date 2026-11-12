@@ -3,6 +3,11 @@
  * Существа всех школ + заклинания: осколки, L1–L3.
  * Старт с ур.1; L2/L3 — за осколки (в бою или за золото/алмазы в магазине).
  */
+import {
+  shardNeedForCard,
+  shardsPerShopBuyAlways,
+  TIER_SHARD_NEED,
+} from "./cardEconomy";
 import { getCard } from "./cards";
 import type {
   AttackPattern,
@@ -15,28 +20,16 @@ import { upgradePlanLine } from "./cardUpgradePlan";
 
 export type CardUpgradeLevel = 1 | 2 | 3;
 
-/**
- * База: 0→30 до ур.2, затем 80 до ур.3.
- * Круче карта (тир/редкость) — дороже и дольше качать.
- */
-export const SHARD_COST_BY_TIER: Record<
-  1 | 2 | 3 | 4 | 5,
-  { to2: number; to3: number }
-> = {
-  1: { to2: 30, to3: 80 },
-  2: { to2: 40, to3: 100 },
-  3: { to2: 50, to3: 130 },
-  4: { to2: 70, to3: 180 },
-  5: { to2: 100, to3: 250 },
-};
+/** База по тиру (фактический кач — через shardNeedForCard по силе карты). */
+export const SHARD_COST_BY_TIER = TIER_SHARD_NEED;
 
-/** Сколько осколков даёт одна покупка по ценнику карты. */
+/** Одна покупка ценника = 1 осколок (для любой карты). */
 export const SHARDS_PER_SHOP_BUY: Record<1 | 2 | 3 | 4 | 5, number> = {
-  1: 10,
-  2: 12,
-  3: 15,
-  4: 18,
-  5: 22,
+  1: 1,
+  2: 1,
+  3: 1,
+  4: 1,
+  5: 1,
 };
 
 /** @deprecated алиас на тир-1 */
@@ -862,14 +855,20 @@ export function shardsNeededForNext(
 ): number | null {
   if (!isUpgradeableCard(cardId)) return null;
   if (level >= 3) return null;
-  const cost = SHARD_COST_BY_TIER[shardTierForCard(cardId)];
-  if (level <= 1) return cost.to2;
-  return cost.to3;
+  try {
+    const cost = shardNeedForCard(getCard(cardId));
+    if (level <= 1) return cost.to2;
+    return cost.to3;
+  } catch {
+    const cost = SHARD_COST_BY_TIER[shardTierForCard(cardId)];
+    if (level <= 1) return cost.to2;
+    return cost.to3;
+  }
 }
 
-/** Осколки за одну оплату ценника карты в магазине. */
-export function shardsPerShopBuy(cardId: string): number {
-  return SHARDS_PER_SHOP_BUY[shardTierForCard(cardId)];
+/** Осколки за одну оплату ценника: всегда 1. */
+export function shardsPerShopBuy(_cardId: string): number {
+  return shardsPerShopBuyAlways();
 }
 
 export function skeletonHasPack(level: CardUpgradeLevel): boolean {
