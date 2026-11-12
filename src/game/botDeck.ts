@@ -137,14 +137,12 @@ function botForbiddenCard(id: string, level: number): boolean {
  */
 export function offFactionMixRatio(level: number): number {
   const lv = Math.max(1, level);
-  // Чуть раньше микс — меньше «вечный один и тот же пул школы»
-  if (lv <= 2) return 0;
-  if (lv <= 4) return 0.12;
-  if (lv <= 7) return 0.18;
-  if (lv <= 11) return 0.24;
-  if (lv <= 17) return 0.3;
-  if (lv <= 27) return 0.34;
-  return 0.38;
+  if (lv <= 4) return 0;
+  if (lv <= 7) return 0.1;
+  if (lv <= 11) return 0.18;
+  if (lv <= 17) return 0.24;
+  if (lv <= 27) return 0.3;
+  return 0.32;
 }
 
 function isOwnOrNeutral(school: School, cardSchool: School): boolean {
@@ -172,55 +170,116 @@ export function botPoolForLevel(level: number, school: School): string[] {
 }
 
 /**
- * Размер колоды бота: на старте чуть короче, дальше догоняет потолок игрока.
+ * Размер колоды бота: рано коротко (можно и 4), дальше догоняет игрока.
  */
 export function botDeckSizeForLevel(level: number): number {
   const lv = Math.max(1, level);
-  if (lv <= 1) return 6;
-  if (lv === 2) return 8;
-  if (lv === 3) return 9;
-  if (lv <= 5) return 10;
-  if (lv <= 8) return 11;
+  if (lv <= 3) return 4;
+  if (lv <= 5) return 8;
+  if (lv <= 8) return 10;
   return DECK_SIZE;
 }
 
 /**
- * Обучающая колода = старт школы (+копии своих существ).
- * С seed — слегка перемешиваем порядок добора.
+ * Ранняя колода: коротко (~4), но не вечный старт оракула.
+ * Своя школа + нейтралы из тира I; с seed — разные наборы.
  */
-function fillDeckTutorial(
+function fillDeckEarlyVaried(
   faction: Faction,
   level: number,
   rng?: () => number,
 ): string[] {
   const target = botDeckSizeForLevel(level);
-  const base = starterDeckForFaction(faction);
-  const out: string[] = [...base];
-  const counts: Record<string, number> = {};
-  for (const id of out) counts[id] = (counts[id] ?? 0) + 1;
+  const maxTier = maxTierForLevel(level);
 
-  const creatures = base.filter((id) => {
+  const tierOk = (id: string) => {
     try {
-      return getCard(id).kind === "creature";
+      const t = getCard(id).unitLevel ?? 1;
+      return t >= 1 && t <= maxTier && !botForbiddenCard(id, level);
     } catch {
       return false;
     }
-  });
-  if (rng && creatures.length > 1) shuffleInPlace(creatures, rng);
+  };
 
-  let guard = 0;
-  let i = 0;
-  while (out.length < target && creatures.length > 0 && guard < 40) {
-    const id = creatures[i % creatures.length]!;
-    const max = maxCopiesForCard(id);
-    if ((counts[id] ?? 0) < max) {
-      out.push(id);
-      counts[id] = (counts[id] ?? 0) + 1;
-    }
-    i++;
-    guard++;
+  let creatures = CARDS.filter((c) => {
+    if (c.kind !== "creature") return false;
+    if (!tierOk(c.id)) return false;
+    return c.school === faction || c.school === "neutral";
+  }).map((c) => c.id);
+
+  let spells = CARDS.filter((c) => {
+    if (c.kind !== "spell") return false;
+    if (!tierOk(c.id)) return false;
+    if (c.id === "mana_stones" || c.id === "extra_card") return false;
+    return c.school === faction || c.school === "neutral";
+  }).map((c) => c.id);
+
+  // Без seed — стабильный старт школы (QA).
+  if (!rng) {
+    return starterDeckForFaction(faction).slice(0, target);
   }
-  if (rng) shuffleInPlace(out, rng);
+
+  shuffleInPlace(creatures, rng);
+  shuffleInPlace(spells, rng);
+
+  // Иногда чуть больше нейтралов в тварях.
+  if (rng() < 0.45) {
+    const neutrals = creatures.filter((id) => {
+      try {
+        return getCard(id).school === "neutral";
+      } catch {
+        return false;
+      }
+    });
+    const own = creatures.filter((id) => !neutrals.includes(id));
+    creatures = [...shuffleInPlace(neutrals, rng), ...shuffleInPlace(own, rng)];
+  }
+
+  const out: string[] = [];
+  const used = new Set<string>();
+  const push = (id: string) => {
+    if (out.length >= target || used.has(id)) return false;
+    used.add(id);
+    out.push(id);
+    return true;
+  };
+
+  // 2–3 твари + 1–2 спелла, не забиваем руку.
+  const creatureWant = Math.min(
+    creatures.length,
+    target <= 4 ? (rng() < 0.55 ? 2 : 3) : 3,
+  );
+  const spellWant = Math.max(1, target - creatureWant);
+
+  for (const id of creatures) {
+    if (out.filter((x) => {
+      try {
+        return getCard(x).kind === "creature";
+      } catch {
+        return false;
+      }
+    }).length >= creatureWant)
+      break;
+    push(id);
+  }
+  for (const id of spells) {
+    if (out.filter((x) => {
+      try {
+        return getCard(x).kind === "spell";
+      } catch {
+        return false;
+      }
+    }).length >= spellWant)
+      break;
+    push(id);
+  }
+  // Добор, если пул тонкий
+  for (const id of [...creatures, ...spells, ...starterDeckForFaction(faction)]) {
+    if (out.length >= target) break;
+    push(id);
+  }
+
+  shuffleInPlace(out, rng);
   return out.slice(0, target);
 }
 
@@ -246,14 +305,9 @@ export function botDeckForLevel(
             : Math.abs(level) % FACTIONS.length
         ]!;
 
-  // Ур.1–3: раньше только старт (при max=1 копия → вечно 4 одни и те же карты).
-  // Берём весь тир-пул школы + персону, чтобы бои отличались.
+  // Ур.1–3: коротко (~4), но разные наборы (школа + нейтралы), не забитая рука.
   if (level <= 3) {
-    const earlyPool = botPoolForLevel(level, faction);
-    if (earlyPool.length >= 5 && rng) {
-      return fillDeckAggressive(earlyPool, level, faction, persona, rng);
-    }
-    return fillDeckTutorial(faction, level, rng);
+    return fillDeckEarlyVaried(faction, level, rng);
   }
 
   const pool = botPoolForLevel(level, faction);
@@ -365,10 +419,10 @@ function fillDeckAggressive(
     );
 
   if (rng) {
-    // Сильный джиттер — иначе топ value всегда одни и те же «жирные»
+    // Лёгкий шаффл внутри «похожих» по стоимости — не одна и та же пачка
     const jittered = allCreatures.map((id, i) => ({
       id,
-      k: personaCreatureBias(id, faction, persona) + rng() * 6.5 + i * 0.001,
+      k: personaCreatureBias(id, faction, persona) + rng() * 2.8 + i * 0.001,
     }));
     jittered.sort((a, b) => a.k - b.k);
     allCreatures = jittered.map((x) => x.id);
@@ -431,7 +485,7 @@ function fillDeckAggressive(
   if (rng && spells.length > 1) {
     const jittered = spells.map((id) => ({
       id,
-      k: -spellImpact(id) + rng() * 5.5,
+      k: -spellImpact(id) + rng() * 2.5,
     }));
     jittered.sort((a, b) => a.k - b.k);
     spells = jittered.map((x) => x.id);
@@ -496,23 +550,19 @@ function fillDeckAggressive(
     guard++;
   }
 
-  // Ядро: широкий топ школы; с rng — случайная выборка, не один и тот же цикл
+  // Ядро колоды — лучшие ~65% своей школы, не весь слабый хвост пула
   const eliteOwn = ownCreatures.slice(
     0,
-    Math.max(5, Math.ceil(ownCreatures.length * 0.85)),
+    Math.max(4, Math.ceil(ownCreatures.length * 0.65)),
   );
-  const ownPick =
-    rng && eliteOwn.length > 1
-      ? shuffleInPlace([...eliteOwn], rng)
-      : eliteOwn;
   let ci = 0;
   guard = 0;
   while (
     out.length < creatureSlots &&
-    ownPick.length > 0 &&
+    eliteOwn.length > 0 &&
     guard < target * 80
   ) {
-    push(ownPick[ci % ownPick.length]!);
+    push(eliteOwn[ci % eliteOwn.length]!);
     ci++;
     guard++;
   }
@@ -584,8 +634,8 @@ export function botLevelNear(playerLevel: number): number {
 }
 
 /**
- * Герой бота: другая раса при возможности.
- * Без seed — детерминированно (QA); с seed — случайный другой оракул.
+ * Герой бота: чаще чужая школа, но иногда тот же ад/жизнь/… что у игрока.
+ * Без seed — детерминированно (QA).
  */
 export function botHeroIdFor(
   playerHeroId: string,
@@ -593,14 +643,21 @@ export function botHeroIdFor(
   seed?: number,
 ): string {
   const yours = getHero(playerHeroId).faction;
+  const same = BASE_HEROES.filter((h) => h.faction === yours);
   const others = BASE_HEROES.filter((h) => h.faction !== yours);
-  const list = others.length ? others : BASE_HEROES;
   if (seed == null) {
+    const list = others.length ? others : BASE_HEROES;
     return list[Math.abs(botLevel + playerHeroId.length) % list.length]!.id;
   }
   const rng = makeBotRng(seed ^ 0xb01dface);
-  // Иногда (высокий уровень) — эпик той же чужой школы, если есть в BASE
-  return list[Math.floor(rng() * list.length)]!.id;
+  // ~35% — зеркало школы игрока (ад vs ад и т.п.)
+  const pool =
+    rng() < 0.35 && same.length
+      ? same
+      : others.length
+        ? others
+        : BASE_HEROES;
+  return pool[Math.floor(rng() * pool.length)]!.id;
 }
 
 /**
