@@ -18,8 +18,8 @@ export const TIER_SHARD_PRICE: Record<
   1 | 2 | 3 | 4 | 5,
   { gold: number; diamonds: number }
 > = {
-  1: { gold: 40, diamonds: 5 },
-  2: { gold: 100, diamonds: 12 },
+  1: { gold: 70, diamonds: 6 },
+  2: { gold: 110, diamonds: 12 },
   3: { gold: 260, diamonds: 28 },
   4: { gold: 600, diamonds: 55 },
   5: { gold: 1300, diamonds: 100 },
@@ -29,11 +29,11 @@ export const TIER_SHARD_NEED: Record<
   1 | 2 | 3 | 4 | 5,
   { unlock: number; to2: number; to3: number }
 > = {
-  1: { unlock: 20, to2: 30, to3: 80 },
-  2: { unlock: 40, to2: 50, to3: 120 },
-  3: { unlock: 65, to2: 80, to3: 180 },
-  4: { unlock: 110, to2: 120, to3: 280 },
-  5: { unlock: 170, to2: 180, to3: 420 },
+  1: { unlock: 20, to2: 65, to3: 150 },
+  2: { unlock: 40, to2: 80, to3: 190 },
+  3: { unlock: 65, to2: 110, to3: 250 },
+  4: { unlock: 110, to2: 160, to3: 340 },
+  5: { unlock: 170, to2: 220, to3: 500 },
 };
 
 /** Непересекающиеся полки: max(T) < min(T+1). */
@@ -48,32 +48,33 @@ const TIER_BAND: Record<
   }
 > = {
   1: {
-    gold: [22, 58],
-    diamonds: [3, 8],
+    // Ценник и кач L2 не ниже 60 — иначе «ур.2 за копейки».
+    gold: [60, 95],
+    diamonds: [5, 10],
     unlock: [16, 28],
-    to2: [22, 42],
-    to3: [55, 100],
+    to2: [60, 80],
+    to3: [140, 200],
   },
   2: {
-    gold: [75, 145],
-    diamonds: [9, 18],
+    gold: [100, 160],
+    diamonds: [10, 20],
     unlock: [32, 48],
-    to2: [48, 72],
-    to3: [115, 170],
+    to2: [70, 100],
+    to3: [170, 250],
   },
   3: {
     gold: [190, 360],
     diamonds: [22, 42],
     unlock: [55, 85],
-    to2: [85, 125],
-    to3: [200, 290],
+    to2: [100, 140],
+    to3: [230, 320],
   },
   4: {
     gold: [420, 820],
     diamonds: [48, 85],
     unlock: [95, 140],
-    to2: [140, 200],
-    to3: [320, 450],
+    to2: [150, 210],
+    to3: [330, 460],
   },
   5: {
     gold: [950, 1650],

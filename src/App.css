@@ -5463,6 +5463,78 @@ html.is-hand-dragging .grave-row {
   border: 1px solid rgba(64, 145, 108, 0.45);
 }
 
+.shop-unlock-reveal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-content: center;
+  gap: 1rem;
+  margin: 0;
+  padding: 1.25rem;
+  border: 0;
+  background:
+    radial-gradient(ellipse at 50% 35%, rgba(232, 180, 60, 0.28), transparent 55%),
+    rgba(6, 8, 14, 0.82);
+  cursor: pointer;
+  animation: shop-unlock-fade 0.35s ease-out both;
+}
+
+.shop-unlock-reveal-card {
+  width: min(72vw, 17rem);
+  margin: 0 auto;
+  transform-origin: 50% 60%;
+  animation: shop-unlock-rise 0.55s cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
+  filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.55));
+}
+
+.shop-unlock-reveal-text {
+  display: grid;
+  gap: 0.2rem;
+  justify-items: center;
+  color: #f4efe4;
+  font-family: var(--display);
+  animation: shop-unlock-fade 0.45s ease-out 0.12s both;
+}
+
+.shop-unlock-reveal-eyebrow {
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #e8c56a;
+}
+
+.shop-unlock-reveal-text strong {
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.shop-unlock-reveal-text span:last-child {
+  font-size: 0.92rem;
+  opacity: 0.85;
+}
+
+@keyframes shop-unlock-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes shop-unlock-rise {
+  from {
+    opacity: 0;
+    transform: translateY(1.4rem) scale(0.86);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .shop-meta {
   display: grid;
   gap: 0.35rem;

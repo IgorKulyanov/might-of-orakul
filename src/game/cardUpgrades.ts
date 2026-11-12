@@ -912,7 +912,8 @@ export function tryUnlockCardFromShards(
     };
   }
   const shards = { ...(owned.cardShards ?? {}) };
-  shards[cardId] = have - need;
+  // Открытие сбрасывает счётчик: кач ур.2 копим с нуля (без «повисших» остатков).
+  shards[cardId] = 0;
   const collection = { ...(owned.collection ?? {}), [cardId]: 1 };
   const unlocked = unlockedList.includes(cardId)
     ? unlockedList

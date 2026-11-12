@@ -90,6 +90,11 @@ export function Collection({
   const [tab, setTab] = useState<ShopTab>("cards");
   const [flash, setFlash] = useState<string | null>(null);
   const [payBusy, setPayBusy] = useState<string | null>(null);
+  const [unlockReveal, setUnlockReveal] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const unlockTimer = useRef<number | null>(null);
 
   useEffect(() => {
     if (forcedTab) setTab(forcedTab);
@@ -150,6 +155,23 @@ export function Collection({
     setFlash(msg);
     window.setTimeout(() => setFlash(null), 2200);
   };
+
+  const showUnlockReveal = (id: string, name: string) => {
+    if (unlockTimer.current != null) {
+      window.clearTimeout(unlockTimer.current);
+    }
+    setUnlockReveal({ id, name });
+    unlockTimer.current = window.setTimeout(() => {
+      setUnlockReveal(null);
+      unlockTimer.current = null;
+    }, 2800);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (unlockTimer.current != null) window.clearTimeout(unlockTimer.current);
+    };
+  }, []);
 
   const commitDeck = (next: string[]) => {
     const saved = saveDeck(owned, deckId, next);
@@ -268,6 +290,7 @@ export function Collection({
     const flashAfter = (next: OwnedState) => {
       const opened = !hadCopy && ownedCopies(next, cardId) > 0;
       if (opened) {
+        showUnlockReveal(cardId, cardName);
         say(`«${cardName}» открыта в оракуле (ур.1)`);
         return;
       }
@@ -370,6 +393,34 @@ export function Collection({
       </header>
 
       {flash && <div className="cabinet-flash">{flash}</div>}
+
+      {unlockReveal ? (
+        <button
+          type="button"
+          className="shop-unlock-reveal"
+          onClick={() => {
+            if (unlockTimer.current != null) {
+              window.clearTimeout(unlockTimer.current);
+              unlockTimer.current = null;
+            }
+            setUnlockReveal(null);
+          }}
+          aria-label={`Карта «${unlockReveal.name}» открыта`}
+        >
+          <div className="shop-unlock-reveal-card">
+            {(() => {
+              const card = CARDS.find((c) => c.id === unlockReveal.id);
+              if (!card) return null;
+              return <CardView card={card} upgradeLevel={1} flippable={false} />;
+            })()}
+          </div>
+          <div className="shop-unlock-reveal-text">
+            <span className="shop-unlock-reveal-eyebrow">В оракуле</span>
+            <strong>{unlockReveal.name}</strong>
+            <span>Уровень 1 открыт</span>
+          </div>
+        </button>
+      ) : null}
 
       {(tab === "cards" || tab === "deck") && (
         <>
@@ -502,11 +553,10 @@ export function Collection({
                           );
                         }
                         const ready = haveSh >= need;
+                        // Зелёный — только до открытия; ур.2/3 копим синим.
                         const tone = ready
                           ? "is-ready"
-                          : lv <= 1
-                            ? "is-farm-green"
-                            : "is-farm-blue";
+                          : "is-farm-blue";
                         return (
                           <button
                             type="button"
@@ -516,7 +566,7 @@ export function Collection({
                             title={
                               ready
                                 ? `Улучшить до ур.${lv + 1}`
-                                : `Осколки ${haveSh}/${need}`
+                                : `К ур.${lv + 1}: ${haveSh}/${need}`
                             }
                           >
                             {haveSh}/{need}

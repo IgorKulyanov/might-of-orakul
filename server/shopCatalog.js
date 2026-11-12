@@ -10,32 +10,32 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const TIER_BAND = {
   1: {
-    gold: [22, 58],
-    diamonds: [3, 8],
+    gold: [60, 95],
+    diamonds: [5, 10],
     unlock: [16, 28],
-    to2: [22, 42],
-    to3: [55, 100],
+    to2: [60, 80],
+    to3: [140, 200],
   },
   2: {
-    gold: [75, 145],
-    diamonds: [9, 18],
+    gold: [100, 160],
+    diamonds: [10, 20],
     unlock: [32, 48],
-    to2: [48, 72],
-    to3: [115, 170],
+    to2: [70, 100],
+    to3: [170, 250],
   },
   3: {
     gold: [190, 360],
     diamonds: [22, 42],
     unlock: [55, 85],
-    to2: [85, 125],
-    to3: [200, 290],
+    to2: [100, 140],
+    to3: [230, 320],
   },
   4: {
     gold: [420, 820],
     diamonds: [48, 85],
     unlock: [95, 140],
-    to2: [140, 200],
-    to3: [320, 450],
+    to2: [150, 210],
+    to3: [330, 460],
   },
   5: {
     gold: [950, 1650],
@@ -475,7 +475,8 @@ export function applyShardUnlocks(owned) {
     const need = Math.max(1, Math.floor(Number(card.needUnlock)) || 1);
     const have = Math.floor(Number(rawN)) || 0;
     if (have < need) continue;
-    shards[cardId] = have - need;
+    // Открытие — с нуля на ур.2, без остатка осколков.
+    shards[cardId] = 0;
     col[cardId] = 1;
     const purchased = new Set(
       Array.isArray(owned.purchased) ? owned.purchased.map(String) : [],
