@@ -8,7 +8,7 @@ import {
   shardsPerShopBuyAlways,
   TIER_SHARD_NEED,
 } from "./cardEconomy";
-import { getCard } from "./cards";
+import { CARD_TIER_RANK, getCard } from "./cards";
 import { isCardAvailableInShop } from "./progression";
 import type {
   AttackPattern,
@@ -857,7 +857,10 @@ export function shardsNeededForNext(
   if (!isUpgradeableCard(cardId)) return null;
   if (level >= 3) return null;
   try {
-    const cost = shardNeedForCard(getCard(cardId));
+    const cost = shardNeedForCard(
+      getCard(cardId),
+      CARD_TIER_RANK.get(cardId),
+    );
     if (level <= 1) return cost.to2;
     return cost.to3;
   } catch {

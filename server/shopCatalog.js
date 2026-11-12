@@ -8,57 +8,64 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const TIER_SHARD_PRICE = {
-  1: { gold: 40, diamonds: 5 },
-  2: { gold: 110, diamonds: 12 },
-  3: { gold: 280, diamonds: 28 },
-  4: { gold: 650, diamonds: 55 },
-  5: { gold: 1400, diamonds: 100 },
-};
-
-const TIER_SHARD_NEED = {
-  1: { to2: 30, to3: 80 },
-  2: { to2: 40, to3: 100 },
-  3: { to2: 50, to3: 130 },
-  4: { to2: 70, to3: 180 },
-  5: { to2: 100, to3: 250 },
+const TIER_BAND = {
+  1: { gold: [22, 58], diamonds: [3, 8], to2: [22, 42], to3: [55, 100] },
+  2: { gold: [75, 145], diamonds: [9, 18], to2: [48, 72], to3: [115, 170] },
+  3: {
+    gold: [190, 360],
+    diamonds: [22, 42],
+    to2: [85, 125],
+    to3: [200, 290],
+  },
+  4: {
+    gold: [420, 820],
+    diamonds: [48, 85],
+    to2: [140, 200],
+    to3: [320, 450],
+  },
+  5: {
+    gold: [950, 1650],
+    diamonds: [95, 145],
+    to2: [220, 300],
+    to3: [500, 700],
+  },
 };
 
 const ABILITY_WEIGHT = {
-  arbiter_flex: 38,
-  vampire_grow: 30,
-  banshee_flex: 28,
-  hornet_queen_flex: 27,
-  gravedigger_flex: 26,
-  necro_flex: 26,
-  balthazar_flex: 26,
-  unicorn_flex: 25,
-  leshy_flex: 24,
-  valkyrie_flex: 24,
-  succubus_flex: 24,
-  mage_flex: 22,
-  triton_flex: 22,
-  mermaid_flex: 22,
-  paladin_flex: 22,
-  inferno_flex: 22,
+  arbiter_flex: 42,
+  paladin_flex: 36,
+  vampire_grow: 32,
+  banshee_flex: 30,
+  hornet_queen_flex: 30,
+  gravedigger_flex: 28,
+  necro_flex: 28,
+  balthazar_flex: 28,
+  unicorn_flex: 28,
+  valkyrie_flex: 28,
+  leshy_flex: 26,
+  succubus_flex: 26,
+  mage_flex: 24,
+  triton_flex: 24,
+  mermaid_flex: 24,
+  inferno_flex: 24,
+  angel_heal: 22,
   aquilite_swap: 20,
-  skeleton_pack: 16,
-  hornet_pack: 16,
-  school_mana_aura: 18,
+  school_mana_aura: 20,
   leprechaun_aura: 18,
   water_tide: 16,
-  angel_heal: 15,
-  lich_drain: 17,
+  lich_drain: 18,
   basilisk_gaze: 18,
-  spider_poison: 16,
-  scorpion_poison: 16,
-  flame_burn: 14,
-  imp_burn: 14,
-  mana_steal: 18,
+  skeleton_pack: 14,
+  hornet_pack: 14,
+  spider_poison: 10,
+  scorpion_poison: 12,
+  flame_burn: 12,
+  imp_burn: 12,
+  mana_steal: 16,
   riposte: 14,
   rush: 12,
-  berserk_decay: 8,
-  immune_spells: 22,
+  berserk_decay: 6,
+  immune_spells: 24,
   immune_hell_death: 18,
   immune_death: 12,
 };
@@ -164,9 +171,10 @@ function cardPowerScore(card) {
   if (card.kind === "creature") {
     const atk = Number(card.attack) || 0;
     const hp = Number(card.health) || 0;
-    const combat = atk * 2.35 + hp;
+    const combat = atk * 2.5 + hp * 1.15;
     score += combat;
-    score += (combat / mana) * 6;
+    score += Math.min(28, (combat / mana) * 2.2);
+    score += Math.max(0, mana - 1) * 6;
     if (card.attackPattern) score += PATTERN_WEIGHT[card.attackPattern] || 0;
     const abs = [
       ...(card.ability ? [card.ability] : []),
@@ -177,47 +185,63 @@ function cardPowerScore(card) {
   } else {
     const effects = Array.isArray(card.spellEffects) ? card.spellEffects : [];
     for (const e of effects) score += spellEffectScore(e);
-    score += (score / mana) * 4;
+    score += Math.min(24, (score / mana) * 2);
+    score += Math.max(0, mana - 1) * 5;
     if (!effects.length) score += 8;
   }
   const text = String(card.text || "").toLowerCase();
-  if (text.includes(" или ")) score += 8;
-  if (text.includes("за убийство") || text.includes("при смерти")) score += 7;
-  if (text.includes("яд") || text.includes("оглуш") || text.includes("щит")) {
-    score += 5;
-  }
+  if (text.includes(" или ")) score += 12;
+  if (text.includes("щит")) score += 10;
+  if (text.includes("всей арми") || text.includes("всем союз")) score += 14;
+  if (text.includes("за убийство") || text.includes("при смерти")) score += 8;
+  if (text.includes("яд") || text.includes("оглуш")) score += 5;
   if (text.includes("стая") || text.includes("рой")) score += 6;
-  const ul = Math.max(1, Math.min(5, Math.floor(Number(card.unitLevel) || 1)));
-  score += (ul - 1) * 8;
   switch (card.rarity) {
     case "legendary":
-      score += 22;
+      score += 18;
       break;
     case "epic":
-      score += 14;
+      score += 12;
       break;
     case "rare":
-      score += 7;
+      score += 6;
       break;
     default:
       break;
   }
-  score += (hashSalt(card.id) % 17) * 0.35;
+  score += (hashSalt(card.id) % 11) * 0.4;
   return Math.max(1, score);
 }
 
-function powerMult(score, tier) {
-  const mid = [0, 118, 145, 175, 210, 255][tier];
-  const span = [0, 42, 50, 60, 75, 95][tier];
-  const t = (score - mid) / span;
-  const clamped = Math.max(-1.1, Math.min(1.45, t));
-  return 1 + clamped * 0.62;
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function withinTierRanks(cards) {
+  const byTier = { 1: [], 2: [], 3: [], 4: [], 5: [] };
+  for (const c of cards) byTier[shopTier(c)].push(c);
+  const ranks = new Map();
+  for (const tier of [1, 2, 3, 4, 5]) {
+    const list = byTier[tier]
+      .map((c) => ({ id: c.id, score: cardPowerScore(c) }))
+      .sort((a, b) => a.score - b.score || String(a.id).localeCompare(String(b.id)));
+    const n = list.length;
+    if (!n) continue;
+    if (n === 1) {
+      ranks.set(list[0].id, 0.55);
+      continue;
+    }
+    for (let i = 0; i < n; i++) {
+      ranks.set(list[i].id, 0.06 + (0.88 * i) / (n - 1));
+    }
+  }
+  return ranks;
 }
 
 function roundGold(n) {
   const x = Math.max(5, Math.round(n));
-  if (x < 40) return Math.max(5, Math.round(x));
-  if (x < 100) return Math.round(x / 5) * 5;
+  if (x < 60) return x;
+  if (x < 120) return Math.round(x / 5) * 5;
   if (x < 400) return Math.round(x / 10) * 10;
   if (x < 1000) return Math.round(x / 25) * 25;
   return Math.round(x / 50) * 50;
@@ -225,36 +249,41 @@ function roundGold(n) {
 
 function roundDia(n) {
   const x = Math.max(1, Math.round(n));
-  if (x < 20) return x;
+  if (x < 25) return x;
   if (x < 60) return Math.round(x / 2) * 2;
   if (x < 150) return Math.round(x / 5) * 5;
   return Math.round(x / 10) * 10;
 }
 
 function roundShards(n) {
-  return Math.max(8, Math.round(n / 2) * 2);
+  return Math.max(10, Math.round(n / 2) * 2);
 }
 
-function shopPriceForCard(card) {
-  if (card.id === "mana_stones") return { gold: 200, diamonds: 20 };
+function shopPriceForCard(card, rank01) {
+  if (card.id === "mana_stones") return { gold: 160, diamonds: 18 };
   const tier = shopTier(card);
-  const base = TIER_SHARD_PRICE[tier];
-  const score = cardPowerScore(card);
-  const mult = powerMult(score, tier);
-  const jitter = 0.94 + (hashSalt(card.id) % 13) * 0.01;
-  return {
-    gold: roundGold(base.gold * mult * jitter),
-    diamonds: roundDia(base.diamonds * mult * jitter),
-  };
+  const band = TIER_BAND[tier];
+  const t =
+    rank01 != null && Number.isFinite(rank01)
+      ? Math.max(0.02, Math.min(0.98, rank01))
+      : 0.5;
+  let gold = roundGold(lerp(band.gold[0], band.gold[1], t));
+  let diamonds = roundDia(lerp(band.diamonds[0], band.diamonds[1], t));
+  gold = Math.max(band.gold[0], Math.min(band.gold[1], gold));
+  diamonds = Math.max(band.diamonds[0], Math.min(band.diamonds[1], diamonds));
+  return { gold, diamonds };
 }
 
-function shardNeedForCard(card) {
+function shardNeedForCard(card, rank01) {
   const tier = shopTier(card);
-  const base = TIER_SHARD_NEED[tier];
-  const mult = powerMult(cardPowerScore(card), tier);
+  const band = TIER_BAND[tier];
+  const t =
+    rank01 != null && Number.isFinite(rank01)
+      ? Math.max(0.02, Math.min(0.98, rank01))
+      : 0.5;
   return {
-    to2: roundShards(base.to2 * mult),
-    to3: roundShards(base.to3 * mult),
+    to2: roundShards(lerp(band.to2[0], band.to2[1], t)),
+    to3: roundShards(lerp(band.to3[0], band.to3[1], t)),
   };
 }
 
@@ -292,10 +321,11 @@ const raw = loadCardsJson();
 /** @type {Map<string, { gold: number, diamonds: number, maxCopies: number, name: string, minLevel: number, tier: number, needTo2: number, needTo3: number }>} */
 const CATALOG = new Map();
 
+const BASE_CARDS = [];
 for (const c of raw.cards || []) {
   if (!c?.id) continue;
   const tier = shopTier(c);
-  const withTier = {
+  BASE_CARDS.push({
     ...c,
     unitLevel:
       c.unitLevel && c.unitLevel >= 1 && c.unitLevel <= 5
@@ -303,14 +333,20 @@ for (const c of raw.cards || []) {
         : c.kind === "spell"
           ? tier
           : c.unitLevel,
-  };
-  const price = shopPriceForCard(withTier);
-  const need = shardNeedForCard(withTier);
-  CATALOG.set(String(c.id), {
+  });
+}
+const CARD_RANKS = withinTierRanks(BASE_CARDS);
+
+for (const withTier of BASE_CARDS) {
+  const tier = shopTier(withTier);
+  const rank = CARD_RANKS.get(withTier.id);
+  const price = shopPriceForCard(withTier, rank);
+  const need = shardNeedForCard(withTier, rank);
+  CATALOG.set(String(withTier.id), {
     gold: price.gold,
     diamonds: price.diamonds,
-    maxCopies: maxCopiesFor(c),
-    name: String(c.name || c.id),
+    maxCopies: maxCopiesFor(withTier),
+    name: String(withTier.name || withTier.id),
     minLevel: minLevelForCard(withTier),
     tier,
     needTo2: need.to2,

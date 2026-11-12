@@ -6,9 +6,13 @@ import type {
   School,
 } from "./types";
 import data from "../../КАРТЫ.json" with { type: "json" };
-import { shopPriceForCard, shopTierOf } from "./cardEconomy";
+import {
+  shopPriceForCard,
+  shopTierOf,
+  withinTierRanks,
+} from "./cardEconomy";
 
-export const CARDS: CardDef[] = (data.cards as CardDef[]).map((c) => {
+const CARDS_BASE: CardDef[] = (data.cards as CardDef[]).map((c) => {
   const tier = shopTierOf(c);
   // Магия без unitLevel — тир по редкости (не всё «I новичок»).
   const unitLevel =
@@ -17,11 +21,20 @@ export const CARDS: CardDef[] = (data.cards as CardDef[]).map((c) => {
       : c.kind === "spell"
         ? tier
         : c.unitLevel;
-  const withTier: CardDef = { ...c, unitLevel };
-  const price = shopPriceForCard(withTier);
   return {
-    ...withTier,
+    ...c,
+    unitLevel,
     cost: c.cost ?? manaCostTotal(c.manaCost ?? {}),
+  };
+});
+
+/** Ранг силы внутри тира 0..1 — для цен и осколков на ап. */
+export const CARD_TIER_RANK = withinTierRanks(CARDS_BASE);
+
+export const CARDS: CardDef[] = CARDS_BASE.map((c) => {
+  const price = shopPriceForCard(c, CARD_TIER_RANK.get(c.id));
+  return {
+    ...c,
     priceGold: price.gold,
     priceDiamonds: price.diamonds,
   };

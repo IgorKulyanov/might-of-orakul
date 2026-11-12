@@ -1,6 +1,9 @@
 /**
  * Цены и осколки по силе/полезности КАЖДОЙ карты.
  * Ценник магазина = цена за 1 осколок (золото или алмазы).
+ *
+ * Жёсткие полки по тиру: II всегда дороже I, III дороже II и т.д.
+ * Внутри тира — разброс по силе/интересности.
  */
 import type {
   AttackPattern,
@@ -9,65 +12,96 @@ import type {
   SpellEffect,
 } from "./types";
 
-/** База тира ÷10 от старых ценников (400→40 и т.д.). */
+/** Ориентир «середины» полки (для подсказок/совместимости). */
 export const TIER_SHARD_PRICE: Record<
   1 | 2 | 3 | 4 | 5,
   { gold: number; diamonds: number }
 > = {
   1: { gold: 40, diamonds: 5 },
-  2: { gold: 110, diamonds: 12 },
-  3: { gold: 280, diamonds: 28 },
-  4: { gold: 650, diamonds: 55 },
-  5: { gold: 1400, diamonds: 100 },
+  2: { gold: 100, diamonds: 12 },
+  3: { gold: 260, diamonds: 28 },
+  4: { gold: 600, diamonds: 55 },
+  5: { gold: 1300, diamonds: 100 },
 };
 
-/** База осколков на ап (потом множится силой карты). */
 export const TIER_SHARD_NEED: Record<
   1 | 2 | 3 | 4 | 5,
   { to2: number; to3: number }
 > = {
   1: { to2: 30, to3: 80 },
-  2: { to2: 40, to3: 100 },
-  3: { to2: 50, to3: 130 },
-  4: { to2: 70, to3: 180 },
-  5: { to2: 100, to3: 250 },
+  2: { to2: 50, to3: 120 },
+  3: { to2: 80, to3: 180 },
+  4: { to2: 120, to3: 280 },
+  5: { to2: 180, to3: 420 },
+};
+
+/** Непересекающиеся полки: max(T) < min(T+1). */
+const TIER_BAND: Record<
+  1 | 2 | 3 | 4 | 5,
+  {
+    gold: [number, number];
+    diamonds: [number, number];
+    to2: [number, number];
+    to3: [number, number];
+  }
+> = {
+  1: { gold: [22, 58], diamonds: [3, 8], to2: [22, 42], to3: [55, 100] },
+  2: { gold: [75, 145], diamonds: [9, 18], to2: [48, 72], to3: [115, 170] },
+  3: {
+    gold: [190, 360],
+    diamonds: [22, 42],
+    to2: [85, 125],
+    to3: [200, 290],
+  },
+  4: {
+    gold: [420, 820],
+    diamonds: [48, 85],
+    to2: [140, 200],
+    to3: [320, 450],
+  },
+  5: {
+    gold: [950, 1650],
+    diamonds: [95, 145],
+    to2: [220, 300],
+    to3: [500, 700],
+  },
 };
 
 const ABILITY_WEIGHT: Partial<Record<CreatureAbility, number>> = {
-  arbiter_flex: 38,
-  vampire_grow: 30,
-  banshee_flex: 28,
-  hornet_queen_flex: 27,
-  gravedigger_flex: 26,
-  necro_flex: 26,
-  balthazar_flex: 26,
-  unicorn_flex: 25,
-  leshy_flex: 24,
-  valkyrie_flex: 24,
-  succubus_flex: 24,
-  mage_flex: 22,
-  triton_flex: 22,
-  mermaid_flex: 22,
-  paladin_flex: 22,
-  inferno_flex: 22,
+  arbiter_flex: 42,
+  paladin_flex: 36,
+  vampire_grow: 32,
+  banshee_flex: 30,
+  hornet_queen_flex: 30,
+  gravedigger_flex: 28,
+  necro_flex: 28,
+  balthazar_flex: 28,
+  unicorn_flex: 28,
+  valkyrie_flex: 28,
+  leshy_flex: 26,
+  succubus_flex: 26,
+  mage_flex: 24,
+  triton_flex: 24,
+  mermaid_flex: 24,
+  inferno_flex: 24,
+  angel_heal: 22,
   aquilite_swap: 20,
-  skeleton_pack: 16,
-  hornet_pack: 16,
-  school_mana_aura: 18,
+  school_mana_aura: 20,
   leprechaun_aura: 18,
   water_tide: 16,
-  angel_heal: 15,
-  lich_drain: 17,
+  lich_drain: 18,
   basilisk_gaze: 18,
-  spider_poison: 16,
-  scorpion_poison: 16,
-  flame_burn: 14,
-  imp_burn: 14,
-  mana_steal: 18,
+  skeleton_pack: 14,
+  hornet_pack: 14,
+  spider_poison: 10,
+  scorpion_poison: 12,
+  flame_burn: 12,
+  imp_burn: 12,
+  mana_steal: 16,
   riposte: 14,
   rush: 12,
-  berserk_decay: 8,
-  immune_spells: 22,
+  berserk_decay: 6,
+  immune_spells: 24,
   immune_hell_death: 18,
   immune_death: 12,
 };
@@ -143,7 +177,7 @@ function spellEffectScore(e: SpellEffect): number {
   }
 }
 
-/** Сырой балл силы/интересности (чем выше — тем дороже осколок и кач). */
+/** Сырой балл силы/интересности внутри сравнения карт. */
 export function cardPowerScore(card: CardDef): number {
   const mana = Math.max(1, manaTotal(card));
   let score = 0;
@@ -151,9 +185,13 @@ export function cardPowerScore(card: CardDef): number {
   if (card.kind === "creature") {
     const atk = Number(card.attack) || 0;
     const hp = Number(card.health) || 0;
-    const combat = atk * 2.35 + hp;
+    // Танк/урон важнее «дешёвой эффективности» 1-мановых казуалок.
+    const combat = atk * 2.5 + hp * 1.15;
     score += combat;
-    score += (combat / mana) * 6;
+    // Эффективность — слабый бонус, с потолком.
+    score += Math.min(28, (combat / mana) * 2.2);
+    // Дорогая мана сама по себе — признак «взрослой» карты.
+    score += Math.max(0, mana - 1) * 6;
     if (card.attackPattern) {
       score += PATTERN_WEIGHT[card.attackPattern] ?? 0;
     }
@@ -166,45 +204,78 @@ export function cardPowerScore(card: CardDef): number {
   } else {
     const effects = card.spellEffects ?? [];
     for (const e of effects) score += spellEffectScore(e);
-    score += (score / mana) * 4;
+    score += Math.min(24, (score / mana) * 2);
+    score += Math.max(0, mana - 1) * 5;
     if (!effects.length) score += 8;
   }
 
-  // Текст с «или» / гибкими выборами — обычно интереснее простой палки.
   const text = (card.text ?? "").toLowerCase();
-  if (text.includes(" или ")) score += 8;
-  if (text.includes("за убийство") || text.includes("при смерти")) score += 7;
-  if (text.includes("яд") || text.includes("оглуш") || text.includes("щит")) {
-    score += 5;
-  }
+  if (text.includes(" или ")) score += 12;
+  if (text.includes("щит")) score += 10;
+  if (text.includes("всей арми") || text.includes("всем союз")) score += 14;
+  if (text.includes("за убийство") || text.includes("при смерти")) score += 8;
+  if (text.includes("яд") || text.includes("оглуш")) score += 5;
   if (text.includes("стая") || text.includes("рой")) score += 6;
-
-  const ul = Math.max(1, Math.min(5, Math.floor(Number(card.unitLevel) || 1)));
-  score += (ul - 1) * 8;
 
   switch (card.rarity) {
     case "legendary":
-      score += 22;
+      score += 18;
       break;
     case "epic":
-      score += 14;
+      score += 12;
       break;
     case "rare":
-      score += 7;
+      score += 6;
       break;
     default:
       break;
   }
 
-  // Соль по id — меньше одинаковых цен у «похожих» статов.
-  score += (hashSalt(card.id) % 17) * 0.35;
+  score += (hashSalt(card.id) % 11) * 0.4;
   return Math.max(1, score);
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+/**
+ * Ранг внутри тира 0..1 (по score).
+ * Так II не пересекается с I, а паладин внутри III выше слабых соседей.
+ */
+export function withinTierRanks(
+  cards: CardDef[],
+): Map<string, number> {
+  const byTier: Record<1 | 2 | 3 | 4 | 5, CardDef[]> = {
+    1: [],
+    2: [],
+    3: [],
+    4: [],
+    5: [],
+  };
+  for (const c of cards) byTier[shopTierOf(c)].push(c);
+  const ranks = new Map<string, number>();
+  for (const tier of [1, 2, 3, 4, 5] as const) {
+    const list = byTier[tier]
+      .map((c) => ({ id: c.id, score: cardPowerScore(c) }))
+      .sort((a, b) => a.score - b.score || a.id.localeCompare(b.id));
+    const n = list.length;
+    if (n === 0) continue;
+    if (n === 1) {
+      ranks.set(list[0]!.id, 0.55);
+      continue;
+    }
+    for (let i = 0; i < n; i++) {
+      ranks.set(list[i]!.id, 0.06 + (0.88 * i) / (n - 1));
+    }
+  }
+  return ranks;
 }
 
 function roundGold(n: number): number {
   const x = Math.max(5, Math.round(n));
-  if (x < 40) return Math.max(5, Math.round(x / 1) * 1);
-  if (x < 100) return Math.round(x / 5) * 5;
+  if (x < 60) return x;
+  if (x < 120) return Math.round(x / 5) * 5;
   if (x < 400) return Math.round(x / 10) * 10;
   if (x < 1000) return Math.round(x / 25) * 25;
   return Math.round(x / 50) * 50;
@@ -212,26 +283,14 @@ function roundGold(n: number): number {
 
 function roundDia(n: number): number {
   const x = Math.max(1, Math.round(n));
-  if (x < 20) return x;
+  if (x < 25) return x;
   if (x < 60) return Math.round(x / 2) * 2;
   if (x < 150) return Math.round(x / 5) * 5;
   return Math.round(x / 10) * 10;
 }
 
 function roundShards(n: number): number {
-  return Math.max(8, Math.round(n / 2) * 2);
-}
-
-/**
- * Норма силы внутри тира → множитель ~0.55…2.15.
- * mid/span подогнаны под реальные score существ (не «потолок» у всех).
- */
-function powerMult(score: number, tier: 1 | 2 | 3 | 4 | 5): number {
-  const mid = [0, 118, 145, 175, 210, 255][tier];
-  const span = [0, 42, 50, 60, 75, 95][tier];
-  const t = (score - mid) / span;
-  const clamped = Math.max(-1.1, Math.min(1.45, t));
-  return 1 + clamped * 0.62;
+  return Math.max(10, Math.round(n / 2) * 2);
 }
 
 export function shopTierOf(card: CardDef): 1 | 2 | 3 | 4 | 5 {
@@ -249,38 +308,51 @@ export function shopTierOf(card: CardDef): 1 | 2 | 3 | 4 | 5 {
   }
 }
 
-/** Цена за 1 осколок (и за первую покупку карты в оракул). */
-export function shopPriceForCard(card: CardDef): {
+/** Цена за 1 осколок. `rank01` — ранг внутри тира (0..1), иначе mid. */
+export function shopPriceForCard(
+  card: CardDef,
+  rank01?: number,
+): {
   gold: number;
   diamonds: number;
 } {
   if (card.id === "mana_stones") {
-    return { gold: 200, diamonds: 20 };
+    // Особый товар: не дешевле полки II и не ломает порядок тиров.
+    return { gold: 160, diamonds: 18 };
   }
   const tier = shopTierOf(card);
-  const base = TIER_SHARD_PRICE[tier];
-  const score = cardPowerScore(card);
-  const mult = powerMult(score, tier);
-  // Лёгкий сдвиг по соли id — ещё меньше совпадений.
-  const jitter = 0.94 + (hashSalt(card.id) % 13) * 0.01;
-  return {
-    gold: roundGold(base.gold * mult * jitter),
-    diamonds: roundDia(base.diamonds * mult * jitter),
-  };
+  const band = TIER_BAND[tier];
+  const t =
+    rank01 != null && Number.isFinite(rank01)
+      ? Math.max(0.02, Math.min(0.98, rank01))
+      : 0.5;
+  let gold = roundGold(lerp(band.gold[0], band.gold[1], t));
+  let diamonds = roundDia(lerp(band.diamonds[0], band.diamonds[1], t));
+  gold = Math.max(band.gold[0], Math.min(band.gold[1], gold));
+  diamonds = Math.max(
+    band.diamonds[0],
+    Math.min(band.diamonds[1], diamonds),
+  );
+  return { gold, diamonds };
 }
 
-/** Сколько осколков нужно на L2 / L3 — тоже от силы карты. */
-export function shardNeedForCard(card: CardDef): {
+/** Сколько осколков нужно на L2 / L3 — полка тира + ранг внутри. */
+export function shardNeedForCard(
+  card: CardDef,
+  rank01?: number,
+): {
   to2: number;
   to3: number;
 } {
   const tier = shopTierOf(card);
-  const base = TIER_SHARD_NEED[tier];
-  // Без случайного jitter: сильнее карта → всегда дороже кач.
-  const mult = powerMult(cardPowerScore(card), tier);
+  const band = TIER_BAND[tier];
+  const t =
+    rank01 != null && Number.isFinite(rank01)
+      ? Math.max(0.02, Math.min(0.98, rank01))
+      : 0.5;
   return {
-    to2: roundShards(base.to2 * mult),
-    to3: roundShards(base.to3 * mult),
+    to2: roundShards(lerp(band.to2[0], band.to2[1], t)),
+    to3: roundShards(lerp(band.to3[0], band.to3[1], t)),
   };
 }
 

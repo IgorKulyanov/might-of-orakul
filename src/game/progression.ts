@@ -173,18 +173,18 @@ export function battleGoldPvp(won: boolean, playerLevel: number): number {
 }
 
 /**
- * База ценника за 1 осколок по тиру (÷10 от старых).
- * Фактическая цена карты — через cardEconomy (сила/полезность).
+ * Ориентир середины полки тира (÷10 от старых).
+ * Факт: cardEconomy — непересекающиеся полки I≺II≺III≺IV≺V + сила внутри.
  */
 export const UNIT_TIER_PRICE: Record<
   1 | 2 | 3 | 4 | 5,
   { gold: number; diamonds: number }
 > = {
   1: { gold: 40, diamonds: 5 },
-  2: { gold: 110, diamonds: 12 },
-  3: { gold: 280, diamonds: 28 },
-  4: { gold: 650, diamonds: 55 },
-  5: { gold: 1400, diamonds: 100 },
+  2: { gold: 100, diamonds: 12 },
+  3: { gold: 260, diamonds: 28 },
+  4: { gold: 600, diamonds: 55 },
+  5: { gold: 1300, diamonds: 100 },
 };
 
 export const UNIT_TIER_LABEL: Record<1 | 2 | 3 | 4 | 5, string> = {
