@@ -1,6 +1,7 @@
 /**
  * Цены и осколки по силе/полезности КАЖДОЙ карты.
  * Ценник магазина = цена за 1 осколок (золото или алмазы).
+ * В оракул карта попадает только после набора осколков на ур.1 (unlock).
  *
  * Жёсткие полки по тиру: II всегда дороже I, III дороже II и т.д.
  * Внутри тира — разброс по силе/интересности.
@@ -26,13 +27,13 @@ export const TIER_SHARD_PRICE: Record<
 
 export const TIER_SHARD_NEED: Record<
   1 | 2 | 3 | 4 | 5,
-  { to2: number; to3: number }
+  { unlock: number; to2: number; to3: number }
 > = {
-  1: { to2: 30, to3: 80 },
-  2: { to2: 50, to3: 120 },
-  3: { to2: 80, to3: 180 },
-  4: { to2: 120, to3: 280 },
-  5: { to2: 180, to3: 420 },
+  1: { unlock: 20, to2: 30, to3: 80 },
+  2: { unlock: 40, to2: 50, to3: 120 },
+  3: { unlock: 65, to2: 80, to3: 180 },
+  4: { unlock: 110, to2: 120, to3: 280 },
+  5: { unlock: 170, to2: 180, to3: 420 },
 };
 
 /** Непересекающиеся полки: max(T) < min(T+1). */
@@ -41,27 +42,43 @@ const TIER_BAND: Record<
   {
     gold: [number, number];
     diamonds: [number, number];
+    unlock: [number, number];
     to2: [number, number];
     to3: [number, number];
   }
 > = {
-  1: { gold: [22, 58], diamonds: [3, 8], to2: [22, 42], to3: [55, 100] },
-  2: { gold: [75, 145], diamonds: [9, 18], to2: [48, 72], to3: [115, 170] },
+  1: {
+    gold: [22, 58],
+    diamonds: [3, 8],
+    unlock: [16, 28],
+    to2: [22, 42],
+    to3: [55, 100],
+  },
+  2: {
+    gold: [75, 145],
+    diamonds: [9, 18],
+    unlock: [32, 48],
+    to2: [48, 72],
+    to3: [115, 170],
+  },
   3: {
     gold: [190, 360],
     diamonds: [22, 42],
+    unlock: [55, 85],
     to2: [85, 125],
     to3: [200, 290],
   },
   4: {
     gold: [420, 820],
     diamonds: [48, 85],
+    unlock: [95, 140],
     to2: [140, 200],
     to3: [320, 450],
   },
   5: {
     gold: [950, 1650],
     diamonds: [95, 145],
+    unlock: [150, 210],
     to2: [220, 300],
     to3: [500, 700],
   },
@@ -338,11 +355,12 @@ export function shopPriceForCard(
   return { gold, diamonds };
 }
 
-/** Сколько осколков нужно на L2 / L3 — полка тира + ранг внутри. */
+/** Сколько осколков нужно на unlock (ур.1) / L2 / L3 — полка тира + ранг внутри. */
 export function shardNeedForCard(
   card: CardDef,
   rank01?: number,
 ): {
+  unlock: number;
   to2: number;
   to3: number;
 } {
@@ -353,6 +371,7 @@ export function shardNeedForCard(
       ? Math.max(0.02, Math.min(0.98, rank01))
       : 0.5;
   return {
+    unlock: roundShards(lerp(band.unlock[0], band.unlock[1], t)),
     to2: roundShards(lerp(band.to2[0], band.to2[1], t)),
     to3: roundShards(lerp(band.to3[0], band.to3[1], t)),
   };

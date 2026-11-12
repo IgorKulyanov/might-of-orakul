@@ -25,18 +25,15 @@ import {
 import { apiCreatePayment, apiShopBuy } from "../game/api";
 import {
   getCardShards,
-  defaultUpgradeLevel,
   getCardUpgradeLevel,
   isUpgradeableCard,
   shardsNeededForNext,
+  shardsNeededForUnlock,
   shardsPerShopBuy,
 } from "../game/cardUpgrades";
 import {
-  buyCardWithDiamonds,
-  buyCardWithGold,
   buyShardsWithDiamonds,
   buyShardsWithGold,
-  canBuyAnotherCopy,
   canBuyShardsForCard,
   exchangeDiamondsAmount,
   isUnlocked,
@@ -203,7 +200,7 @@ export function Collection({
 
   const shopBusy = useRef(false);
 
-  /** Золото / алмазы: ровно 1 осколок за клик (онлайн — только через API, без локального +серверного двойного начисления). */
+  /** Золото / алмазы: ровно 1 осколок за клик. В оракул — только после порога ур.1. */
   const buy = (id: string, withDiamonds = false) => {
     if (shopBusy.current) return;
     shopBusy.current = true;
@@ -218,11 +215,13 @@ export function Collection({
       say(`«${card.name}» с ${minPlayerLevelForShopCard(card)} ур.`);
       return;
     }
-    const inOracle = ownedCopies(owned, id) >= maxCopiesForCard(id);
-    const shardBuy = inOracle && canBuyShardsForCard(owned, id);
-    if (inOracle && !shardBuy) {
+    if (!canBuyShardsForCard(owned, id)) {
       shopBusy.current = false;
-      say(`«${card.name}» уже макс — ценник не нужен`);
+      say(
+        ownedCopies(owned, id) > 0
+          ? `«${card.name}» уже макс — ценник не нужен`
+          : `«${card.name}» пока недоступна`,
+      );
       return;
     }
     const shardN = shardsPerShopBuy(id);
@@ -249,38 +248,44 @@ export function Collection({
         return;
       }
     }
-    const kind = inOracle ? "shards" : "card";
     const localBuy = () =>
-      inOracle
-        ? withDiamonds
-          ? buyShardsWithDiamonds(owned, id)
-          : buyShardsWithGold(owned, id)
-        : withDiamonds
-          ? buyCardWithDiamonds(owned, id)
-          : buyCardWithGold(owned, id);
-    void commitBuy(id, currency, localBuy, kind, shardN);
+      withDiamonds
+        ? buyShardsWithDiamonds(owned, id)
+        : buyShardsWithGold(owned, id);
+    void commitBuy(id, currency, localBuy, shardN);
   };
 
   const commitBuy = async (
     cardId: string,
     currency: "gold" | "diamonds",
     localBuy: () => OwnedState,
-    kind: "card" | "shards",
     shardN: number,
   ) => {
     const cardName =
       CARDS.find((c) => c.id === cardId)?.name ?? cardId;
     const before = owned;
+    const hadCopy = ownedCopies(before, cardId) > 0;
+    const flashAfter = (next: OwnedState) => {
+      const opened = !hadCopy && ownedCopies(next, cardId) > 0;
+      if (opened) {
+        say(`«${cardName}» открыта в оракуле (ур.1)`);
+        return;
+      }
+      if (!hadCopy) {
+        const need = shardsNeededForUnlock(cardId) ?? 0;
+        const have = getCardShards(next, cardId);
+        say(`«${cardName}» +${shardN} осколок · ${have}/${need} до оракула`);
+        return;
+      }
+      say(`«${cardName}» +${shardN} осколок`);
+    };
     try {
       // Офлайн: только локально. Онлайн: только API — иначе PUT сейва + POST покупки
       // начисляют осколок дважды за один клик.
       if (!authToken) {
-        onChange(localBuy());
-        say(
-          kind === "shards"
-            ? `«${cardName}» +${shardN} осколок`
-            : `«${cardName}» в оракуле · +${shardN} осколок`,
-        );
+        const next = localBuy();
+        onChange(next);
+        flashAfter(next);
         return;
       }
       const { user } = await apiShopBuy(authToken, cardId, currency);
@@ -298,11 +303,7 @@ export function Collection({
         homeFaction: before.homeFaction ?? user.owned.homeFaction,
       };
       onChange(next);
-      say(
-        kind === "shards"
-          ? `«${cardName}» +${shardN} осколок`
-          : `«${cardName}» в оракуле · +${shardN} осколок`,
-      );
+      flashAfter(next);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Покупка не прошла");
     } finally {
@@ -374,9 +375,9 @@ export function Collection({
         <>
           <p className="hint catalog-status">
             Оракул: <strong>{catalogStats.unlocked}</strong> /{" "}
-            {catalogStats.total}. Ценник = цена за <strong>1 осколок</strong>{" "}
-            (и за первую карту в оракул). Крутые карты дороже и дольше качаются.
-            Тиры I–V: с 1 / 10 / 15 / 25 / 30 ур.
+            {catalogStats.total}. Ценник = <strong>1 осколок</strong>. Карта в
+            оракуле — только когда наберёшь осколки на <strong>ур.1</strong>.
+            Дальше осколки на ур.2/3. Тиры I–V: с 1 / 10 / 15 / 25 / 30 ур.
           </p>
           {tab === "cards" && (
             <>
@@ -427,18 +428,13 @@ export function Collection({
             const levelOk = isCardAvailableInShop(c, playerLevel(owned));
             const locked = !inOracle && !levelOk;
             const shopReady = !inOracle && levelOk;
-            const canBuyCard = canBuyAnotherCopy(owned, c.id);
             const canBuyShards = canBuyShardsForCard(owned, c.id);
-            const showPrice = canBuyCard || canBuyShards;
+            const showPrice = canBuyShards;
             const firstBuy =
               showPrice &&
               !list
                 .slice(0, idx)
-                .some(
-                  (x) =>
-                    canBuyAnotherCopy(owned, x.id) ||
-                    canBuyShardsForCard(owned, x.id),
-                );
+                .some((x) => canBuyShardsForCard(owned, x.id));
             const needLv = minPlayerLevelForShopCard(c);
             return (
               <div key={c.id} className="grid-item">
@@ -451,7 +447,7 @@ export function Collection({
                     isUpgradeableCard(c.id)
                       ? inOracle
                         ? getCardUpgradeLevel(owned, c.id)
-                        : defaultUpgradeLevel(c.id)
+                        : null
                       : null
                   }
                 />
@@ -467,17 +463,32 @@ export function Collection({
                       ? ` · с ${needLv} ур.`
                       : inOracle
                         ? " · в оракуле"
-                        : " · доступна"}
+                        : " · копим на ур.1"}
                   </div>
                   {isUpgradeableCard(c.id) ? (
                     <div className="shop-meta shop-meta-shards">
                       {(() => {
-                        const lv = inOracle
-                          ? getCardUpgradeLevel(owned, c.id)
-                          : 1;
-                        const need = shardsNeededForNext(c.id, lv);
-                        // Осколки копятся и до покупки — не прячем нули чужим пулом.
                         const haveSh = getCardShards(owned, c.id);
+                        if (!inOracle) {
+                          const need = shardsNeededForUnlock(c.id);
+                          if (need == null) return null;
+                          return (
+                            <button
+                              type="button"
+                              className="shard-upgrade-btn is-farm-green"
+                              disabled
+                              title={
+                                locked
+                                  ? `С ${needLv} ур. · в оракул: ${need} осколков`
+                                  : `В оракул (ур.1): ${haveSh}/${need}`
+                              }
+                            >
+                              {haveSh}/{need}
+                            </button>
+                          );
+                        }
+                        const lv = getCardUpgradeLevel(owned, c.id);
+                        const need = shardsNeededForNext(c.id, lv);
                         if (need == null) {
                           return (
                             <button
@@ -490,7 +501,7 @@ export function Collection({
                             </button>
                           );
                         }
-                        const ready = inOracle && haveSh >= need;
+                        const ready = haveSh >= need;
                         const tone = ready
                           ? "is-ready"
                           : lv <= 1
@@ -503,13 +514,9 @@ export function Collection({
                             disabled={!ready}
                             onClick={() => ready && upgrade(c.id)}
                             title={
-                              locked
-                                ? `С ${needLv} ур. · кач ${need} осколков`
-                                : !inOracle
-                                  ? `Прокачка с ур.1: ${need} осколков`
-                                  : ready
-                                    ? `Улучшить до ур.${lv + 1}`
-                                    : `Осколки ${haveSh}/${need}`
+                              ready
+                                ? `Улучшить до ур.${lv + 1}`
+                                : `Осколки ${haveSh}/${need}`
                             }
                           >
                             {haveSh}/{need}
@@ -530,11 +537,9 @@ export function Collection({
                       title={
                         locked
                           ? `С ${needLv} ур.`
-                          : canBuyShards
+                          : showPrice
                             ? `Купить ${shardsPerShopBuy(c.id)} осколок за золото`
-                            : showPrice
-                              ? "В оракул + 1 осколок"
-                              : "Максимум"
+                            : "Максимум"
                       }
                     >
                       <GameIcon name="gold" size={14} /> {c.priceGold}
@@ -552,11 +557,9 @@ export function Collection({
                       title={
                         locked
                           ? `С ${needLv} ур.`
-                          : canBuyShards
+                          : showPrice
                             ? `Купить ${shardsPerShopBuy(c.id)} осколок за алмазы`
-                            : showPrice
-                              ? "В оракул + 1 осколок"
-                              : "Максимум"
+                            : "Максимум"
                       }
                     >
                       <GameIcon name="diamond" size={14} />{" "}

@@ -1,6 +1,6 @@
 /**
  * Каталог цен магазина — та же идея, что src/game/cardEconomy.ts:
- * ценник = цена за 1 осколок; цена/кач зависят от силы карты, не только от тира.
+ * ценник = цена за 1 осколок; в оракул — только после осколков на ур.1.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -9,23 +9,38 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const TIER_BAND = {
-  1: { gold: [22, 58], diamonds: [3, 8], to2: [22, 42], to3: [55, 100] },
-  2: { gold: [75, 145], diamonds: [9, 18], to2: [48, 72], to3: [115, 170] },
+  1: {
+    gold: [22, 58],
+    diamonds: [3, 8],
+    unlock: [16, 28],
+    to2: [22, 42],
+    to3: [55, 100],
+  },
+  2: {
+    gold: [75, 145],
+    diamonds: [9, 18],
+    unlock: [32, 48],
+    to2: [48, 72],
+    to3: [115, 170],
+  },
   3: {
     gold: [190, 360],
     diamonds: [22, 42],
+    unlock: [55, 85],
     to2: [85, 125],
     to3: [200, 290],
   },
   4: {
     gold: [420, 820],
     diamonds: [48, 85],
+    unlock: [95, 140],
     to2: [140, 200],
     to3: [320, 450],
   },
   5: {
     gold: [950, 1650],
     diamonds: [95, 145],
+    unlock: [150, 210],
     to2: [220, 300],
     to3: [500, 700],
   },
@@ -284,6 +299,7 @@ function shardNeedForCard(card, rank01) {
       ? Math.max(0.02, Math.min(0.98, rank01))
       : 0.5;
   return {
+    unlock: roundShards(lerp(band.unlock[0], band.unlock[1], t)),
     to2: roundShards(lerp(band.to2[0], band.to2[1], t)),
     to3: roundShards(lerp(band.to3[0], band.to3[1], t)),
   };
@@ -320,7 +336,7 @@ function loadCardsJson() {
 }
 
 const raw = loadCardsJson();
-/** @type {Map<string, { gold: number, diamonds: number, maxCopies: number, name: string, minLevel: number, tier: number, needTo2: number, needTo3: number }>} */
+/** @type {Map<string, { gold: number, diamonds: number, maxCopies: number, name: string, minLevel: number, tier: number, needUnlock: number, needTo2: number, needTo3: number }>} */
 const CATALOG = new Map();
 
 const BASE_CARDS = [];
@@ -351,6 +367,7 @@ for (const withTier of BASE_CARDS) {
     name: String(withTier.name || withTier.id),
     minLevel: minLevelForCard(withTier),
     tier,
+    needUnlock: need.unlock,
     needTo2: need.to2,
     needTo3: need.to3,
   });
@@ -435,8 +452,58 @@ export function clampOwnedShopGains(prev, next) {
 }
 
 /**
- * Выдать копию карты со списанием. Мутирует owned.
- * @returns {{ ok: true } | { ok: false, error: string }}
+ * Если осколков хватает на ур.1 — карта в оракуле. Мутирует owned.
+ * @returns {boolean} открыли ли карту
+ */
+export function applyShardUnlocks(owned) {
+  if (!owned || typeof owned !== "object") return false;
+  const shards =
+    owned.cardShards && typeof owned.cardShards === "object"
+      ? { ...owned.cardShards }
+      : {};
+  const col =
+    owned.collection && typeof owned.collection === "object"
+      ? { ...owned.collection }
+      : {};
+  let opened = false;
+  for (const [rawId, rawN] of Object.entries(shards)) {
+    const cardId = String(rawId);
+    const card = getShopCard(cardId);
+    if (!card) continue;
+    const haveCopy = Math.floor(Number(col[cardId])) || 0;
+    if (haveCopy > 0) continue;
+    const need = Math.max(1, Math.floor(Number(card.needUnlock)) || 1);
+    const have = Math.floor(Number(rawN)) || 0;
+    if (have < need) continue;
+    shards[cardId] = have - need;
+    col[cardId] = 1;
+    const purchased = new Set(
+      Array.isArray(owned.purchased) ? owned.purchased.map(String) : [],
+    );
+    purchased.add(cardId);
+    owned.purchased = [...purchased].slice(0, 500);
+    const unlocked = new Set(
+      Array.isArray(owned.unlocked) ? owned.unlocked.map(String) : [],
+    );
+    unlocked.add(cardId);
+    owned.unlocked = [...unlocked].slice(0, 500);
+    const upgrades =
+      owned.cardUpgrades && typeof owned.cardUpgrades === "object"
+        ? { ...owned.cardUpgrades }
+        : {};
+    if (upgrades[cardId] == null) upgrades[cardId] = 1;
+    owned.cardUpgrades = upgrades;
+    opened = true;
+  }
+  owned.cardShards = shards;
+  owned.collection = col;
+  return opened;
+}
+
+/**
+ * Купить 1 осколок со списанием. В оракул — только после порога ур.1.
+ * Мутирует owned.
+ * @returns {{ ok: true, kind: string, shardsAdded?: number, unlocked?: boolean } | { ok: false, error: string }}
  */
 export function applyShopBuy(owned, cardId, currency) {
   const card = getShopCard(cardId);
@@ -456,6 +523,20 @@ export function applyShopBuy(owned, cardId, currency) {
       ? { ...owned.collection }
       : {};
   const have = Math.floor(Number(col[cardId])) || 0;
+  if (have >= card.maxCopies) {
+    const upgrades =
+      owned.cardUpgrades && typeof owned.cardUpgrades === "object"
+        ? owned.cardUpgrades
+        : {};
+    const lv = Math.min(
+      3,
+      Math.max(1, Math.floor(Number(upgrades[cardId])) || 1),
+    );
+    if (lv >= 3) {
+      return { ok: false, error: `«${card.name}» уже максимальный уровень` };
+    }
+  }
+
   const pay = currency === "diamonds" ? "diamonds" : "gold";
   if (pay === "gold") {
     const gold = Math.floor(Number(owned.gold)) || 0;
@@ -477,66 +558,27 @@ export function applyShopBuy(owned, cardId, currency) {
     owned.diamonds = dia - card.diamonds;
   }
 
-  // Уже в оракуле → докупка 1 осколка по тому же ценнику.
-  if (have >= card.maxCopies) {
-    const upgrades =
-      owned.cardUpgrades && typeof owned.cardUpgrades === "object"
-        ? owned.cardUpgrades
-        : {};
-    const lv = Math.min(3, Math.max(1, Math.floor(Number(upgrades[cardId])) || 1));
-    if (lv >= 3) {
-      return { ok: false, error: `«${card.name}» уже максимальный уровень` };
-    }
-    const add = 1;
-    const shards =
-      owned.cardShards && typeof owned.cardShards === "object"
-        ? { ...owned.cardShards }
-        : {};
-    shards[cardId] = (Math.floor(Number(shards[cardId])) || 0) + add;
-    owned.cardShards = shards;
-    return {
-      ok: true,
-      kind: "shards",
-      shardsAdded: add,
-      needTo2: card.needTo2,
-      needTo3: card.needTo3,
-    };
-  }
-
-  col[cardId] = have + 1;
-  owned.collection = col;
-
-  const purchased = new Set(
-    Array.isArray(owned.purchased) ? owned.purchased.map(String) : [],
-  );
-  purchased.add(String(cardId));
-  owned.purchased = [...purchased].slice(0, 500);
-
-  const unlocked = new Set(
-    Array.isArray(owned.unlocked) ? owned.unlocked.map(String) : [],
-  );
-  unlocked.add(String(cardId));
-  owned.unlocked = [...unlocked].slice(0, 500);
-
-  const upgrades =
-    owned.cardUpgrades && typeof owned.cardUpgrades === "object"
-      ? { ...owned.cardUpgrades }
-      : {};
-  if (upgrades[cardId] == null) upgrades[cardId] = 1;
-  owned.cardUpgrades = upgrades;
-
-  // Ценник = 1 осколок: открытие карты тоже сразу даёт осколок.
-  const openShards =
+  const add = 1;
+  const shards =
     owned.cardShards && typeof owned.cardShards === "object"
       ? { ...owned.cardShards }
       : {};
-  openShards[cardId] = (Math.floor(Number(openShards[cardId])) || 0) + 1;
-  owned.cardShards = openShards;
+  shards[cardId] = (Math.floor(Number(shards[cardId])) || 0) + add;
+  owned.cardShards = shards;
 
-  // Автоматически в активную колоду, если есть место.
-  // В колоду не пихаем — только в книгу; колоду игрок собирает сам.
+  const unlockedNow = applyShardUnlocks(owned);
+  const inOracle =
+    Math.floor(Number((owned.collection || {})[cardId])) > 0;
 
-  return { ok: true, kind: "card" };
+  return {
+    ok: true,
+    kind: unlockedNow && inOracle ? "unlock" : "shards",
+    shardsAdded: add,
+    unlocked: unlockedNow && inOracle,
+    needUnlock: card.needUnlock,
+    needTo2: card.needTo2,
+    needTo3: card.needTo3,
+  };
 }
 
 /**

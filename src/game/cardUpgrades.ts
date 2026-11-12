@@ -1,7 +1,8 @@
 /**
  * Прокачка карт.
  * Существа всех школ + заклинания: осколки, L1–L3.
- * Старт с ур.1; L2/L3 — за осколки (в бою или за золото/алмазы в магазине).
+ * В оракул — только после набора осколков на ур.1; L2/L3 — дальше за осколки
+ * (бой или ценник в магазине).
  */
 import {
   shardNeedForCard,
@@ -33,9 +34,9 @@ export const SHARDS_PER_SHOP_BUY: Record<1 | 2 | 3 | 4 | 5, number> = {
   5: 1,
 };
 
-/** @deprecated алиас на тир-1 */
+/** Ориентир тир-1 (фактическое — shardNeedForCard). */
 export const SHARD_COST_COMMON = {
-  unlock: 20,
+  unlock: SHARD_COST_BY_TIER[1].unlock,
   to2: SHARD_COST_BY_TIER[1].to2,
   to3: SHARD_COST_BY_TIER[1].to3,
 } as const;
@@ -871,6 +872,65 @@ export function shardsNeededForNext(
   }
 }
 
+/** Осколки, чтобы открыть карту в оракуле на ур.1. */
+export function shardsNeededForUnlock(cardId: string): number | null {
+  if (!isUpgradeableCard(cardId)) return null;
+  try {
+    return shardNeedForCard(getCard(cardId), CARD_TIER_RANK.get(cardId))
+      .unlock;
+  } catch {
+    return SHARD_COST_BY_TIER[shardTierForCard(cardId)].unlock;
+  }
+}
+
+/**
+ * Если осколков хватает на ур.1 — карта появляется в оракуле, осколки списываются.
+ */
+export function tryUnlockCardFromShards(
+  owned: OwnedState,
+  cardId: string,
+): { owned: OwnedState; ok: boolean; reason?: string } {
+  if (!isUpgradeableCard(cardId)) {
+    return { owned, ok: false, reason: "Эту карту нельзя открыть осколками" };
+  }
+  const copies = Math.floor(Number(owned.collection?.[cardId])) || 0;
+  if (copies > 0 || owned.unlocked.includes(cardId)) {
+    return { owned, ok: false, reason: "Уже в оракуле" };
+  }
+  const need = shardsNeededForUnlock(cardId);
+  if (need == null || need <= 0) {
+    return { owned, ok: false, reason: "Нет порога открытия" };
+  }
+  const have = getCardShards(owned, cardId);
+  if (have < need) {
+    return {
+      owned,
+      ok: false,
+      reason: `Нужно ${need} осколков (есть ${have})`,
+    };
+  }
+  const shards = { ...(owned.cardShards ?? {}) };
+  shards[cardId] = have - need;
+  const collection = { ...(owned.collection ?? {}), [cardId]: 1 };
+  const unlocked = owned.unlocked.includes(cardId)
+    ? owned.unlocked
+    : [...owned.unlocked, cardId];
+  const purchased = [...new Set([...(owned.purchased ?? []), cardId])];
+  const cardUpgrades = { ...(owned.cardUpgrades ?? {}) };
+  if (cardUpgrades[cardId] == null) cardUpgrades[cardId] = 1;
+  return {
+    owned: {
+      ...owned,
+      cardShards: shards,
+      collection,
+      unlocked,
+      purchased,
+      cardUpgrades,
+    },
+    ok: true,
+  };
+}
+
 /** Осколки за одну оплату ценника: всегда 1. */
 export function shardsPerShopBuy(_cardId: string): number {
   return shardsPerShopBuyAlways();
@@ -1296,7 +1356,9 @@ export function grantCardShards(
   if (amount <= 0 || !isUpgradeableCard(cardId)) return owned;
   const shards = { ...(owned.cardShards ?? {}) };
   shards[cardId] = Math.max(0, (shards[cardId] ?? 0) + amount);
-  return { ...owned, cardShards: shards };
+  const next = { ...owned, cardShards: shards };
+  const unlocked = tryUnlockCardFromShards(next, cardId);
+  return unlocked.ok ? unlocked.owned : next;
 }
 
 export function tryUpgradeCard(

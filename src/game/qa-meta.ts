@@ -59,6 +59,7 @@ import {
   STARTER_DECK_BY_FACTION,
   starterDeckForFaction,
 } from "./starterDecks";
+import { shardsNeededForUnlock } from "./cardUpgrades";
 import {
   applyBattleResult,
   beginWithHero,
@@ -66,7 +67,6 @@ import {
   buyCardWithGold,
   buyDiamondPack,
   buyEpicHero,
-  canBuyAnotherCopy,
   canSelectHero,
   exchangeDiamondsAmount,
   exchangeDiamondsForGold,
@@ -163,29 +163,24 @@ export function economyAll(fails: QaFail[], ok: string[]): void {
     );
     if (!card) return "нет платной карты смерти";
     const g0 = o.gold ?? 0;
-    o = buyCardWithGold(o, card.id);
+    const needUnlock = shardsNeededForUnlock(card.id) ?? 20;
+    for (let i = 0; i < needUnlock; i++) o = buyCardWithGold(o, card.id);
     if (!(o.unlocked ?? []).includes(card.id)) return "карта не открылась за золото";
     if ((o.gold ?? 0) >= g0) return "золото не списалось";
-    // вторая копия той же карты за алмазы (если лимит >1)
-    if (canBuyAnotherCopy(o, card.id) && (card.priceDiamonds ?? 0) > 0) {
-      const d0 = o.diamonds ?? 0;
-      o = buyCardWithDiamonds(o, card.id);
-      if ((o.collection?.[card.id] ?? 0) < 2) return "вторая копия за 💎 не купилась";
-      if ((o.diamonds ?? 0) >= d0) return "алмазы не списались";
-      return null;
-    }
     const other = CARDS.find(
       (c) =>
         c.kind === "creature" &&
         c.school === "death" &&
         c.id !== card.id &&
         (c.priceDiamonds ?? 0) > 0 &&
-        (c.priceDiamonds ?? 0) <= (o.diamonds ?? 0) &&
         !(o.unlocked ?? []).includes(c.id),
     );
     if (other) {
       const d0 = o.diamonds ?? 0;
-      o = buyCardWithDiamonds(o, other.id);
+      const need = shardsNeededForUnlock(other.id) ?? 20;
+      const cost = (other.priceDiamonds ?? 0) * need;
+      if ((o.diamonds ?? 0) < cost) return null;
+      for (let i = 0; i < need; i++) o = buyCardWithDiamonds(o, other.id);
       if (!(o.unlocked ?? []).includes(other.id)) return "карта не открылась за 💎";
       if ((o.diamonds ?? 0) >= d0) return "алмазы не списались";
     }
@@ -353,12 +348,15 @@ export function economyAll(fails: QaFail[], ok: string[]): void {
     if (!thin.advice.some((x) => x.level === "bad" || x.level === "warn")) {
       return "тонкая колода без предупреждения";
     }
-    // вторая копия скелета платная
+    // осколки → открытие в оракул (если скелета ещё нет)
     const before = o.collection?.skeleton ?? 0;
-    const rich = { ...o, gold: 50_000 };
-    const bought = buyCardWithGold(rich, "skeleton");
-    if ((bought.collection?.skeleton ?? 0) !== before + 1) {
-      return "покупка копии не сработала";
+    if (before <= 0) {
+      let bought: OwnedState = { ...o, gold: 500_000 };
+      const need = shardsNeededForUnlock("skeleton") ?? 20;
+      for (let i = 0; i < need; i++) bought = buyCardWithGold(bought, "skeleton");
+      if ((bought.collection?.skeleton ?? 0) < 1) {
+        return "покупка осколками не открыла карту";
+      }
     }
     return null;
   });

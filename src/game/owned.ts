@@ -532,12 +532,13 @@ export function isUnlocked(owned: OwnedState, cardId: string): boolean {
   return ownedCopies(owned, cardId) > 0;
 }
 
-/** Можно купить карту в оракул? (1 копия + открыта по уровню) */
+/**
+ * Раньше: купить копию сразу в оракул.
+ * Теперь копия появляется только после осколков на ур.1 — для витрины
+ * используй canBuyShardsForCard.
+ */
 export function canBuyAnotherCopy(owned: OwnedState, cardId: string): boolean {
-  if (ownedCopies(owned, cardId) >= maxCopiesForCard(cardId)) return false;
-  const card = CARDS.find((c) => c.id === cardId);
-  if (!card) return false;
-  return isCardAvailableInShop(card, playerLevel(owned));
+  return canBuyShardsForCard(owned, cardId) && ownedCopies(owned, cardId) <= 0;
 }
 
 export function playerLevel(owned: OwnedState): number {
@@ -570,16 +571,20 @@ function addOwnedCopy(owned: OwnedState, cardId: string): OwnedState {
   return { ...owned, collection, purchased, unlocked, cardUpgrades };
 }
 
-/** Можно докупить осколки по ценнику? (карта уже в оракуле, не макс). */
+/**
+ * Можно купить осколок по ценнику?
+ * — карты ещё нет: копим на ур.1 (открытие в оракул);
+ * — уже в оракуле: копим на L2/L3, пока не макс.
+ */
 export function canBuyShardsForCard(
   owned: OwnedState,
   cardId: string,
 ): boolean {
   if (!isUpgradeableCard(cardId)) return false;
-  if (ownedCopies(owned, cardId) <= 0) return false;
   const card = CARDS.find((c) => c.id === cardId);
   if (!card) return false;
   if (!isCardAvailableInShop(card, playerLevel(owned))) return false;
+  if (ownedCopies(owned, cardId) <= 0) return true;
   const lv = getCardUpgradeLevel(owned, cardId);
   return shardsNeededForNext(cardId, lv) != null;
 }
@@ -651,39 +656,20 @@ export function grantCurrency(
   };
 }
 
+/** @deprecated ценник больше не кладёт карту сразу — только осколок. */
 export function buyCardWithGold(
   owned: OwnedState,
   cardId: string,
 ): OwnedState {
-  const card = CARDS.find((c) => c.id === cardId);
-  if (!card) return owned;
-  if (!canBuyAnotherCopy(owned, cardId)) return owned;
-  const price = card.priceGold ?? 0;
-  const gold = owned.gold ?? 0;
-  if (gold < price) return owned;
-  // Ценник = осколок: первая покупка открывает карту и сразу даёт осколок.
-  let next = addOwnedCopy({ ...owned, gold: gold - price }, cardId);
-  next = grantCardShards(next, cardId, shardsPerShopBuy(cardId));
-  saveOwned(next);
-  return next;
+  return buyShardsWithGold(owned, cardId);
 }
 
+/** @deprecated ценник больше не кладёт карту сразу — только осколок. */
 export function buyCardWithDiamonds(
   owned: OwnedState,
   cardId: string,
 ): OwnedState {
-  const card = CARDS.find((c) => c.id === cardId);
-  if (!card?.priceDiamonds) return owned;
-  if (!canBuyAnotherCopy(owned, cardId)) return owned;
-  const dia = owned.diamonds ?? 0;
-  if (dia < card.priceDiamonds) return owned;
-  let next = addOwnedCopy(
-    { ...owned, diamonds: dia - card.priceDiamonds },
-    cardId,
-  );
-  next = grantCardShards(next, cardId, shardsPerShopBuy(cardId));
-  saveOwned(next);
-  return next;
+  return buyShardsWithDiamonds(owned, cardId);
 }
 
 /**
