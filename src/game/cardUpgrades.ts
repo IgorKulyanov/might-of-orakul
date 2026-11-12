@@ -9,6 +9,7 @@ import {
   TIER_SHARD_NEED,
 } from "./cardEconomy";
 import { getCard } from "./cards";
+import { isCardAvailableInShop } from "./progression";
 import type {
   AttackPattern,
   CreatureAbility,
@@ -1362,29 +1363,86 @@ export function migrateCardUpgrades(owned: OwnedState): OwnedState {
   return changed ? { ...owned, cardUpgrades: upgrades } : owned;
 }
 
-/** Победа vs бот: 1–2 осколка случайной своей прокачиваемой карты. */
+/** Пул дропа: все прокачиваемые карты, уже открытые тиром игрока (магазин). */
+export function shardDropPoolForLevel(playerLevel: number): string[] {
+  const lv = Math.max(1, Math.floor(Number(playerLevel) || 1));
+  return Object.keys(CARD_UPGRADE_DEFS).filter((id) => {
+    try {
+      return isCardAvailableInShop(getCard(id), lv);
+    } catch {
+      return false;
+    }
+  });
+}
+
+function shuffleIds(ids: string[]): string[] {
+  const arr = [...ids];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = arr[i]!;
+    arr[i] = arr[j]!;
+    arr[j] = t;
+  }
+  return arr;
+}
+
+/**
+ * Победа: N осколков из пула по уровню (не только из своих).
+ * Стараемся размазать по разным картам (по 1), пока N не кончится.
+ * Бот/тропа/арена: 2–3 · PvP: 3–5. Поражение — не вызывать.
+ */
+export function rollBattleWinShards(
+  owned: OwnedState,
+  opts: { min: number; max: number },
+): {
+  owned: OwnedState;
+  gains: Array<{ cardId: string; amount: number; name: string }>;
+} {
+  const lo = Math.max(1, Math.floor(opts.min));
+  const hi = Math.max(lo, Math.floor(opts.max));
+  const total = lo + Math.floor(Math.random() * (hi - lo + 1));
+  const level = Math.max(1, Math.floor(Number(owned.level) || 1));
+  const pool = shardDropPoolForLevel(level);
+  if (!pool.length || total <= 0) return { owned, gains: [] };
+
+  const amounts: Record<string, number> = {};
+  const order = shuffleIds(pool);
+  // Сначала по одной на разные карты.
+  let left = total;
+  for (const id of order) {
+    if (left <= 0) break;
+    amounts[id] = (amounts[id] ?? 0) + 1;
+    left -= 1;
+  }
+  // Если осколков больше, чем карт в пуле — докидываем рандомно.
+  while (left > 0) {
+    const id = order[Math.floor(Math.random() * order.length)]!;
+    amounts[id] = (amounts[id] ?? 0) + 1;
+    left -= 1;
+  }
+
+  let next = owned;
+  const gains: Array<{ cardId: string; amount: number; name: string }> = [];
+  for (const [cardId, amount] of Object.entries(amounts)) {
+    next = grantCardShards(next, cardId, amount);
+    let name = cardId;
+    try {
+      name = getCard(cardId).name;
+    } catch {
+      /* ignore */
+    }
+    gains.push({ cardId, amount, name });
+  }
+  gains.sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  return { owned: next, gains };
+}
+
+/** @deprecated используй rollBattleWinShards */
 export function rollBotWinShards(owned: OwnedState): {
   owned: OwnedState;
   gains: Array<{ cardId: string; amount: number; name: string }>;
 } {
-  const pool = Object.keys(CARD_UPGRADE_DEFS).filter(
-    (id) =>
-      (owned.collection?.[id] ?? 0) > 0 || owned.unlocked.includes(id),
-  );
-  if (!pool.length) return { owned, gains: [] };
-  const cardId = pool[Math.floor(Math.random() * pool.length)]!;
-  const amount = Math.random() < 0.5 ? 1 : 2;
-  const next = grantCardShards(owned, cardId, amount);
-  let name = cardId;
-  try {
-    name = getCard(cardId).name;
-  } catch {
-    /* ignore */
-  }
-  return {
-    owned: next,
-    gains: [{ cardId, amount, name }],
-  };
+  return rollBattleWinShards(owned, { min: 2, max: 3 });
 }
 
 /** Сумма маны в стоимости (для лога возврата). */

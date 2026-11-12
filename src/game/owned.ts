@@ -11,7 +11,7 @@ import {
   grantCardShards,
   isUpgradeableCard,
   migrateCardUpgrades,
-  rollBotWinShards,
+  rollBattleWinShards,
   shardsNeededForNext,
   shardsPerShopBuy,
   tryUpgradeCard,
@@ -1011,7 +1011,7 @@ export type BattleRewardResult = {
   diamondReward: number;
   /** Строка дара оракула для таблички после боя. */
   giftLine: string | null;
-  /** Осколки карт за бой (пилот: скелет). */
+  /** Осколки карт за победу (пул по уровню игрока). */
   shardLine?: string | null;
   shardGains?: Array<{ cardId: string; amount: number; name: string }>;
 };
@@ -1068,9 +1068,13 @@ export function applyBattleResult(
   let shardLine: string | null = null;
   let shardGains: Array<{ cardId: string; amount: number; name: string }> =
     [];
-  // Осколки: победа vs бот/тропа/арена (не PvP, не поражение)
-  if (won && !pvp && mode !== "dev") {
-    const drop = rollBotWinShards(next);
+  // Осколки только за победу: бот/тропа/арена 2–3, PvP 3–5.
+  // Пул — любые карты тиров, уже открытых уровнем (не только свои).
+  if (won && mode !== "dev") {
+    const drop = rollBattleWinShards(
+      next,
+      pvp || mode === "pvp" ? { min: 3, max: 5 } : { min: 2, max: 3 },
+    );
     next = drop.owned;
     shardGains = drop.gains;
     if (drop.gains.length) {
