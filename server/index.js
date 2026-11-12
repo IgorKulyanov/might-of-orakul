@@ -373,9 +373,25 @@ function publicUser(u) {
     id: u.id,
     login: u.login,
     displayName: u.displayName ?? null,
-    heroId: u.heroId ?? null,
+    // Во время wipe не отдаём старого оракула — иначе клиент снова ставит школу.
+    heroId: u.pendingWipeOwned ? null : (u.heroId ?? null),
     telegramId: u.telegramId ?? null,
-    owned: u.owned ?? null,
+    owned: u.pendingWipeOwned
+      ? {
+          unlocked: [],
+          collection: {},
+          decks: { starter: [] },
+          activeDeckId: "starter",
+          gold: Math.max(0, Number(u.owned?.gold) || 500),
+          diamonds: Math.max(0, Number(u.owned?.diamonds) || 25),
+          level: 1,
+          xp: 0,
+          purchased: [],
+          unlockedHeroes: [],
+          cardUpgrades: {},
+          cardShards: {},
+        }
+      : (u.owned ?? null),
     email: maskEmail(u.email),
     emailVerified: verified,
     needsEmailVerify: Boolean(u.email) && !verified,
@@ -944,22 +960,22 @@ app.put(
             user.displayName = name;
           }
         }
-        if (typeof body.heroId === "string") {
+        // Пока висит wipe — не принимать heroId/owned; флаг сбрасываем только явно в конце.
+        const wiping = Boolean(user.pendingWipeOwned);
+        if (typeof body.heroId === "string" && !wiping) {
           const h = sanitizeHeroId(body.heroId);
           if (h) user.heroId = h;
         }
+        if (body.owned && typeof body.owned === "object" && !wiping) {
+          user.owned = sanitizeOwned(body.owned, user.owned);
+          if (user.owned?.heroId) {
+            const h = sanitizeHeroId(user.owned.heroId);
+            if (h) user.heroId = h;
+          }
+        }
         if (body.clearPendingWipeOwned) {
           user.pendingWipeOwned = false;
-        }
-        if (body.owned && typeof body.owned === "object") {
-          // Пока висит полный сброс — не принимать старый локальный прогресс обратно.
-          if (!user.pendingWipeOwned) {
-            user.owned = sanitizeOwned(body.owned, user.owned);
-            if (user.owned?.heroId) {
-              const h = sanitizeHeroId(user.owned.heroId);
-              if (h) user.heroId = h;
-            }
-          }
+          user.heroId = null;
         }
         if (body.clearPendingResetCampaign) {
           user.pendingResetCampaign = false;

@@ -408,9 +408,23 @@ async function applyServerAdminFlags(
     syncPvpFleeFromServer(user.pvpFlee);
   }
   if (user.pendingWipeOwned) {
+    // Не пишем wipeSeen здесь — только после forceBlank в merge, иначе Math.max вернёт ур.
     clearActiveOwned();
     if (user.login) clearOwnedBackup(user.login);
-    if (user.login && user.ownedWipeId) writeWipeSeen(user.login, user.ownedWipeId);
+    try {
+      for (const k of Object.keys(localStorage)) {
+        if (
+          /^(arcane-duel-|orakul-owned-backup:|orakul-arena|orakul-dailies|orakul-campaign|orakul_action)/i.test(
+            k,
+          )
+        ) {
+          localStorage.removeItem(k);
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    clearActiveOwned();
     setCampaignState(resetCampaignProgress());
     setArenaState?.(resetArenaProgress());
     patch.clearPendingWipeOwned = true;
