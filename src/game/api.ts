@@ -362,6 +362,9 @@ export function apiAdminUsers(adminKey: string, q?: string) {
       pvpBanned?: boolean;
       pvpBannedUntil?: number | null;
       pendingResetCampaign?: boolean;
+      pendingWipeOwned?: boolean;
+      snapshots?: number;
+      lastSnapshotAt?: string | null;
     }>;
   }>(`/api/admin/users${qs}`, { adminKey });
 }
