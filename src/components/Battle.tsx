@@ -3182,6 +3182,32 @@ export function Battle({
           </button>
                   </div>
 
+        {state.you.revealEnemyHandTurns > 0 ? (
+          <div className="enemy-hand-reveal" aria-label="Рука врага">
+            <div className="enemy-hand-reveal-label">
+              Рука врага
+              <span>
+                ещё {state.you.revealEnemyHandTurns} ход
+                {state.you.revealEnemyHandTurns === 1 ? "" : "а"}
+              </span>
+            </div>
+            <div className="enemy-hand-reveal-row">
+              {state.enemy.hand.length === 0 ? (
+                <span className="enemy-hand-reveal-empty">пусто</span>
+              ) : (
+                state.enemy.hand.map((id, i) => (
+                  <div
+                    key={`enemy-hand-${i}-${id}`}
+                    className="enemy-hand-reveal-card"
+                  >
+                    <CardView cardId={id} compact flippable />
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        ) : null}
+
         <div className="board-lane enemy-lane">
           <div className="row-label enemy-label">
             Противник

@@ -4561,6 +4561,16 @@ function beginTurn(
   log: string[],
   opts?: { skipPoison?: boolean; calm?: boolean; state?: BattleState },
 ): void {
+  // «Увидеть руку N ходов»: тик в начале СВОЕГО следующего хода,
+  // чтобы N=1 хватало досмотреть ход врага (не гасло при конце хода каста).
+  if (p.revealEnemyHandTurns > 0) {
+    p.revealEnemyHandTurns -= 1;
+    if (p.revealEnemyHandTurns > 0) {
+      log.unshift(
+        `${p.name}: рука врага ещё видна (${p.revealEnemyHandTurns})`,
+      );
+    }
+  }
   if (!opts?.skipPoison) tickPoison(p, log, opts?.state);
   tickBurn(p, log, opts?.state);
   tickHeroBurn(p, log);
@@ -4760,7 +4770,6 @@ export function endPlayerTurn(state: BattleState): BattleState {
   const next = structuredClone(state) as BattleState;
   tickTraitorAfterCasterTurn(next, next.you, next.log);
   tickEndOwnerEffects(next.you, next.log);
-  if (next.you.revealEnemyHandTurns > 0) next.you.revealEnemyHandTurns -= 1;
   clearEchoSpells(next);
   pruneLingering(next);
   // Твои slow уже отыграли твой ход; у врага slow должен дожить до его атак
@@ -4803,7 +4812,6 @@ export function endEnemyTurn(state: BattleState): BattleState {
   const next = structuredClone(state) as BattleState;
   tickTraitorAfterCasterTurn(next, next.enemy, next.log);
   tickEndOwnerEffects(next.enemy, next.log);
-  if (next.enemy.revealEnemyHandTurns > 0) next.enemy.revealEnemyHandTurns -= 1;
   // Эхо врага НЕ снимаем здесь — игрок должен видеть серые карты весь свой ход
   pruneLingering(next);
   expireSlow(next.enemy);
