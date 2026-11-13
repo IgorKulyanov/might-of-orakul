@@ -744,7 +744,6 @@ function BoardCard({
     poisoned || impact === "poison" || poisonBurst || lingerPoison;
   const showBurn = burning || impact === "burn" || lingerBurn;
   const spriteKind = impactToSprite(impact);
-  const poisonTint = impact === "poison" ? "tint-poison" : undefined;
   return (
     <div
       className={[
@@ -804,11 +803,10 @@ function BoardCard({
       {sleeping && <span className="sleep-tag">сон</span>}
       {impact === "burn" ? (
         <BurnImpactStack burstKey={`${creature.uid}-burn-${impact}`} />
-      ) : spriteKind ? (
+      ) : spriteKind && impact !== "poison" ? (
         <FxSpriteBurst
           key={`${creature.uid}-${impact}-${spriteKind}`}
           kind={spriteKind}
-          tint={poisonTint}
         />
       ) : null}
       {/* Остаточный огонь: яркие CSS-языки снизу, без золочения карты. */}
@@ -824,23 +822,13 @@ function BoardCard({
           <span className="burn-lick burn-lick-3" />
         </span>
       ) : null}
+      {/* Яд: лёгкие CSS-пузырьки, пока статус висит (без loop-спрайтов). */}
       {showPoison ? (
         <span className="fx-poison-smoke" aria-hidden>
-          <FxSpriteBurst
-            kind="smoke"
-            loop
-            tint="tint-poison"
-            className="layer-poison-cloud"
-            stepMs={72}
-          />
-          <FxSpriteBurst
-            kind="white_puff"
-            loop
-            tint="tint-poison"
-            className="layer-poison-mist"
-            stepMs={88}
-            delayMs={140}
-          />
+          <i />
+          <i />
+          <i />
+          <i />
         </span>
       ) : null}
     </div>

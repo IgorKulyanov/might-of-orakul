@@ -1932,48 +1932,89 @@ button {
   }
 }
 
-/* —— Яд: зелёный дым остаётся, пока статус висит —— */
+/* —— Яд: зелёные пузырьки висят, пока статус poison —— */
 .board-card-wrap.has-poison {
-  box-shadow: 0 0 0 2px rgba(139, 195, 74, 0.65),
-    0 0 16px rgba(100, 180, 40, 0.45);
+  box-shadow: 0 0 0 2px rgba(139, 195, 74, 0.6),
+    0 0 12px rgba(100, 180, 40, 0.35);
 }
 .board-card-wrap.has-poison .card {
-  filter: brightness(1.06) saturate(1.15) hue-rotate(-8deg);
+  filter: none;
 }
 .board-card-wrap.is-poison-burst {
-  animation: poison-burst 0.75s ease;
+  animation: poison-burst 0.55s ease;
   z-index: 7;
 }
 
 .fx-poison-smoke {
   position: absolute;
-  inset: -10% -8% -4%;
+  inset: -8% -6% auto;
+  height: 58%;
   pointer-events: none;
   z-index: 9;
   overflow: visible;
 }
-.fx-poison-smoke .layer-poison-cloud {
-  inset: -8% -6% 10%;
-  opacity: 0.95;
+.fx-poison-smoke i {
+  position: absolute;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(210, 245, 130, 0.9) 0%,
+    rgba(120, 190, 50, 0.5) 42%,
+    transparent 72%
+  );
+  filter: blur(1px);
+  animation: poison-smoke-rise 1.55s ease-out infinite;
+  opacity: 0;
 }
-.fx-poison-smoke .layer-poison-mist {
-  inset: 8% -4% -6%;
-  opacity: 0.8;
+.fx-poison-smoke i:nth-child(1) {
+  left: 16%;
+  animation-delay: 0s;
+}
+.fx-poison-smoke i:nth-child(2) {
+  left: 40%;
+  width: 20px;
+  height: 20px;
+  animation-delay: 0.35s;
+}
+.fx-poison-smoke i:nth-child(3) {
+  left: 62%;
+  animation-delay: 0.7s;
+}
+.fx-poison-smoke i:nth-child(4) {
+  left: 28%;
+  width: 13px;
+  height: 13px;
+  animation-delay: 1.05s;
+}
+
+@keyframes poison-smoke-rise {
+  0% {
+    transform: translateY(6px) scale(0.55);
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateY(-40px) scale(1.3);
+    opacity: 0;
+  }
 }
 
 @keyframes poison-burst {
   0% {
-    filter: brightness(1);
     box-shadow: 0 0 0 0 rgba(139, 195, 74, 0);
   }
   30% {
-    filter: brightness(1.4) hue-rotate(-12deg);
-    box-shadow: 0 0 0 4px rgba(139, 195, 74, 0.9),
-      0 0 26px rgba(100, 220, 50, 0.75);
+    box-shadow: 0 0 0 3px rgba(139, 195, 74, 0.85),
+      0 0 18px rgba(100, 220, 50, 0.55);
   }
   100% {
-    filter: brightness(1);
-    box-shadow: 0 0 0 2px rgba(139, 195, 74, 0.55);
+    box-shadow: 0 0 0 2px rgba(139, 195, 74, 0.55),
+      0 0 12px rgba(100, 180, 40, 0.35);
   }
 }
 
