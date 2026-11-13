@@ -1344,6 +1344,19 @@ export function upgradeStatBonus(
   return { atk: def.bonusAtk[i] ?? 0, hp: def.bonusHp[i] ?? 0 };
 }
 
+/** ATK/HP как на лице карты для данного уровня прокачки. */
+export function creatureFaceStats(
+  cardId: string,
+  level: CardUpgradeLevel,
+): { atk: number; hp: number } {
+  const c = getCard(cardId);
+  const b = upgradeStatBonus(cardId, level);
+  return {
+    atk: (c.attack ?? 0) + b.atk,
+    hp: (c.health ?? 0) + b.hp,
+  };
+}
+
 export function cardUpgradeBlurb(
   cardId: string,
   level: CardUpgradeLevel,

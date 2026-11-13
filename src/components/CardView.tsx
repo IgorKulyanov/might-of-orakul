@@ -13,8 +13,13 @@ import {
   cardFrameLevel,
   getCard,
 } from "../game/cards";
-import { upgradePlanFor } from "../game/cardUpgradePlan";
 import {
+  syncPlanStatNumbers,
+  upgradePlanBody,
+  upgradePlanFor,
+} from "../game/cardUpgradePlan";
+import {
+  creatureFaceStats,
   defaultUpgradeLevel,
   isUpgradeableCard,
   upgradeStatBonus,
@@ -95,7 +100,7 @@ export function CardView({
   const frameLv = cardFrameLevel(c);
   const art = cardArtUrl(c);
   const artStyle = cardArtStyle(c);
-  // JSON = статы ур.2. На лице показываем статы текущего/стартового уровня прокачки.
+  // JSON ≈ статы ур.2. На лице — статы текущего/стартового уровня прокачки.
   const displayLv =
     upgradeLevel != null && upgradeLevel >= 1
       ? upgradeLevel
@@ -103,9 +108,7 @@ export function CardView({
         ? defaultUpgradeLevel(c.id)
         : null;
   const statBonus =
-    displayLv != null && liveAttack == null && liveHealth == null
-      ? upgradeStatBonus(c.id, displayLv)
-      : { atk: 0, hp: 0 };
+    displayLv != null ? upgradeStatBonus(c.id, displayLv) : { atk: 0, hp: 0 };
   const baseAtk = (c.attack ?? 0) + statBonus.atk;
   const baseHp = (c.health ?? 0) + statBonus.hp;
   const atk = liveAttack ?? baseAtk;
@@ -366,7 +369,13 @@ export function CardView({
                   {c.kind === "creature" && (
                     <>
                       {" "}
-                      · {atk}/{hp} {patternGlyph.icon}
+                      · атака {baseAtk} · жизни {baseHp} {patternGlyph.icon}
+                      {wounded ? (
+                        <>
+                          {" "}
+                          · сейчас {atk}/{hp}
+                        </>
+                      ) : null}
                     </>
                   )}
                 </p>
@@ -378,14 +387,13 @@ export function CardView({
                       : 1;
                   const tone =
                     cur >= 3 ? "is-lv-3" : cur === 2 ? "is-lv-2" : "is-lv-1";
-                  const skill =
-                    plan == null
-                      ? null
-                      : cur <= 1
-                        ? plan.l1
-                        : cur === 2
-                          ? plan.l2
-                          : plan.l3;
+                  if (!plan) return null;
+                  const face = creatureFaceStats(c.id, cur);
+                  const skill = syncPlanStatNumbers(
+                    upgradePlanBody(c.id, cur),
+                    face.atk,
+                    face.hp,
+                  );
                   if (!skill) return null;
                   return (
                     <p className={`card-desc-level ${tone}`}>
@@ -410,17 +418,29 @@ export function CardView({
                           [2, plan.l2],
                           [3, plan.l3],
                         ] as const
-                      ).map(([lv, text]) => (
-                        <li
-                          key={lv}
-                          className={`card-desc-upgrade-item is-lv-${lv}${
-                            cur === lv ? " is-current" : ""
-                          }`}
-                        >
-                          <span className="card-desc-upgrade-lv">Ур.{lv}</span>
-                          <span className="card-desc-upgrade-txt">{text}</span>
-                        </li>
-                      ))}
+                      ).map(([lv, text]) => {
+                        const face = creatureFaceStats(c.id, lv);
+                        const synced = syncPlanStatNumbers(
+                          text,
+                          face.atk,
+                          face.hp,
+                        );
+                        return (
+                          <li
+                            key={lv}
+                            className={`card-desc-upgrade-item is-lv-${lv}${
+                              cur === lv ? " is-current" : ""
+                            }`}
+                          >
+                            <span className="card-desc-upgrade-lv">
+                              Ур.{lv}
+                            </span>
+                            <span className="card-desc-upgrade-txt">
+                              {synced}
+                            </span>
+                          </li>
+                        );
+                      })}
                     </ul>
                   );
                 })()}

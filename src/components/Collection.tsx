@@ -685,6 +685,11 @@ export function Collection({
                   key={`${id}-${i}`}
                   cardId={id}
                   compact
+                  upgradeLevel={
+                    isUpgradeableCard(id)
+                      ? getCardUpgradeLevel(owned, id)
+                      : null
+                  }
                   onClick={() => removeFromDeck(i)}
                 />
               ))
@@ -738,6 +743,11 @@ export function Collection({
                     <CardView
                       card={c}
                       flippable
+                      upgradeLevel={
+                        isUpgradeableCard(c.id)
+                          ? getCardUpgradeLevel(owned, c.id)
+                          : null
+                      }
                       onClick={() => addToDeck(c.id)}
                     />
                     <div className="grid-meta">

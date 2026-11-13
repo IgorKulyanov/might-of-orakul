@@ -561,15 +561,45 @@ export function upgradePlanFor(cardId: string): UpgradePlan | null {
   return CARD_UPGRADE_PLAN[cardId] ?? null;
 }
 
-export function upgradePlanLine(
+/**
+ * Подставляет в текст уровня реальные атака/жизни с лица карты,
+ * чтобы цифры в описании никогда не расходились с бейджем ATK/HP.
+ * Меняет только первое «атака N» и первое «жизни N» (не трогает −N жизни/ход и т.п.).
+ */
+export function syncPlanStatNumbers(
+  text: string,
+  atk: number,
+  hp: number,
+): string {
+  let out = text;
+  if (/атака\s+\d+/.test(out)) {
+    out = out.replace(/атака\s+\d+/, `атака ${atk}`);
+  }
+  if (/жизни\s+\d+/.test(out)) {
+    out = out.replace(/жизни\s+\d+/, `жизни ${hp}`);
+  }
+  return out;
+}
+
+export function upgradePlanBody(
   cardId: string,
   level: CardUpgradeLevel,
 ): string {
   const p = CARD_UPGRADE_PLAN[cardId];
   if (!p) return "";
-  if (level <= 1) return `Ур.1 — ${p.l1}`;
-  if (level === 2) return `Ур.2 — ${p.l2}`;
-  return `Ур.3 — ${p.l3}`;
+  if (level <= 1) return p.l1;
+  if (level === 2) return p.l2;
+  return p.l3;
+}
+
+export function upgradePlanLine(
+  cardId: string,
+  level: CardUpgradeLevel,
+): string {
+  const body = upgradePlanBody(cardId, level);
+  if (!body) return "";
+  const n = level <= 1 ? 1 : level === 2 ? 2 : 3;
+  return `Ур.${n} — ${body}`;
 }
 
 export function upgradePlanFullText(cardId: string): string {
