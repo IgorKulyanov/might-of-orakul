@@ -1105,22 +1105,4 @@ export function claimDailyQuest(
 }
 
 /** Сброс кейса/колоды до стартового набора фракции. */
-export function resetCaseToStarters(owned: OwnedState): OwnedState {
-  const heroId = owned.heroId ?? "hero_life";
-  const faction = getHero(heroId).faction;
-  const collection = starterCollectionForFaction(faction);
-  const next: OwnedState = {
-    ...owned,
-    unlocked: unlockedFromCollection(collection),
-    collection,
-    decks: { starter: starterDeckFor(heroId) },
-    activeDeckId: "starter",
-    purchased: [],
-  };
-  localStorage.setItem(CASE_WIPE_FLAG, "1");
-  localStorage.setItem(COPIES_FLAG, "1");
-  saveOwned(next);
-  return next;
-}
-
 export { DECK_SIZE, MIN_DECK_SIZE, maxCopiesForCard, countIds };
