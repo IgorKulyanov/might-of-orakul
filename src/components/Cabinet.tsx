@@ -50,8 +50,8 @@ const BOOK_SCHOOLS: School[] = [
   "neutral",
 ];
 
-/** Карт на одну страницу (левая / правая). Крупнее и читаемее. */
-const CARDS_PER_LEAF = 1;
+/** 4 карты на страницу (сетка 2×2), на развороте 8. */
+const CARDS_PER_LEAF = 4;
 const CARDS_PER_SPREAD = CARDS_PER_LEAF * 2;
 
 type Tab = "oracle" | "deck";
@@ -230,7 +230,7 @@ export function Cabinet({
           <CardView
             card={card}
             compact
-            flippable
+            flippable={false}
             upgradeLevel={
               isUpgradeableCard(card.id)
                 ? getCardUpgradeLevel(owned, card.id)
@@ -239,9 +239,6 @@ export function Cabinet({
           />
         </div>
         <div className="oracle-book-slot-meta">
-          <span className={inDeck > 0 ? "badge-in-deck" : "badge-in-case"}>
-            {inDeck > 0 ? `колода ×${inDeck}` : `×${have}`}
-          </span>
           <div className="cabinet-card-actions">
             <button
               type="button"
@@ -251,6 +248,7 @@ export function Cabinet({
                 e.stopPropagation();
                 addToDeck(card.id);
               }}
+              title={inDeck > 0 ? `в колоде ×${inDeck}` : `есть ×${have}`}
             >
               +
             </button>
