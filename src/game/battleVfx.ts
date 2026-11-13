@@ -22,6 +22,8 @@ export type FxSpriteKind =
   | "explosion"
   | "flash"
   | "smoke"
+  | "white_puff"
+  | "muzzle"
   | "water"
   | "lightning"
   | "arcane"
@@ -31,7 +33,9 @@ const FX_BASE = "/fx";
 
 const SEQ: Record<FxSpriteKind, string[]> = {
   slash: [1, 2, 3, 4].map((i) => `${FX_BASE}/slash/slash_0${i}.png`),
-  spark: [1, 2, 3, 4, 5].map((i) => `${FX_BASE}/spark/spark_0${i}.png`),
+  spark: [1, 2, 3, 4, 5, 6, 7].map(
+    (i) => `${FX_BASE}/spark/spark_0${i}.png`,
+  ),
   flame: [
     `${FX_BASE}/flame/flame_01.png`,
     `${FX_BASE}/flame/flame_02.png`,
@@ -42,12 +46,20 @@ const SEQ: Record<FxSpriteKind, string[]> = {
     `${FX_BASE}/flame/fire_01.png`,
     `${FX_BASE}/flame/fire_02.png`,
   ],
+  muzzle: [1, 2, 3, 4, 5].map(
+    (i) => `${FX_BASE}/muzzle/muzzle_0${i}.png`,
+  ),
   explosion: [0, 1, 2, 3, 4, 5, 6, 7, 8].map(
     (i) => `${FX_BASE}/explosion/explosion0${i}.png`,
   ),
-  flash: [0, 1, 2, 3, 4, 5].map((i) => `${FX_BASE}/flash/flash0${i}.png`),
-  smoke: [0, 2, 4, 6, 8, 10, 12, 14].map(
-    (i) => `${FX_BASE}/smoke/blackSmoke${String(i).padStart(2, "0")}.png`,
+  flash: [0, 1, 2, 3, 4, 5, 6, 7, 8].map(
+    (i) => `${FX_BASE}/flash/flash0${i}.png`,
+  ),
+  smoke: Array.from({ length: 25 }, (_, i) =>
+    `${FX_BASE}/smoke/blackSmoke${String(i).padStart(2, "0")}.png`,
+  ),
+  white_puff: Array.from({ length: 25 }, (_, i) =>
+    `${FX_BASE}/white_puff/whitePuff${String(i).padStart(2, "0")}.png`,
   ),
   water: [
     `${FX_BASE}/water/01_Water__01.png`,
@@ -64,6 +76,20 @@ const SEQ: Record<FxSpriteKind, string[]> = {
   ),
   heal: [1, 2, 3, 4, 5].map((i) => `${FX_BASE}/magic_particle/star_0${i}.png`),
 };
+
+/** Слои попадания огнём: взрыв → вспышка → дым (из архива анимаций). */
+export function burnImpactLayers(): Array<{
+  kind: FxSpriteKind;
+  delayMs: number;
+  className: string;
+}> {
+  return [
+    { kind: "explosion", delayMs: 0, className: "layer-explosion" },
+    { kind: "flash", delayMs: 40, className: "layer-flash" },
+    { kind: "smoke", delayMs: 90, className: "layer-smoke" },
+    { kind: "flame", delayMs: 120, className: "layer-flame" },
+  ];
+}
 
 export function fxSequence(kind: FxSpriteKind): string[] {
   return SEQ[kind] ?? SEQ.flash;

@@ -97,6 +97,7 @@ import {
 } from "../game/battleTutorial";
 import { pickBattleTable } from "../game/battleTables";
 import {
+  burnImpactLayers,
   fxSequence,
   impactToSprite,
   missileVisual,
@@ -227,37 +228,65 @@ type FxImpact =
 function FxSpriteBurst({
   kind,
   tint,
+  className = "",
+  delayMs = 0,
+  loop = false,
+  stepMs,
 }: {
   kind: FxSpriteKind;
   tint?: string;
+  className?: string;
+  delayMs?: number;
+  loop?: boolean;
+  stepMs?: number;
 }) {
   const frames = fxSequence(kind);
   const [i, setI] = useState(0);
+  const [on, setOn] = useState(delayMs <= 0);
   useEffect(() => {
     setI(0);
-    if (frames.length <= 1) return;
-    const step =
-      kind === "explosion"
-        ? 42
-        : kind === "lightning" || kind === "slash"
-          ? 45
-          : 55;
-    const id = window.setInterval(() => {
-      setI((n) => {
-        if (n >= frames.length - 1) {
-          window.clearInterval(id);
-          return n;
-        }
-        return n + 1;
-      });
-    }, step);
-    return () => window.clearInterval(id);
-  }, [kind, frames.length]);
+    setOn(delayMs <= 0);
+    let startTimer: number | null = null;
+    let id: number | null = null;
+    const begin = () => {
+      setOn(true);
+      if (frames.length <= 1) return;
+      const step =
+        stepMs ??
+        (kind === "explosion" || kind === "flash"
+          ? 40
+          : kind === "smoke" || kind === "white_puff"
+            ? 36
+            : kind === "lightning" || kind === "slash"
+              ? 45
+              : 50);
+      id = window.setInterval(() => {
+        setI((n) => {
+          if (n >= frames.length - 1) {
+            if (loop) return 0;
+            if (id != null) window.clearInterval(id);
+            return n;
+          }
+          return n + 1;
+        });
+      }, step);
+    };
+    if (delayMs > 0) {
+      startTimer = window.setTimeout(begin, delayMs);
+    } else {
+      begin();
+    }
+    return () => {
+      if (startTimer != null) window.clearTimeout(startTimer);
+      if (id != null) window.clearInterval(id);
+    };
+  }, [kind, frames.length, delayMs, loop, stepMs]);
+  if (!on) return null;
   const src = frames[Math.min(i, frames.length - 1)];
   if (!src) return null;
   return (
     <span
-      className={`fx-sprite-burst is-${kind}${tint ? ` ${tint}` : ""}`}
+      className={`fx-sprite-burst is-${kind}${tint ? ` ${tint}` : ""}${className ? ` ${className}` : ""}`}
       aria-hidden
     >
       <img src={src} alt="" draggable={false} />
@@ -265,14 +294,33 @@ function FxSpriteBurst({
   );
 }
 
-/** Крупный фаербол в полёте — крутящиеся кадры пламени. */
+/** Удар огнём: взрыв + вспышка + дым + пламя из архива анимаций. */
+function BurnImpactStack({ burstKey }: { burstKey: string }) {
+  return (
+    <span className="fx-burn-stack" aria-hidden>
+      {burnImpactLayers().map((layer) => (
+        <FxSpriteBurst
+          key={`${burstKey}-${layer.kind}`}
+          kind={layer.kind}
+          delayMs={layer.delayMs}
+          className={layer.className}
+          tint={layer.kind === "flame" ? "tint-flame" : undefined}
+        />
+      ))}
+    </span>
+  );
+}
+
+/** Крупный фаербол в полёте — muzzle + пламя из архива. */
 function FireballFlightSprite() {
-  const frames = fxSequence("flame");
+  const flame = fxSequence("flame");
+  const muzzle = fxSequence("muzzle");
+  const frames = muzzle.length ? [...muzzle, ...flame.slice(0, 4)] : flame;
   const [i, setI] = useState(0);
   useEffect(() => {
     const id = window.setInterval(() => {
       setI((n) => (n + 1) % frames.length);
-    }, 48);
+    }, 42);
     return () => window.clearInterval(id);
   }, [frames.length]);
   const src = frames[i] ?? frames[0];
@@ -727,31 +775,36 @@ function BoardCard({
         onClick={onClick}
       />
       {sleeping && <span className="sleep-tag">сон</span>}
-      {spriteKind ? (
+      {impact === "burn" ? (
+        <BurnImpactStack burstKey={`${creature.uid}-burn-${impact}`} />
+      ) : spriteKind ? (
         <FxSpriteBurst
           key={`${creature.uid}-${impact}-${spriteKind}`}
           kind={spriteKind}
           tint={poisonTint}
         />
       ) : null}
-      {impact === "burn" ? (
-        <span className="fx-burn-flash" aria-hidden />
-      ) : null}
       {showBurn ? (
-        <span className="fx-burn-layer" aria-hidden>
-          <i />
-          <i />
-          <i />
-          <i />
-          <i />
+        <span className="fx-burn-embers" aria-hidden>
+          <FxSpriteBurst
+            kind="flame"
+            loop
+            tint="tint-flame"
+            className="layer-ember"
+            stepMs={70}
+          />
+          <FxSpriteBurst
+            kind="smoke"
+            loop
+            className="layer-ember-smoke"
+            stepMs={55}
+            delayMs={80}
+          />
         </span>
       ) : null}
       {showPoison && impact !== "poison" ? (
         <span className="fx-poison-smoke" aria-hidden>
-          <i />
-          <i />
-          <i />
-          <i />
+          <FxSpriteBurst kind="smoke" loop tint="tint-poison" stepMs={60} />
         </span>
       ) : null}
     </div>
