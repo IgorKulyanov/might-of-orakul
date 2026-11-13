@@ -27,7 +27,6 @@ import {
   isUnlocked,
   ownedCopies,
   playerLevel,
-  resetCaseToStarters,
   saveDeck,
 } from "../game/owned";
 import { getHero, oracleLore, orakulArtUrl } from "../game/heroes";
@@ -265,15 +264,6 @@ export function Cabinet({
     say("Колода очищена — карты в книге");
   };
 
-  const wipeCaseToStart = () => {
-    const ok = window.confirm(
-      "Сбросить книгу и колоду до старта школы (4 карты ×1)? Купленное пропадёт.",
-    );
-    if (!ok) return;
-    onChange(resetCaseToStarters(owned));
-    say("Стартовые 4 карты восстановлены");
-  };
-
   const [dragOver, setDragOver] = useState<"deck" | "case" | null>(null);
 
   const onCardDragStart = (
@@ -474,13 +464,6 @@ export function Cabinet({
                   onClick={clearDeck}
                 >
                   Очистить колоду
-                </button>
-                <button
-                  type="button"
-                  className="ghost"
-                  onClick={wipeCaseToStart}
-                >
-                  Сброс книги до старта
                 </button>
               </div>
             </div>
