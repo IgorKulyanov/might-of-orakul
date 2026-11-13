@@ -572,7 +572,8 @@ export function Cabinet({
             onDrop={onDropToCase}
           >
             <div className="oracle-folio" aria-label="Фолиант оракула">
-              <div className="oracle-folio-stage">
+              <div className="oracle-folio-cover">
+                <div className="oracle-folio-spine" aria-hidden="true" />
                 <nav className="oracle-book-ribbons" aria-label="Школы">
                   {BOOK_SCHOOLS.map((s) => {
                     const n = schoolCounts[s];

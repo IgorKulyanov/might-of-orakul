@@ -1,4 +1,4 @@
-import { SCHOOL_LABEL } from "../game/cards";
+﻿import { SCHOOL_LABEL } from "../game/cards";
 import type { Faction, ManaCost, School } from "../game/types";
 
 export type GameIconName =
@@ -8,7 +8,7 @@ export type GameIconName =
   | "diamond";
 
 /** Версия ассетов — сброс кэша браузера после правок эмблем. */
-const UI_VER = "6";
+const UI_VER = "7";
 
 const SRC: Record<string, string> = {
   water: `/ui/water.png?v=${UI_VER}`,
