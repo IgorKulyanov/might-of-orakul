@@ -1597,6 +1597,75 @@ button {
   animation: missile-pulse 0.2s linear infinite alternate;
 }
 
+.battle-missile.is-water {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-left: -0.55rem;
+  margin-top: -0.55rem;
+  background: transparent;
+}
+.missile-water-core {
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #e8ffff, #3aa7e8 45%, #155a9a 80%);
+  box-shadow: 0 0 12px rgba(80, 190, 255, 0.75);
+}
+.missile-water-splash {
+  position: absolute;
+  inset: -22%;
+  border-radius: 50%;
+  border: 2px solid rgba(160, 230, 255, 0.55);
+  opacity: 0.7;
+}
+
+.fx-sprite-burst {
+  position: absolute;
+  inset: -8% -4% -4%;
+  z-index: 6;
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+  mix-blend-mode: screen;
+  animation: fx-sprite-fade 0.55s ease-out both;
+}
+.fx-sprite-burst img {
+  width: min(118%, 9.5rem);
+  height: auto;
+  max-height: 9.5rem;
+  object-fit: contain;
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.25));
+}
+.fx-sprite-burst.is-slash img {
+  width: min(130%, 10.5rem);
+}
+.fx-sprite-burst.is-lightning img {
+  width: min(160%, 14rem);
+}
+.fx-sprite-burst.tint-poison img {
+  filter: hue-rotate(90deg) saturate(1.35) brightness(1.1);
+}
+.fx-sprite-burst.is-heal img {
+  filter: drop-shadow(0 0 12px rgba(120, 255, 160, 0.55));
+}
+.board-card-wrap.is-slash-hit {
+  animation: hit-shake-soft 0.35s ease;
+}
+@keyframes fx-sprite-fade {
+  from {
+    opacity: 0.15;
+    transform: scale(0.72);
+  }
+  28% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.1);
+  }
+}
+
 .battle-missile.is-poison {
   width: 26px;
   height: 26px;

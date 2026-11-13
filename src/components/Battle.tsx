@@ -97,6 +97,15 @@ import {
 } from "../game/battleTutorial";
 import { pickBattleTable } from "../game/battleTables";
 import {
+  fxSequence,
+  impactToSprite,
+  missileVisual,
+  resolveImpactKind,
+  schoolTone,
+  shouldFlyMissile,
+  type FxSpriteKind,
+} from "../game/battleVfx";
+import {
   defaultUpgradeLevel,
   isUpgradeableCard,
 } from "../game/cardUpgrades";
@@ -204,7 +213,51 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 const DIE_FACE = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
 
-type FxImpact = "arrow" | "burn" | "magic" | "poison" | "water" | "shock";
+type FxImpact =
+  | "arrow"
+  | "burn"
+  | "magic"
+  | "poison"
+  | "water"
+  | "shock"
+  | "slash"
+  | "heal";
+
+/** Короткая вспышка из спрайтов Kenney/OGA. */
+function FxSpriteBurst({
+  kind,
+  tint,
+}: {
+  kind: FxSpriteKind;
+  tint?: string;
+}) {
+  const frames = fxSequence(kind);
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    setI(0);
+    if (frames.length <= 1) return;
+    const id = window.setInterval(() => {
+      setI((n) => {
+        if (n >= frames.length - 1) {
+          window.clearInterval(id);
+          return n;
+        }
+        return n + 1;
+      });
+    }, kind === "lightning" || kind === "slash" ? 45 : 55);
+    return () => window.clearInterval(id);
+  }, [kind, frames.length]);
+  const src = frames[Math.min(i, frames.length - 1)];
+  if (!src) return null;
+  return (
+    <span
+      className={`fx-sprite-burst is-${kind}${tint ? ` ${tint}` : ""}`}
+      aria-hidden
+    >
+      <img src={src} alt="" draggable={false} />
+    </span>
+  );
+}
 
 type DyingGhost = {
   key: string;
@@ -261,7 +314,7 @@ function BattleMissile({
   fromSky,
 }: {
   className: string;
-  kind: "arrow" | "bolt" | "magic" | "poison";
+  kind: "arrow" | "bolt" | "magic" | "poison" | "fire" | "water";
   boardRef: RefObject<HTMLDivElement | null>;
   fromSide: "you" | "enemy";
   fromSlot?: number;
@@ -460,10 +513,15 @@ function BattleMissile({
           <span className="missile-poison-core" />
           <span className="missile-poison-drip" />
         </>
-      ) : kind === "bolt" && className.includes("school-hell") ? (
+      ) : kind === "fire" ? (
         <>
           <span className="missile-fire-core" />
           <span className="missile-fire-tail" />
+        </>
+      ) : kind === "water" ? (
+        <>
+          <span className="missile-water-core" />
+          <span className="missile-water-splash" />
         </>
       ) : kind === "bolt" || kind === "magic" ? (
         <>
@@ -511,7 +569,7 @@ function BoardCard({
   nod?: boolean;
   hit?: boolean;
   poisonBurst?: boolean;
-  /** Эффект на цели: стрела / огонь / магия / яд / вода / разряд. */
+  /** Эффект на цели: слэш / стрела / огонь / магия / яд / вода / разряд. */
   impact?: FxImpact | null;
   playIn?: boolean;
   heal?: boolean;
@@ -522,6 +580,8 @@ function BoardCard({
   const burning = creature.statuses.some((st) => st.type === "burn");
   const showPoison = poisoned || impact === "poison" || poisonBurst;
   const showBurn = burning || impact === "burn";
+  const spriteKind = impactToSprite(impact);
+  const poisonTint = impact === "poison" ? "tint-poison" : undefined;
   return (
     <div
       className={[
@@ -541,6 +601,7 @@ function BoardCard({
         impact === "water" ? "is-water-hit" : "",
         impact === "shock" ? "is-shock-hit" : "",
         impact === "arrow" ? "is-arrow-hit" : "",
+        impact === "slash" ? "is-slash-hit" : "",
         playIn ? "is-play-in" : "",
         heal ? "is-heal" : "",
         dying ? "is-dying" : "",
@@ -578,7 +639,14 @@ function BoardCard({
         onClick={onClick}
       />
       {sleeping && <span className="sleep-tag">сон</span>}
-      {showBurn ? (
+      {spriteKind ? (
+        <FxSpriteBurst
+          key={`${creature.uid}-${impact}-${spriteKind}`}
+          kind={spriteKind}
+          tint={poisonTint}
+        />
+      ) : null}
+      {showBurn && impact !== "burn" ? (
         <span className="fx-burn-layer" aria-hidden>
           <i />
           <i />
@@ -587,37 +655,7 @@ function BoardCard({
           <i />
         </span>
       ) : null}
-      {impact === "magic" || impact === "shock" ? (
-        <span className="fx-shock-layer" aria-hidden>
-          <svg viewBox="0 0 40 48" className="fx-shock-bolt" aria-hidden>
-            <polyline
-              points="22,2 12,20 20,20 10,46 30,18 20,18 28,2"
-              fill="none"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <svg viewBox="0 0 40 48" className="fx-shock-bolt b" aria-hidden>
-            <polyline
-              points="18,0 26,16 16,16 24,40 8,22 18,22 14,4"
-              fill="none"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </span>
-      ) : null}
-      {impact === "water" ? (
-        <span className="fx-water-layer" aria-hidden>
-          <i />
-          <i />
-          <i />
-          <i />
-        </span>
-      ) : null}
-      {showPoison ? (
+      {showPoison && impact !== "poison" ? (
         <span className="fx-poison-smoke" aria-hidden>
           <i />
           <i />
@@ -2406,8 +2444,7 @@ export function Battle({
       (fx.kind === "lunge" && fx.hitHero !== true && fx.toSlot === slot);
     if (!targeted) return null;
 
-    // Оффенсив (яд/огонь/удар) всегда на ЧУЖУЮ сторону.
-    // Иначе toSlot=2 цеплял и твою карту в слоте 2.
+    // Оффенсив всегда на ЧУЖУЮ сторону.
     const offensiveSpell =
       fx.kind === "spell" &&
       (fx.vfx === "poison" ||
@@ -2422,28 +2459,17 @@ export function Battle({
       if (cardSide !== fx.side) return null;
     }
 
-    if (fx.kind === "lunge") {
-      const motion = fx.motion ?? "melee";
-      // Стрелы только летят — «палки» на карте не рисуем.
-      if (motion === "ranged") return null;
-      if (motion === "bolt") {
-        if (fx.school === "hell") return "burn";
-        if (fx.school === "water") return "water";
-        return "shock";
-      }
+    if (fx.kind === "heal") return "heal";
+
+    // Стрелы только летят — без «палок» на карте.
+    if (fx.kind === "lunge" && (fx.motion ?? "melee") === "ranged") {
       return null;
     }
-    if (fx.kind === "spell") {
-      if (fx.vfx === "poison") return "poison";
-      if (fx.vfx === "burn" || fx.school === "hell") return "burn";
-      if (fx.vfx === "water" || fx.school === "water") return "water";
-      // Туча стрел: только дождь снарядов, без палок на карте.
-      if (fx.vfx === "arrow") return null;
-      if (fx.vfx === "shock") return "shock";
-      if (fx.vfx === "magic") return "shock";
-      return null;
-    }
-    return null;
+    if (fx.kind === "spell" && fx.vfx === "arrow") return null;
+
+    const kind = resolveImpactKind(fx);
+    if (kind === "arrow") return null;
+    return kind;
   };
 
   const yourFx = (slot: number) => {
@@ -2496,32 +2522,17 @@ export function Battle({
     };
   };
 
-  const missileKind = ((): "arrow" | "bolt" | "magic" | "poison" | null => {
-    if (!fx) return null;
-    const motion = fx.motion ?? "melee";
-    const flyAttack =
-      fx.kind === "lunge" && (motion === "ranged" || motion === "bolt");
-    const hasSpellAim =
-      !!fx.hitHero ||
-      fx.toSlot != null ||
-      (Array.isArray(fx.hitSlots) && fx.hitSlots.length > 0);
-    // Без цели (мана, доп. карта, баффы) снаряд не летит — только карта каста.
-    // burn/water/shock рисуются на картах; arrow/poison/magic ещё и летят.
-    const flySpell =
-      fx.kind === "spell" &&
-      hasSpellAim &&
-      (fx.vfx === "poison" ||
-        fx.vfx === "magic" ||
-        fx.vfx === "arrow" ||
-        fx.vfx === "shock" ||
-        fx.vfx === "water");
-    if (!flyAttack && !flySpell) return null;
-    if (fx.kind === "spell") {
-      if (fx.vfx === "poison") return "poison";
-      if (fx.vfx === "arrow") return "arrow";
-      return "magic";
-    }
-    return motion === "bolt" ? "bolt" : "arrow";
+  // Melee/колющее/режущее — без снаряда. Огонь летит только у огненных болтов/спеллов.
+  const missileKind = (():
+    | "arrow"
+    | "bolt"
+    | "magic"
+    | "poison"
+    | "fire"
+    | "water"
+    | null => {
+    if (!fx || !shouldFlyMissile(fx)) return null;
+    return missileVisual(fx);
   })();
 
   const missileClass = missileKind
@@ -2529,7 +2540,7 @@ export function Battle({
         "battle-missile",
         `is-${missileKind}`,
         `from-${fx!.side}`,
-        fx!.school ? `school-${fx!.school}` : "school-neutral",
+        schoolTone(fx!.school),
       ].join(" ")
     : null;
 
