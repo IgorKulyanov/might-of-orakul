@@ -163,6 +163,8 @@ type Props = {
   enemyLevel?: number;
   /** Прокачка карт игрока (cardId → 1…3). */
   cardUpgrades?: Record<string, number>;
+  /** Прокачка карт врага (песочница / тесты). */
+  enemyCardUpgrades?: Record<string, number>;
   /** После createBattle — арена и др. модификаторы. */
   prepareBattle?: (state: BattleState) => BattleState;
   /** Скрыть «Ещё раз» (забеги с прогрессом). */
@@ -844,6 +846,7 @@ export function Battle({
   yourLevel = 1,
   enemyLevel = yourLevel,
   cardUpgrades,
+  enemyCardUpgrades,
   prepareBattle,
   allowRematch = true,
   exitPolicy = "free",
@@ -872,6 +875,7 @@ export function Battle({
     if (aiPersona) raw.aiPersona = aiPersona;
     if (aiSeed != null) raw.aiSeed = aiSeed;
     if (cardUpgrades) raw.youCardUpgrades = { ...cardUpgrades };
+    if (enemyCardUpgrades) raw.enemyCardUpgrades = { ...enemyCardUpgrades };
     return prepareBattle ? prepareBattle(raw) : raw;
   };
   const [state, setState] = useState<BattleState>(() => bootBattle());

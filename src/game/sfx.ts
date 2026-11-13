@@ -1,6 +1,10 @@
 import { getCard } from "./cards";
 import type { BattleState, School, SpellEffect } from "./types";
 import type { BattleFx } from "./engine";
+import {
+  isArrowShotCard,
+  rangedShotStyle,
+} from "./rangedStyle";
 
 /**
  * Мягкие «кинематографичные» SFX на Web Audio:
@@ -254,20 +258,6 @@ export const SFX_POSITIVE_SPELL_URL = `/sfx/${encodeURIComponent("магия п�
 
 /** Крик банши (оглушение): public/sfx/банши.mp3 */
 export const SFX_BANSHEE_URL = `/sfx/${encodeURIComponent("банши.mp3")}`;
-
-/** Кто бьёт магией, а не стрелами/клинком. */
-const MAGE_BOLT_CARD_IDS = new Set([
-  "mage",
-  "necro_mage",
-  "lich",
-  "arbiter",
-  "water_spirit",
-  "fire_gopnik",
-  "inferno",
-]);
-
-/** Кто пускает стрелы / болты. */
-const ARROW_CARD_IDS = new Set(["elf", "crossbowman", "archer"]);
 
 /** Эффекты «боль / неудобство» врагу или его юнитам. */
 const OFFENSIVE_SPELL_EFFECTS = new Set<SpellEffect["type"]>([
@@ -791,7 +781,9 @@ export function sfxMageBolt(): void {
 }
 
 export function isMageBoltCard(cardId: string | undefined): boolean {
-  return !!cardId && MAGE_BOLT_CARD_IDS.has(cardId);
+  if (!cardId) return false;
+  const shot = rangedShotStyle(cardId);
+  return shot != null && shot !== "arrow";
 }
 
 /** Стрела / болт: public/sfx/стрела.mp3 */
@@ -800,7 +792,7 @@ export function sfxArrow(): void {
 }
 
 export function isArrowCard(cardId: string | undefined): boolean {
-  return !!cardId && ARROW_CARD_IDS.has(cardId);
+  return isArrowShotCard(cardId);
 }
 
 /** Атакующая магия по врагу: public/sfx/магия атакующая.mp3 */

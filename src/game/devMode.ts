@@ -131,7 +131,48 @@ export type DevBattleSetup = {
   enemyDeckMode: DevDeckMode;
   yourCustomDeck?: string[];
   enemyCustomDeck?: string[];
+  /** Прокачка юнитов в тесте: cardId → 1…3 */
+  yourCardUpgrades?: Record<string, number>;
+  enemyCardUpgrades?: Record<string, number>;
 };
+
+const CUSTOM_UP_YOU = "orakul_dev_up_you";
+const CUSTOM_UP_ENEMY = "orakul_dev_up_enemy";
+
+export function loadDevCardUpgrades(
+  side: "you" | "enemy",
+): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(
+      side === "you" ? CUSTOM_UP_YOU : CUSTOM_UP_ENEMY,
+    );
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object") return {};
+    const out: Record<string, number> = {};
+    for (const [id, lv] of Object.entries(parsed as Record<string, unknown>)) {
+      const n = Math.floor(Number(lv) || 1);
+      out[id] = n >= 3 ? 3 : n <= 1 ? 1 : 2;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export function saveDevCardUpgrades(
+  side: "you" | "enemy",
+  ups: Record<string, number>,
+): void {
+  try {
+    localStorage.setItem(
+      side === "you" ? CUSTOM_UP_YOU : CUSTOM_UP_ENEMY,
+      JSON.stringify(ups),
+    );
+  } catch {
+    /* private mode */
+  }
+}
 
 export function allTestHeroes() {
   return [...BASE_HEROES, ...EPIC_HEROES];
@@ -157,5 +198,7 @@ export function resolveDevBattle(setup: DevBattleSetup) {
       setup.enemyLevel,
       setup.enemyCustomDeck,
     ),
+    yourCardUpgrades: { ...(setup.yourCardUpgrades ?? {}) },
+    enemyCardUpgrades: { ...(setup.enemyCardUpgrades ?? {}) },
   };
 }

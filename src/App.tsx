@@ -1227,6 +1227,8 @@ export default function App() {
         yourName={`${displayName} (тест)`}
         yourLevel={resolved.yourLevel}
         enemyLevel={resolved.enemyLevel}
+        cardUpgrades={resolved.yourCardUpgrades}
+        enemyCardUpgrades={resolved.enemyCardUpgrades}
         onExit={() => setScreen("dev")}
         onBattleEnd={onBattleEnd}
       />

@@ -19,6 +19,7 @@ import {
   isUpgradeableCard,
   upgradeStatBonus,
 } from "../game/cardUpgrades";
+import { patternGlyphForCard } from "../game/rangedStyle";
 import type {
   AttackPattern,
   CardDef,
@@ -26,24 +27,6 @@ import type {
   StatusEffect,
 } from "../game/types";
 import { GameIcon, ManaCostIcons, SchoolBadge } from "./GameIcon";
-
-const PATTERN_ICON: Record<AttackPattern, string> = {
-  melee: "⚔️",
-  melee_lane3: "🗡️",
-  ranged: "🏹",
-  cleave3: "🔱",
-  lane_cleave3: "🐕",
-  aoe_all: "🌊",
-};
-
-const PATTERN_TITLE: Record<AttackPattern, string> = {
-  melee: "Бьёт только напротив",
-  melee_lane3: "Бьёт напротив, слева или справа",
-  ranged: "Бьёт любую цель",
-  cleave3: "Бьёт цель и соседей",
-  lane_cleave3: "Бьёт сразу троих напротив",
-  aoe_all: "Бьёт всех вражеских существ",
-};
 
 type Props = {
   cardId?: string;
@@ -130,6 +113,7 @@ export function CardView({
   const fullHp = maxHealth ?? baseHp;
   const fullAtk = maxAttack ?? baseAtk;
   const pattern = (c.attackPattern ?? "melee") as AttackPattern;
+  const patternGlyph = patternGlyphForCard(c.id, pattern);
   const manaCost = manaCostOverride ?? c.manaCost ?? {};
   const interactive = Boolean(onClick) && !(locked && !onClick);
 
@@ -284,7 +268,7 @@ export function CardView({
               {c.kind === "creature" ? (
                 <span
                   className={`stats-combat ${wounded ? "is-wounded" : ""}`}
-                  title={PATTERN_TITLE[pattern]}
+                  title={patternGlyph.title}
                 >
                   <span className="combat-nums">
                     {atk}/
@@ -292,7 +276,7 @@ export function CardView({
                       {hp}
                     </span>
                   </span>
-                  <span className="pattern-ico">{PATTERN_ICON[pattern]}</span>
+                  <span className="pattern-ico">{patternGlyph.icon}</span>
                 </span>
               ) : (
                 <span className="stats-combat spell-badge" title="Заклинание">
@@ -382,7 +366,7 @@ export function CardView({
                   {c.kind === "creature" && (
                     <>
                       {" "}
-                      · {atk}/{hp} {PATTERN_ICON[pattern]}
+                      · {atk}/{hp} {patternGlyph.icon}
                     </>
                   )}
                 </p>

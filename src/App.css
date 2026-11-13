@@ -5164,15 +5164,67 @@ html.is-hand-dragging .grave-row {
 }
 
 .dev-custom-deck-slot {
+  position: relative;
+  border-radius: 8px;
+}
+
+.dev-custom-deck-hit {
   padding: 0;
   border: none;
   background: transparent;
   cursor: pointer;
   border-radius: 8px;
+  display: block;
 }
 
-.dev-custom-deck-slot:hover {
+.dev-custom-deck-hit:hover {
   outline: 2px solid rgba(255, 120, 90, 0.7);
+}
+
+.dev-upgrade-panel {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(140, 160, 200, 0.22);
+}
+
+.dev-upgrade-panel > strong {
+  font-size: 0.85rem;
+}
+
+.dev-upgrade-list {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.dev-upgrade-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.dev-upgrade-name {
+  font-size: 0.82rem;
+  min-width: 7rem;
+}
+
+.dev-custom-card-hit {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  justify-items: center;
+  width: 100%;
+}
+
+.dev-custom-card-hit:disabled {
+  cursor: not-allowed;
 }
 
 .dev-custom-tools {

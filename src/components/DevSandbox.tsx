@@ -3,11 +3,18 @@ import {
   CARDS,
   DECK_SIZE,
   MIN_DECK_SIZE,
+  getCard,
   sortCatalogCards,
 } from "../game/cards";
 import {
+  defaultUpgradeLevel,
+  isUpgradeableCard,
+} from "../game/cardUpgrades";
+import {
   allTestHeroes,
+  loadDevCardUpgrades,
   loadDevCustomDeckRaw,
+  saveDevCardUpgrades,
   saveDevCustomDeck,
   type DevBattleSetup,
   type DevDeckMode,
@@ -43,10 +50,14 @@ function CustomDeckPicker({
   title,
   deck,
   onChange,
+  upgrades,
+  onUpgradesChange,
 }: {
   title: string;
   deck: string[];
   onChange: (next: string[]) => void;
+  upgrades: Record<string, number>;
+  onUpgradesChange: (next: Record<string, number>) => void;
 }) {
   const [q, setQ] = useState("");
   const [school, setSchool] = useState<School | "all">("all");
@@ -68,6 +79,24 @@ function CustomDeckPicker({
       }),
     );
   }, [q, school, kind]);
+
+  const upgradeableInDeck = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const id of deck) {
+      if (seen.has(id) || !isUpgradeableCard(id)) continue;
+      seen.add(id);
+      out.push(id);
+    }
+    return out;
+  }, [deck]);
+
+  const levelOf = (id: string) =>
+    upgrades[id] ?? defaultUpgradeLevel(id);
+
+  const setLevel = (id: string, lv: 1 | 2 | 3) => {
+    onUpgradesChange({ ...upgrades, [id]: lv });
+  };
 
   const add = (id: string) => {
     if (deck.length >= DECK_SIZE) return;
@@ -103,21 +132,72 @@ function CustomDeckPicker({
 
       <div className="dev-custom-deck" aria-label="Собранная колода">
         {deck.length === 0 ? (
-          <p className="hint">Кликни карту в каталоге — добавится сюда.</p>
+          <p className="hint">
+            Кликни карту в каталоге — добавится сюда. ↻ — читать умение.
+          </p>
         ) : (
           deck.map((id, i) => (
-            <button
-              key={`${id}-${i}`}
-              type="button"
-              className="dev-custom-deck-slot"
-              title="Убрать"
-              onClick={() => removeAt(i)}
-            >
-              <CardView cardId={id} compact flippable={false} />
-            </button>
+            <div key={`${id}-${i}`} className="dev-custom-deck-slot">
+              <div
+                className="dev-custom-deck-hit"
+                title="Клик по карте — убрать; ↻ — описание"
+                role="button"
+                tabIndex={0}
+                onClick={() => removeAt(i)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    removeAt(i);
+                  }
+                }}
+              >
+                <CardView
+                  cardId={id}
+                  compact
+                  flippable
+                  upgradeLevel={
+                    isUpgradeableCard(id)
+                      ? (levelOf(id) as 1 | 2 | 3)
+                      : null
+                  }
+                />
+              </div>
+            </div>
           ))
         )}
       </div>
+
+      {upgradeableInDeck.length > 0 ? (
+        <div className="dev-upgrade-panel" aria-label="Уровни юнитов">
+          <strong>Уровни юнитов в колоде</strong>
+          <p className="hint">
+            Способности зависят от ур.1–3. Жми ↻ на карте, чтобы прочитать.
+          </p>
+          <div className="dev-upgrade-list">
+            {upgradeableInDeck.map((id) => {
+              const c = getCard(id);
+              const lv = levelOf(id);
+              return (
+                <div key={id} className="dev-upgrade-row">
+                  <span className="dev-upgrade-name">{c.name}</span>
+                  <div className="filters">
+                    {([1, 2, 3] as const).map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        className={lv === n ? "chip on" : "chip"}
+                        onClick={() => setLevel(id, n)}
+                      >
+                        Ур.{n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       <div className="dev-custom-tools">
         <input
@@ -174,23 +254,40 @@ function CustomDeckPicker({
       <div className="dev-custom-catalog" aria-label="Каталог карт">
         {catalog.map((c) => {
           const full = deck.length >= DECK_SIZE;
+          const up = isUpgradeableCard(c.id)
+            ? (levelOf(c.id) as 1 | 2 | 3)
+            : null;
           return (
-            <button
+            <div
               key={c.id}
-              type="button"
               className={`dev-custom-card${full ? " is-full" : ""}`}
-              disabled={full}
-              title={full ? `Максимум ${DECK_SIZE}` : `Добавить ${c.name}`}
-              onClick={() => add(c.id)}
             >
-              <CardView card={c} compact flippable={false} />
+              <div
+                className="dev-custom-card-hit"
+                role="button"
+                tabIndex={full ? -1 : 0}
+                title={full ? `Максимум ${DECK_SIZE}` : `Добавить ${c.name}`}
+                aria-disabled={full}
+                onClick={() => {
+                  if (!full) add(c.id);
+                }}
+                onKeyDown={(e) => {
+                  if (full) return;
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    add(c.id);
+                  }
+                }}
+              >
+                <CardView card={c} compact flippable upgradeLevel={up} />
+              </div>
               <span className="dev-custom-card-meta">
                 <strong>{c.name}</strong>
                 <em>
                   {c.kind === "spell" ? "магия" : "юнит"} · {c.id}
                 </em>
               </span>
-            </button>
+            </div>
           );
         })}
         {catalog.length === 0 ? (
@@ -215,6 +312,12 @@ export function DevSandbox({ onBack, onStart }: Props) {
   const [enemyCustom, setEnemyCustom] = useState<string[]>(() =>
     loadDevCustomDeckRaw("enemy"),
   );
+  const [yourUps, setYourUps] = useState<Record<string, number>>(() =>
+    loadDevCardUpgrades("you"),
+  );
+  const [enemyUps, setEnemyUps] = useState<Record<string, number>>(() =>
+    loadDevCardUpgrades("enemy"),
+  );
 
   const yourHero = getHero(yourHeroId);
   const enemyHero = getHero(enemyHeroId);
@@ -226,6 +329,14 @@ export function DevSandbox({ onBack, onStart }: Props) {
   const setEnemyDeck = (next: string[]) => {
     setEnemyCustom(next);
     saveDevCustomDeck("enemy", next);
+  };
+  const setYourUpgrades = (next: Record<string, number>) => {
+    setYourUps(next);
+    saveDevCardUpgrades("you", next);
+  };
+  const setEnemyUpgrades = (next: Record<string, number>) => {
+    setEnemyUps(next);
+    saveDevCardUpgrades("enemy", next);
   };
 
   const pickFactionHero = (
@@ -420,6 +531,8 @@ export function DevSandbox({ onBack, onStart }: Props) {
           title="Твоя тестовая колода — весь каталог"
           deck={yourCustom}
           onChange={setYourDeck}
+          upgrades={yourUps}
+          onUpgradesChange={setYourUpgrades}
         />
       ) : null}
 
@@ -428,6 +541,8 @@ export function DevSandbox({ onBack, onStart }: Props) {
           title="Колода врага — весь каталог"
           deck={enemyCustom}
           onChange={setEnemyDeck}
+          upgrades={enemyUps}
+          onUpgradesChange={setEnemyUpgrades}
         />
       ) : null}
 
@@ -446,6 +561,8 @@ export function DevSandbox({ onBack, onStart }: Props) {
               enemyDeckMode,
               yourCustomDeck: yourCustom,
               enemyCustomDeck: enemyCustom,
+              yourCardUpgrades: yourUps,
+              enemyCardUpgrades: enemyUps,
             })
           }
         >

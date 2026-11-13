@@ -5,15 +5,10 @@
  */
 import type { BattleFx, BattleFxMotion, BattleFxVfx } from "./engine";
 import { attackMotionFor } from "./engine";
+import { isFireBoltCard, rangedShotStyle } from "./rangedStyle";
 import type { Faction } from "./types";
 
-/** Огненные «стреляльщики» — им огненный снаряд уместен. */
-export const FIRE_BOLT_IDS = new Set([
-  "fire_gopnik",
-  "inferno",
-  "flamethrower",
-  "fire_dragon",
-]);
+export { FIRE_BOLT_IDS, isFireBoltCard } from "./rangedStyle";
 
 export type FxSpriteKind =
   | "slash"
@@ -109,10 +104,6 @@ export function isPhysicalMeleeMotion(motion: BattleFxMotion | undefined): boole
   return (motion ?? "melee") === "melee";
 }
 
-export function isFireBoltCard(cardId: string | undefined): boolean {
-  return !!cardId && FIRE_BOLT_IDS.has(cardId);
-}
-
 /**
  * Тема попадания для UI.
  * Меlee → slash (не burn/magic).
@@ -132,11 +123,22 @@ export function resolveImpactKind(
       return "slash";
     }
     if (motion === "ranged") return "arrow";
-    // bolt
-    if (fx.vfx === "burn" || isFireBoltCard(fx.cardId)) return "burn";
-    if (fx.school === "water" || fx.vfx === "water") return "water";
-    if (fx.school === "death" || fx.vfx === "magic") return "magic";
-    if (fx.vfx === "poison") return "poison";
+    // bolt — по стилю карты, не «стрела по умолчанию»
+    const shot = rangedShotStyle(fx.cardId);
+    if (fx.vfx === "burn" || shot === "fire" || isFireBoltCard(fx.cardId)) {
+      return "burn";
+    }
+    if (shot === "water" || fx.school === "water" || fx.vfx === "water") {
+      return "water";
+    }
+    if (shot === "poison" || fx.vfx === "poison") return "poison";
+    if (
+      shot === "magic" ||
+      fx.school === "death" ||
+      fx.vfx === "magic"
+    ) {
+      return "magic";
+    }
     return "shock";
   }
 
@@ -219,9 +221,13 @@ export function missileVisual(
   }
   const motion = fx.motion ?? "melee";
   if (motion === "ranged") return "arrow";
-  if (fx.vfx === "burn" || isFireBoltCard(fx.cardId)) return "fire";
-  if (fx.school === "water") return "water";
-  if (fx.school === "death") return "magic";
+  const shot = rangedShotStyle(fx.cardId);
+  if (fx.vfx === "burn" || shot === "fire" || isFireBoltCard(fx.cardId)) {
+    return "fire";
+  }
+  if (shot === "water" || fx.school === "water") return "water";
+  if (shot === "poison") return "poison";
+  if (shot === "magic" || fx.school === "death") return "magic";
   return "bolt";
 }
 

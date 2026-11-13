@@ -101,6 +101,11 @@ import {
   type CardUpgradeLevel,
 } from "./cardUpgrades";
 import { startManaBonus } from "./progression";
+import {
+  attackMotionForCard,
+  isFireBoltCard,
+  rangedShotStyle,
+} from "./rangedStyle";
 import type {
   AttackPattern,
   BattleState,
@@ -4637,26 +4642,8 @@ export type BattleFx = {
   school?: Faction;
 };
 
-const BOLT_ATTACK_IDS = new Set([
-  "mage",
-  "necro_mage",
-  "lich",
-  "arbiter",
-  "water_spirit",
-  "fire_gopnik",
-  "inferno",
-]);
-const ARROW_ATTACK_IDS = new Set(["elf", "crossbowman", "archer"]);
-
 export function attackMotionFor(cardId: string): BattleFxMotion {
-  if (BOLT_ATTACK_IDS.has(cardId)) return "bolt";
-  if (ARROW_ATTACK_IDS.has(cardId)) return "ranged";
-  try {
-    if (patternOf(cardId) === "ranged") return "ranged";
-  } catch {
-    /* ignore */
-  }
-  return "melee";
+  return attackMotionForCard(cardId);
 }
 
 function isOffensiveSpell(effects: SpellEffect[]): boolean {
@@ -4742,6 +4729,13 @@ export function normalizeBattleFx(fx: BattleFx): BattleFx {
   const next: BattleFx = { ...fx };
   if (fx.kind === "lunge" && fx.cardId && !fx.motion) {
     next.motion = attackMotionFor(fx.cardId);
+  }
+  if (fx.kind === "lunge" && fx.cardId && !next.vfx) {
+    const shot = rangedShotStyle(fx.cardId);
+    if (shot === "fire") next.vfx = "burn";
+    else if (shot === "water") next.vfx = "water";
+    else if (shot === "poison") next.vfx = "poison";
+    else if (shot === "magic") next.vfx = "magic";
   }
   if (fx.cardId && (!next.school || fx.kind === "spell")) {
     try {
@@ -6665,11 +6659,7 @@ export function attackFxPreview(
   });
   if (
     cardId &&
-    (hasAbility(cardId, "flame_burn", atk) ||
-      cardId === "fire_gopnik" ||
-      cardId === "inferno" ||
-      cardId === "flamethrower" ||
-      cardId === "fire_dragon")
+    (hasAbility(cardId, "flame_burn", atk) || isFireBoltCard(cardId))
   ) {
     fx.vfx = "burn";
   }
