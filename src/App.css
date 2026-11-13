@@ -7871,6 +7871,69 @@ html.is-hand-dragging .grave-row {
   color: #b7efc5;
 }
 
+/* Компактная рука колоды — горизонтальный скролл */
+.cabinet-deck-hand {
+  padding: 0.45rem 0.55rem 0.55rem !important;
+  margin-bottom: 0.55rem;
+}
+
+.cabinet-deck-hand-head {
+  margin-bottom: 0.35rem !important;
+  align-items: center;
+}
+
+.cabinet-deck-hand-head h2 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.cabinet-deck-hand-empty {
+  margin: 0.15rem 0 0.25rem;
+  font-size: 0.8rem;
+}
+
+.cabinet-deck-hand-scroll {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.15rem 0.1rem 0.35rem;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+}
+
+.cabinet-hand-card {
+  flex: 0 0 auto;
+  display: grid;
+  justify-items: center;
+  gap: 0.2rem;
+  width: 72px;
+  scroll-snap-align: start;
+}
+
+.cabinet-hand-card .card.compact {
+  --card-w: 68px;
+  --card-h: calc(var(--card-w) * 1.48);
+  width: var(--card-w);
+  height: var(--card-h);
+}
+
+.cabinet-hand-actions {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.cabinet-hand-actions .primary,
+.cabinet-hand-actions .ghost {
+  min-width: 1.35rem;
+  padding: 0.08rem 0.28rem;
+  font-size: 0.72rem;
+  line-height: 1;
+  border-radius: 4px;
+}
+
 .cabinet-zone-case {
   border-color: rgba(180, 120, 50, 0.55);
   background:
@@ -8057,19 +8120,19 @@ html.is-hand-dragging .grave-row {
   display: none;
 }
 
-/* Закладки на арте снизу: невидимые хитбоксы поверх ткани */
+/* Закладки на арте: только хитбокс, без иконок */
 .oracle-book-ribbons {
   position: absolute;
-  left: 16.5%;
-  right: 16.5%;
-  bottom: 1.2%;
-  height: 15.5%;
+  left: 17%;
+  right: 17%;
+  bottom: 1%;
+  height: 14.5%;
   z-index: 6;
   display: flex;
   flex-direction: row;
   align-items: stretch;
   justify-content: space-between;
-  gap: 0.35%;
+  gap: 1.2%;
   width: auto;
   overflow: visible;
   padding: 0;
@@ -8078,58 +8141,49 @@ html.is-hand-dragging .grave-row {
 
 .oracle-book-ribbon {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.1rem;
+  display: block;
   width: auto;
   flex: 1 1 0;
   pointer-events: auto;
   min-width: 0;
-  padding: 0 0 0.15rem;
+  padding: 0;
   border: none;
-  border-radius: 0 0 10px 10px;
+  border-radius: 0 0 12px 12px;
   background: transparent;
   box-shadow: none;
-  color: #f7ecd0;
   cursor: pointer;
-  transition: transform 0.15s ease, filter 0.15s ease;
+  transition: transform 0.14s ease, filter 0.14s ease;
 }
 
 .oracle-book-ribbon::before {
   content: "";
   position: absolute;
-  inset: 8% 10% 0;
-  border-radius: 6px 6px 10px 10px;
-  background: transparent;
-  box-shadow: none;
-  transition: box-shadow 0.15s ease, background 0.15s ease;
+  inset: 0;
+  border-radius: 4px 4px 12px 12px;
   pointer-events: none;
+  transition: box-shadow 0.14s ease, background 0.14s ease;
 }
 
 .oracle-book-ribbon:hover {
-  transform: translateY(3px);
-  filter: brightness(1.12);
+  transform: translateY(2px);
+  filter: brightness(1.08);
   z-index: 7;
 }
 
 .oracle-book-ribbon:hover::before {
-  background: color-mix(in srgb, var(--school) 22%, transparent);
-  box-shadow: 0 0 14px color-mix(in srgb, var(--school) 55%, transparent);
+  box-shadow: inset 0 0 0 1px rgba(255, 240, 200, 0.35);
 }
 
 .oracle-book-ribbon.is-on {
-  transform: translateY(5px);
-  filter: brightness(1.2) saturate(1.15);
+  transform: translateY(4px);
+  filter: brightness(1.18);
   z-index: 8;
 }
 
 .oracle-book-ribbon.is-on::before {
-  background: color-mix(in srgb, var(--school) 28%, transparent);
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--school) 70%, #fff 10%),
-    0 0 18px color-mix(in srgb, var(--school) 65%, transparent);
+    inset 0 0 0 1.5px color-mix(in srgb, var(--school) 75%, #ffe7a0),
+    0 0 12px color-mix(in srgb, var(--school) 55%, transparent);
 }
 
 .oracle-book-ribbon::after {
@@ -8137,15 +8191,7 @@ html.is-hand-dragging .grave-row {
 }
 
 .oracle-book-ribbon-ico {
-  position: relative;
-  z-index: 1;
-  width: 1.05rem !important;
-  height: 1.05rem !important;
-  background: rgba(10, 8, 4, 0.45) !important;
-  border-radius: 50%;
-  padding: 0.12rem;
-  mix-blend-mode: normal;
-  opacity: 0.92;
+  display: none !important;
 }
 
 .oracle-book-page-ico {
@@ -8169,40 +8215,118 @@ html.is-hand-dragging .grave-row {
 }
 
 .oracle-book-ribbon-n {
-  position: relative;
-  z-index: 1;
-  font-family: var(--ui);
-  font-size: 0.58rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  padding: 0.12rem 0.28rem;
-  border-radius: 999px;
-  background: rgba(12, 8, 4, 0.72);
-  color: #ffe9b8;
-  text-shadow: 0 1px 0 #000;
+  display: none;
 }
 
 .oracle-book-spread {
   position: absolute;
   z-index: 2;
-  left: 11.5%;
-  right: 11.5%;
-  top: 10.5%;
-  bottom: 19.5%;
+  left: 10.8%;
+  right: 10.8%;
+  top: 10%;
+  bottom: 18.5%;
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
   min-height: 0;
-  padding: 0.55rem 0.7rem 0.65rem;
-  border-radius: 2px;
+  padding: 0;
   border: none;
   color: #2a1c10;
   background: transparent;
   box-shadow: none;
-  overflow: auto;
-  overscroll-behavior: contain;
+  overflow: hidden;
+}
+
+.oracle-book-pages {
+  position: relative;
+  z-index: 2;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  height: 100%;
+}
+
+.oracle-book-page {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0.45rem 0.55rem 1.35rem;
+  overflow: hidden;
+}
+
+.oracle-book-page.is-left {
+  padding-right: 1.15rem;
+}
+
+.oracle-book-page.is-right {
+  padding-left: 1.15rem;
+}
+
+.oracle-book-page-slots {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-auto-rows: min-content;
+  gap: 0.35rem;
+  justify-items: center;
+  align-content: start;
+  overflow: hidden;
+}
+
+.oracle-page-corner {
+  position: absolute;
+  bottom: 0.15rem;
+  width: 22%;
+  max-width: 3.2rem;
+  height: 1.55rem;
+  border: none;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  z-index: 5;
+  opacity: 0.35;
+  transition: opacity 0.15s ease, filter 0.15s ease;
+}
+
+.oracle-page-corner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(60, 35, 12, 0.18) 55%,
+    rgba(40, 22, 8, 0.35) 100%
+  );
+  clip-path: polygon(0 40%, 100% 0, 100% 100%, 0 100%);
+}
+
+.oracle-page-corner.is-prev {
+  left: 0.2rem;
+}
+
+.oracle-page-corner.is-prev::before {
+  clip-path: polygon(0 0, 100% 40%, 100% 100%, 0 100%);
+}
+
+.oracle-page-corner.is-next {
+  right: 0.2rem;
+}
+
+.oracle-page-corner:hover:not(:disabled),
+.oracle-page-corner:focus-visible:not(:disabled) {
+  opacity: 0.9;
+  filter: brightness(1.15);
+}
+
+.oracle-page-corner:disabled {
+  opacity: 0.08;
+  cursor: default;
 }
 
 .oracle-book-leaf {
@@ -8326,44 +8450,46 @@ html.is-hand-dragging .grave-row {
 }
 
 .oracle-book-empty {
-  margin: 0.7rem 0.2rem;
-  padding: 1rem;
+  margin: 0.55rem 0.15rem;
+  padding: 0.65rem 0.45rem;
   text-align: center;
-  border: 1px dashed rgba(90, 55, 20, 0.45);
+  border: 1px dashed rgba(90, 55, 20, 0.35);
   border-radius: 6px;
-  background: rgba(255, 250, 235, 0.45);
+  background: rgba(255, 250, 235, 0.35);
   color: #5a4024;
   font-family: var(--display);
-  font-size: 0.88rem;
+  font-size: 0.78rem;
 }
 
-.oracle-book-slots {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
-  gap: 0.55rem 0.4rem;
-  justify-items: center;
-  align-content: start;
-  padding: 0.25rem 0.1rem 0.1rem;
-  min-height: 0;
-  flex: 1 1 auto;
+.oracle-book-empty.is-quiet {
+  border: none;
+  background: transparent;
+  min-height: 1rem;
+  padding: 0;
+  margin: 0;
+}
+
+.oracle-book-toolbar,
+.oracle-book-tiers {
+  display: none !important;
 }
 
 .oracle-book-slot {
   display: grid;
   justify-items: center;
-  gap: 0.16rem;
+  gap: 0.1rem;
   width: 100%;
-  max-width: 140px;
-  padding: 0.2rem;
+  max-width: 92px;
+  padding: 0.12rem;
   border-radius: 4px;
-  background: linear-gradient(180deg, rgba(255, 252, 240, 0.55), rgba(210, 180, 130, 0.2));
-  border: 1px solid rgba(90, 55, 20, 0.2);
+  background: rgba(255, 252, 240, 0.28);
+  border: 1px solid rgba(90, 55, 20, 0.14);
   touch-action: pan-y;
 }
 
 .oracle-book-slot .card.compact {
-  --card-w: 118px;
-  --card-h: calc(var(--card-w) * 1.5);
+  --card-w: min(86px, 100%);
+  --card-h: calc(var(--card-w) * 1.48);
   width: var(--card-w);
   height: var(--card-h);
 }
@@ -8445,56 +8571,86 @@ html.is-hand-dragging .grave-row {
 }
 
 @media (max-width: 720px) {
+  .cabinet-transfer-hint {
+    display: none;
+  }
+
+  .cabinet-deck-hand {
+    margin-bottom: 0.35rem;
+  }
+
+  .cabinet-hand-card {
+    width: 64px;
+  }
+
+  .cabinet-hand-card .card.compact {
+    --card-w: 60px;
+    --card-h: calc(var(--card-w) * 1.48);
+  }
+
   .oracle-folio-cover {
     width: 100%;
     max-width: none;
   }
 
   .oracle-book-ribbons {
-    left: 15%;
-    right: 15%;
-    bottom: 0.8%;
-    height: 16.5%;
-  }
-
-  .oracle-book-ribbon-ico {
-    width: 0.92rem !important;
-    height: 0.92rem !important;
-  }
-
-  .oracle-book-ribbon-n {
-    font-size: 0.5rem;
-    padding: 0.08rem 0.2rem;
+    left: 15.5%;
+    right: 15.5%;
+    bottom: 0.6%;
+    height: 15%;
   }
 
   .oracle-book-spread {
-    left: 10.5%;
-    right: 10.5%;
-    top: 10%;
-    bottom: 20%;
-    padding: 0.4rem 0.35rem 0.5rem;
+    left: 10%;
+    right: 10%;
+    top: 9.5%;
+    bottom: 18%;
   }
 
-  .oracle-book-slots {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.35rem 0.22rem;
-    min-height: 0;
+  .oracle-book-page.is-left {
+    padding-right: 0.85rem;
+  }
+
+  .oracle-book-page.is-right {
+    padding-left: 0.85rem;
+  }
+
+  .oracle-book-page {
+    padding-top: 0.35rem;
+    padding-bottom: 1.2rem;
   }
 
   .oracle-book-slot {
-    max-width: none;
+    max-width: 78px;
   }
 
   .oracle-book-slot .card.compact {
-    --card-w: min(96px, calc((100vw - 5.5rem) / 3.2));
-    --card-h: calc(var(--card-w) * 1.5);
+    --card-w: min(72px, 100%);
+    --card-h: calc(var(--card-w) * 1.48);
+  }
+
+  .oracle-book-slot-meta .badge-in-case,
+  .oracle-book-slot-meta .badge-in-deck {
+    font-size: 0.55rem;
   }
 }
 
 @media (max-width: 420px) {
+  .oracle-book-slot {
+    max-width: 68px;
+  }
+
   .oracle-book-slot .card.compact {
-    --card-w: min(94px, calc((100vw - 2.5rem) / 3.1));
-    --card-h: calc(var(--card-w) * 1.5);
+    --card-w: min(64px, 100%);
+    --card-h: calc(var(--card-w) * 1.48);
+  }
+
+  .oracle-book-page.is-left {
+    padding-right: 0.7rem;
+  }
+
+  .oracle-book-page.is-right {
+    padding-left: 0.7rem;
   }
 }
 
