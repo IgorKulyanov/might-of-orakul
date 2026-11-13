@@ -35,6 +35,10 @@ const SEQ: Record<FxSpriteKind, string[]> = {
   flame: [
     `${FX_BASE}/flame/flame_01.png`,
     `${FX_BASE}/flame/flame_02.png`,
+    `${FX_BASE}/flame/flame_03.png`,
+    `${FX_BASE}/flame/flame_04.png`,
+    `${FX_BASE}/flame/flame_05.png`,
+    `${FX_BASE}/flame/flame_06.png`,
     `${FX_BASE}/flame/fire_01.png`,
     `${FX_BASE}/flame/fire_02.png`,
   ],

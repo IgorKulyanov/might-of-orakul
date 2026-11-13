@@ -236,6 +236,12 @@ function FxSpriteBurst({
   useEffect(() => {
     setI(0);
     if (frames.length <= 1) return;
+    const step =
+      kind === "explosion"
+        ? 42
+        : kind === "lightning" || kind === "slash"
+          ? 45
+          : 55;
     const id = window.setInterval(() => {
       setI((n) => {
         if (n >= frames.length - 1) {
@@ -244,7 +250,7 @@ function FxSpriteBurst({
         }
         return n + 1;
       });
-    }, kind === "lightning" || kind === "slash" ? 45 : 55);
+    }, step);
     return () => window.clearInterval(id);
   }, [kind, frames.length]);
   const src = frames[Math.min(i, frames.length - 1)];
@@ -257,6 +263,47 @@ function FxSpriteBurst({
       <img src={src} alt="" draggable={false} />
     </span>
   );
+}
+
+/** Крупный фаербол в полёте — крутящиеся кадры пламени. */
+function FireballFlightSprite() {
+  const frames = fxSequence("flame");
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setI((n) => (n + 1) % frames.length);
+    }, 48);
+    return () => window.clearInterval(id);
+  }, [frames.length]);
+  const src = frames[i] ?? frames[0];
+  if (!src) return null;
+  return (
+    <img
+      className="missile-fireball-img"
+      src={src}
+      alt=""
+      draggable={false}
+    />
+  );
+}
+
+/** Длительность полёта снаряда — чтобы вспышка на цели совпала с ударом. */
+function missileFlightMs(fx: BattleFx): number {
+  if (typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return 160;
+  }
+  if (fx.kind === "spell" && fx.vfx === "burn") return 720;
+  if (fx.kind === "lunge") {
+    const motion = fx.motion ?? "melee";
+    if (motion === "bolt" && (fx.vfx === "burn" || fx.cardId && ["fire_gopnik", "inferno", "flamethrower", "fire_dragon"].includes(fx.cardId))) {
+      return 700;
+    }
+    if (motion === "ranged") return 420;
+    if (motion === "bolt") return 560;
+  }
+  if (fx.kind === "spell" && fx.vfx === "poison") return 620;
+  return 520;
 }
 
 type DyingGhost = {
@@ -459,6 +506,45 @@ function BattleMissile({
       };
     }
 
+    if (kind === "fire") {
+      const duration = reduce ? 180 : 700;
+      const midX = from.x + (to.x - from.x) * 0.55;
+      const midY = from.y + (to.y - from.y) * 0.55 - 28;
+      const anim = el.animate(
+        [
+          {
+            transform: `translate(${from.x}px, ${from.y}px) scale(0.55) rotate(-12deg)`,
+            opacity: 0.25,
+          },
+          {
+            transform: `translate(${from.x}px, ${from.y}px) scale(1.05) rotate(0deg)`,
+            opacity: 1,
+            offset: 0.1,
+          },
+          {
+            transform: `translate(${midX}px, ${midY}px) scale(1.35) rotate(8deg)`,
+            opacity: 1,
+            offset: 0.48,
+          },
+          {
+            transform: `translate(${to.x}px, ${to.y}px) scale(1.55) rotate(14deg)`,
+            opacity: 1,
+            offset: 0.82,
+          },
+          {
+            transform: `translate(${to.x}px, ${to.y}px) scale(2.35) rotate(20deg)`,
+            opacity: 0,
+          },
+        ],
+        {
+          duration,
+          easing: "cubic-bezier(0.18, 0.7, 0.22, 1)",
+          fill: "forwards",
+        },
+      );
+      return () => anim.cancel();
+    }
+
     const duration = reduce ? 180 : kind === "poison" ? 620 : 520;
     const anim = el.animate(
       [
@@ -515,8 +601,10 @@ function BattleMissile({
         </>
       ) : kind === "fire" ? (
         <>
+          <span className="missile-fire-glow" aria-hidden />
           <span className="missile-fire-core" />
           <span className="missile-fire-tail" />
+          <FireballFlightSprite />
         </>
       ) : kind === "water" ? (
         <>
@@ -646,7 +734,10 @@ function BoardCard({
           tint={poisonTint}
         />
       ) : null}
-      {showBurn && impact !== "burn" ? (
+      {impact === "burn" ? (
+        <span className="fx-burn-flash" aria-hidden />
+      ) : null}
+      {showBurn ? (
         <span className="fx-burn-layer" aria-hidden>
           <i />
           <i />
@@ -738,6 +829,9 @@ export function Battle({
   const yourHero = getHero(state.you.heroId);
   const enemyHero = getHero(state.enemy.heroId);
   const [fx, setFx] = useState<BattleFx | null>(null);
+  /** Пока снаряд летит — вспышку на цели не показываем. */
+  const [impactReady, setImpactReady] = useState(true);
+  const impactGateTimer = useRef<number | null>(null);
   const [dying, setDying] = useState<DyingGhost[]>([]);
   const dyingTimers = useRef<number[]>([]);
   const boardRef = useRef<HTMLDivElement>(null);
@@ -1086,6 +1180,10 @@ export function Battle({
     return () => {
       for (const t of dyingTimers.current) window.clearTimeout(t);
       dyingTimers.current = [];
+      if (impactGateTimer.current != null) {
+        window.clearTimeout(impactGateTimer.current);
+        impactGateTimer.current = null;
+      }
     };
   }, []);
 
@@ -1110,10 +1208,24 @@ export function Battle({
         (nextFx.motion === "ranged" || nextFx.motion === "bolt")) ||
       (nextFx.kind === "spell" &&
         !!nextFx.vfx &&
-        nextFx.vfx !== "burn" &&
         (!!nextFx.hitHero ||
           nextFx.toSlot != null ||
-          (Array.isArray(nextFx.hitSlots) && nextFx.hitSlots.length > 0)));
+          (Array.isArray(nextFx.hitSlots) && nextFx.hitSlots.length > 0)) &&
+        shouldFlyMissile(nextFx));
+    if (impactGateTimer.current != null) {
+      window.clearTimeout(impactGateTimer.current);
+      impactGateTimer.current = null;
+    }
+    if (flying) {
+      setImpactReady(false);
+      const flight = missileFlightMs(nextFx);
+      impactGateTimer.current = window.setTimeout(() => {
+        setImpactReady(true);
+        impactGateTimer.current = null;
+      }, flight);
+    } else {
+      setImpactReady(true);
+    }
     setFx(nextFx);
     playActionSfx(nextFx, before);
     const apply = () => {
@@ -1223,10 +1335,21 @@ export function Battle({
     }
     const faceHit = !!nextFx.hitHero && nextFx.kind !== "heal";
     const arrowStick = flying && nextFx.motion === "ranged";
+    const fireBolt =
+      flying &&
+      (missileVisual(nextFx) === "fire" || nextFx.vfx === "burn");
     const hold = flying
       ? Math.max(
           holdMs,
-          faceHit ? 1700 : arrowStick ? 1500 : nextFx.vfx === "poison" ? 1400 : 1200,
+          faceHit
+            ? 1700
+            : fireBolt
+              ? 1650
+              : arrowStick
+                ? 1500
+                : nextFx.vfx === "poison"
+                  ? 1400
+                  : 1200,
         )
       : faceHit
         ? Math.max(holdMs, 1800)
@@ -2438,6 +2561,7 @@ export function Battle({
     cardSide: "you" | "enemy",
   ): FxImpact | null => {
     if (!fx) return null;
+    if (!impactReady && shouldFlyMissile(fx)) return null;
     const targeted =
       fx.hitSlots?.includes(slot) ||
       fx.toSlot === slot ||
@@ -2685,6 +2809,7 @@ export function Battle({
     !!fx?.hitHero && fx.side === "enemy" && fx.kind === "heal";
   const heroImpact = ((): FxImpact | null => {
     if (!fx?.hitHero) return null;
+    if (!impactReady && shouldFlyMissile(fx)) return null;
     if (fx.kind === "heal") return "heal";
     const kind = resolveImpactKind(fx);
     if (kind === "arrow") return null;

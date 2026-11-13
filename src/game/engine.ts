@@ -6655,7 +6655,14 @@ export function attackFxPreview(
     cardId,
     motion,
   });
-  if (cardId && hasAbility(cardId, "flame_burn", atk)) {
+  if (
+    cardId &&
+    (hasAbility(cardId, "flame_burn", atk) ||
+      cardId === "fire_gopnik" ||
+      cardId === "inferno" ||
+      cardId === "flamethrower" ||
+      cardId === "fire_dragon")
+  ) {
     fx.vfx = "burn";
   }
   return fx;

@@ -1542,23 +1542,47 @@ button {
     0 0 28px rgba(100, 180, 255, 0.5);
   animation: missile-pulse 0.35s ease-in-out infinite alternate;
 }
+.battle-missile.is-fire {
+  width: 72px;
+  height: 72px;
+  margin-left: -36px;
+  margin-top: -36px;
+  border-radius: 0;
+  background: transparent;
+  filter: drop-shadow(0 0 14px rgba(255, 110, 0, 0.95));
+  z-index: 70;
+}
+.missile-fire-glow {
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 240, 180, 0.95) 0%,
+    rgba(255, 120, 20, 0.55) 42%,
+    rgba(255, 40, 0, 0.15) 70%,
+    transparent 78%
+  );
+  filter: blur(2px);
+  animation: missile-pulse 0.26s ease-in-out infinite alternate;
+}
 .missile-fire-core {
   position: absolute;
-  inset: 2px;
+  inset: 28%;
   border-radius: 50%;
   background: radial-gradient(circle, #fff8e1 0%, #ff9800 40%, #e65100 100%);
   box-shadow:
-    0 0 14px 6px rgba(255, 120, 20, 0.95),
-    0 0 26px rgba(255, 60, 0, 0.55);
+    0 0 18px 8px rgba(255, 120, 20, 0.95),
+    0 0 34px rgba(255, 60, 0, 0.55);
   animation: missile-pulse 0.28s ease-in-out infinite alternate;
 }
 .missile-fire-tail {
   position: absolute;
   left: 50%;
-  top: 55%;
-  width: 14px;
-  height: 22px;
-  margin-left: -7px;
+  top: 58%;
+  width: 28px;
+  height: 44px;
+  margin-left: -14px;
   border-radius: 40% 40% 55% 55%;
   background: linear-gradient(
     180deg,
@@ -1569,6 +1593,18 @@ button {
   filter: blur(0.5px);
   transform-origin: top center;
   animation: fire-tail-flick 0.22s ease-in-out infinite alternate;
+  z-index: 0;
+}
+.missile-fireball-img {
+  position: absolute;
+  inset: -8%;
+  width: 116%;
+  height: 116%;
+  object-fit: contain;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: 2;
+  filter: saturate(1.25) contrast(1.08) drop-shadow(0 0 10px rgba(255, 90, 0, 0.85));
 }
 @keyframes fire-tail-flick {
   from {
@@ -1638,6 +1674,16 @@ button {
 }
 .fx-sprite-burst.is-slash img {
   width: min(130%, 10.5rem);
+}
+.fx-sprite-burst.is-explosion img {
+  width: min(175%, 14rem);
+  max-height: 14rem;
+  filter: drop-shadow(0 0 16px rgba(255, 120, 0, 0.85))
+    saturate(1.35) brightness(1.15);
+}
+.fx-sprite-burst.is-explosion {
+  inset: -28% -18% -18%;
+  animation: fx-sprite-fade 0.62s ease-out both;
 }
 .fx-sprite-burst.is-lightning img {
   width: min(160%, 14rem);
@@ -1846,13 +1892,57 @@ button {
 /* —— Огонь на карте: вспышка при ударе + постоянное горение статуса —— */
 .board-card-wrap.is-burning {
   z-index: 8;
-  animation: burn-burst 0.75s ease;
+  animation: burn-burst 0.75s ease, fireball-card-flash 0.55s ease;
 }
 .board-card-wrap.has-burn {
   z-index: 7;
   box-shadow: 0 0 0 2px rgba(255, 120, 30, 0.55),
     0 0 18px rgba(255, 80, 0, 0.35);
   filter: saturate(1.15) brightness(1.05);
+}
+.fx-burn-flash {
+  position: absolute;
+  inset: -4%;
+  z-index: 5;
+  pointer-events: none;
+  border-radius: 8px;
+  background:
+    radial-gradient(
+      circle at 50% 40%,
+      rgba(255, 245, 200, 0.85) 0%,
+      rgba(255, 120, 20, 0.45) 38%,
+      transparent 70%
+    );
+  mix-blend-mode: screen;
+  animation: fireball-flash-fade 0.55s ease-out both;
+}
+@keyframes fireball-card-flash {
+  0% {
+    filter: brightness(1) saturate(1);
+  }
+  18% {
+    filter: brightness(2.15) saturate(1.8) sepia(0.25);
+    box-shadow:
+      0 0 0 2px rgba(255, 180, 60, 0.95),
+      0 0 28px rgba(255, 80, 0, 0.75);
+  }
+  100% {
+    filter: brightness(1) saturate(1);
+  }
+}
+@keyframes fireball-flash-fade {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.15);
+  }
 }
 .fx-burn-layer {
   position: absolute;
