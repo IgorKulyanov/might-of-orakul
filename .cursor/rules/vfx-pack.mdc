@@ -1,0 +1,18 @@
+---
+description: Use project VFX pack for battle fire/smoke/magic effects
+alwaysApply: true
+---
+
+# Боевые VFX
+
+Источник ассетов: **`assets/vfx-pack/`** (README внутри).
+
+Рабочая копия в рантайме: **`public/fx/`**.
+
+Логика слоёв и секвенций: **`src/game/battleVfx.ts`**, отрисовка в **`src/components/Battle.tsx`**.
+
+Правила:
+- Перед новым эффектом огня/дыма/вспышки/слэша/воды/молнии — сначала смотри `assets/vfx-pack/`.
+- Копируй кадры в `public/fx/<тип>/`, затем регистрируй в `SEQ` / слоях `battleVfx.ts`.
+- Не заменяй готовые спрайты CSS-«пузырями» и градиентными `<i>`, если в паке уже есть PNG.
+- Фаербол: полёт (flame/muzzle) → попадание (explosion + flash + smoke + flame).
