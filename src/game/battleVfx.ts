@@ -95,7 +95,7 @@ export function burnImpactLayers(): Array<{
 }
 
 /** Короткий остаточный жар после фаербола (без тяжёлого loop-огня). */
-export const BURN_LINGER_MS = 1100;
+export const BURN_LINGER_MS = 1300;
 
 /** Запасной хвост дыма яда, если статус ещё не успел записаться. */
 export const POISON_LINGER_MS = 2800;

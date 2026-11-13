@@ -1339,6 +1339,7 @@ button {
 }
 
 .board-card-wrap {
+  position: relative;
   border-radius: 14px;
   padding: 0;
   transition: none;
@@ -1721,84 +1722,91 @@ button {
 .fx-burn-stack .layer-smoke {
   z-index: 2;
 }
-/* Остаточный жар: видно, но мягко и не глушит арт. */
+/* Остаточный огонь снизу карты — читаемый, арт почти свободен. */
 .fx-burn-residual {
   position: absolute;
-  inset: -4% -2% -6%;
-  z-index: 6;
+  inset: 0;
+  z-index: 12;
   pointer-events: none;
   overflow: visible;
-  border-radius: 8px;
-  animation: burn-residual-out 1.1s ease-in both;
+  border-radius: inherit;
+  animation: burn-residual-out 1.25s linear both;
 }
 .fx-burn-residual.is-under-hit {
-  opacity: 0.55;
+  opacity: 0.7;
   animation: none;
 }
-.fx-burn-residual .burn-sprite {
+.fx-burn-residual .burn-rim {
   position: absolute;
-  left: 8%;
-  right: 8%;
-  bottom: -2%;
-  width: 84%;
-  height: 52%;
-  object-fit: contain;
-  object-position: center bottom;
-  mix-blend-mode: screen;
-  filter:
-    blur(2.2px) brightness(1.15) sepia(1) saturate(8) hue-rotate(-6deg)
-    drop-shadow(0 0 6px rgba(255, 90, 0, 0.55));
-  opacity: 0.72;
-  animation: burn-sprite-flick 0.45s ease-in-out infinite alternate;
-  pointer-events: none;
+  inset: auto 0 0;
+  height: 42%;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(255, 90, 0, 0.2) 45%,
+    rgba(255, 40, 0, 0.55) 100%
+  );
+  filter: blur(1.5px);
+  opacity: 0.9;
 }
-.fx-burn-residual .burn-sprite-b {
-  left: 22%;
-  right: 18%;
-  width: 60%;
-  height: 40%;
-  bottom: 6%;
-  opacity: 0.45;
-  filter:
-    blur(3.2px) brightness(1.05) sepia(1) saturate(7) hue-rotate(-10deg);
+.fx-burn-residual .burn-lick {
+  position: absolute;
+  bottom: -2%;
+  left: 18%;
+  width: 28%;
+  height: 36%;
+  border-radius: 40% 40% 35% 35%;
+  background: radial-gradient(
+    ellipse at 50% 75%,
+    #fff3c4 0%,
+    #ffb347 22%,
+    #ff6a00 55%,
+    rgba(255, 40, 0, 0.15) 78%,
+    transparent 88%
+  );
+  filter: blur(1.8px);
+  opacity: 0.95;
+  transform-origin: 50% 100%;
+  animation: burn-lick-flick 0.38s ease-in-out infinite alternate;
+  box-shadow: 0 0 10px 2px rgba(255, 90, 0, 0.55);
+}
+.fx-burn-residual .burn-lick-2 {
+  left: auto;
+  right: 14%;
+  width: 24%;
+  height: 30%;
   animation-delay: 0.12s;
 }
-.fx-burn-residual .burn-haze {
-  position: absolute;
-  inset: 40% -6% -8%;
-  background: radial-gradient(
-    ellipse at 50% 100%,
-    rgba(255, 130, 40, 0.5) 0%,
-    rgba(255, 70, 0, 0.22) 48%,
-    transparent 74%
-  );
-  filter: blur(4px);
-  mix-blend-mode: screen;
-  opacity: 0.85;
+.fx-burn-residual .burn-lick-3 {
+  left: 38%;
+  width: 22%;
+  height: 28%;
+  opacity: 0.8;
+  animation-delay: 0.22s;
 }
-@keyframes burn-sprite-flick {
+@keyframes burn-lick-flick {
   from {
-    transform: translateY(2px) scaleY(0.96);
-    opacity: 0.55;
+    transform: scaleY(0.88) scaleX(1.05);
+    opacity: 0.75;
   }
   to {
-    transform: translateY(-1px) scaleY(1.04);
-    opacity: 0.8;
+    transform: scaleY(1.12) scaleX(0.92);
+    opacity: 1;
   }
 }
 @keyframes burn-residual-out {
   0%,
-  45% {
+  55% {
     opacity: 1;
   }
   100% {
     opacity: 0;
   }
 }
-/* Карта НЕ золотеет — только лёгкий жар по краю. */
+/* Никакого золочения / sepia на карте при горении. */
 .board-card-wrap.is-burning .card,
 .board-card-wrap.has-burn .card {
-  filter: brightness(1.04) saturate(1.05);
+  filter: none;
 }
 @keyframes fx-smoke-rise {
   from {
@@ -1969,28 +1977,14 @@ button {
   }
 }
 
-/* —— Огонь на карте: вспышка при ударе + короткий мягкий хвост —— */
-.board-card-wrap.is-burning {
-  z-index: 8;
-  animation: burn-burst 0.55s ease;
-}
+/* —— Огонь на карте: только оранжевая обводка, без tint карты —— */
+.board-card-wrap.is-burning,
 .board-card-wrap.has-burn {
-  z-index: 7;
-  box-shadow: 0 0 0 1px rgba(255, 100, 20, 0.35),
-    0 0 10px rgba(255, 60, 0, 0.22);
-}
-@keyframes burn-burst {
-  0% {
-    box-shadow: 0 0 0 0 rgba(255, 100, 20, 0);
-  }
-  30% {
-    box-shadow: 0 0 0 2px rgba(255, 100, 20, 0.7),
-      0 0 16px rgba(255, 60, 0, 0.45);
-  }
-  100% {
-    box-shadow: 0 0 0 1px rgba(255, 100, 20, 0.3),
-      0 0 8px rgba(255, 60, 0, 0.2);
-  }
+  z-index: 8;
+  filter: none;
+  animation: none;
+  box-shadow: 0 0 0 2px rgba(255, 110, 20, 0.75),
+    0 0 14px rgba(255, 70, 0, 0.45);
 }
 
 /* —— Магия на карте —— */

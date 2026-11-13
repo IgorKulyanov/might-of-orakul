@@ -811,26 +811,17 @@ function BoardCard({
           tint={poisonTint}
         />
       ) : null}
-      {/* Остаточный жар: один мягкий кадр из пака + дымка (без loop). */}
+      {/* Остаточный огонь: яркие CSS-языки снизу, без золочения карты. */}
       {lingerBurn ? (
         <span
           key={`burn-res-${creature.uid}-${burnResidualKey}`}
           className={`fx-burn-residual${impact === "burn" ? " is-under-hit" : ""}`}
           aria-hidden
         >
-          <img
-            className="burn-sprite"
-            src="/fx/flame/flame_03.png"
-            alt=""
-            draggable={false}
-          />
-          <img
-            className="burn-sprite burn-sprite-b"
-            src="/fx/flame/fire_01.png"
-            alt=""
-            draggable={false}
-          />
-          <span className="burn-haze" />
+          <span className="burn-rim" />
+          <span className="burn-lick" />
+          <span className="burn-lick burn-lick-2" />
+          <span className="burn-lick burn-lick-3" />
         </span>
       ) : null}
       {showPoison ? (
