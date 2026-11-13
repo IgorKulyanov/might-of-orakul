@@ -4956,158 +4956,6 @@ html.is-hand-dragging .grave-row {
   background: linear-gradient(180deg, #121826, var(--bg0));
 }
 
-/* Книга оракула: вкладки школ = страницы */
-.oracle-book-spread {
-  position: relative;
-  margin-top: 0.85rem;
-  padding: 1.15rem 1rem 1.35rem;
-  border-radius: 14px;
-  overflow: hidden;
-  isolation: isolate;
-  background:
-    linear-gradient(90deg, rgba(28, 18, 10, 0.55), transparent 18%, transparent 82%, rgba(28, 18, 10, 0.55)),
-    linear-gradient(180deg, rgba(20, 14, 8, 0.35), rgba(20, 14, 8, 0.55)),
-    url("/ui/oracle-book/book1.png") center / cover no-repeat;
-  box-shadow:
-    inset 0 0 0 1px rgba(210, 180, 120, 0.22),
-    0 18px 40px rgba(0, 0, 0, 0.45);
-  perspective: 1200px;
-}
-
-.oracle-book-spine {
-  position: absolute;
-  top: 6%;
-  bottom: 6%;
-  left: 50%;
-  width: 3px;
-  transform: translateX(-50%);
-  border-radius: 2px;
-  background: linear-gradient(
-    180deg,
-    transparent,
-    rgba(60, 36, 18, 0.55),
-    rgba(30, 18, 10, 0.7),
-    rgba(60, 36, 18, 0.55),
-    transparent
-  );
-  box-shadow: 0 0 18px rgba(0, 0, 0, 0.35);
-  pointer-events: none;
-  z-index: 1;
-}
-
-.oracle-book-pages {
-  position: relative;
-  z-index: 2;
-  animation: oracle-page-in 0.42s ease both;
-}
-
-.oracle-book-spread .grid {
-  margin-top: 0.35rem;
-}
-
-.oracle-book-flip {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  pointer-events: none;
-  transform-origin: left center;
-  background:
-    linear-gradient(90deg, rgba(255, 236, 200, 0.08), rgba(40, 24, 12, 0.55) 42%, rgba(18, 12, 8, 0.82)),
-    url("/ui/oracle-book/book1.png") center / cover no-repeat;
-  opacity: 0;
-}
-
-.oracle-book-spread.is-turn-fwd .oracle-book-flip {
-  transform-origin: left center;
-  animation: oracle-page-flip-fwd 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-}
-
-.oracle-book-spread.is-turn-back .oracle-book-flip {
-  transform-origin: right center;
-  animation: oracle-page-flip-back 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-}
-
-.oracle-book-spread.is-turn-fwd .oracle-book-pages,
-.oracle-book-spread.is-turn-back .oracle-book-pages {
-  animation: oracle-page-swap 0.48s ease both;
-}
-
-.school-page-tabs .chip.on {
-  box-shadow: 0 0 0 1px rgba(232, 197, 106, 0.45);
-}
-
-@keyframes oracle-page-in {
-  from {
-    opacity: 0.25;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes oracle-page-swap {
-  0% {
-    opacity: 0.15;
-    filter: blur(1px);
-  }
-  45% {
-    opacity: 0.4;
-  }
-  100% {
-    opacity: 1;
-    filter: none;
-  }
-}
-
-@keyframes oracle-page-flip-fwd {
-  0% {
-    opacity: 0.85;
-    transform: rotateY(0deg);
-  }
-  55% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    transform: rotateY(-118deg);
-  }
-}
-
-@keyframes oracle-page-flip-back {
-  0% {
-    opacity: 0.85;
-    transform: rotateY(0deg);
-  }
-  55% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    transform: rotateY(118deg);
-  }
-}
-
-@media (max-width: 640px) {
-  .oracle-book-spread {
-    padding: 0.85rem 0.55rem 1rem;
-    border-radius: 10px;
-  }
-  .oracle-book-spine {
-    display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .oracle-book-pages,
-  .oracle-book-flip,
-  .oracle-book-spread.is-turn-fwd .oracle-book-pages,
-  .oracle-book-spread.is-turn-back .oracle-book-pages {
-    animation: none !important;
-  }
-}
-
 .collection h1 {
   margin: 0;
   font-size: 1.35rem;
@@ -7731,17 +7579,93 @@ html.is-hand-dragging .grave-row {
 }
 
 .oracle-book-spread.is-flip {
-  animation: oracle-page-turn 0.38s ease;
+  transform-style: preserve-3d;
+  perspective: 1100px;
 }
 
-@keyframes oracle-page-turn {
+.oracle-book-leaf {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(255, 248, 220, 0.2),
+      rgba(90, 50, 20, 0.35) 46%,
+      rgba(30, 18, 8, 0.72)
+    ),
+    linear-gradient(
+      160deg,
+      #c9a36a 0%,
+      #f0e0b8 40%,
+      #e2c792 100%
+    );
+  box-shadow: inset 0 0 0 1px rgba(255, 248, 220, 0.28);
+  opacity: 0;
+}
+
+.oracle-book-spread.is-flip.is-turn-fwd {
+  animation: oracle-folio-page-in-fwd 0.48s ease both;
+}
+.oracle-book-spread.is-flip.is-turn-back {
+  animation: oracle-folio-page-in-back 0.48s ease both;
+}
+.oracle-book-spread.is-flip.is-turn-fwd .oracle-book-leaf {
+  transform-origin: left center;
+  animation: oracle-folio-leaf-fwd 0.48s cubic-bezier(0.2, 0.75, 0.2, 1) both;
+}
+.oracle-book-spread.is-flip.is-turn-back .oracle-book-leaf {
+  transform-origin: right center;
+  animation: oracle-folio-leaf-back 0.48s cubic-bezier(0.2, 0.75, 0.2, 1) both;
+}
+
+@keyframes oracle-folio-page-in-fwd {
   0% {
-    transform: perspective(900px) rotateY(-6deg);
-    opacity: 0.62;
+    opacity: 0.35;
+    transform: perspective(1100px) rotateY(10deg);
   }
   100% {
-    transform: perspective(900px) rotateY(0deg);
     opacity: 1;
+    transform: perspective(1100px) rotateY(0deg);
+  }
+}
+@keyframes oracle-folio-page-in-back {
+  0% {
+    opacity: 0.35;
+    transform: perspective(1100px) rotateY(-10deg);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(1100px) rotateY(0deg);
+  }
+}
+@keyframes oracle-folio-leaf-fwd {
+  0% {
+    opacity: 0.95;
+    transform: rotateY(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: rotateY(-105deg);
+  }
+}
+@keyframes oracle-folio-leaf-back {
+  0% {
+    opacity: 0.95;
+    transform: rotateY(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: rotateY(105deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oracle-book-spread.is-flip,
+  .oracle-book-spread.is-flip .oracle-book-leaf {
+    animation: none !important;
   }
 }
 

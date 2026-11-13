@@ -119,6 +119,7 @@ export function Cabinet({
   const [bookSchool, setBookSchool] = useState<School>(homeSchool);
   const [bookTier, setBookTier] = useState<BookTier | "all">("all");
   const [bookFlip, setBookFlip] = useState(0);
+  const [bookFlipDir, setBookFlipDir] = useState<"fwd" | "back">("fwd");
   /** На телефоне drag блокирует скролл — только кнопки. */
   const [allowCardDrag, setAllowCardDrag] = useState(true);
 
@@ -209,6 +210,9 @@ export function Cabinet({
 
   const openBookSchool = (s: School) => {
     if (s === bookSchool) return;
+    const from = BOOK_SCHOOLS.indexOf(bookSchool);
+    const to = BOOK_SCHOOLS.indexOf(s);
+    setBookFlipDir(to >= from ? "fwd" : "back");
     setBookSchool(s);
     setBookTier("all");
     setBookFlip((n) => n + 1);
@@ -637,10 +641,11 @@ export function Cabinet({
 
                 <div
                   key={bookFlip}
-                  className="oracle-book-spread is-flip"
+                  className={`oracle-book-spread is-flip is-turn-${bookFlipDir}`}
                   data-school={bookSchool}
                 >
                   <div className="oracle-book-page-edge" aria-hidden="true" />
+                  <div className="oracle-book-leaf" aria-hidden="true" />
                   <div className="oracle-book-page">
                     <div className="oracle-book-page-head">
                       <span className="oracle-book-page-school">

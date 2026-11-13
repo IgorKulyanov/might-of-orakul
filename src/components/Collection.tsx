@@ -88,8 +88,6 @@ export function Collection({
   const [filter, setFilter] = useState<School | "all">("all");
   const [kindFilter, setKindFilter] = useState<KindFilter>("all");
   const [tab, setTab] = useState<ShopTab>("cards");
-  const [pageTurn, setPageTurn] = useState<"fwd" | "back" | null>(null);
-  const pageTurnTimer = useRef<number | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [payBusy, setPayBusy] = useState<string | null>(null);
   const [unlockReveal, setUnlockReveal] = useState<{
@@ -172,26 +170,8 @@ export function Collection({
   useEffect(() => {
     return () => {
       if (unlockTimer.current != null) window.clearTimeout(unlockTimer.current);
-      if (pageTurnTimer.current != null) window.clearTimeout(pageTurnTimer.current);
     };
   }, []);
-
-  /** Вкладки школ = страницы книги: листаем вперёд/назад. */
-  const setSchoolFilter = (next: School | "all") => {
-    if (next === filter) return;
-    const from = SCHOOLS.indexOf(filter);
-    const to = SCHOOLS.indexOf(next);
-    const dir = to >= from ? "fwd" : "back";
-    if (pageTurnTimer.current != null) {
-      window.clearTimeout(pageTurnTimer.current);
-    }
-    setPageTurn(dir);
-    setFilter(next);
-    pageTurnTimer.current = window.setTimeout(() => {
-      setPageTurn(null);
-      pageTurnTimer.current = null;
-    }, 520);
-  };
 
   const commitDeck = (next: string[]) => {
     const saved = saveDeck(owned, deckId, next);
@@ -470,15 +450,13 @@ export function Collection({
                   </button>
                 ))}
               </div>
-              <div className="filters school-page-tabs" role="tablist" aria-label="Школы — страницы книги">
+              <div className="filters">
                 {SCHOOLS.map((s) => (
                   <button
                     key={s}
                     type="button"
-                    role="tab"
-                    aria-selected={filter === s}
                     className={filter === s ? "chip on" : "chip"}
-                    onClick={() => setSchoolFilter(s)}
+                    onClick={() => setFilter(s)}
                   >
                     {s === "all" ? (
                       "Все школы"
@@ -494,12 +472,7 @@ export function Collection({
       )}
 
       {tab === "cards" && (
-        <div
-          className={`oracle-book-spread${pageTurn ? ` is-turn-${pageTurn}` : ""}`}
-        >
-          <div className="oracle-book-spine" aria-hidden />
-          <div className="oracle-book-pages" key={`page-${filter}-${kindFilter}`}>
-            <div className="grid">
+        <div className="grid">
           {list.map((c, idx) => {
             const have = ownedCopies(owned, c.id);
             const inOracle = have > 0;
@@ -647,9 +620,6 @@ export function Collection({
               </div>
             );
           })}
-            </div>
-          </div>
-          <div className="oracle-book-flip" aria-hidden />
         </div>
       )}
 
