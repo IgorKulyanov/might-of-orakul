@@ -8482,11 +8482,6 @@ html.is-hand-dragging .grave-row {
   height: var(--card-h);
 }
 
-.oracle-book-slot-frame {
-  display: grid;
-  place-items: center;
-}
-
 .oracle-book-slot.in-deck {
   border-color: color-mix(in srgb, var(--ok) 55%, #5a3a18);
   box-shadow: 0 0 0 1px rgba(82, 183, 136, 0.3);
@@ -8494,6 +8489,8 @@ html.is-hand-dragging .grave-row {
 
 .oracle-book-slot-frame {
   position: relative;
+  display: grid;
+  place-items: center;
   border-radius: 5px;
   padding: 0.16rem;
   background: linear-gradient(160deg, #8a5a28, #3a2410 55%, #1f140a);
