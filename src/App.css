@@ -7893,6 +7893,7 @@ html.is-hand-dragging .grave-row {
   background: transparent;
   box-shadow: none;
   border-radius: 0;
+  overflow: visible;
 }
 
 /* —— Фолиант ОРАКУЛ —— */
@@ -8023,59 +8024,56 @@ html.is-hand-dragging .grave-row {
 
 .oracle-folio {
   position: relative;
-  padding: 0.25rem 0.15rem 0.45rem;
+  padding: 0.15rem 0 0.55rem;
   overflow: visible;
 }
 
 .oracle-folio-cover {
   position: relative;
-  width: min(100%, 960px);
+  width: min(100%, 980px);
   margin: 0 auto;
-  padding: 0.85rem 2.55rem 1rem 0.85rem;
-  border-radius: 6px 18px 18px 6px;
-  border: 2px solid #6e4520;
-  background:
-    radial-gradient(ellipse 80% 50% at 30% 0%, rgba(140, 80, 30, 0.28), transparent 55%),
-    repeating-linear-gradient(
-      100deg,
-      rgba(255, 200, 120, 0.03) 0 1px,
-      transparent 1px 7px
-    ),
-    linear-gradient(155deg, #4a2a12 0%, #2a160a 42%, #180e06 100%);
-  box-shadow:
-    inset 0 0 0 1px rgba(232, 197, 71, 0.28),
-    inset 0 0 40px rgba(0, 0, 0, 0.35),
-    0 14px 32px rgba(0, 0, 0, 0.5);
+  aspect-ratio: 1536 / 1024;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
   overflow: visible;
 }
 
-.oracle-folio-spine {
+.oracle-folio-art {
   position: absolute;
-  left: 0;
-  top: 8px;
-  bottom: 8px;
-  width: 14px;
-  border-radius: 3px 0 0 3px;
-  background: linear-gradient(90deg, #0c0804, #3a2210 45%, #1a1008);
-  box-shadow:
-    inset -1px 0 0 rgba(232, 197, 71, 0.35),
-    2px 0 8px rgba(0, 0, 0, 0.35);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center center;
   pointer-events: none;
+  z-index: 0;
+  user-select: none;
 }
 
+.oracle-folio-spine {
+  display: none;
+}
+
+/* Закладки на арте снизу: невидимые хитбоксы поверх ткани */
 .oracle-book-ribbons {
   position: absolute;
-  top: 1rem;
-  bottom: 1rem;
-  right: -0.35rem;
-  z-index: 5;
+  left: 16.5%;
+  right: 16.5%;
+  bottom: 1.2%;
+  height: 15.5%;
+  z-index: 6;
   display: flex;
-  flex-direction: column;
-  justify-content: space-evenly;
-  gap: 0.28rem;
-  width: 2.35rem;
-  overflow: hidden;
-  padding: 0.15rem 0;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 0.35%;
+  width: auto;
+  overflow: visible;
+  padding: 0;
+  pointer-events: none;
 }
 
 .oracle-book-ribbon {
@@ -8083,60 +8081,71 @@ html.is-hand-dragging .grave-row {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 0.08rem;
-  width: 2.35rem;
+  justify-content: flex-end;
+  gap: 0.1rem;
+  width: auto;
   flex: 1 1 0;
-  min-height: 0;
-  max-height: 4.2rem;
-  padding: 0.28rem 0.08rem 0.55rem;
+  pointer-events: auto;
+  min-width: 0;
+  padding: 0 0 0.15rem;
   border: none;
-  border-radius: 0 9px 9px 0;
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.22), transparent 45%),
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--school, #c48a3a) 88%, #fff) 0%,
-      color-mix(in srgb, var(--school, #c48a3a) 58%, #2a160a) 100%
-    );
-  color: #fff8ec;
-  box-shadow:
-    2px 2px 0 rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  border-radius: 0 0 10px 10px;
+  background: transparent;
+  box-shadow: none;
+  color: #f7ecd0;
+  cursor: pointer;
   transition: transform 0.15s ease, filter 0.15s ease;
 }
 
-.oracle-book-ribbon::after {
+.oracle-book-ribbon::before {
   content: "";
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -0.42rem;
-  height: 0.5rem;
-  background: inherit;
-  clip-path: polygon(0 0, 100% 0, 50% 100%);
-  filter: brightness(0.88);
+  inset: 8% 10% 0;
+  border-radius: 6px 6px 10px 10px;
+  background: transparent;
+  box-shadow: none;
+  transition: box-shadow 0.15s ease, background 0.15s ease;
+  pointer-events: none;
 }
 
 .oracle-book-ribbon:hover {
-  transform: translateX(3px);
-  filter: brightness(1.08);
+  transform: translateY(3px);
+  filter: brightness(1.12);
+  z-index: 7;
+}
+
+.oracle-book-ribbon:hover::before {
+  background: color-mix(in srgb, var(--school) 22%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--school) 55%, transparent);
 }
 
 .oracle-book-ribbon.is-on {
-  transform: translateX(8px);
-  filter: brightness(1.12);
+  transform: translateY(5px);
+  filter: brightness(1.2) saturate(1.15);
+  z-index: 8;
+}
+
+.oracle-book-ribbon.is-on::before {
+  background: color-mix(in srgb, var(--school) 28%, transparent);
   box-shadow:
-    3px 3px 0 rgba(0, 0, 0, 0.32),
-    0 0 0 2px rgba(232, 197, 71, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    0 0 0 1px color-mix(in srgb, var(--school) 70%, #fff 10%),
+    0 0 18px color-mix(in srgb, var(--school) 65%, transparent);
+}
+
+.oracle-book-ribbon::after {
+  display: none;
 }
 
 .oracle-book-ribbon-ico {
-  width: 1.35rem !important;
-  height: 1.35rem !important;
-  background: transparent !important;
-  mix-blend-mode: screen;
+  position: relative;
+  z-index: 1;
+  width: 1.05rem !important;
+  height: 1.05rem !important;
+  background: rgba(10, 8, 4, 0.45) !important;
+  border-radius: 50%;
+  padding: 0.12rem;
+  mix-blend-mode: normal;
+  opacity: 0.92;
 }
 
 .oracle-book-page-ico {
@@ -8148,52 +8157,52 @@ html.is-hand-dragging .grave-row {
 }
 
 .oracle-book-ribbon-name {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  transform: rotate(180deg);
-  font-family: var(--display);
-  font-size: 0.52rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  line-height: 1;
-  max-height: 2.4rem;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
   overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .oracle-book-ribbon-n {
+  position: relative;
+  z-index: 1;
   font-family: var(--ui);
-  font-size: 0.55rem;
+  font-size: 0.58rem;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
+  line-height: 1;
+  padding: 0.12rem 0.28rem;
+  border-radius: 999px;
+  background: rgba(12, 8, 4, 0.72);
+  color: #ffe9b8;
+  text-shadow: 0 1px 0 #000;
 }
 
 .oracle-book-spread {
-  position: relative;
+  position: absolute;
   z-index: 2;
-  margin-left: 0.55rem;
+  left: 11.5%;
+  right: 11.5%;
+  top: 10.5%;
+  bottom: 19.5%;
+  margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  min-height: 360px;
-  padding: 0.7rem 0.75rem 0.85rem;
-  border-radius: 2px 10px 10px 2px;
-  border: 1px solid #8a6030;
+  gap: 0.45rem;
+  min-height: 0;
+  padding: 0.55rem 0.7rem 0.65rem;
+  border-radius: 2px;
+  border: none;
   color: #2a1c10;
-  background:
-    linear-gradient(90deg, rgba(70, 40, 15, 0.16) 0 10px, transparent 28px),
-    linear-gradient(
-      90deg,
-      #e8d4a4 0%,
-      #f3e6c4 46%,
-      #d7b888 49%,
-      #d2b080 51%,
-      #f3e6c4 54%,
-      #e8d4a4 100%
-    );
-  box-shadow:
-    inset 10px 0 16px rgba(50, 25, 8, 0.18),
-    inset 0 0 0 1px rgba(255, 248, 220, 0.4),
-    0 8px 18px rgba(0, 0, 0, 0.28);
-  overflow: hidden;
+  background: transparent;
+  box-shadow: none;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .oracle-book-leaf {
@@ -8330,12 +8339,13 @@ html.is-hand-dragging .grave-row {
 
 .oracle-book-slots {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
-  gap: 0.7rem 0.55rem;
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 0.55rem 0.4rem;
   justify-items: center;
   align-content: start;
-  padding: 0.35rem 0.2rem 0.15rem;
-  min-height: 240px;
+  padding: 0.25rem 0.1rem 0.1rem;
+  min-height: 0;
+  flex: 1 1 auto;
 }
 
 .oracle-book-slot {
@@ -8437,62 +8447,37 @@ html.is-hand-dragging .grave-row {
 @media (max-width: 720px) {
   .oracle-folio-cover {
     width: 100%;
-    padding: 0.65rem 0.55rem 0.75rem;
-    border-radius: 12px;
-  }
-
-  .oracle-folio-spine {
-    display: none;
+    max-width: none;
   }
 
   .oracle-book-ribbons {
-    position: relative;
-    top: auto;
-    right: auto;
-    bottom: auto;
-    width: auto;
-    height: auto;
-    overflow: visible;
-    flex-direction: row;
-    justify-content: space-between;
-    gap: 0.2rem;
-    margin: 0 0 0.45rem;
-    padding: 0;
+    left: 15%;
+    right: 15%;
+    bottom: 0.8%;
+    height: 16.5%;
   }
 
-  .oracle-book-ribbon {
-    flex: 1 1 0;
-    width: auto;
-    max-height: none;
-    min-height: 2.9rem;
-    border-radius: 0 0 9px 9px;
+  .oracle-book-ribbon-ico {
+    width: 0.92rem !important;
+    height: 0.92rem !important;
   }
 
-  .oracle-book-ribbon:hover,
-  .oracle-book-ribbon.is-on {
-    transform: translateY(4px);
-  }
-
-  .oracle-book-ribbon-name {
-    writing-mode: horizontal-tb;
-    transform: none;
-    font-size: 0.48rem;
-    max-height: none;
-    max-width: 100%;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .oracle-book-ribbon-n {
+    font-size: 0.5rem;
+    padding: 0.08rem 0.2rem;
   }
 
   .oracle-book-spread {
-    margin-left: 0;
-    min-height: 0;
-    padding: 0.55rem 0.4rem 0.65rem;
-    border-radius: 8px;
+    left: 10.5%;
+    right: 10.5%;
+    top: 10%;
+    bottom: 20%;
+    padding: 0.4rem 0.35rem 0.5rem;
   }
 
   .oracle-book-slots {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.4rem 0.28rem;
+    gap: 0.35rem 0.22rem;
     min-height: 0;
   }
 
@@ -8501,7 +8486,7 @@ html.is-hand-dragging .grave-row {
   }
 
   .oracle-book-slot .card.compact {
-    --card-w: min(104px, calc((100vw - 3rem) / 3.15));
+    --card-w: min(96px, calc((100vw - 5.5rem) / 3.2));
     --card-h: calc(var(--card-w) * 1.5);
   }
 }

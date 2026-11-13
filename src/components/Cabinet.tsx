@@ -44,12 +44,13 @@ import {
 import type { CardDef, OwnedState, School } from "../game/types";
 import { XpBar } from "./XpBar";
 
+/** Порядок = закладки на ORAKUL.png слева направо. */
 const BOOK_SCHOOLS: School[] = [
-  "life",
   "death",
-  "water",
   "hell",
   "nature",
+  "life",
+  "water",
   "neutral",
 ];
 
@@ -556,7 +557,12 @@ export function Cabinet({
           >
             <div className="oracle-folio" aria-label="Фолиант оракула">
               <div className="oracle-folio-cover">
-                <div className="oracle-folio-spine" aria-hidden="true" />
+                <img
+                  className="oracle-folio-art"
+                  src="/ui/oracle-book.png"
+                  alt=""
+                  draggable={false}
+                />
                 <nav className="oracle-book-ribbons" aria-label="Школы">
                   {BOOK_SCHOOLS.map((s) => {
                     const n = schoolCounts[s];
@@ -573,11 +579,12 @@ export function Cabinet({
                         }
                         onClick={() => openBookSchool(s)}
                         title={`${SCHOOL_LABEL[s]} · ${n}`}
+                        aria-label={`${SCHOOL_LABEL[s]}, ${n} карт`}
                         aria-pressed={on}
                       >
                         <GameIcon
                           name={s}
-                          size={24}
+                          size={18}
                           title={SCHOOL_LABEL[s]}
                           className="oracle-book-ribbon-ico"
                         />
