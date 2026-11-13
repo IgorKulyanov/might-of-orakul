@@ -50,8 +50,8 @@ const BOOK_SCHOOLS: School[] = [
   "neutral",
 ];
 
-/** Карт на один разворот: левая страница + правая. */
-const CARDS_PER_LEAF = 2;
+/** Карт на одну страницу (левая / правая). Крупнее и читаемее. */
+const CARDS_PER_LEAF = 1;
 const CARDS_PER_SPREAD = CARDS_PER_LEAF * 2;
 
 type Tab = "oracle" | "deck";
