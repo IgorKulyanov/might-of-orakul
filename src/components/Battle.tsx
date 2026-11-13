@@ -693,23 +693,22 @@ function BoardCard({
   const poisoned = creature.statuses.some((st) => st.type === "poison");
   const burning = creature.statuses.some((st) => st.type === "burn");
   const [lingerBurn, setLingerBurn] = useState(false);
+  const [burnResidualKey, setBurnResidualKey] = useState(0);
   const [lingerPoison, setLingerPoison] = useState(false);
   const lingerBurnTimer = useRef<number | null>(null);
   const lingerPoisonTimer = useRef<number | null>(null);
-  const wasBurnImpact = useRef(false);
+  // Включаем хвост на ударе; таймер гашения — только после снятия impact.
   useEffect(() => {
     if (impact === "burn") {
-      wasBurnImpact.current = true;
       setLingerBurn(true);
+      setBurnResidualKey((k) => k + 1);
       if (lingerBurnTimer.current != null) {
         window.clearTimeout(lingerBurnTimer.current);
         lingerBurnTimer.current = null;
       }
       return;
     }
-    // Хвост горения стартует после снятия impact (~1.4с языков из пака).
-    if (!wasBurnImpact.current) return;
-    wasBurnImpact.current = false;
+    if (!lingerBurn) return;
     if (lingerBurnTimer.current != null) {
       window.clearTimeout(lingerBurnTimer.current);
     }
@@ -723,7 +722,7 @@ function BoardCard({
         lingerBurnTimer.current = null;
       }
     };
-  }, [impact, creature.uid]);
+  }, [impact, creature.uid, lingerBurn]);
   useEffect(() => {
     if (impact !== "poison" && !poisonBurst) return;
     setLingerPoison(true);
@@ -812,12 +811,26 @@ function BoardCard({
           tint={poisonTint}
         />
       ) : null}
-      {/* Лёгкий короткий хвост: CSS-дымка, без loop-спрайтов. */}
-      {lingerBurn && impact !== "burn" ? (
-        <span className="fx-burn-residual" aria-hidden>
+      {/* Остаточный жар: один мягкий кадр из пака + дымка (без loop). */}
+      {lingerBurn ? (
+        <span
+          key={`burn-res-${creature.uid}-${burnResidualKey}`}
+          className={`fx-burn-residual${impact === "burn" ? " is-under-hit" : ""}`}
+          aria-hidden
+        >
+          <img
+            className="burn-sprite"
+            src="/fx/flame/flame_03.png"
+            alt=""
+            draggable={false}
+          />
+          <img
+            className="burn-sprite burn-sprite-b"
+            src="/fx/flame/fire_01.png"
+            alt=""
+            draggable={false}
+          />
           <span className="burn-haze" />
-          <span className="burn-lick burn-lick-a" />
-          <span className="burn-lick burn-lick-b" />
         </span>
       ) : null}
       {showPoison ? (

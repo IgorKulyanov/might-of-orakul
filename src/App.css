@@ -1721,71 +1721,74 @@ button {
 .fx-burn-stack .layer-smoke {
   z-index: 2;
 }
-/* Короткий мягкий хвост жара — не перекрывает арт. */
+/* Остаточный жар: видно, но мягко и не глушит арт. */
 .fx-burn-residual {
   position: absolute;
-  inset: 0;
+  inset: -4% -2% -6%;
   z-index: 6;
   pointer-events: none;
-  overflow: hidden;
+  overflow: visible;
   border-radius: 8px;
-  animation: burn-residual-out 0.85s ease-out both;
+  animation: burn-residual-out 1.1s ease-in both;
+}
+.fx-burn-residual.is-under-hit {
+  opacity: 0.55;
+  animation: none;
+}
+.fx-burn-residual .burn-sprite {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: -2%;
+  width: 84%;
+  height: 52%;
+  object-fit: contain;
+  object-position: center bottom;
+  mix-blend-mode: screen;
+  filter:
+    blur(2.2px) brightness(1.15) sepia(1) saturate(8) hue-rotate(-6deg)
+    drop-shadow(0 0 6px rgba(255, 90, 0, 0.55));
+  opacity: 0.72;
+  animation: burn-sprite-flick 0.45s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+.fx-burn-residual .burn-sprite-b {
+  left: 22%;
+  right: 18%;
+  width: 60%;
+  height: 40%;
+  bottom: 6%;
+  opacity: 0.45;
+  filter:
+    blur(3.2px) brightness(1.05) sepia(1) saturate(7) hue-rotate(-10deg);
+  animation-delay: 0.12s;
 }
 .fx-burn-residual .burn-haze {
   position: absolute;
-  inset: 35% -8% -12%;
+  inset: 40% -6% -8%;
   background: radial-gradient(
     ellipse at 50% 100%,
-    rgba(255, 120, 30, 0.38) 0%,
-    rgba(255, 60, 0, 0.16) 42%,
-    transparent 72%
+    rgba(255, 130, 40, 0.5) 0%,
+    rgba(255, 70, 0, 0.22) 48%,
+    transparent 74%
   );
-  filter: blur(7px);
+  filter: blur(4px);
   mix-blend-mode: screen;
-  opacity: 0.7;
+  opacity: 0.85;
 }
-.fx-burn-residual .burn-lick {
-  position: absolute;
-  bottom: -4%;
-  width: 42%;
-  height: 38%;
-  border-radius: 50% 50% 40% 40%;
-  background: radial-gradient(
-    ellipse at 50% 80%,
-    rgba(255, 200, 100, 0.45) 0%,
-    rgba(255, 90, 20, 0.22) 45%,
-    transparent 70%
-  );
-  filter: blur(5px);
-  mix-blend-mode: screen;
-  opacity: 0.55;
-  animation: burn-lick-soft 0.55s ease-in-out infinite alternate;
-}
-.fx-burn-residual .burn-lick-a {
-  left: 12%;
-  animation-delay: 0s;
-}
-.fx-burn-residual .burn-lick-b {
-  right: 10%;
-  width: 36%;
-  height: 32%;
-  animation-delay: 0.18s;
-}
-@keyframes burn-lick-soft {
+@keyframes burn-sprite-flick {
   from {
-    transform: translateY(3px) scaleY(0.92);
-    opacity: 0.35;
+    transform: translateY(2px) scaleY(0.96);
+    opacity: 0.55;
   }
   to {
-    transform: translateY(-2px) scaleY(1.05);
-    opacity: 0.6;
+    transform: translateY(-1px) scaleY(1.04);
+    opacity: 0.8;
   }
 }
 @keyframes burn-residual-out {
-  0% {
-    opacity: 0.15;
-  }
-  18% {
+  0%,
+  45% {
     opacity: 1;
   }
   100% {
