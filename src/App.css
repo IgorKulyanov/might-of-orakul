@@ -1543,46 +1543,46 @@ button {
   animation: missile-pulse 0.35s ease-in-out infinite alternate;
 }
 .battle-missile.is-fire {
-  width: 72px;
-  height: 72px;
-  margin-left: -36px;
-  margin-top: -36px;
+  width: 44px;
+  height: 44px;
+  margin-left: -22px;
+  margin-top: -22px;
   border-radius: 0;
   background: transparent;
-  filter: drop-shadow(0 0 14px rgba(255, 110, 0, 0.95));
+  filter: drop-shadow(0 0 10px rgba(255, 110, 0, 0.9));
   z-index: 70;
 }
 .missile-fire-glow {
   position: absolute;
-  inset: 8%;
+  inset: 10%;
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    rgba(255, 240, 180, 0.95) 0%,
-    rgba(255, 120, 20, 0.55) 42%,
-    rgba(255, 40, 0, 0.15) 70%,
+    rgba(255, 240, 180, 0.9) 0%,
+    rgba(255, 120, 20, 0.5) 42%,
+    rgba(255, 40, 0, 0.12) 70%,
     transparent 78%
   );
-  filter: blur(2px);
+  filter: blur(1.5px);
   animation: missile-pulse 0.26s ease-in-out infinite alternate;
 }
 .missile-fire-core {
   position: absolute;
-  inset: 28%;
+  inset: 30%;
   border-radius: 50%;
   background: radial-gradient(circle, #fff8e1 0%, #ff9800 40%, #e65100 100%);
   box-shadow:
-    0 0 18px 8px rgba(255, 120, 20, 0.95),
-    0 0 34px rgba(255, 60, 0, 0.55);
+    0 0 12px 5px rgba(255, 120, 20, 0.9),
+    0 0 22px rgba(255, 60, 0, 0.5);
   animation: missile-pulse 0.28s ease-in-out infinite alternate;
 }
 .missile-fire-tail {
   position: absolute;
   left: 50%;
   top: 58%;
-  width: 28px;
-  height: 44px;
-  margin-left: -14px;
+  width: 16px;
+  height: 26px;
+  margin-left: -8px;
   border-radius: 40% 40% 55% 55%;
   background: linear-gradient(
     180deg,
@@ -1597,14 +1597,14 @@ button {
 }
 .missile-fireball-img {
   position: absolute;
-  inset: -8%;
-  width: 116%;
-  height: 116%;
+  inset: -4%;
+  width: 108%;
+  height: 108%;
   object-fit: contain;
   mix-blend-mode: screen;
   pointer-events: none;
   z-index: 2;
-  filter: saturate(1.25) contrast(1.08) drop-shadow(0 0 10px rgba(255, 90, 0, 0.85));
+  filter: saturate(1.25) contrast(1.08) drop-shadow(0 0 8px rgba(255, 90, 0, 0.8));
 }
 @keyframes fire-tail-flick {
   from {
@@ -1675,15 +1675,15 @@ button {
 .fx-sprite-burst.is-slash img {
   width: min(130%, 10.5rem);
 }
-.fx-sprite-burst.is-explosion img {
-  width: min(175%, 14rem);
-  max-height: 14rem;
-  filter: drop-shadow(0 0 16px rgba(255, 120, 0, 0.85))
-    saturate(1.35) brightness(1.15);
-}
 .fx-sprite-burst.is-explosion {
-  inset: -28% -18% -18%;
-  animation: fx-sprite-fade 0.62s ease-out both;
+  inset: -22% -14% -14%;
+  animation: fx-sprite-fade 0.9s ease-out both;
+}
+.fx-sprite-burst.is-explosion img {
+  width: min(145%, 11.5rem);
+  max-height: 11.5rem;
+  filter: drop-shadow(0 0 14px rgba(255, 120, 0, 0.8))
+    saturate(1.3) brightness(1.12);
 }
 .fx-sprite-burst.is-smoke img,
 .fx-sprite-burst.is-white_puff img {
@@ -1740,17 +1740,25 @@ button {
 }
 .fx-burn-embers {
   position: absolute;
-  inset: -8% -6% auto;
-  height: 70%;
+  inset: -6% -4% -2%;
   z-index: 7;
   pointer-events: none;
 }
 .fx-burn-embers .layer-ember {
-  inset: 0 10% 15%;
+  inset: 8% 12% 28%;
+  opacity: 0.95;
+}
+.fx-burn-embers .layer-ember-side {
+  inset: 22% 2% 8% 35%;
+  opacity: 0.8;
 }
 .fx-burn-embers .layer-ember-smoke {
-  inset: -20% -10% 0;
-  opacity: 0.7;
+  inset: -18% -12% -8%;
+  opacity: 0.75;
+}
+.board-card-wrap.is-burning .card,
+.board-card-wrap.has-burn .card {
+  filter: brightness(1.12) saturate(1.25) sepia(0.18);
 }
 @keyframes fx-smoke-rise {
   from {

@@ -97,6 +97,7 @@ import {
 } from "../game/battleTutorial";
 import { pickBattleTable } from "../game/battleTables";
 import {
+  BURN_LINGER_MS,
   burnImpactLayers,
   fxSequence,
   impactToSprite,
@@ -303,6 +304,7 @@ function BurnImpactStack({ burstKey }: { burstKey: string }) {
           key={`${burstKey}-${layer.kind}`}
           kind={layer.kind}
           delayMs={layer.delayMs}
+          stepMs={layer.stepMs}
           className={layer.className}
           tint={layer.kind === "flame" ? "tint-flame" : undefined}
         />
@@ -557,30 +559,30 @@ function BattleMissile({
     if (kind === "fire") {
       const duration = reduce ? 180 : 700;
       const midX = from.x + (to.x - from.x) * 0.55;
-      const midY = from.y + (to.y - from.y) * 0.55 - 28;
+      const midY = from.y + (to.y - from.y) * 0.55 - 22;
       const anim = el.animate(
         [
           {
-            transform: `translate(${from.x}px, ${from.y}px) scale(0.55) rotate(-12deg)`,
-            opacity: 0.25,
+            transform: `translate(${from.x}px, ${from.y}px) scale(0.7) rotate(-8deg)`,
+            opacity: 0.3,
           },
           {
-            transform: `translate(${from.x}px, ${from.y}px) scale(1.05) rotate(0deg)`,
+            transform: `translate(${from.x}px, ${from.y}px) scale(1) rotate(0deg)`,
             opacity: 1,
             offset: 0.1,
           },
           {
-            transform: `translate(${midX}px, ${midY}px) scale(1.35) rotate(8deg)`,
+            transform: `translate(${midX}px, ${midY}px) scale(1.08) rotate(6deg)`,
             opacity: 1,
-            offset: 0.48,
+            offset: 0.5,
           },
           {
-            transform: `translate(${to.x}px, ${to.y}px) scale(1.55) rotate(14deg)`,
+            transform: `translate(${to.x}px, ${to.y}px) scale(1.12) rotate(10deg)`,
             opacity: 1,
-            offset: 0.82,
+            offset: 0.84,
           },
           {
-            transform: `translate(${to.x}px, ${to.y}px) scale(2.35) rotate(20deg)`,
+            transform: `translate(${to.x}px, ${to.y}px) scale(1.45) rotate(14deg)`,
             opacity: 0,
           },
         ],
@@ -714,8 +716,25 @@ function BoardCard({
 }) {
   const poisoned = creature.statuses.some((st) => st.type === "poison");
   const burning = creature.statuses.some((st) => st.type === "burn");
+  const [lingerBurn, setLingerBurn] = useState(false);
+  const lingerTimer = useRef<number | null>(null);
+  useEffect(() => {
+    if (impact !== "burn") return;
+    setLingerBurn(true);
+    if (lingerTimer.current != null) window.clearTimeout(lingerTimer.current);
+    lingerTimer.current = window.setTimeout(() => {
+      setLingerBurn(false);
+      lingerTimer.current = null;
+    }, BURN_LINGER_MS);
+    return () => {
+      if (lingerTimer.current != null) {
+        window.clearTimeout(lingerTimer.current);
+        lingerTimer.current = null;
+      }
+    };
+  }, [impact, creature.uid]);
   const showPoison = poisoned || impact === "poison" || poisonBurst;
-  const showBurn = burning || impact === "burn";
+  const showBurn = burning || impact === "burn" || lingerBurn;
   const spriteKind = impactToSprite(impact);
   const poisonTint = impact === "poison" ? "tint-poison" : undefined;
   return (
@@ -732,7 +751,7 @@ function BoardCard({
         poisonBurst ? "is-poison-burst" : "",
         showPoison ? "has-poison" : "",
         showBurn ? "has-burn" : "",
-        impact === "burn" ? "is-burning" : "",
+        impact === "burn" || lingerBurn ? "is-burning" : "",
         impact === "magic" ? "is-magic-burn" : "",
         impact === "water" ? "is-water-hit" : "",
         impact === "shock" ? "is-shock-hit" : "",
@@ -791,14 +810,22 @@ function BoardCard({
             loop
             tint="tint-flame"
             className="layer-ember"
-            stepMs={70}
+            stepMs={90}
+          />
+          <FxSpriteBurst
+            kind="flame"
+            loop
+            tint="tint-flame"
+            className="layer-ember-side"
+            stepMs={110}
+            delayMs={120}
           />
           <FxSpriteBurst
             kind="smoke"
             loop
             className="layer-ember-smoke"
-            stepMs={55}
-            delayMs={80}
+            stepMs={70}
+            delayMs={100}
           />
         </span>
       ) : null}
@@ -1397,7 +1424,7 @@ export function Battle({
           faceHit
             ? 1700
             : fireBolt
-              ? 1650
+              ? Math.max(2500, BURN_LINGER_MS + 200)
               : arrowStick
                 ? 1500
                 : nextFx.vfx === "poison"

@@ -77,19 +77,23 @@ const SEQ: Record<FxSpriteKind, string[]> = {
   heal: [1, 2, 3, 4, 5].map((i) => `${FX_BASE}/magic_particle/star_0${i}.png`),
 };
 
-/** Слои попадания огнём: взрыв → вспышка → дым (из архива анимаций). */
+/** Слои попадания огнём: взрыв → вспышка → дым (медленнее, карта «горит»). */
 export function burnImpactLayers(): Array<{
   kind: FxSpriteKind;
   delayMs: number;
   className: string;
+  stepMs: number;
 }> {
   return [
-    { kind: "explosion", delayMs: 0, className: "layer-explosion" },
-    { kind: "flash", delayMs: 40, className: "layer-flash" },
-    { kind: "smoke", delayMs: 90, className: "layer-smoke" },
-    { kind: "flame", delayMs: 120, className: "layer-flame" },
+    { kind: "explosion", delayMs: 0, className: "layer-explosion", stepMs: 70 },
+    { kind: "flash", delayMs: 80, className: "layer-flash", stepMs: 65 },
+    { kind: "smoke", delayMs: 160, className: "layer-smoke", stepMs: 58 },
+    { kind: "flame", delayMs: 200, className: "layer-flame", stepMs: 75 },
   ];
 }
+
+/** Сколько карта визуально «горит» после попадания фаербола. */
+export const BURN_LINGER_MS = 2400;
 
 export function fxSequence(kind: FxSpriteKind): string[] {
   return SEQ[kind] ?? SEQ.flash;
