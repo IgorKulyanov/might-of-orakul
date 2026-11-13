@@ -1525,13 +1525,98 @@ button {
   border-right: 6px solid #c45c3a;
 }
 
-.battle-missile.is-bolt,
-.battle-missile.is-magic {
-  width: 32px;
-  height: 32px;
-  margin-left: -16px;
-  margin-top: -16px;
+/* Светлый «фаербол» мага (не зигзаг-молния). */
+.battle-missile.is-bolt {
+  width: 28px;
+  height: 28px;
+  margin-left: -14px;
+  margin-top: -14px;
+  border-radius: 50%;
   background: transparent;
+  filter: drop-shadow(0 0 8px rgba(180, 230, 255, 0.95));
+  z-index: 70;
+  overflow: visible;
+}
+.missile-arc-glow {
+  position: absolute;
+  inset: -38%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.85) 0%,
+    rgba(170, 220, 255, 0.5) 38%,
+    rgba(80, 160, 255, 0.12) 62%,
+    transparent 74%
+  );
+  filter: blur(1.2px);
+  animation: missile-pulse 0.26s ease-in-out infinite alternate;
+}
+.missile-arc-core {
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 38% 32%,
+    #ffffff 0%,
+    #e8f6ff 22%,
+    #9ad4ff 52%,
+    #4aa3ff 82%,
+    #1a5fbf 100%
+  );
+  box-shadow:
+    0 0 10px 4px rgba(140, 210, 255, 0.95),
+    0 0 18px rgba(80, 160, 255, 0.55);
+  animation: missile-pulse 0.28s ease-in-out infinite alternate;
+  z-index: 2;
+}
+.missile-arc-spark {
+  position: absolute;
+  inset: 28%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.98) 0%, transparent 70%);
+  animation: missile-pulse 0.18s ease-in-out infinite alternate;
+  z-index: 3;
+  pointer-events: none;
+}
+/* Тёмный/фиолетовый шар некромантии */
+.battle-missile.is-magic {
+  width: 28px;
+  height: 28px;
+  margin-left: -14px;
+  margin-top: -14px;
+  border-radius: 50%;
+  background: transparent;
+  filter: drop-shadow(0 0 8px rgba(180, 100, 255, 0.9));
+  z-index: 70;
+}
+.missile-magic-glow {
+  position: absolute;
+  inset: -35%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(230, 200, 255, 0.7) 0%,
+    rgba(150, 80, 220, 0.4) 42%,
+    transparent 72%
+  );
+  filter: blur(1.2px);
+  animation: missile-pulse 0.26s ease-in-out infinite alternate;
+}
+.missile-magic-core {
+  position: absolute;
+  inset: 14%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 40% 32%,
+    #f5e9ff 0%,
+    #c79bff 35%,
+    #7b3fd4 70%,
+    #3a146e 100%
+  );
+  box-shadow:
+    0 0 10px 4px rgba(160, 90, 255, 0.9),
+    0 0 18px rgba(100, 40, 200, 0.5);
+  animation: missile-pulse 0.28s ease-in-out infinite alternate;
 }
 .missile-glow-core {
   position: absolute;
@@ -1596,23 +1681,6 @@ button {
   z-index: 3;
   pointer-events: none;
 }
-.missile-shock-core {
-  position: absolute;
-  inset: 6px;
-  border-radius: 50%;
-  background: radial-gradient(circle, #fff 0%, #81d4fa 55%, transparent 75%);
-  box-shadow: 0 0 12px 4px rgba(100, 200, 255, 0.9);
-}
-.missile-shock-zig {
-  position: absolute;
-  inset: -4px;
-  width: 40px;
-  height: 40px;
-  stroke: #e1f5fe;
-  filter: drop-shadow(0 0 3px #4fc3f7) drop-shadow(0 0 8px #0288d1);
-  animation: missile-pulse 0.2s linear infinite alternate;
-}
-
 .battle-missile.is-water {
   width: 1.15rem;
   height: 1.15rem;
@@ -1696,8 +1764,17 @@ button {
   animation: none !important;
   opacity: 1;
 }
+.fx-sprite-burst.is-lightning {
+  inset: -8% -18%;
+  mix-blend-mode: screen;
+  animation: fx-sprite-fade 0.7s ease-out both;
+}
 .fx-sprite-burst.is-lightning img {
-  width: min(160%, 14rem);
+  width: min(170%, 14rem);
+  max-height: none;
+  height: 55%;
+  object-fit: cover;
+  filter: drop-shadow(0 0 8px rgba(100, 210, 255, 0.85)) brightness(1.15);
 }
 .fx-sprite-burst.tint-poison img {
   filter:
@@ -1919,10 +1996,10 @@ button {
   }
   .battle-missile.is-bolt,
   .battle-missile.is-magic {
-    width: 34px;
-    height: 34px;
-    margin-left: -17px;
-    margin-top: -17px;
+    width: 30px;
+    height: 30px;
+    margin-left: -15px;
+    margin-top: -15px;
   }
   .battle-missile.is-poison {
     width: 32px;
@@ -2174,74 +2251,59 @@ button {
   }
 }
 
-/* —— Электроразряд (короткий зигзаг тока) —— */
-.board-card-wrap.is-shock-hit,
+/* —— Электроразряд: дуги по всей карте (архив lightning 0–10) —— */
+.board-card-wrap.is-shock-hit {
+  z-index: 8;
+  animation: shock-burst 0.75s ease;
+}
 .board-card-wrap.is-magic-burn {
   z-index: 8;
   animation: shock-burst 0.7s ease;
 }
-.fx-shock-layer {
+.fx-shock-stack {
   position: absolute;
-  inset: 0;
+  inset: -6% -10%;
+  z-index: 10;
   pointer-events: none;
-  z-index: 9;
-  border-radius: 14px;
-  overflow: hidden;
-  background: radial-gradient(
-    circle at 50% 35%,
-    rgba(180, 240, 255, 0.4) 0%,
-    rgba(80, 160, 255, 0.12) 45%,
-    transparent 70%
-  );
+  overflow: visible;
+  border-radius: 10px;
 }
-.fx-shock-bolt {
-  position: absolute;
-  left: 18%;
-  top: 8%;
-  width: 42%;
-  height: 78%;
-  stroke: #e3f7ff;
-  filter: drop-shadow(0 0 4px #4fc3f7) drop-shadow(0 0 10px #29b6f6);
-  animation: shock-flash 0.7s ease-out forwards;
-  opacity: 0;
+.fx-shock-stack .layer-shock-flash {
+  inset: -12% -8%;
+  mix-blend-mode: screen;
+  opacity: 0.85;
 }
-.fx-shock-bolt.b {
-  left: 42%;
-  top: 12%;
-  width: 38%;
-  height: 70%;
-  stroke: #b3e5fc;
-  animation-delay: 0.08s;
+.fx-shock-stack .layer-shock-a {
+  inset: 4% -22% 48%;
+  z-index: 2;
 }
-@keyframes shock-flash {
-  0% {
-    opacity: 0;
-    transform: scaleY(0.4);
-  }
-  18% {
-    opacity: 1;
-    transform: scaleY(1);
-  }
-  45% {
-    opacity: 0.95;
-  }
-  100% {
-    opacity: 0;
-    transform: scaleY(1.05);
-  }
+.fx-shock-stack .layer-shock-b {
+  inset: 28% -28% 22%;
+  z-index: 3;
+  transform: scaleY(-1);
+}
+.fx-shock-stack .layer-shock-c {
+  inset: 52% -20% 2%;
+  z-index: 2;
+}
+.fx-shock-stack .fx-sprite-burst.is-lightning img {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
 }
 @keyframes shock-burst {
   0% {
     filter: brightness(1);
     box-shadow: 0 0 0 0 rgba(80, 200, 255, 0);
   }
-  25% {
-    filter: brightness(1.55) saturate(1.4);
-    box-shadow: 0 0 0 3px rgba(120, 220, 255, 0.9),
-      0 0 24px rgba(40, 180, 255, 0.75);
+  22% {
+    filter: brightness(1.65) saturate(1.45);
+    box-shadow: 0 0 0 3px rgba(140, 230, 255, 0.95),
+      0 0 26px rgba(60, 190, 255, 0.8);
   }
   55% {
-    filter: brightness(1.15);
+    filter: brightness(1.2);
   }
   100% {
     filter: brightness(1);

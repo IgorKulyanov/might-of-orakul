@@ -68,7 +68,10 @@ const SEQ: Record<FxSpriteKind, string[]> = {
     `${FX_BASE}/water/05_Water__03.png`,
     `${FX_BASE}/water/05_Water__05.png`,
   ],
-  lightning: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => `${FX_BASE}/lightning/${i}.png`),
+  /** Горизонтальная дуга «замыкания» по карте (0…10 из архива lightning). */
+  lightning: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(
+    (i) => `${FX_BASE}/lightning/${i}.png`,
+  ),
   arcane: [1, 2, 3, 4, 5, 6, 7].map(
     (i) => `${FX_BASE}/arcane/01_Arcane_Effect_${i}.png`,
   ),
@@ -86,6 +89,21 @@ export function burnImpactLayers(): Array<{
     { kind: "explosion", delayMs: 0, className: "layer-explosion", stepMs: 70 },
     { kind: "flash", delayMs: 70, className: "layer-flash", stepMs: 60 },
     { kind: "smoke", delayMs: 140, className: "layer-smoke", stepMs: 55 },
+  ];
+}
+
+/** Удар током: дуги по всей карте (короткое замыкание). */
+export function shockImpactLayers(): Array<{
+  kind: FxSpriteKind;
+  delayMs: number;
+  className: string;
+  stepMs: number;
+}> {
+  return [
+    { kind: "flash", delayMs: 0, className: "layer-shock-flash", stepMs: 50 },
+    { kind: "lightning", delayMs: 30, className: "layer-shock-a", stepMs: 42 },
+    { kind: "lightning", delayMs: 90, className: "layer-shock-b", stepMs: 48 },
+    { kind: "lightning", delayMs: 140, className: "layer-shock-c", stepMs: 52 },
   ];
 }
 
@@ -132,12 +150,10 @@ export function resolveImpactKind(
       return "water";
     }
     if (shot === "poison" || fx.vfx === "poison") return "poison";
-    if (
-      shot === "magic" ||
-      fx.school === "death" ||
-      fx.vfx === "magic"
-    ) {
-      return "magic";
+    // Нежить — аркана; маг жизни / арбитр — удар током по карте.
+    if (shot === "magic" || fx.vfx === "magic") {
+      if (fx.school === "death") return "magic";
+      return "shock";
     }
     return "shock";
   }
@@ -227,7 +243,10 @@ export function missileVisual(
   }
   if (shot === "water" || fx.school === "water") return "water";
   if (shot === "poison") return "poison";
-  if (shot === "magic" || fx.school === "death") return "magic";
+  // Маг: светлый шар. Нежить: тёмный/фиолетовый шар.
+  if (shot === "magic" || fx.school === "death") {
+    return fx.school === "death" ? "magic" : "bolt";
+  }
   return "bolt";
 }
 

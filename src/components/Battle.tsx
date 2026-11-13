@@ -105,6 +105,7 @@ import {
   missileVisual,
   resolveImpactKind,
   schoolTone,
+  shockImpactLayers,
   shouldFlyMissile,
   type FxSpriteKind,
 } from "../game/battleVfx";
@@ -310,6 +311,23 @@ function BurnImpactStack({ burstKey }: { burstKey: string }) {
           stepMs={layer.stepMs}
           className={layer.className}
           tint={layer.kind === "flame" ? "tint-flame" : undefined}
+        />
+      ))}
+    </span>
+  );
+}
+
+/** Удар мага: замыкание — дуги электричества по всей карте. */
+function ShockImpactStack({ burstKey }: { burstKey: string }) {
+  return (
+    <span className="fx-shock-stack" aria-hidden>
+      {shockImpactLayers().map((layer, i) => (
+        <FxSpriteBurst
+          key={`${burstKey}-${layer.className}-${i}`}
+          kind={layer.kind}
+          delayMs={layer.delayMs}
+          stepMs={layer.stepMs}
+          className={layer.className}
         />
       ))}
     </span>
@@ -639,18 +657,16 @@ function BattleMissile({
           <span className="missile-water-core" />
           <span className="missile-water-splash" />
         </>
-      ) : kind === "bolt" || kind === "magic" ? (
+      ) : kind === "bolt" ? (
         <>
-          <span className="missile-shock-core" />
-          <svg className="missile-shock-zig" viewBox="0 0 24 32" aria-hidden>
-            <polyline
-              points="14,1 8,12 14,12 6,30 18,14 12,14 16,1"
-              fill="none"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <span className="missile-arc-glow" aria-hidden />
+          <span className="missile-arc-core" />
+          <span className="missile-arc-spark" aria-hidden />
+        </>
+      ) : kind === "magic" ? (
+        <>
+          <span className="missile-magic-glow" aria-hidden />
+          <span className="missile-magic-core" />
         </>
       ) : (
         <span className="missile-glow-core" />
@@ -805,6 +821,8 @@ function BoardCard({
       {sleeping && <span className="sleep-tag">сон</span>}
       {impact === "burn" ? (
         <BurnImpactStack burstKey={`${creature.uid}-burn-${impact}`} />
+      ) : impact === "shock" ? (
+        <ShockImpactStack burstKey={`${creature.uid}-shock-${impact}`} />
       ) : spriteKind && impact !== "poison" ? (
         <FxSpriteBurst
           key={`${creature.uid}-${impact}-${spriteKind}`}
