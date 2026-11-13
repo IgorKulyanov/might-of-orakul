@@ -8,14 +8,14 @@ export type GameIconName =
   | "diamond";
 
 /** Версия ассетов — сброс кэша браузера после правок эмблем. */
-const UI_VER = "4";
+const UI_VER = "5";
 
 const SRC: Record<string, string> = {
-  water: `/ui/water.jpg?v=${UI_VER}`,
-  hell: `/ui/hell.jpg?v=${UI_VER}`,
-  death: `/ui/death.jpg?v=${UI_VER}`,
-  life: `/ui/life.jpg?v=${UI_VER}`,
-  nature: `/ui/nature.jpg?v=${UI_VER}`,
+  water: `/ui/water.png?v=${UI_VER}`,
+  hell: `/ui/hell.png?v=${UI_VER}`,
+  death: `/ui/death.png?v=${UI_VER}`,
+  life: `/ui/life.png?v=${UI_VER}`,
+  nature: `/ui/nature.png?v=${UI_VER}`,
   neutral: `/ui/neutral.svg?v=${UI_VER}`,
   gold: `/ui/gold.svg?v=${UI_VER}`,
   diamond: `/ui/diamond.svg?v=${UI_VER}`,
