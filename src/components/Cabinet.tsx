@@ -589,27 +589,23 @@ export function Cabinet({
             onDrop={onDropToCase}
           >
             <div className="oracle-folio" aria-label="Фолиант оракула">
-              <div className="oracle-folio-cover">
-                <div className="oracle-folio-spine" aria-hidden="true">
-                  <span className="oracle-folio-spine-band" />
-                  <span className="oracle-folio-spine-band" />
-                  <span className="oracle-folio-spine-band" />
+              <header className="oracle-book-head">
+                <div className="oracle-title-plaque">
+                  <GemTitle text="ОРАКУЛ" />
                 </div>
-                <div className="oracle-folio-clasp" aria-hidden="true" />
-                <div className="oracle-folio-corner oracle-folio-corner-tl" />
-                <div className="oracle-folio-corner oracle-folio-corner-tr" />
-                <div className="oracle-folio-corner oracle-folio-corner-bl" />
-                <div className="oracle-folio-corner oracle-folio-corner-br" />
+                <p className="oracle-book-sub">
+                  Древний фолиант · {caseCards.length}{" "}
+                  {caseCards.length === 1 ? "лист" : "листов"}
+                </p>
+              </header>
 
-                <header className="oracle-book-head">
-                  <div className="oracle-title-plaque">
-                    <GemTitle text="ОРАКУЛ" />
-                  </div>
-                  <p className="oracle-book-sub">
-                    Древний фолиант · {caseCards.length}{" "}
-                    {caseCards.length === 1 ? "лист" : "листов"}
-                  </p>
-                </header>
+              <div className="oracle-folio-stage">
+                <img
+                  className="oracle-folio-art"
+                  src="/ui/oracle-book/book1-open.png"
+                  alt=""
+                  draggable={false}
+                />
 
                 <nav className="oracle-book-ribbons" aria-label="Школы">
                   {BOOK_SCHOOLS.map((s) => {
@@ -629,7 +625,12 @@ export function Cabinet({
                         title={`${SCHOOL_LABEL[s]} · ${n}`}
                         aria-pressed={on}
                       >
-                        <SchoolBadge school={s} size={12} hideLabel />
+                        <GameIcon
+                          name={s}
+                          size={22}
+                          title={SCHOOL_LABEL[s]}
+                          className="oracle-book-ribbon-ico"
+                        />
                         <span className="oracle-book-ribbon-name">
                           {SCHOOL_LABEL[s]}
                         </span>
@@ -644,16 +645,18 @@ export function Cabinet({
                   className={`oracle-book-spread is-flip is-turn-${bookFlipDir}`}
                   data-school={bookSchool}
                 >
-                  <div className="oracle-book-page-edge" aria-hidden="true" />
                   <div className="oracle-book-leaf" aria-hidden="true" />
-                  <div className="oracle-book-page">
+                  <div className="oracle-book-gutter" aria-hidden="true" />
+
+                  <div className="oracle-book-page oracle-book-page-left">
                     <div className="oracle-book-page-head">
                       <span className="oracle-book-page-school">
-                        <SchoolBadge
-                          school={bookSchool}
-                          size={16}
-                          hideLabel
-                        />{" "}
+                        <GameIcon
+                          name={bookSchool}
+                          size={28}
+                          title={SCHOOL_LABEL[bookSchool]}
+                          className="oracle-book-page-ico"
+                        />
                         {SCHOOL_LABEL[bookSchool]}
                       </span>
                       <span className="oracle-book-page-hint">
@@ -681,11 +684,19 @@ export function Cabinet({
                           onClick={() => setBookTier(t)}
                           disabled={tierCounts[t] === 0}
                         >
-                          {UNIT_TIER_LABEL[t].split(" · ")[0]} · {tierCounts[t]}
+                          {UNIT_TIER_LABEL[t].split(" · ")[0]} ·{" "}
+                          {tierCounts[t]}
                         </button>
                       ))}
                     </div>
 
+                    <p className="oracle-book-page-note">
+                      Ленты справа — страницы школ. Жми +, чтобы взять карту в
+                      колоду.
+                    </p>
+                  </div>
+
+                  <div className="oracle-book-page oracle-book-page-right">
                     {bookPageCards.length === 0 ? (
                       <p className="oracle-book-empty">
                         Пустая глава этой школы
