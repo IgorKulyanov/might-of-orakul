@@ -5339,6 +5339,167 @@ html.is-hand-dragging .grave-row {
   color: #9fe0b8;
 }
 
+.dev-sandbox-tabs {
+  margin: 0.5rem 0 0.85rem;
+}
+
+/* —— Dev VFX lab: живые циклы анимаций —— */
+.vfx-lab {
+  margin-top: 0.25rem;
+}
+.vfx-lab-intro {
+  max-width: 42rem;
+  margin: 0 0 0.75rem;
+  color: #c8d4ea;
+}
+.vfx-lab-filters {
+  margin-bottom: 0.85rem;
+}
+.vfx-lab-grid {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+}
+.vfx-lab-tile {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.55rem;
+  border-radius: 12px;
+  background: rgba(12, 16, 26, 0.92);
+  border: 1px solid rgba(140, 160, 200, 0.28);
+}
+.vfx-lab-stage {
+  position: relative;
+  height: 150px;
+  border-radius: 10px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 70%, rgba(80, 100, 140, 0.35), transparent 65%),
+    linear-gradient(180deg, #1a2233, #0a0e16);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.vfx-lab-card-ghost {
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  width: 62px;
+  height: 88px;
+  transform: translate(-50%, -50%);
+  border-radius: 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  background: rgba(20, 24, 36, 0.55);
+  pointer-events: none;
+}
+.vfx-lab-sprite {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  z-index: 3;
+}
+.vfx-lab-sprite img {
+  max-width: 92%;
+  max-height: 92%;
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.45));
+}
+.vfx-lab-stack {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+}
+.vfx-lab-missile {
+  position: absolute !important;
+  left: 8%;
+  top: 42%;
+  z-index: 5;
+  animation: vfx-lab-fly 1.35s linear infinite;
+}
+.vfx-lab-css-fill {
+  position: absolute !important;
+  inset: 12% 18% !important;
+  border-radius: 10px;
+  z-index: 4;
+}
+.vfx-lab .fx-burn-residual {
+  animation: none !important;
+  opacity: 1 !important;
+}
+.vfx-lab .fx-shock-sparks::before {
+  animation: shock-veil 1.1s ease-in-out infinite alternate !important;
+}
+.vfx-lab-card-dummy {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 70px;
+  height: 98px;
+  transform: translate(-50%, -50%);
+  border-radius: 10px;
+  background: #1a2030;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 2;
+}
+.vfx-lab-card-dummy.is-burning {
+  box-shadow: 0 0 0 2px rgba(255, 110, 20, 0.75),
+    0 0 14px rgba(255, 70, 0, 0.45);
+}
+.vfx-lab-card-dummy.is-magic-burn {
+  animation: magic-card-pulse 0.9s ease infinite;
+}
+.vfx-lab-card-dummy .fx-magic-layer {
+  border-radius: 10px;
+}
+.vfx-lab-meta {
+  display: grid;
+  gap: 0.12rem;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  color: #a8b6cc;
+}
+.vfx-lab-meta strong {
+  color: #f0e6c8;
+  font-size: 0.88rem;
+}
+.vfx-lab-slot {
+  color: #8fd4a8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.68rem;
+}
+.vfx-lab-hint {
+  opacity: 0.75;
+  font-family: ui-monospace, monospace;
+  font-size: 0.68rem;
+}
+.vfx-lab-where {
+  color: #d2c4a0;
+}
+.vfx-lab-replay {
+  justify-self: start;
+}
+@keyframes vfx-lab-fly {
+  0% {
+    left: 4%;
+    top: 55%;
+    opacity: 0;
+    transform: rotate(-12deg) scale(0.85);
+  }
+  8% {
+    opacity: 1;
+  }
+  92% {
+    opacity: 1;
+  }
+  100% {
+    left: 78%;
+    top: 28%;
+    opacity: 0;
+    transform: rotate(8deg) scale(1.05);
+  }
+}
+
 .dev-custom-panel {
   margin-top: 1rem;
   padding: 0.9rem 1rem 1.1rem;

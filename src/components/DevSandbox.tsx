@@ -22,12 +22,15 @@ import {
 import { FACTIONS, getHero, orakulArtUrl } from "../game/heroes";
 import type { Faction, School } from "../game/types";
 import { CardView } from "./CardView";
+import { DevVfxLab } from "./DevVfxLab";
 import { SchoolBadge } from "./GameIcon";
 
 type Props = {
   onBack: () => void;
   onStart: (setup: DevBattleSetup) => void;
 };
+
+type SandboxTab = "battle" | "vfx";
 
 const DECK_MODES: Array<{ id: DevDeckMode; label: string }> = [
   { id: "starter", label: "Старт (4 карты)" },
@@ -300,6 +303,7 @@ function CustomDeckPicker({
 
 export function DevSandbox({ onBack, onStart }: Props) {
   const heroes = useMemo(() => allTestHeroes(), []);
+  const [tab, setTab] = useState<SandboxTab>("vfx");
   const [yourHeroId, setYourHeroId] = useState("hero_death");
   const [enemyHeroId, setEnemyHeroId] = useState("hero_hell");
   const [yourLevel, setYourLevel] = useState(10);
@@ -365,6 +369,27 @@ export function DevSandbox({ onBack, onStart }: Props) {
         <span />
       </header>
 
+      <div className="filters dev-sandbox-tabs">
+        <button
+          type="button"
+          className={tab === "vfx" ? "chip on" : "chip"}
+          onClick={() => setTab("vfx")}
+        >
+          Анимации
+        </button>
+        <button
+          type="button"
+          className={tab === "battle" ? "chip on" : "chip"}
+          onClick={() => setTab("battle")}
+        >
+          Бой
+        </button>
+      </div>
+
+      {tab === "vfx" ? <DevVfxLab /> : null}
+
+      {tab === "battle" ? (
+        <>
       <p className="hint dev-sandbox-warn">
         Бой <strong>не трогает</strong> сейв. Режим «Свои карты» — весь каталог:
         любая магия и любой юнит, дубликаты можно. Остальные пресеты как раньше.
@@ -582,6 +607,8 @@ export function DevSandbox({ onBack, onStart }: Props) {
           </p>
         )}
       </div>
+        </>
+      ) : null}
     </div>
   );
 }
