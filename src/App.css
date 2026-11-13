@@ -1542,79 +1542,58 @@ button {
     0 0 28px rgba(100, 180, 255, 0.5);
   animation: missile-pulse 0.35s ease-in-out infinite alternate;
 }
+/* Огненный шарик (плевок) — круг, без «швабры» из спрайтов. */
 .battle-missile.is-fire {
-  width: 44px;
-  height: 44px;
-  margin-left: -22px;
-  margin-top: -22px;
-  border-radius: 0;
+  width: 28px;
+  height: 28px;
+  margin-left: -14px;
+  margin-top: -14px;
+  border-radius: 50%;
   background: transparent;
-  filter: drop-shadow(0 0 10px rgba(255, 110, 0, 0.9));
+  filter: drop-shadow(0 0 8px rgba(255, 90, 0, 0.95));
   z-index: 70;
+  overflow: visible;
 }
 .missile-fire-glow {
   position: absolute;
-  inset: 10%;
+  inset: -35%;
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    rgba(255, 240, 180, 0.9) 0%,
-    rgba(255, 120, 20, 0.5) 42%,
-    rgba(255, 40, 0, 0.12) 70%,
-    transparent 78%
+    rgba(255, 220, 120, 0.75) 0%,
+    rgba(255, 110, 20, 0.45) 38%,
+    rgba(255, 40, 0, 0.12) 62%,
+    transparent 72%
   );
-  filter: blur(1.5px);
+  filter: blur(1.2px);
   animation: missile-pulse 0.26s ease-in-out infinite alternate;
 }
 .missile-fire-core {
   position: absolute;
-  inset: 30%;
+  inset: 12%;
   border-radius: 50%;
-  background: radial-gradient(circle, #fff8e1 0%, #ff9800 40%, #e65100 100%);
-  box-shadow:
-    0 0 12px 5px rgba(255, 120, 20, 0.9),
-    0 0 22px rgba(255, 60, 0, 0.5);
-  animation: missile-pulse 0.28s ease-in-out infinite alternate;
-}
-.missile-fire-tail {
-  position: absolute;
-  left: 50%;
-  top: 58%;
-  width: 16px;
-  height: 26px;
-  margin-left: -8px;
-  border-radius: 40% 40% 55% 55%;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 220, 100, 0.95),
-    rgba(255, 80, 0, 0.55),
-    transparent
+  background: radial-gradient(
+    circle at 38% 32%,
+    #fff8e8 0%,
+    #ffcc66 28%,
+    #ff7a18 58%,
+    #e53900 88%,
+    #8b0000 100%
   );
-  filter: blur(0.5px);
-  transform-origin: top center;
-  animation: fire-tail-flick 0.22s ease-in-out infinite alternate;
-  z-index: 0;
-}
-.missile-fireball-img {
-  position: absolute;
-  inset: -4%;
-  width: 108%;
-  height: 108%;
-  object-fit: contain;
-  mix-blend-mode: screen;
-  pointer-events: none;
+  box-shadow:
+    0 0 10px 4px rgba(255, 110, 20, 0.95),
+    0 0 18px rgba(255, 50, 0, 0.55);
+  animation: missile-pulse 0.28s ease-in-out infinite alternate;
   z-index: 2;
-  filter: saturate(1.25) contrast(1.08) drop-shadow(0 0 8px rgba(255, 90, 0, 0.8));
 }
-@keyframes fire-tail-flick {
-  from {
-    transform: scaleY(0.85) scaleX(1.1);
-    opacity: 0.75;
-  }
-  to {
-    transform: scaleY(1.2) scaleX(0.85);
-    opacity: 1;
-  }
+.missile-fire-spark {
+  position: absolute;
+  inset: 28%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 240, 0.95) 0%, transparent 70%);
+  animation: missile-pulse 0.18s ease-in-out infinite alternate;
+  z-index: 3;
+  pointer-events: none;
 }
 .missile-shock-core {
   position: absolute;
@@ -1704,17 +1683,25 @@ button {
   width: min(160%, 13rem);
   max-height: 13rem;
 }
+/* Grayscale flame/fire из пака → оранжево-красный, без золота. */
 .fx-sprite-burst.is-flame.tint-flame img,
 .fx-sprite-burst.tint-flame img {
   filter:
-    sepia(1) saturate(8) hue-rotate(-25deg) brightness(1.25)
-    drop-shadow(0 0 12px rgba(255, 90, 0, 0.9));
+    brightness(1.05) contrast(1.15) sepia(1) saturate(9) hue-rotate(-8deg)
+    drop-shadow(0 0 10px rgba(255, 70, 0, 0.85));
+}
+/* Looping VFX: не гасим fade-анимацией одиночного бёрста. */
+.fx-sprite-burst.is-loop {
+  animation: none !important;
+  opacity: 1;
 }
 .fx-sprite-burst.is-lightning img {
   width: min(160%, 14rem);
 }
 .fx-sprite-burst.tint-poison img {
-  filter: hue-rotate(90deg) saturate(1.35) brightness(1.1);
+  filter:
+    hue-rotate(75deg) saturate(2.2) brightness(1.25)
+    drop-shadow(0 0 10px rgba(120, 220, 60, 0.75));
 }
 .fx-sprite-burst.is-heal img {
   filter: drop-shadow(0 0 12px rgba(120, 255, 160, 0.55));
@@ -1736,29 +1723,44 @@ button {
 }
 .fx-burn-stack .layer-flame {
   z-index: 5;
-  inset: -12% -8% 20%;
+  inset: -4% -6% 8%;
+  mix-blend-mode: screen;
 }
 .fx-burn-embers {
   position: absolute;
-  inset: -6% -4% -2%;
+  inset: -8% -6% -4%;
   z-index: 7;
   pointer-events: none;
+  overflow: visible;
 }
 .fx-burn-embers .layer-ember {
-  inset: 8% 12% 28%;
-  opacity: 0.95;
+  inset: 18% 8% -2%;
+  opacity: 1;
+  mix-blend-mode: screen;
+}
+.fx-burn-embers .layer-ember img {
+  width: min(130%, 10rem);
+  max-height: 10rem;
 }
 .fx-burn-embers .layer-ember-side {
-  inset: 22% 2% 8% 35%;
-  opacity: 0.8;
+  inset: 28% -4% -6% 28%;
+  opacity: 0.9;
+  mix-blend-mode: screen;
+}
+.fx-burn-embers .layer-ember-top {
+  inset: -2% 10% 42%;
+  opacity: 0.85;
+  mix-blend-mode: screen;
 }
 .fx-burn-embers .layer-ember-smoke {
-  inset: -18% -12% -8%;
-  opacity: 0.75;
+  inset: -22% -14% -6%;
+  opacity: 0.55;
+  mix-blend-mode: screen;
 }
+/* Карта НЕ золотеет — только лёгкий жар по краю. */
 .board-card-wrap.is-burning .card,
 .board-card-wrap.has-burn .card {
-  filter: brightness(1.12) saturate(1.25) sepia(0.18);
+  filter: brightness(1.06) saturate(1.08);
 }
 @keyframes fx-smoke-rise {
   from {
@@ -1884,10 +1886,13 @@ button {
   }
 }
 
-/* —— Яд: дым / шипение над картой —— */
+/* —— Яд: зелёный дым остаётся, пока статус висит —— */
 .board-card-wrap.has-poison {
-  box-shadow: 0 0 0 2px rgba(139, 195, 74, 0.6),
-    0 0 14px rgba(100, 180, 40, 0.4);
+  box-shadow: 0 0 0 2px rgba(139, 195, 74, 0.65),
+    0 0 16px rgba(100, 180, 40, 0.45);
+}
+.board-card-wrap.has-poison .card {
+  filter: brightness(1.06) saturate(1.15) hue-rotate(-8deg);
 }
 .board-card-wrap.is-poison-burst {
   animation: poison-burst 0.75s ease;
@@ -1896,61 +1901,18 @@ button {
 
 .fx-poison-smoke {
   position: absolute;
-  inset: -6% -4% auto;
-  height: 55%;
+  inset: -10% -8% -4%;
   pointer-events: none;
   z-index: 9;
   overflow: visible;
 }
-.fx-poison-smoke i {
-  position: absolute;
-  bottom: 0;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    rgba(200, 230, 120, 0.85) 0%,
-    rgba(100, 160, 40, 0.45) 45%,
-    transparent 70%
-  );
-  filter: blur(1.5px);
-  animation: poison-smoke-rise 1.5s ease-out infinite;
-  opacity: 0;
+.fx-poison-smoke .layer-poison-cloud {
+  inset: -8% -6% 10%;
+  opacity: 0.95;
 }
-.fx-poison-smoke i:nth-child(1) {
-  left: 18%;
-  animation-delay: 0s;
-}
-.fx-poison-smoke i:nth-child(2) {
-  left: 42%;
-  width: 22px;
-  height: 22px;
-  animation-delay: 0.35s;
-}
-.fx-poison-smoke i:nth-child(3) {
-  left: 62%;
-  animation-delay: 0.7s;
-}
-.fx-poison-smoke i:nth-child(4) {
-  left: 30%;
-  width: 14px;
-  height: 14px;
-  animation-delay: 1.05s;
-}
-
-@keyframes poison-smoke-rise {
-  0% {
-    transform: translateY(8px) scale(0.55);
-    opacity: 0;
-  }
-  18% {
-    opacity: 0.9;
-  }
-  100% {
-    transform: translateY(-42px) scale(1.35);
-    opacity: 0;
-  }
+.fx-poison-smoke .layer-poison-mist {
+  inset: 8% -4% -6%;
+  opacity: 0.8;
 }
 
 @keyframes poison-burst {
@@ -1969,44 +1931,27 @@ button {
   }
 }
 
-/* —— Огонь на карте: вспышка при ударе + постоянное горение статуса —— */
+/* —— Огонь на карте: вспышка при ударе + горение ~1.4с —— */
 .board-card-wrap.is-burning {
   z-index: 8;
-  animation: burn-burst 0.75s ease, fireball-card-flash 0.55s ease;
+  animation: burn-burst 0.65s ease;
 }
 .board-card-wrap.has-burn {
   z-index: 7;
-  box-shadow: 0 0 0 2px rgba(255, 120, 30, 0.55),
-    0 0 18px rgba(255, 80, 0, 0.35);
-  filter: saturate(1.15) brightness(1.05);
-}
-@keyframes fireball-card-flash {
-  0% {
-    filter: brightness(1) saturate(1);
-  }
-  18% {
-    filter: brightness(2.15) saturate(1.8) sepia(0.25);
-    box-shadow:
-      0 0 0 2px rgba(255, 180, 60, 0.95),
-      0 0 28px rgba(255, 80, 0, 0.75);
-  }
-  100% {
-    filter: brightness(1) saturate(1);
-  }
+  box-shadow: 0 0 0 2px rgba(255, 100, 20, 0.55),
+    0 0 16px rgba(255, 60, 0, 0.4);
 }
 @keyframes burn-burst {
   0% {
-    filter: brightness(1);
     box-shadow: 0 0 0 0 rgba(255, 100, 20, 0);
   }
   28% {
-    filter: brightness(1.45) saturate(1.35);
-    box-shadow: 0 0 0 4px rgba(255, 120, 30, 0.85),
-      0 0 28px rgba(255, 80, 0, 0.7);
+    box-shadow: 0 0 0 3px rgba(255, 100, 20, 0.85),
+      0 0 24px rgba(255, 60, 0, 0.7);
   }
   100% {
-    filter: brightness(1);
-    box-shadow: none;
+    box-shadow: 0 0 0 2px rgba(255, 100, 20, 0.45),
+      0 0 14px rgba(255, 60, 0, 0.35);
   }
 }
 

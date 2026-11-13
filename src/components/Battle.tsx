@@ -98,6 +98,7 @@ import {
 import { pickBattleTable } from "../game/battleTables";
 import {
   BURN_LINGER_MS,
+  POISON_LINGER_MS,
   burnImpactLayers,
   fxSequence,
   impactToSprite,
@@ -287,7 +288,7 @@ function FxSpriteBurst({
   if (!src) return null;
   return (
     <span
-      className={`fx-sprite-burst is-${kind}${tint ? ` ${tint}` : ""}${className ? ` ${className}` : ""}`}
+      className={`fx-sprite-burst is-${kind}${loop ? " is-loop" : ""}${tint ? ` ${tint}` : ""}${className ? ` ${className}` : ""}`}
       aria-hidden
     >
       <img src={src} alt="" draggable={false} />
@@ -310,30 +311,6 @@ function BurnImpactStack({ burstKey }: { burstKey: string }) {
         />
       ))}
     </span>
-  );
-}
-
-/** Крупный фаербол в полёте — muzzle + пламя из архива. */
-function FireballFlightSprite() {
-  const flame = fxSequence("flame");
-  const muzzle = fxSequence("muzzle");
-  const frames = muzzle.length ? [...muzzle, ...flame.slice(0, 4)] : flame;
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setI((n) => (n + 1) % frames.length);
-    }, 42);
-    return () => window.clearInterval(id);
-  }, [frames.length]);
-  const src = frames[i] ?? frames[0];
-  if (!src) return null;
-  return (
-    <img
-      className="missile-fireball-img"
-      src={src}
-      alt=""
-      draggable={false}
-    />
   );
 }
 
@@ -653,8 +630,7 @@ function BattleMissile({
         <>
           <span className="missile-fire-glow" aria-hidden />
           <span className="missile-fire-core" />
-          <span className="missile-fire-tail" />
-          <FireballFlightSprite />
+          <span className="missile-fire-spark" aria-hidden />
         </>
       ) : kind === "water" ? (
         <>
@@ -717,23 +693,56 @@ function BoardCard({
   const poisoned = creature.statuses.some((st) => st.type === "poison");
   const burning = creature.statuses.some((st) => st.type === "burn");
   const [lingerBurn, setLingerBurn] = useState(false);
-  const lingerTimer = useRef<number | null>(null);
+  const [lingerPoison, setLingerPoison] = useState(false);
+  const lingerBurnTimer = useRef<number | null>(null);
+  const lingerPoisonTimer = useRef<number | null>(null);
+  const wasBurnImpact = useRef(false);
   useEffect(() => {
-    if (impact !== "burn") return;
-    setLingerBurn(true);
-    if (lingerTimer.current != null) window.clearTimeout(lingerTimer.current);
-    lingerTimer.current = window.setTimeout(() => {
+    if (impact === "burn") {
+      wasBurnImpact.current = true;
+      setLingerBurn(true);
+      if (lingerBurnTimer.current != null) {
+        window.clearTimeout(lingerBurnTimer.current);
+        lingerBurnTimer.current = null;
+      }
+      return;
+    }
+    // Хвост горения стартует после снятия impact (~1.4с языков из пака).
+    if (!wasBurnImpact.current) return;
+    wasBurnImpact.current = false;
+    if (lingerBurnTimer.current != null) {
+      window.clearTimeout(lingerBurnTimer.current);
+    }
+    lingerBurnTimer.current = window.setTimeout(() => {
       setLingerBurn(false);
-      lingerTimer.current = null;
+      lingerBurnTimer.current = null;
     }, BURN_LINGER_MS);
     return () => {
-      if (lingerTimer.current != null) {
-        window.clearTimeout(lingerTimer.current);
-        lingerTimer.current = null;
+      if (lingerBurnTimer.current != null) {
+        window.clearTimeout(lingerBurnTimer.current);
+        lingerBurnTimer.current = null;
       }
     };
   }, [impact, creature.uid]);
-  const showPoison = poisoned || impact === "poison" || poisonBurst;
+  useEffect(() => {
+    if (impact !== "poison" && !poisonBurst) return;
+    setLingerPoison(true);
+    if (lingerPoisonTimer.current != null) {
+      window.clearTimeout(lingerPoisonTimer.current);
+    }
+    lingerPoisonTimer.current = window.setTimeout(() => {
+      setLingerPoison(false);
+      lingerPoisonTimer.current = null;
+    }, POISON_LINGER_MS);
+    return () => {
+      if (lingerPoisonTimer.current != null) {
+        window.clearTimeout(lingerPoisonTimer.current);
+        lingerPoisonTimer.current = null;
+      }
+    };
+  }, [impact, poisonBurst, creature.uid]);
+  const showPoison =
+    poisoned || impact === "poison" || poisonBurst || lingerPoison;
   const showBurn = burning || impact === "burn" || lingerBurn;
   const spriteKind = impactToSprite(impact);
   const poisonTint = impact === "poison" ? "tint-poison" : undefined;
@@ -810,28 +819,50 @@ function BoardCard({
             loop
             tint="tint-flame"
             className="layer-ember"
-            stepMs={90}
+            stepMs={78}
           />
           <FxSpriteBurst
             kind="flame"
             loop
             tint="tint-flame"
             className="layer-ember-side"
-            stepMs={110}
-            delayMs={120}
+            stepMs={92}
+            delayMs={90}
+          />
+          <FxSpriteBurst
+            kind="flame"
+            loop
+            tint="tint-flame"
+            className="layer-ember-top"
+            stepMs={100}
+            delayMs={160}
           />
           <FxSpriteBurst
             kind="smoke"
             loop
             className="layer-ember-smoke"
-            stepMs={70}
-            delayMs={100}
+            stepMs={80}
+            delayMs={120}
           />
         </span>
       ) : null}
-      {showPoison && impact !== "poison" ? (
+      {showPoison ? (
         <span className="fx-poison-smoke" aria-hidden>
-          <FxSpriteBurst kind="smoke" loop tint="tint-poison" stepMs={60} />
+          <FxSpriteBurst
+            kind="smoke"
+            loop
+            tint="tint-poison"
+            className="layer-poison-cloud"
+            stepMs={72}
+          />
+          <FxSpriteBurst
+            kind="white_puff"
+            loop
+            tint="tint-poison"
+            className="layer-poison-mist"
+            stepMs={88}
+            delayMs={140}
+          />
         </span>
       ) : null}
     </div>
@@ -1424,7 +1455,7 @@ export function Battle({
           faceHit
             ? 1700
             : fireBolt
-              ? Math.max(2500, BURN_LINGER_MS + 200)
+              ? Math.max(1100, Math.floor(BURN_LINGER_MS * 0.55))
               : arrowStick
                 ? 1500
                 : nextFx.vfx === "poison"

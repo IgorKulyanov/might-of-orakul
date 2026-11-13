@@ -36,6 +36,7 @@ const SEQ: Record<FxSpriteKind, string[]> = {
   spark: [1, 2, 3, 4, 5, 6, 7].map(
     (i) => `${FX_BASE}/spark/spark_0${i}.png`,
   ),
+  /** Горение / языки — из PNG (Transparent): flame + fire. */
   flame: [
     `${FX_BASE}/flame/flame_01.png`,
     `${FX_BASE}/flame/flame_02.png`,
@@ -45,6 +46,8 @@ const SEQ: Record<FxSpriteKind, string[]> = {
     `${FX_BASE}/flame/flame_06.png`,
     `${FX_BASE}/flame/fire_01.png`,
     `${FX_BASE}/flame/fire_02.png`,
+    `${FX_BASE}/flame/flame_03.png`,
+    `${FX_BASE}/flame/flame_01.png`,
   ],
   muzzle: [1, 2, 3, 4, 5].map(
     (i) => `${FX_BASE}/muzzle/muzzle_0${i}.png`,
@@ -77,7 +80,7 @@ const SEQ: Record<FxSpriteKind, string[]> = {
   heal: [1, 2, 3, 4, 5].map((i) => `${FX_BASE}/magic_particle/star_0${i}.png`),
 };
 
-/** Слои попадания огнём: взрыв → вспышка → дым (медленнее, карта «горит»). */
+/** Слои попадания огнём: взрыв → вспышка → дым → языки из пака. */
 export function burnImpactLayers(): Array<{
   kind: FxSpriteKind;
   delayMs: number;
@@ -86,14 +89,17 @@ export function burnImpactLayers(): Array<{
 }> {
   return [
     { kind: "explosion", delayMs: 0, className: "layer-explosion", stepMs: 70 },
-    { kind: "flash", delayMs: 80, className: "layer-flash", stepMs: 65 },
-    { kind: "smoke", delayMs: 160, className: "layer-smoke", stepMs: 58 },
-    { kind: "flame", delayMs: 200, className: "layer-flame", stepMs: 75 },
+    { kind: "flash", delayMs: 70, className: "layer-flash", stepMs: 60 },
+    { kind: "smoke", delayMs: 140, className: "layer-smoke", stepMs: 55 },
+    { kind: "flame", delayMs: 120, className: "layer-flame", stepMs: 70 },
   ];
 }
 
 /** Сколько карта визуально «горит» после попадания фаербола. */
-export const BURN_LINGER_MS = 2400;
+export const BURN_LINGER_MS = 1400;
+
+/** Запасной хвост дыма яда, если статус ещё не успел записаться. */
+export const POISON_LINGER_MS = 2800;
 
 export function fxSequence(kind: FxSpriteKind): string[] {
   return SEQ[kind] ?? SEQ.flash;
