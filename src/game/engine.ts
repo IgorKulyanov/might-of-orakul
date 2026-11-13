@@ -4607,7 +4607,8 @@ export type BattleFxVfx =
   | "burn"
   | "water"
   | "arrow"
-  | "shock";
+  | "shock"
+  | "slash";
 
 /** Визуальный эффект для анимации в UI */
 export type BattleFx = {
@@ -4662,22 +4663,31 @@ function isOffensiveSpell(effects: SpellEffect[]): boolean {
   );
 }
 
+/** Клинок / физический удар — не огненный болт. */
+const SLASH_SPELL_IDS = new Set(["strike"]);
+
+/** Явный огонь (не «любая карта школы ада»). */
+const FIRE_SPELL_IDS = new Set(["fire_aura"]);
+
 /** Тема снаряда/попадания по id карты и школе. */
 function spellProjectileVfx(
   cardId: string,
   effects: SpellEffect[],
   school?: Faction | "neutral",
 ): BattleFxVfx | undefined {
+  if (SLASH_SPELL_IDS.has(cardId)) return "slash";
   if (cardId === "arrow_cloud" || cardId === "sniper") return "arrow";
   if (cardId === "wave") return "water";
   if (effects.some((e) => e.type === "poison" || e.type === "poison_all")) {
     return "poison";
   }
   if (!isOffensiveSpell(effects)) return undefined;
-  if (school === "hell" || cardId === "fire_aura") return "burn";
+  if (FIRE_SPELL_IDS.has(cardId)) return "burn";
+  // Школа ада ≠ автоогонь: «Атака» (меч) не плюётся пламенем.
   if (school === "water") return "water";
   if (school === "nature" && cardId !== "arrow_cloud") return "shock";
   if (school === "death") return "magic";
+  if (school === "hell") return "shock";
   if (school === "life") return "shock";
   const need = spellNeedsTarget(effects);
   if (need === "enemy") return "shock";

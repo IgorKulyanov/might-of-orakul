@@ -102,6 +102,7 @@ export function resolveImpactKind(
   }
 
   if (fx.kind === "spell") {
+    if (fx.vfx === "slash") return "slash";
     if (fx.vfx === "poison") return "poison";
     if (fx.vfx === "burn") return "burn";
     if (fx.vfx === "water") return "water";
@@ -149,6 +150,8 @@ export function shouldFlyMissile(fx: BattleFx | null | undefined): boolean {
     return motion === "ranged" || motion === "bolt";
   }
   if (fx.kind !== "spell") return false;
+  // Физический клинок — только вспышка на цели, без огненного «плевка».
+  if (fx.vfx === "slash") return false;
   const hasAim =
     !!fx.hitHero ||
     fx.toSlot != null ||
@@ -172,6 +175,7 @@ export function missileVisual(
     if (fx.vfx === "arrow") return "arrow";
     if (fx.vfx === "burn") return "fire";
     if (fx.vfx === "water") return "water";
+    if (fx.vfx === "slash") return "arrow";
     return "magic";
   }
   const motion = fx.motion ?? "melee";

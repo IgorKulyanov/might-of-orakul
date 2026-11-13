@@ -2452,7 +2452,8 @@ export function Battle({
         fx.vfx === "water" ||
         fx.vfx === "arrow" ||
         fx.vfx === "shock" ||
-        fx.vfx === "magic");
+        fx.vfx === "magic" ||
+        fx.vfx === "slash");
     if (fx.kind === "lunge" || offensiveSpell) {
       if (cardSide === fx.side) return null;
     } else if (fx.kind === "heal" || fx.kind === "spell") {
@@ -2682,6 +2683,14 @@ export function Battle({
     (!!fx?.hitHero && fx.side === "you" && fx.kind === "heal");
   const enemyHeroHeal =
     !!fx?.hitHero && fx.side === "enemy" && fx.kind === "heal";
+  const heroImpact = ((): FxImpact | null => {
+    if (!fx?.hitHero) return null;
+    if (fx.kind === "heal") return "heal";
+    const kind = resolveImpactKind(fx);
+    if (kind === "arrow") return null;
+    return kind;
+  })();
+  const heroSprite = impactToSprite(heroImpact);
 
   const renderLinger = (
     spells: typeof state.you.activeSpells,
@@ -2934,7 +2943,9 @@ export function Battle({
                 }))
                   ? "targetable"
                   : ""
-            } ${enemyHeroHit || enemyHeroHeal ? "is-hit" : ""}`}
+            } ${enemyHeroHit || enemyHeroHeal ? "is-hit" : ""} ${
+              heroImpact === "slash" && enemyHeroHit ? "is-slash-hit" : ""
+            }`}
             onClick={onEnemyHero}
           >
             <div className="oracle-face">
@@ -2943,6 +2954,12 @@ export function Battle({
                 alt={enemyHero.name}
                 draggable={false}
               />
+              {heroSprite && enemyHeroHit ? (
+                <FxSpriteBurst
+                  key={`enemy-hero-${fx?.cardId}-${heroSprite}`}
+                  kind={heroSprite}
+                />
+              ) : null}
                   </div>
             <div className="hero enemy-hero">
               <strong>
@@ -3211,6 +3228,10 @@ export function Battle({
         <button
           type="button"
             className={`oracle-block ${youHeroHit ? "is-hit" : ""} ${
+              heroImpact === "slash" && youHeroHit && fx?.kind !== "heal"
+                ? "is-slash-hit"
+                : ""
+            } ${
               mageReady ||
               (!busy &&
                 spellMode === "marionette" &&
@@ -3231,6 +3252,12 @@ export function Battle({
                 alt={yourHero.name}
                 draggable={false}
               />
+              {heroSprite && youHeroHit && fx?.kind !== "heal" ? (
+                <FxSpriteBurst
+                  key={`you-hero-${fx?.cardId}-${heroSprite}`}
+                  kind={heroSprite}
+                />
+              ) : null}
             </div>
             <div className="hero you-hero">
               <strong>

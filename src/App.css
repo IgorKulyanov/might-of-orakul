@@ -2666,7 +2666,12 @@ button {
   cursor: pointer;
 }
 
+.oracle-block {
+  position: relative;
+}
+
 .oracle-face {
+  position: relative;
   width: 3.55rem;
   height: 3.55rem;
   flex-shrink: 0;
@@ -2677,6 +2682,15 @@ button {
   box-shadow:
     0 0 0 1px rgba(0, 0, 0, 0.45),
     0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.oracle-block.is-slash-hit .oracle-face {
+  overflow: visible;
+}
+
+.oracle-face .fx-sprite-burst {
+  inset: -35% -40%;
+  z-index: 4;
 }
 
 .oracle-face img {
