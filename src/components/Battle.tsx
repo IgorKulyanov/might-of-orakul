@@ -105,7 +105,6 @@ import {
   missileVisual,
   resolveImpactKind,
   schoolTone,
-  shockImpactLayers,
   shouldFlyMissile,
   type FxSpriteKind,
 } from "../game/battleVfx";
@@ -311,23 +310,6 @@ function BurnImpactStack({ burstKey }: { burstKey: string }) {
           stepMs={layer.stepMs}
           className={layer.className}
           tint={layer.kind === "flame" ? "tint-flame" : undefined}
-        />
-      ))}
-    </span>
-  );
-}
-
-/** Удар мага: замыкание — дуги электричества по всей карте. */
-function ShockImpactStack({ burstKey }: { burstKey: string }) {
-  return (
-    <span className="fx-shock-stack" aria-hidden>
-      {shockImpactLayers().map((layer, i) => (
-        <FxSpriteBurst
-          key={`${burstKey}-${layer.className}-${i}`}
-          kind={layer.kind}
-          delayMs={layer.delayMs}
-          stepMs={layer.stepMs}
-          className={layer.className}
         />
       ))}
     </span>
@@ -822,7 +804,20 @@ function BoardCard({
       {impact === "burn" ? (
         <BurnImpactStack burstKey={`${creature.uid}-burn-${impact}`} />
       ) : impact === "shock" ? (
-        <ShockImpactStack burstKey={`${creature.uid}-shock-${impact}`} />
+        <span className="fx-shock-sparks" aria-hidden>
+          <i className="bolt" />
+          <i className="bolt" />
+          <i className="bolt" />
+          <i className="bolt" />
+          <i className="bolt" />
+          <i className="bolt" />
+          <i className="dot" />
+          <i className="dot" />
+          <i className="dot" />
+          <i className="dot" />
+          <i className="dot" />
+          <i className="dot" />
+        </span>
       ) : spriteKind && impact !== "poison" ? (
         <FxSpriteBurst
           key={`${creature.uid}-${impact}-${spriteKind}`}

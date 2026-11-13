@@ -2251,7 +2251,7 @@ button {
   }
 }
 
-/* —— Электроразряд: дуги по всей карте (архив lightning 0–10) —— */
+/* —— Электро: мелкие вспышки/искры по всей карте (как пузырьки яда) —— */
 .board-card-wrap.is-shock-hit {
   z-index: 8;
   animation: shock-burst 0.75s ease;
@@ -2260,37 +2260,187 @@ button {
   z-index: 8;
   animation: shock-burst 0.7s ease;
 }
-.fx-shock-stack {
+.fx-shock-sparks {
   position: absolute;
-  inset: -6% -10%;
+  inset: 0;
   z-index: 10;
   pointer-events: none;
-  overflow: visible;
-  border-radius: 10px;
+  overflow: hidden;
+  border-radius: inherit;
 }
-.fx-shock-stack .layer-shock-flash {
-  inset: -12% -8%;
+.fx-shock-sparks::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 45% 40%,
+    rgba(180, 240, 255, 0.28) 0%,
+    rgba(80, 170, 255, 0.08) 42%,
+    transparent 70%
+  );
   mix-blend-mode: screen;
-  opacity: 0.85;
+  animation: shock-veil 0.75s ease-out both;
 }
-.fx-shock-stack .layer-shock-a {
-  inset: 4% -22% 48%;
-  z-index: 2;
+.fx-shock-sparks i {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
 }
-.fx-shock-stack .layer-shock-b {
-  inset: 28% -28% 22%;
-  z-index: 3;
-  transform: scaleY(-1);
+.fx-shock-sparks i.bolt {
+  width: 2px;
+  height: 16px;
+  border-radius: 1px;
+  background: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #b3e5fc 35%,
+    #4fc3f7 70%,
+    transparent 100%
+  );
+  box-shadow:
+    0 0 5px rgba(120, 220, 255, 0.95),
+    0 0 10px rgba(40, 180, 255, 0.65);
+  animation: shock-bolt-flick 0.55s ease-out infinite;
 }
-.fx-shock-stack .layer-shock-c {
-  inset: 52% -20% 2%;
-  z-index: 2;
+.fx-shock-sparks i.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    #ffffff 0%,
+    rgba(129, 212, 250, 0.85) 40%,
+    transparent 72%
+  );
+  box-shadow: 0 0 8px rgba(100, 210, 255, 0.9);
+  animation: shock-dot-flick 0.5s ease-out infinite;
 }
-.fx-shock-stack .fx-sprite-burst.is-lightning img {
-  width: 100%;
-  height: 100%;
-  max-height: none;
-  object-fit: cover;
+.fx-shock-sparks i.bolt:nth-child(1) {
+  left: 18%;
+  top: 12%;
+  transform: rotate(-18deg);
+  animation-delay: 0s;
+}
+.fx-shock-sparks i.bolt:nth-child(2) {
+  left: 62%;
+  top: 18%;
+  height: 20px;
+  transform: rotate(22deg);
+  animation-delay: 0.08s;
+}
+.fx-shock-sparks i.bolt:nth-child(3) {
+  left: 38%;
+  top: 42%;
+  height: 14px;
+  transform: rotate(-8deg);
+  animation-delay: 0.16s;
+}
+.fx-shock-sparks i.bolt:nth-child(4) {
+  left: 72%;
+  top: 48%;
+  height: 18px;
+  transform: rotate(35deg);
+  animation-delay: 0.22s;
+}
+.fx-shock-sparks i.bolt:nth-child(5) {
+  left: 12%;
+  top: 58%;
+  height: 15px;
+  transform: rotate(12deg);
+  animation-delay: 0.3s;
+}
+.fx-shock-sparks i.bolt:nth-child(6) {
+  left: 48%;
+  top: 72%;
+  height: 17px;
+  transform: rotate(-28deg);
+  animation-delay: 0.38s;
+}
+.fx-shock-sparks i.dot:nth-child(7) {
+  left: 28%;
+  top: 28%;
+  animation-delay: 0.05s;
+}
+.fx-shock-sparks i.dot:nth-child(8) {
+  left: 78%;
+  top: 32%;
+  width: 9px;
+  height: 9px;
+  animation-delay: 0.14s;
+}
+.fx-shock-sparks i.dot:nth-child(9) {
+  left: 52%;
+  top: 55%;
+  animation-delay: 0.24s;
+}
+.fx-shock-sparks i.dot:nth-child(10) {
+  left: 22%;
+  top: 78%;
+  width: 6px;
+  height: 6px;
+  animation-delay: 0.32s;
+}
+.fx-shock-sparks i.dot:nth-child(11) {
+  left: 68%;
+  top: 68%;
+  animation-delay: 0.4s;
+}
+.fx-shock-sparks i.dot:nth-child(12) {
+  left: 42%;
+  top: 14%;
+  width: 5px;
+  height: 5px;
+  animation-delay: 0.18s;
+}
+@keyframes shock-bolt-flick {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  22% {
+    opacity: 0.12;
+  }
+  34% {
+    opacity: 0.95;
+  }
+  48% {
+    opacity: 0.2;
+  }
+  58% {
+    opacity: 0.8;
+  }
+}
+@keyframes shock-dot-flick {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  30% {
+    opacity: 0.15;
+  }
+  42% {
+    opacity: 0.9;
+  }
+  65% {
+    opacity: 0;
+  }
+}
+@keyframes shock-veil {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 @keyframes shock-burst {
   0% {
@@ -2298,12 +2448,9 @@ button {
     box-shadow: 0 0 0 0 rgba(80, 200, 255, 0);
   }
   22% {
-    filter: brightness(1.65) saturate(1.45);
-    box-shadow: 0 0 0 3px rgba(140, 230, 255, 0.95),
-      0 0 26px rgba(60, 190, 255, 0.8);
-  }
-  55% {
-    filter: brightness(1.2);
+    filter: brightness(1.45) saturate(1.25);
+    box-shadow: 0 0 0 2px rgba(140, 230, 255, 0.75),
+      0 0 18px rgba(60, 190, 255, 0.55);
   }
   100% {
     filter: brightness(1);
