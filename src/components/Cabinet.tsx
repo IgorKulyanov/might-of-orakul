@@ -66,23 +66,6 @@ function cardBookTier(card: CardDef): BookTier {
   return 1;
 }
 
-function GemTitle({ text }: { text: string }) {
-  return (
-    <h2 className="oracle-book-gem-title" aria-label={text}>
-      {[...text].map((ch, i) => (
-        <span
-          key={`${ch}-${i}`}
-          className={`oracle-gem-bezel is-gem-${(i % 5) + 1}`}
-          style={{ animationDelay: `${i * 0.07}s` }}
-        >
-          <span className="oracle-gem-facet" aria-hidden="true" />
-          <span className="oracle-gem-letter">{ch === " " ? "\u00a0" : ch}</span>
-        </span>
-      ))}
-    </h2>
-  );
-}
-
 type Tab = "oracle" | "deck";
 
 type Props = {
@@ -589,24 +572,7 @@ export function Cabinet({
             onDrop={onDropToCase}
           >
             <div className="oracle-folio" aria-label="Фолиант оракула">
-              <header className="oracle-book-head">
-                <div className="oracle-title-plaque">
-                  <GemTitle text="ОРАКУЛ" />
-                </div>
-                <p className="oracle-book-sub">
-                  Древний фолиант · {caseCards.length}{" "}
-                  {caseCards.length === 1 ? "лист" : "листов"}
-                </p>
-              </header>
-
               <div className="oracle-folio-stage">
-                <img
-                  className="oracle-folio-art"
-                  src="/ui/oracle-book/book1-open.png"
-                  alt=""
-                  draggable={false}
-                />
-
                 <nav className="oracle-book-ribbons" aria-label="Школы">
                   {BOOK_SCHOOLS.map((s) => {
                     const n = schoolCounts[s];
@@ -627,7 +593,7 @@ export function Cabinet({
                       >
                         <GameIcon
                           name={s}
-                          size={22}
+                          size={24}
                           title={SCHOOL_LABEL[s]}
                           className="oracle-book-ribbon-ico"
                         />
@@ -646,22 +612,22 @@ export function Cabinet({
                   data-school={bookSchool}
                 >
                   <div className="oracle-book-leaf" aria-hidden="true" />
-                  <div className="oracle-book-gutter" aria-hidden="true" />
 
-                  <div className="oracle-book-page oracle-book-page-left">
-                    <div className="oracle-book-page-head">
-                      <span className="oracle-book-page-school">
-                        <GameIcon
-                          name={bookSchool}
-                          size={28}
-                          title={SCHOOL_LABEL[bookSchool]}
-                          className="oracle-book-page-ico"
-                        />
-                        {SCHOOL_LABEL[bookSchool]}
-                      </span>
-                      <span className="oracle-book-page-hint">
-                        Глава школы
-                      </span>
+                  <div className="oracle-book-toolbar">
+                    <div className="oracle-book-page-school">
+                      <GameIcon
+                        name={bookSchool}
+                        size={26}
+                        title={SCHOOL_LABEL[bookSchool]}
+                        className="oracle-book-page-ico"
+                      />
+                      <div className="oracle-book-page-titles">
+                        <strong>{SCHOOL_LABEL[bookSchool]}</strong>
+                        <span>
+                          Древний фолиант · {caseCards.length}{" "}
+                          {caseCards.length === 1 ? "лист" : "листов"}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="oracle-book-tiers" role="tablist">
@@ -689,108 +655,101 @@ export function Cabinet({
                         </button>
                       ))}
                     </div>
-
-                    <p className="oracle-book-page-note">
-                      Ленты справа — страницы школ. Жми +, чтобы взять карту в
-                      колоду.
-                    </p>
                   </div>
 
-                  <div className="oracle-book-page oracle-book-page-right">
-                    {bookPageCards.length === 0 ? (
-                      <p className="oracle-book-empty">
-                        Пустая глава этой школы
-                        {bookTier !== "all"
-                          ? ` · ${UNIT_TIER_LABEL[bookTier]}`
-                          : ""}
-                        . Купленные и прокачанные карты появятся здесь.
-                      </p>
-                    ) : (
-                      <div className="oracle-book-slots">
-                        {bookPageCards.map((card) => {
-                          const inDeck = deckCounts[card.id] ?? 0;
-                          const have = ownedCopies(owned, card.id);
-                          const cap = Math.min(
-                            maxCopiesForCard(card.id),
-                            have,
-                          );
-                          const canAdd =
-                            inDeck < cap &&
-                            deck.length < DECK_SIZE &&
-                            have > 0;
-                          return (
-                            <div
-                              key={card.id}
-                              className={`oracle-book-slot ${allowCardDrag ? "is-draggable" : ""} ${inDeck > 0 ? "in-deck" : ""}`}
-                              draggable={allowCardDrag}
-                              onDragStart={
-                                allowCardDrag
-                                  ? (e) =>
-                                      onCardDragStart(e, card.id, "case")
-                                  : undefined
-                              }
-                              onDragEnd={
-                                allowCardDrag
-                                  ? () => setDragOver(null)
-                                  : undefined
-                              }
-                              title={`${card.name} · в колоду`}
-                            >
-                              <div className="oracle-book-slot-frame">
-                                <CardView
-                                  card={card}
-                                  compact
-                                  flippable
-                                  upgradeLevel={
-                                    isUpgradeableCard(card.id)
-                                      ? getCardUpgradeLevel(owned, card.id)
-                                      : null
-                                  }
-                                />
-                              </div>
-                              <div className="oracle-book-slot-meta">
-                                <span
-                                  className={
-                                    inDeck > 0
-                                      ? "badge-in-deck"
-                                      : "badge-in-case"
-                                  }
+                  {bookPageCards.length === 0 ? (
+                    <p className="oracle-book-empty">
+                      Пустая глава этой школы
+                      {bookTier !== "all"
+                        ? ` · ${UNIT_TIER_LABEL[bookTier]}`
+                        : ""}
+                      . Купленные и прокачанные карты появятся здесь.
+                    </p>
+                  ) : (
+                    <div className="oracle-book-slots">
+                      {bookPageCards.map((card) => {
+                        const inDeck = deckCounts[card.id] ?? 0;
+                        const have = ownedCopies(owned, card.id);
+                        const cap = Math.min(
+                          maxCopiesForCard(card.id),
+                          have,
+                        );
+                        const canAdd =
+                          inDeck < cap &&
+                          deck.length < DECK_SIZE &&
+                          have > 0;
+                        return (
+                          <div
+                            key={card.id}
+                            className={`oracle-book-slot ${allowCardDrag ? "is-draggable" : ""} ${inDeck > 0 ? "in-deck" : ""}`}
+                            draggable={allowCardDrag}
+                            onDragStart={
+                              allowCardDrag
+                                ? (e) =>
+                                    onCardDragStart(e, card.id, "case")
+                                : undefined
+                            }
+                            onDragEnd={
+                              allowCardDrag
+                                ? () => setDragOver(null)
+                                : undefined
+                            }
+                            title={`${card.name} · в колоду`}
+                          >
+                            <div className="oracle-book-slot-frame">
+                              <CardView
+                                card={card}
+                                compact
+                                flippable
+                                upgradeLevel={
+                                  isUpgradeableCard(card.id)
+                                    ? getCardUpgradeLevel(owned, card.id)
+                                    : null
+                                }
+                              />
+                            </div>
+                            <div className="oracle-book-slot-meta">
+                              <span
+                                className={
+                                  inDeck > 0
+                                    ? "badge-in-deck"
+                                    : "badge-in-case"
+                                }
+                              >
+                                {inDeck > 0
+                                  ? `колода ×${inDeck}`
+                                  : `×${have}`}
+                              </span>
+                              <div className="cabinet-card-actions">
+                                <button
+                                  type="button"
+                                  className="primary"
+                                  disabled={!canAdd}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    addToDeck(card.id);
+                                  }}
                                 >
-                                  {inDeck > 0
-                                    ? `колода ×${inDeck}`
-                                    : `×${have}`}
-                                </span>
-                                <div className="cabinet-card-actions">
-                                  <button
-                                    type="button"
-                                    className="primary"
-                                    disabled={!canAdd}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      addToDeck(card.id);
-                                    }}
-                                  >
-                                    +
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="ghost"
-                                    disabled={inDeck <= 0}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      removeFromDeck(card.id);
-                                    }}
-                                  >
-                                    −
-                                  </button>
-                                </div>
+                                  +
+                                </button>
+                                <button
+                                  type="button"
+                                  className="ghost"
+                                  disabled={inDeck <= 0}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeFromDeck(card.id);
+                                  }}
+                                >
+                                  −
+                                </button>
                               </div>
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

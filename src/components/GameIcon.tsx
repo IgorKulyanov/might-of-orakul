@@ -8,7 +8,7 @@ export type GameIconName =
   | "diamond";
 
 /** Версия ассетов — сброс кэша браузера после правок эмблем. */
-const UI_VER = "5";
+const UI_VER = "6";
 
 const SRC: Record<string, string> = {
   water: `/ui/water.png?v=${UI_VER}`,
