@@ -2587,6 +2587,47 @@ button {
   transform: none;
 }
 
+/*
+ * Столы 9:16. На широком экране contain = узкая «телефонная» колонка
+ * и чёрные поля, а HUD тянется на весь viewport (говно с скрина).
+ * Десктоп: cover на весь экран. Телефон (≤720) не трогаем — там contain.
+ */
+@media (min-width: 721px) {
+  .battle {
+    background-size: cover;
+    background-position: center 40%;
+  }
+
+  .board-lane > .row-label {
+    text-align: center;
+  }
+
+  /* Логи/хинт не разъезжаются в пустоту по краям ультраширокого */
+  .battle-hint-row {
+    width: min(100%, 68rem);
+    max-width: 100%;
+    margin-inline: auto;
+  }
+
+  .battle-footer {
+    width: min(100%, 68rem);
+    max-width: 100%;
+    margin-inline: auto;
+  }
+
+  .board {
+    width: min(100%, 68rem);
+    max-width: 100%;
+    margin-inline: auto;
+  }
+
+  .battle-bar {
+    width: min(100%, 68rem);
+    max-width: 100%;
+    margin-inline: auto;
+  }
+}
+
 .battle-bar,
 .page-bar {
   display: flex;
