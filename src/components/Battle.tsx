@@ -812,38 +812,12 @@ function BoardCard({
           tint={poisonTint}
         />
       ) : null}
-      {showBurn ? (
-        <span className="fx-burn-embers" aria-hidden>
-          <FxSpriteBurst
-            kind="flame"
-            loop
-            tint="tint-flame"
-            className="layer-ember"
-            stepMs={78}
-          />
-          <FxSpriteBurst
-            kind="flame"
-            loop
-            tint="tint-flame"
-            className="layer-ember-side"
-            stepMs={92}
-            delayMs={90}
-          />
-          <FxSpriteBurst
-            kind="flame"
-            loop
-            tint="tint-flame"
-            className="layer-ember-top"
-            stepMs={100}
-            delayMs={160}
-          />
-          <FxSpriteBurst
-            kind="smoke"
-            loop
-            className="layer-ember-smoke"
-            stepMs={80}
-            delayMs={120}
-          />
+      {/* Лёгкий короткий хвост: CSS-дымка, без loop-спрайтов. */}
+      {lingerBurn && impact !== "burn" ? (
+        <span className="fx-burn-residual" aria-hidden>
+          <span className="burn-haze" />
+          <span className="burn-lick burn-lick-a" />
+          <span className="burn-lick burn-lick-b" />
         </span>
       ) : null}
       {showPoison ? (

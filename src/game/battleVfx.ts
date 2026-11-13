@@ -80,7 +80,7 @@ const SEQ: Record<FxSpriteKind, string[]> = {
   heal: [1, 2, 3, 4, 5].map((i) => `${FX_BASE}/magic_particle/star_0${i}.png`),
 };
 
-/** Слои попадания огнём: взрыв → вспышка → дым → языки из пака. */
+/** Слои попадания огнём: взрыв → вспышка → дым. Языки — только мягкий CSS-хвост. */
 export function burnImpactLayers(): Array<{
   kind: FxSpriteKind;
   delayMs: number;
@@ -91,12 +91,11 @@ export function burnImpactLayers(): Array<{
     { kind: "explosion", delayMs: 0, className: "layer-explosion", stepMs: 70 },
     { kind: "flash", delayMs: 70, className: "layer-flash", stepMs: 60 },
     { kind: "smoke", delayMs: 140, className: "layer-smoke", stepMs: 55 },
-    { kind: "flame", delayMs: 120, className: "layer-flame", stepMs: 70 },
   ];
 }
 
-/** Сколько карта визуально «горит» после попадания фаербола. */
-export const BURN_LINGER_MS = 1400;
+/** Короткий остаточный жар после фаербола (без тяжёлого loop-огня). */
+export const BURN_LINGER_MS = 850;
 
 /** Запасной хвост дыма яда, если статус ещё не успел записаться. */
 export const POISON_LINGER_MS = 2800;
