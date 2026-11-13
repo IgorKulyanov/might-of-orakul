@@ -1,6 +1,7 @@
 import {
   CARDS,
   DECK_SIZE,
+  MIN_DECK_SIZE,
   maxCopiesForCard,
 } from "./cards";
 import { botDeckForLevel } from "./botDeck";
@@ -9,6 +10,8 @@ import { starterDeckForFaction } from "./starterDecks";
 import type { Faction } from "./types";
 
 const FLAG = "orakul_dev_tools";
+const CUSTOM_YOU_KEY = "orakul_dev_custom_you";
+const CUSTOM_ENEMY_KEY = "orakul_dev_custom_enemy";
 
 /**
  * Режим разработчика (песочница, сброс арены).
@@ -34,17 +37,20 @@ export function setDevToolsEnabled(on: boolean): void {
   }
 }
 
-export type DevDeckMode = "starter" | "school" | "bot_pool";
+export type DevDeckMode = "starter" | "school" | "bot_pool" | "custom";
 
 /**
  * Колода только для тестового боя — не пишется в owned.
- * starter — 4 карты; school — до DECK_SIZE из школы+нейтрал ×лимит; bot_pool — как у бота уровня.
+ * starter — 4 карты; school — до DECK_SIZE из школы+нейтрал ×лимит;
+ * bot_pool — как у бота уровня; custom — любой набор из каталога.
  */
 export function buildDevDeck(
   faction: Faction,
   mode: DevDeckMode,
   level = 10,
+  customDeck?: string[],
 ): string[] {
+  if (mode === "custom") return normalizeDevCustomDeck(customDeck);
   if (mode === "starter") return starterDeckForFaction(faction);
   if (mode === "bot_pool") return botDeckForLevel(level, faction);
 
@@ -67,6 +73,55 @@ export function buildDevDeck(
   return out;
 }
 
+/** Песочница: любые id из каталога, до DECK_SIZE, дубликаты ок. */
+export function normalizeDevCustomDeck(ids?: string[]): string[] {
+  const known = new Set(CARDS.map((c) => c.id));
+  const out: string[] = [];
+  for (const id of ids ?? []) {
+    if (!id || !known.has(id)) continue;
+    out.push(id);
+    if (out.length >= DECK_SIZE) break;
+  }
+  if (out.length >= MIN_DECK_SIZE) return out;
+  // Не валим бой пустой колодой — подставим стартовую, если сборка кривая.
+  return out.length > 0 ? out : starterDeckForFaction("death");
+}
+
+/** Список из storage без подстановки starter при короткой колоде. */
+export function loadDevCustomDeckRaw(side: "you" | "enemy"): string[] {
+  try {
+    const raw = localStorage.getItem(
+      side === "you" ? CUSTOM_YOU_KEY : CUSTOM_ENEMY_KEY,
+    );
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    const known = new Set(CARDS.map((c) => c.id));
+    const out: string[] = [];
+    for (const id of parsed) {
+      if (typeof id !== "string" || !known.has(id)) continue;
+      out.push(id);
+      if (out.length >= DECK_SIZE) break;
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+export function saveDevCustomDeck(side: "you" | "enemy", deck: string[]): void {
+  try {
+    const known = new Set(CARDS.map((c) => c.id));
+    const clean = deck.filter((id) => known.has(id)).slice(0, DECK_SIZE);
+    localStorage.setItem(
+      side === "you" ? CUSTOM_YOU_KEY : CUSTOM_ENEMY_KEY,
+      JSON.stringify(clean),
+    );
+  } catch {
+    /* private mode */
+  }
+}
+
 export type DevBattleSetup = {
   yourHeroId: string;
   enemyHeroId: string;
@@ -74,6 +129,8 @@ export type DevBattleSetup = {
   enemyLevel: number;
   yourDeckMode: DevDeckMode;
   enemyDeckMode: DevDeckMode;
+  yourCustomDeck?: string[];
+  enemyCustomDeck?: string[];
 };
 
 export function allTestHeroes() {
@@ -88,7 +145,17 @@ export function resolveDevBattle(setup: DevBattleSetup) {
     enemyHeroId: setup.enemyHeroId,
     yourLevel: setup.yourLevel,
     enemyLevel: setup.enemyLevel,
-    yourDeck: buildDevDeck(you.faction, setup.yourDeckMode, setup.yourLevel),
-    enemyDeck: buildDevDeck(foe.faction, setup.enemyDeckMode, setup.enemyLevel),
+    yourDeck: buildDevDeck(
+      you.faction,
+      setup.yourDeckMode,
+      setup.yourLevel,
+      setup.yourCustomDeck,
+    ),
+    enemyDeck: buildDevDeck(
+      foe.faction,
+      setup.enemyDeckMode,
+      setup.enemyLevel,
+      setup.enemyCustomDeck,
+    ),
   };
 }

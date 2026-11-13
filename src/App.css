@@ -5022,6 +5022,133 @@ html.is-hand-dragging .grave-row {
   justify-items: start;
 }
 
+.dev-sandbox-actions .bad,
+.dev-custom-head .bad {
+  color: #ffb4a2;
+}
+.dev-custom-head .ok {
+  color: #9fe0b8;
+}
+
+.dev-custom-panel {
+  margin-top: 1rem;
+  padding: 0.9rem 1rem 1.1rem;
+  border-radius: 14px;
+  background: rgba(16, 20, 32, 0.92);
+  border: 1px solid rgba(140, 160, 200, 0.28);
+  display: grid;
+  gap: 0.75rem;
+}
+
+.dev-custom-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.dev-custom-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.dev-custom-deck {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-height: 4.5rem;
+  padding: 0.45rem;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px dashed rgba(212, 163, 115, 0.28);
+}
+
+.dev-custom-deck-slot {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.dev-custom-deck-slot:hover {
+  outline: 2px solid rgba(255, 120, 90, 0.7);
+}
+
+.dev-custom-tools {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.dev-custom-search {
+  width: min(100%, 28rem);
+  padding: 0.4rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid rgba(140, 160, 200, 0.35);
+  background: #0e1420;
+  color: inherit;
+}
+
+.dev-custom-catalog {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.55rem;
+  max-height: 28rem;
+  overflow: auto;
+  padding: 0.25rem;
+}
+
+.dev-custom-card {
+  display: grid;
+  gap: 0.25rem;
+  justify-items: center;
+  padding: 0.35rem;
+  border-radius: 10px;
+  border: 1px solid rgba(140, 160, 200, 0.22);
+  background: rgba(8, 12, 20, 0.75);
+  color: inherit;
+  cursor: pointer;
+}
+
+.dev-custom-card:hover:not(:disabled) {
+  border-color: rgba(232, 196, 120, 0.65);
+  box-shadow: 0 0 0 1px rgba(232, 196, 120, 0.35);
+}
+
+.dev-custom-card.is-full,
+.dev-custom-card:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.dev-custom-card-meta {
+  display: grid;
+  gap: 0.1rem;
+  text-align: center;
+  width: 100%;
+}
+
+.dev-custom-card-meta strong {
+  font-size: 0.72rem;
+  line-height: 1.15;
+}
+
+.dev-custom-card-meta em {
+  font-size: 0.62rem;
+  font-style: normal;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .dev-custom-catalog {
+    grid-template-columns: repeat(auto-fill, minmax(7.2rem, 1fr));
+    max-height: 22rem;
+  }
+}
+
 /* —— Collection —— */
 .collection {
   min-height: 100vh;
