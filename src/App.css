@@ -7902,6 +7902,9 @@ html.is-hand-dragging .grave-row {
 
 .cabinet-cards:has(.oracle-book) {
   overflow: visible !important;
+  /* книга не должна уезжать из‑за 100vw + боковые паддинги */
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .cabinet-card-section h2 {
@@ -8017,6 +8020,9 @@ html.is-hand-dragging .grave-row {
   box-shadow: none;
   border-radius: 0;
   overflow: visible;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* —— Фолиант ОРАКУЛ —— */
@@ -8148,15 +8154,18 @@ html.is-hand-dragging .grave-row {
 .oracle-folio {
   position: relative;
   padding: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   overflow: visible !important;
 }
 
 .oracle-folio-cover {
   --ob-cover-w: 4000px;
   position: relative;
-  /* от края до края: без потолка по высоте экрана */
-  width: min(100vw - 0.4rem, var(--ob-cover-w));
-  max-width: 100%;
+  /* % родителя, не 100vw — иначе на телефоне уезжает вправо из паддингов */
+  width: 100%;
+  max-width: min(100%, var(--ob-cover-w));
   margin: 0 auto;
   aspect-ratio: 1536 / 1024;
   padding: 0;
@@ -8165,6 +8174,7 @@ html.is-hand-dragging .grave-row {
   background: transparent;
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.58);
   overflow: visible !important;
+  box-sizing: border-box;
 }
 
 .oracle-folio-cover.is-calibrating {
@@ -9310,8 +9320,26 @@ html.is-hand-dragging .grave-row {
   }
 
   .oracle-folio-cover {
-    width: min(100vw - 0.25rem, var(--ob-cover-w));
+    width: 100%;
     max-width: 100%;
+  }
+
+  /* на узком экране золотые подписи чуть компактнее, чтобы ВПЕРЕД не обрезало */
+  .oracle-book-turn {
+    font-size: clamp(1.15rem, 6.2vw, 2.35rem);
+    letter-spacing: 0.04em;
+    -webkit-text-stroke: 0.04em #0a0600;
+  }
+
+  .cabinet:has(.oracle-book) {
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+    overflow-x: hidden;
+  }
+
+  .cabinet-cards:has(.oracle-book) {
+    padding-left: 0;
+    padding-right: 0;
   }
 
   .oracle-book-page {
