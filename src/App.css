@@ -3487,7 +3487,12 @@ html.is-hand-dragging .board,
 html.is-hand-dragging .hand-zone,
 html.is-hand-dragging .hand,
 html.is-hand-dragging .grave-zone,
-html.is-hand-dragging .grave-row {
+html.is-hand-dragging .grave-row,
+html.is-hand-dragging .cabinet,
+html.is-hand-dragging .cabinet-cards,
+html.is-hand-dragging .cabinet-deck-hand-scroll,
+html.is-hand-dragging .oracle-book,
+html.is-hand-dragging .oracle-folio {
   overflow: hidden !important;
   touch-action: none !important;
   overscroll-behavior: none !important;
@@ -7967,6 +7972,13 @@ html.is-hand-dragging .grave-row {
   scroll-snap-type: x proximity;
 }
 
+.cabinet-deck-hand-scroll.is-mobile-hand-scroll {
+  touch-action: none;
+  overscroll-behavior-x: contain;
+  cursor: grab;
+  scroll-snap-type: none;
+}
+
 .cabinet-hand-card {
   flex: 0 0 auto;
   display: grid;
@@ -7974,6 +7986,17 @@ html.is-hand-dragging .grave-row {
   gap: 0.25rem;
   width: 108px;
   scroll-snap-align: start;
+}
+
+.cabinet-hand-card.is-dragging {
+  opacity: 0.35;
+}
+
+.cabinet-hand-qty {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #5a3a18;
+  line-height: 1;
 }
 
 .cabinet-hand-card .card.compact {
@@ -9407,20 +9430,34 @@ html.is-hand-dragging .grave-row {
     padding: 0 0.1em;
   }
 
-  /* узкая рамка на всю страницу; свайп / двойной тап */
+  /* узкая рамка; жест как в бою — несёшь карту */
   .oracle-book-abs-slot.is-mobile-hero {
     touch-action: none;
     gap: 0.2rem;
     user-select: none;
     -webkit-user-select: none;
-    cursor: pointer;
+    cursor: grab;
   }
 
-  .cabinet-hand-card.is-mobile-gestures .cabinet-hand-gesture-target {
+  .oracle-book-abs-slot.is-mobile-hero.is-dragging {
+    opacity: 0.35;
+  }
+
+  .cabinet-hand-card.is-mobile-gestures,
+  .cabinet-hand-card.is-mobile-gestures * {
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
-    cursor: pointer;
+  }
+
+  .cabinet-hand-card.is-mobile-gestures .cabinet-hand-gesture-target {
+    cursor: grab;
+  }
+
+  .cabinet-zone-deck.is-drop-target,
+  .cabinet-zone-case.is-drop-target {
+    outline: 2px solid rgba(255, 200, 80, 0.85);
+    outline-offset: 2px;
   }
 
   .oracle-book-abs-slot.is-mobile-hero.in-deck .oracle-book-card-core {

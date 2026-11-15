@@ -5,7 +5,6 @@ import {
   useState,
   type DragEvent,
   type PointerEvent as ReactPointerEvent,
-  type TouchEvent as ReactTouchEvent,
 } from "react";
 import { CardView } from "./CardView";
 import {
@@ -74,8 +73,8 @@ const MOBILE_CARDS_PER_LEAF = 1;
 const MOBILE_SLOT_LEFT = { x: 17.5, y: 9, w: 32, h: 68 };
 const MOBILE_SLOT_RIGHT = { x: 50, y: 9, w: 32, h: 68 };
 
-const SWIPE_MIN_PX = 36;
 const DOUBLE_TAP_MS = 340;
+const CARRY_ARM_PX2 = 64; /* 8px */
 
 type Tab = "oracle" | "deck";
 
@@ -121,14 +120,26 @@ export function Cabinet({
   const [bookLayout, setBookLayout] = useState<BookLayout>(() => loadBookLayout());
   const [calibrating, setCalibrating] = useState(false);
   const folioCoverRef = useRef<HTMLDivElement>(null);
-  const swipeRef = useRef<{
+  const handScrollRef = useRef<HTMLDivElement>(null);
+  const carryGhostRef = useRef<HTMLDivElement>(null);
+  const carryUnbindRef = useRef<(() => void) | null>(null);
+  const carryMovedRef = useRef(false);
+  const carryModeRef = useRef<"pending" | "scroll" | "drag">("pending");
+  const carryStartRef = useRef<{
     cardId: string;
     from: "book" | "hand";
-    x0: number;
-    y0: number;
+    x: number;
+    y: number;
     pointerId: number;
   } | null>(null);
   const lastTapRef = useRef<{ cardId: string; t: number } | null>(null);
+  const [carryDrag, setCarryDrag] = useState<{
+    cardId: string;
+    from: "book" | "hand";
+    x: number;
+    y: number;
+  } | null>(null);
+  const [dragOver, setDragOver] = useState<"deck" | "case" | null>(null);
 
   useEffect(() => {
     if (forcedTab) setTab(forcedTab);
@@ -274,111 +285,226 @@ export function Cabinet({
     say(`← убрана копия: ${card.name}`);
   };
 
-  /** Книга: тап×2 = в руку / из руки. Рука: тап×2 = в оракул. */
-  const onCardDoubleTap = (cardId: string, from: "book" | "hand") => {
-    const now = Date.now();
-    const last = lastTapRef.current;
-    if (last && last.cardId === cardId && now - last.t <= DOUBLE_TAP_MS) {
-      lastTapRef.current = null;
-      if (from === "hand") {
-        removeFromDeck(cardId);
-        return;
-      }
-      if ((deckCounts[cardId] ?? 0) > 0) removeFromDeck(cardId);
-      else addToDeck(cardId);
-      return;
-    }
-    lastTapRef.current = { cardId, t: now };
+  const clearCarryLock = () => {
+    document.documentElement.classList.remove("is-hand-dragging");
   };
 
-  const beginCardGesture = (
-    cardId: string,
-    from: "book" | "hand",
-    x: number,
-    y: number,
-    pointerId = -1,
-  ) => {
-    if (!mobileBook || calibrating) return;
-    swipeRef.current = { cardId, from, x0: x, y0: y, pointerId };
+  const hitCabinetDrop = (x: number, y: number): "hand" | "book" | null => {
+    const stack =
+      typeof document.elementsFromPoint === "function"
+        ? document.elementsFromPoint(x, y)
+        : [];
+    for (const node of stack) {
+      if (!(node instanceof Element)) continue;
+      if (node.closest("[data-cabinet-drop='hand']")) return "hand";
+      if (node.closest("[data-cabinet-drop='book']")) return "book";
+    }
+    return null;
   };
 
-  const endCardGesture = (
-    cardId: string,
-    from: "book" | "hand",
-    x: number,
-    y: number,
-    pointerId?: number,
-  ) => {
-    if (!mobileBook || calibrating) return;
-    const start = swipeRef.current;
-    swipeRef.current = null;
-    if (!start || start.cardId !== cardId || start.from !== from) return;
-    if (
-      pointerId != null &&
-      start.pointerId >= 0 &&
-      start.pointerId !== pointerId
-    ) {
-      return;
-    }
-    const dy = y - start.y0;
-    const dx = x - start.x0;
-    const absY = Math.abs(dy);
-    const absX = Math.abs(dx);
-    if (absY >= SWIPE_MIN_PX && absY > absX * 0.85) {
-      lastTapRef.current = null;
-      if (from === "book") {
-        if (dy < 0) addToDeck(cardId);
-        else removeFromDeck(cardId);
-      } else {
-        removeFromDeck(cardId);
-      }
-      return;
-    }
-    if (absY < 22 && absX < 22) onCardDoubleTap(cardId, from);
-  };
-
-  const onCardPointerDown = (
+  /** Книга/рука: как в бою — зажал и несёшь; в руке вбок = прокрутка. */
+  const onCarryPointerDown = (
     e: ReactPointerEvent,
     cardId: string,
     from: "book" | "hand",
   ) => {
+    if (!mobileBook || calibrating) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
-    beginCardGesture(cardId, from, e.clientX, e.clientY, e.pointerId);
+    const isTouch = e.pointerType === "touch" || e.pointerType === "pen";
+    const anchor = e.currentTarget as HTMLElement;
+    if (!isTouch) {
+      e.preventDefault();
+      try {
+        anchor.setPointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+    }
+    e.stopPropagation();
+    carryUnbindRef.current?.();
+    carryMovedRef.current = false;
+    carryModeRef.current = "pending";
+    carryStartRef.current = {
+      cardId,
+      from,
+      x: e.clientX,
+      y: e.clientY,
+      pointerId: e.pointerId,
+    };
+    const startScroll = handScrollRef.current?.scrollLeft ?? 0;
+    let lastX = e.clientX;
+    let lastY = e.clientY;
+
+    const finish = (ev: PointerEvent) => {
+      const start = carryStartRef.current;
+      if (!start || start.pointerId !== ev.pointerId) return;
+      const mode = carryModeRef.current;
+      const moved = carryMovedRef.current;
+      const x =
+        Number.isFinite(ev.clientX) && ev.clientX !== 0 ? ev.clientX : lastX;
+      const y =
+        Number.isFinite(ev.clientY) && (ev.clientY !== 0 || lastY === 0)
+          ? ev.clientY
+          : lastY;
+      carryStartRef.current = null;
+      carryMovedRef.current = false;
+      carryModeRef.current = "pending";
+      carryUnbindRef.current?.();
+      carryUnbindRef.current = null;
+      clearCarryLock();
+      setCarryDrag(null);
+      setDragOver(null);
+
+      if (mode === "scroll") return;
+
+      if (!moved || mode === "pending") {
+        const now = Date.now();
+        const last = lastTapRef.current;
+        if (last && last.cardId === start.cardId && now - last.t <= DOUBLE_TAP_MS) {
+          lastTapRef.current = null;
+          if (start.from === "hand") removeFromDeck(start.cardId);
+          else if ((deckCounts[start.cardId] ?? 0) > 0)
+            removeFromDeck(start.cardId);
+          else addToDeck(start.cardId);
+        } else {
+          lastTapRef.current = { cardId: start.cardId, t: now };
+        }
+        return;
+      }
+
+      if (mode !== "drag") return;
+      const zone = hitCabinetDrop(x, y);
+      if (start.from === "book" && zone === "hand") {
+        addToDeck(start.cardId);
+        return;
+      }
+      if (start.from === "hand" && zone === "book") {
+        removeFromDeck(start.cardId);
+        return;
+      }
+    };
+
+    const beginDrag = (clientX: number, clientY: number) => {
+      carryModeRef.current = "drag";
+      carryMovedRef.current = true;
+      lastTapRef.current = null;
+      try {
+        anchor.setPointerCapture(
+          carryStartRef.current?.pointerId ?? e.pointerId,
+        );
+      } catch {
+        /* ignore */
+      }
+      document.documentElement.classList.add("is-hand-dragging");
+      setCarryDrag({
+        cardId,
+        from,
+        x: clientX,
+        y: clientY,
+      });
+      setDragOver(from === "book" ? "deck" : "case");
+    };
+
+    const onMove = (ev: PointerEvent) => {
+      const start = carryStartRef.current;
+      if (!start || start.pointerId !== ev.pointerId) return;
+      lastX = ev.clientX;
+      lastY = ev.clientY;
+      const dx = ev.clientX - start.x;
+      const dy = ev.clientY - start.y;
+
+      if (carryModeRef.current === "pending") {
+        const dist2 = dx * dx + dy * dy;
+        if (dist2 < CARRY_ARM_PX2) return;
+        if (isTouch && start.from === "hand") {
+          const absX = Math.abs(dx);
+          const absY = Math.abs(dy);
+          if (absX > absY * 1.05) {
+            carryModeRef.current = "scroll";
+            carryMovedRef.current = true;
+            const zone = handScrollRef.current;
+            if (zone) zone.scrollLeft = startScroll - dx;
+            return;
+          }
+          beginDrag(ev.clientX, ev.clientY);
+          return;
+        }
+        beginDrag(ev.clientX, ev.clientY);
+        return;
+      }
+
+      if (carryModeRef.current === "scroll") {
+        const zone = handScrollRef.current;
+        if (zone) zone.scrollLeft = startScroll - dx;
+        return;
+      }
+
+      if (carryModeRef.current !== "drag") return;
+      ev.preventDefault();
+      const ghost = carryGhostRef.current;
+      if (ghost) {
+        ghost.style.left = `${ev.clientX}px`;
+        ghost.style.top = `${ev.clientY}px`;
+      }
+      const zone = hitCabinetDrop(ev.clientX, ev.clientY);
+      if (start.from === "book") {
+        setDragOver(zone === "hand" ? "deck" : null);
+      } else {
+        setDragOver(zone === "book" ? "case" : null);
+      }
+      setCarryDrag((prev) =>
+        prev ? { ...prev, x: ev.clientX, y: ev.clientY } : null,
+      );
+    };
+
+    window.addEventListener("pointermove", onMove, { passive: false });
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", finish);
+    carryUnbindRef.current = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", finish);
+    };
+  };
+
+  /** Пустое место / промежуток руки — тоже листает влево-вправо. */
+  const onHandRailPointerDown = (e: ReactPointerEvent) => {
+    if (!mobileBook || calibrating) return;
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    const zone = handScrollRef.current;
+    if (!zone) return;
+    if ((e.target as Element).closest?.(".cabinet-hand-gesture-target")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const pointerId = e.pointerId;
+    const startX = e.clientX;
+    const startScroll = zone.scrollLeft;
     try {
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      (e.currentTarget as HTMLElement).setPointerCapture(pointerId);
     } catch {
       /* ignore */
     }
+    const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      zone.scrollLeft = startScroll - (ev.clientX - startX);
+    };
+    const onUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
   };
 
-  const onCardPointerUp = (
-    e: ReactPointerEvent,
-    cardId: string,
-    from: "book" | "hand",
-  ) => {
-    endCardGesture(cardId, from, e.clientX, e.clientY, e.pointerId);
-  };
-
-  /** iOS/Android: touches[0] на start, changedTouches на end */
-  const onCardTouchStart = (
-    e: ReactTouchEvent,
-    cardId: string,
-    from: "book" | "hand",
-  ) => {
-    const t = e.touches[0];
-    if (!t) return;
-    beginCardGesture(cardId, from, t.clientX, t.clientY);
-  };
-
-  const onCardTouchEnd = (
-    e: ReactTouchEvent,
-    cardId: string,
-    from: "book" | "hand",
-  ) => {
-    const t = e.changedTouches[0];
-    if (!t) return;
-    endCardGesture(cardId, from, t.clientX, t.clientY);
-  };
+  useEffect(() => {
+    return () => {
+      carryUnbindRef.current?.();
+      clearCarryLock();
+    };
+  }, []);
 
   const openBookSchool = (s: School) => {
     if (s === bookSchool) return;
@@ -438,7 +564,7 @@ export function Cabinet({
     return (
       <div
         key={`slot-${slotIndex}-${card.id}`}
-        className={`oracle-book-abs-slot ${allowCardDrag ? "is-draggable" : ""} ${inDeck > 0 ? "in-deck" : ""} ${mobileHero ? "is-mobile-hero" : ""}`}
+        className={`oracle-book-abs-slot ${allowCardDrag ? "is-draggable" : ""} ${inDeck > 0 ? "in-deck" : ""} ${mobileHero ? "is-mobile-hero" : ""} ${carryDrag?.cardId === card.id && carryDrag.from === "book" ? "is-dragging" : ""}`}
         style={slotBoxStyle(box)}
         draggable={allowCardDrag && !calibrating && !mobileHero}
         onDragStart={
@@ -449,41 +575,12 @@ export function Cabinet({
         onDragEnd={allowCardDrag ? () => setDragOver(null) : undefined}
         onPointerDown={
           mobileHero
-            ? (e) => onCardPointerDown(e, card.id, "book")
-            : undefined
-        }
-        onPointerUp={
-          mobileHero
-            ? (e) => onCardPointerUp(e, card.id, "book")
-            : undefined
-        }
-        onPointerCancel={
-          mobileHero
-            ? () => {
-                swipeRef.current = null;
-              }
-            : undefined
-        }
-        onTouchStart={
-          mobileHero
-            ? (e) => onCardTouchStart(e, card.id, "book")
-            : undefined
-        }
-        onTouchEnd={
-          mobileHero
-            ? (e) => onCardTouchEnd(e, card.id, "book")
-            : undefined
-        }
-        onTouchCancel={
-          mobileHero
-            ? () => {
-                swipeRef.current = null;
-              }
+            ? (e) => onCarryPointerDown(e, card.id, "book")
             : undefined
         }
         title={
           mobileHero
-            ? `${card.name} · ↑/двойной тап — в руку · ↓/двойной тап — в оракул`
+            ? `${card.name} · перетащи в руку`
             : `${card.name} · в колоду`
         }
       >
@@ -586,8 +683,6 @@ export function Cabinet({
     onChange(saveDeck(owned, deckId, []));
     say("Колода очищена — карты в книге");
   };
-
-  const [dragOver, setDragOver] = useState<"deck" | "case" | null>(null);
 
   const onCardDragStart = (
     e: DragEvent,
@@ -759,6 +854,7 @@ export function Cabinet({
         <div className="cabinet-cards" data-tut="hub-deck-board">
           <section
             className={`cabinet-card-section cabinet-zone-deck cabinet-deck-hand drop-zone ${dragOver === "deck" ? "is-drop-target" : ""}`}
+            data-cabinet-drop="hand"
             onDragOver={(e) => {
               e.preventDefault();
               e.dataTransfer.dropEffect = "move";
@@ -788,14 +884,18 @@ export function Cabinet({
                 Карты из книги → сюда
               </p>
             ) : (
-              <div className="cabinet-deck-hand-scroll">
+              <div
+                ref={handScrollRef}
+                className={`cabinet-deck-hand-scroll ${mobileBook ? "is-mobile-hand-scroll" : ""}`}
+                onPointerDown={mobileBook ? onHandRailPointerDown : undefined}
+              >
                 {inDeckOnly.map(({ card, n }) => {
                   const have = ownedCopies(owned, card.id);
                   const cap = Math.min(maxCopiesForCard(card.id), have);
                   return (
                     <div
                       key={card.id}
-                      className={`cabinet-hand-card ${allowCardDrag ? "is-draggable" : ""} ${mobileBook ? "is-mobile-gestures" : ""}`}
+                      className={`cabinet-hand-card ${allowCardDrag ? "is-draggable" : ""} ${mobileBook ? "is-mobile-gestures" : ""} ${carryDrag?.cardId === card.id && carryDrag.from === "hand" ? "is-dragging" : ""}`}
                       draggable={allowCardDrag && !mobileBook}
                       onDragStart={
                         allowCardDrag && !mobileBook
@@ -807,7 +907,7 @@ export function Cabinet({
                       }
                       title={
                         mobileBook
-                          ? `${card.name} · ↓ или 2× тап — в оракул`
+                          ? `${card.name} · перетащи в книгу`
                           : card.name
                       }
                     >
@@ -815,36 +915,7 @@ export function Cabinet({
                         className="cabinet-hand-gesture-target"
                         onPointerDown={
                           mobileBook
-                            ? (e) => onCardPointerDown(e, card.id, "hand")
-                            : undefined
-                        }
-                        onPointerUp={
-                          mobileBook
-                            ? (e) => onCardPointerUp(e, card.id, "hand")
-                            : undefined
-                        }
-                        onPointerCancel={
-                          mobileBook
-                            ? () => {
-                                swipeRef.current = null;
-                              }
-                            : undefined
-                        }
-                        onTouchStart={
-                          mobileBook
-                            ? (e) => onCardTouchStart(e, card.id, "hand")
-                            : undefined
-                        }
-                        onTouchEnd={
-                          mobileBook
-                            ? (e) => onCardTouchEnd(e, card.id, "hand")
-                            : undefined
-                        }
-                        onTouchCancel={
-                          mobileBook
-                            ? () => {
-                                swipeRef.current = null;
-                              }
+                            ? (e) => onCarryPointerDown(e, card.id, "hand")
                             : undefined
                         }
                       >
@@ -859,29 +930,33 @@ export function Cabinet({
                           }
                         />
                       </div>
-                      <div className="cabinet-hand-actions">
-                        <button
-                          type="button"
-                          className="primary"
-                          disabled={n >= cap || deck.length >= DECK_SIZE}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            addToDeck(card.id);
-                          }}
-                        >
-                          +
-                        </button>
-                        <button
-                          type="button"
-                          className="ghost"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeFromDeck(card.id);
-                          }}
-                        >
-                          −
-                        </button>
-                      </div>
+                      {!mobileBook ? (
+                        <div className="cabinet-hand-actions">
+                          <button
+                            type="button"
+                            className="primary"
+                            disabled={n >= cap || deck.length >= DECK_SIZE}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              addToDeck(card.id);
+                            }}
+                          >
+                            +
+                          </button>
+                          <button
+                            type="button"
+                            className="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeFromDeck(card.id);
+                            }}
+                          >
+                            −
+                          </button>
+                        </div>
+                      ) : n > 1 ? (
+                        <span className="cabinet-hand-qty">×{n}</span>
+                      ) : null}
                     </div>
                   );
                 })}
@@ -892,6 +967,7 @@ export function Cabinet({
           <section
             className={`cabinet-card-section cabinet-zone-case oracle-book drop-zone ${dragOver === "case" ? "is-drop-target" : ""}`}
             data-tut="hub-deck-case"
+            data-cabinet-drop="book"
             onDragOver={(e) => {
               e.preventDefault();
               e.dataTransfer.dropEffect = "move";
@@ -1019,6 +1095,26 @@ export function Cabinet({
           </section>
         </div>
       )}
+
+      {carryDrag ? (
+        <div
+          ref={carryGhostRef}
+          className="hand-drag-ghost"
+          style={{ left: carryDrag.x, top: carryDrag.y }}
+          aria-hidden
+        >
+          <CardView
+            card={getCard(carryDrag.cardId)}
+            compact
+            flippable={false}
+            upgradeLevel={
+              isUpgradeableCard(carryDrag.cardId)
+                ? getCardUpgradeLevel(owned, carryDrag.cardId)
+                : null
+            }
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
