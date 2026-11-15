@@ -9391,6 +9391,23 @@ html.is-hand-dragging .grave-row {
     padding: 0 0.1em;
   }
 
+  /* 1 карта на страницу — крупный HUD */
+  .oracle-book-abs-slot.is-mobile-hero .oracle-book-stat-top {
+    font-size: clamp(0.78rem, 3.4vw, 1.15rem);
+    padding: 0.28rem 0.4rem;
+  }
+
+  .oracle-book-abs-slot.is-mobile-hero .oracle-book-stat-name {
+    font-size: clamp(0.72rem, 3vw, 1.05rem);
+    padding: 0.22rem 0.35rem;
+  }
+
+  .oracle-book-abs-slot.is-mobile-hero .oracle-book-qty {
+    min-width: 2.15rem;
+    min-height: 2.15rem;
+    font-size: 1.2rem;
+  }
+
   .oracle-book-page {
     padding: 0.28rem 0.28rem 1.1rem;
   }

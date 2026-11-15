@@ -63,9 +63,14 @@ const BOOK_SCHOOLS: School[] = [
   "neutral",
 ];
 
-/** 4 карты на страницу (сетка 2×2), на развороте 8. */
-const CARDS_PER_LEAF = 4;
-const CARDS_PER_SPREAD = CARDS_PER_LEAF * 2;
+/** Десктоп: 4 карты на страницу (2×2), разворот 8. */
+const DESKTOP_CARDS_PER_LEAF = 4;
+/** Телефон: 1 карта на страницу, разворот 2 — читаемый размер. */
+const MOBILE_CARDS_PER_LEAF = 1;
+
+/** Крупные слоты по центру левой/правой страницы (только мобилка). */
+const MOBILE_SLOT_LEFT = { x: 20, y: 11, w: 28, h: 62 };
+const MOBILE_SLOT_RIGHT = { x: 51.5, y: 11, w: 28, h: 62 };
 
 type Tab = "oracle" | "deck";
 
@@ -106,6 +111,8 @@ export function Cabinet({
   const [bookFlipDir, setBookFlipDir] = useState<"fwd" | "back">("fwd");
   /** На телефоне drag блокирует скролл — только кнопки. */
   const [allowCardDrag, setAllowCardDrag] = useState(true);
+  /** Узкий экран: 1+1 карта на разворот. */
+  const [mobileBook, setMobileBook] = useState(false);
   const [bookLayout, setBookLayout] = useState<BookLayout>(() => loadBookLayout());
   const [calibrating, setCalibrating] = useState(false);
   const folioCoverRef = useRef<HTMLDivElement>(null);
@@ -124,12 +131,24 @@ export function Cabinet({
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
-    const mq = window.matchMedia("(pointer: coarse)");
-    const sync = () => setAllowCardDrag(!mq.matches);
+    const coarse = window.matchMedia("(pointer: coarse)");
+    const narrow = window.matchMedia("(max-width: 720px)");
+    const sync = () => {
+      setAllowCardDrag(!coarse.matches);
+      setMobileBook(narrow.matches);
+    };
     sync();
-    mq.addEventListener?.("change", sync);
-    return () => mq.removeEventListener?.("change", sync);
+    coarse.addEventListener?.("change", sync);
+    narrow.addEventListener?.("change", sync);
+    return () => {
+      coarse.removeEventListener?.("change", sync);
+      narrow.removeEventListener?.("change", sync);
+    };
   }, []);
+
+  const cardsPerLeaf =
+    mobileBook && !calibrating ? MOBILE_CARDS_PER_LEAF : DESKTOP_CARDS_PER_LEAF;
+  const cardsPerSpread = cardsPerLeaf * 2;
 
   const level = playerLevel(owned);
   const xp = owned.xp ?? 0;
@@ -189,20 +208,20 @@ export function Cabinet({
 
   const spreadCount = Math.max(
     1,
-    Math.ceil(bookSchoolCards.length / CARDS_PER_SPREAD) || 1,
+    Math.ceil(bookSchoolCards.length / cardsPerSpread) || 1,
   );
 
   useEffect(() => {
     setBookSpread((i) => Math.min(i, Math.max(0, spreadCount - 1)));
-  }, [spreadCount, bookSchool]);
+  }, [spreadCount, bookSchool, cardsPerSpread]);
 
   const spreadCards = useMemo(() => {
-    const start = bookSpread * CARDS_PER_SPREAD;
-    return bookSchoolCards.slice(start, start + CARDS_PER_SPREAD);
-  }, [bookSchoolCards, bookSpread]);
+    const start = bookSpread * cardsPerSpread;
+    return bookSchoolCards.slice(start, start + cardsPerSpread);
+  }, [bookSchoolCards, bookSpread, cardsPerSpread]);
 
-  const leftPageCards = spreadCards.slice(0, CARDS_PER_LEAF);
-  const rightPageCards = spreadCards.slice(CARDS_PER_LEAF, CARDS_PER_SPREAD);
+  const leftPageCards = spreadCards.slice(0, cardsPerLeaf);
+  const rightPageCards = spreadCards.slice(cardsPerLeaf, cardsPerSpread);
 
   const openBookSchool = (s: School) => {
     if (s === bookSchool) return;
@@ -228,8 +247,12 @@ export function Cabinet({
     setBookFlip((n) => n + 1);
   };
 
-  const renderAbsSlot = (card: CardDef | null, slotIndex: number) => {
-    const box = bookLayout.slots[slotIndex];
+  const renderAbsSlot = (
+    card: CardDef | null,
+    slotIndex: number,
+    boxOverride?: { x: number; y: number; w: number; h: number },
+  ) => {
+    const box = boxOverride ?? bookLayout.slots[slotIndex];
     if (!card) {
       return (
         <div
@@ -255,7 +278,7 @@ export function Cabinet({
     return (
       <div
         key={`slot-${slotIndex}-${card.id}`}
-        className={`oracle-book-abs-slot ${allowCardDrag ? "is-draggable" : ""} ${inDeck > 0 ? "in-deck" : ""}`}
+        className={`oracle-book-abs-slot ${allowCardDrag ? "is-draggable" : ""} ${inDeck > 0 ? "in-deck" : ""} ${mobileBook && !calibrating ? "is-mobile-hero" : ""}`}
         style={slotBoxStyle(box)}
         draggable={allowCardDrag && !calibrating}
         onDragStart={
@@ -760,12 +783,25 @@ export function Cabinet({
                     <p className="oracle-book-empty is-abs">
                       Пустая глава «{SCHOOL_LABEL[bookSchool]}»
                     </p>
+                  ) : mobileBook && !calibrating ? (
+                    <>
+                      {renderAbsSlot(
+                        leftPageCards[0] ?? null,
+                        0,
+                        MOBILE_SLOT_LEFT,
+                      )}
+                      {renderAbsSlot(
+                        rightPageCards[0] ?? null,
+                        4,
+                        MOBILE_SLOT_RIGHT,
+                      )}
+                    </>
                   ) : (
                     <>
-                      {Array.from({ length: CARDS_PER_LEAF }, (_, i) =>
+                      {Array.from({ length: cardsPerLeaf }, (_, i) =>
                         renderAbsSlot(leftPageCards[i] ?? null, i),
                       )}
-                      {Array.from({ length: CARDS_PER_LEAF }, (_, i) =>
+                      {Array.from({ length: cardsPerLeaf }, (_, i) =>
                         renderAbsSlot(rightPageCards[i] ?? null, i + 4),
                       )}
                     </>
