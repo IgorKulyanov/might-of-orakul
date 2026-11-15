@@ -7910,6 +7910,46 @@ html.is-hand-dragging .oracle-folio {
   /* книга не должна уезжать из‑за 100vw + боковые паддинги */
   padding-left: 0;
   padding-right: 0;
+  position: relative;
+  isolation: isolate;
+}
+
+/* Стол под рукой и книгой — вместо плоского синего */
+.cabinet:has(.oracle-book) {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(10, 8, 6, 0.72) 0%,
+      rgba(12, 8, 5, 0.28) 9rem,
+      rgba(18, 12, 8, 0.12) 14rem,
+      transparent 22rem
+    ),
+    radial-gradient(
+      ellipse 85% 50% at 50% 42%,
+      rgba(255, 190, 110, 0.1),
+      transparent 62%
+    ),
+    url("/ui/oracle-desk-bg.jpg") center 32% / cover no-repeat,
+    #1a120c;
+}
+
+.cabinet:has(.oracle-book) .cabinet-zone-deck {
+  border-color: rgba(196, 150, 72, 0.42);
+  background:
+    linear-gradient(
+      165deg,
+      rgba(42, 28, 14, 0.72) 0%,
+      rgba(22, 14, 8, 0.58) 100%
+    ),
+    rgba(18, 12, 8, 0.35);
+  box-shadow:
+    inset 0 0 0 1px rgba(232, 197, 71, 0.12),
+    0 10px 28px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+}
+
+.cabinet:has(.oracle-book) .cabinet-zone-deck h2 {
+  color: #f0d5a8;
 }
 
 .cabinet-card-section h2 {
@@ -9366,6 +9406,21 @@ html.is-hand-dragging .oracle-folio {
     max-width: 100%;
     width: 100%;
     box-sizing: border-box;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(8, 6, 4, 0.78) 0%,
+        rgba(10, 7, 5, 0.35) 5.5rem,
+        rgba(16, 10, 6, 0.14) 9rem,
+        transparent 13rem
+      ),
+      radial-gradient(
+        ellipse 100% 42% at 50% 38%,
+        rgba(255, 176, 90, 0.12),
+        transparent 68%
+      ),
+      url("/ui/oracle-desk-bg.jpg") center 18% / cover no-repeat,
+      #1a120c;
   }
 
   .cabinet:has(.oracle-book) .page-bar,
