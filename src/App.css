@@ -8604,6 +8604,87 @@ html.is-hand-dragging .grave-row {
   pointer-events: none;
 }
 
+.oracle-book-empty.is-abs {
+  position: absolute;
+  left: 18%;
+  top: 42%;
+  width: 28%;
+  margin: 0;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* Карта+рамка: абсолютный слот, тянется целиком в калибровке */
+.oracle-book-abs-slot {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0.15rem;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  pointer-events: auto;
+  overflow: visible;
+}
+
+.oracle-book-abs-slot.is-empty {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.oracle-book-abs-slot .oracle-book-slot-frame {
+  position: relative;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  height: calc(100% - 1.35rem);
+  display: grid;
+  place-items: stretch;
+  overflow: visible;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.oracle-book-abs-slot .card.compact {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none;
+  max-height: none;
+  --card-w: 100%;
+  --card-h: 100%;
+}
+
+.oracle-book-abs-slot .card-frame-ornament {
+  display: none !important;
+}
+
+.oracle-book-abs-slot .oracle-book-card-frame {
+  position: absolute;
+  inset: -6%;
+  width: 112%;
+  height: 112%;
+  left: -6%;
+  top: -6%;
+  object-fit: fill;
+  pointer-events: none;
+  z-index: 8;
+  user-select: none;
+}
+
+.oracle-book-abs-slot .oracle-book-slot-meta {
+  flex: 0 0 auto;
+  width: 100%;
+}
+
+.oracle-book-abs-slot.in-deck .oracle-book-slot-frame {
+  filter: drop-shadow(0 0 3px rgba(82, 183, 136, 0.85));
+}
+
 .oracle-book-pages {
   position: absolute;
   inset: 0;

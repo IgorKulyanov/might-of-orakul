@@ -12,6 +12,7 @@ import {
   OracleBookCalibrate,
   ribbonButtonStyle,
   saveBookLayout,
+  slotBoxStyle,
   turnButtonStyle,
   type BookLayout,
 } from "./OracleBookCalibrate";
@@ -224,9 +225,17 @@ export function Cabinet({
     setBookFlip((n) => n + 1);
   };
 
-  const renderBookSlot = (card: CardDef | null, key: string) => {
+  const renderAbsSlot = (card: CardDef | null, slotIndex: number) => {
+    const box = bookLayout.slots[slotIndex];
     if (!card) {
-      return <div key={key} className="oracle-book-slot is-empty" aria-hidden />;
+      return (
+        <div
+          key={`slot-${slotIndex}`}
+          className="oracle-book-abs-slot is-empty"
+          style={slotBoxStyle(box)}
+          aria-hidden
+        />
+      );
     }
     const inDeck = deckCounts[card.id] ?? 0;
     const have = ownedCopies(owned, card.id);
@@ -234,11 +243,12 @@ export function Cabinet({
     const canAdd = inDeck < cap && deck.length < DECK_SIZE && have > 0;
     return (
       <div
-        key={key}
-        className={`oracle-book-slot ${allowCardDrag ? "is-draggable" : ""} ${inDeck > 0 ? "in-deck" : ""}`}
-        draggable={allowCardDrag}
+        key={`slot-${slotIndex}-${card.id}`}
+        className={`oracle-book-abs-slot ${allowCardDrag ? "is-draggable" : ""} ${inDeck > 0 ? "in-deck" : ""}`}
+        style={slotBoxStyle(box)}
+        draggable={allowCardDrag && !calibrating}
         onDragStart={
-          allowCardDrag
+          allowCardDrag && !calibrating
             ? (e) => onCardDragStart(e, card.id, "case")
             : undefined
         }
@@ -258,7 +268,7 @@ export function Cabinet({
           />
           <img
             className="oracle-book-card-frame"
-            src="/ui/card-frame-book.svg"
+            src="/ui/card-frame-book.png"
             alt=""
             draggable={false}
           />
@@ -268,7 +278,7 @@ export function Cabinet({
             <button
               type="button"
               className="primary"
-              disabled={!canAdd}
+              disabled={!canAdd || calibrating}
               onClick={(e) => {
                 e.stopPropagation();
                 addToDeck(card.id);
@@ -280,7 +290,7 @@ export function Cabinet({
             <button
               type="button"
               className="ghost"
-              disabled={inDeck <= 0}
+              disabled={inDeck <= 0 || calibrating}
               onClick={(e) => {
                 e.stopPropagation();
                 removeFromDeck(card.id);
@@ -293,14 +303,6 @@ export function Cabinet({
       </div>
     );
   };
-
-  const renderPageSlots = (cards: CardDef[], side: "L" | "R") => (
-    <div className="oracle-book-page-slots">
-      {Array.from({ length: CARDS_PER_LEAF }, (_, i) =>
-        renderBookSlot(cards[i] ?? null, `${side}-${i}`),
-      )}
-    </div>
-  );
 
   const inDeckOnly = useMemo(() => {
     return Object.entries(deckCounts)
@@ -723,26 +725,20 @@ export function Cabinet({
                   data-school={bookSchool}
                 >
                   <div className="oracle-book-leaf" aria-hidden="true" />
-
-                  <div className="oracle-book-pages">
-                    <div className="oracle-book-page is-left">
-                      {bookSchoolCards.length === 0 ? (
-                        <p className="oracle-book-empty">
-                          Пустая глава «{SCHOOL_LABEL[bookSchool]}»
-                        </p>
-                      ) : (
-                        renderPageSlots(leftPageCards, "L")
+                  {bookSchoolCards.length === 0 ? (
+                    <p className="oracle-book-empty is-abs">
+                      Пустая глава «{SCHOOL_LABEL[bookSchool]}»
+                    </p>
+                  ) : (
+                    <>
+                      {Array.from({ length: CARDS_PER_LEAF }, (_, i) =>
+                        renderAbsSlot(leftPageCards[i] ?? null, i),
                       )}
-                    </div>
-
-                    <div className="oracle-book-page is-right">
-                      {bookSchoolCards.length === 0 ? (
-                        <p className="oracle-book-empty is-quiet"> </p>
-                      ) : (
-                        renderPageSlots(rightPageCards, "R")
+                      {Array.from({ length: CARDS_PER_LEAF }, (_, i) =>
+                        renderAbsSlot(rightPageCards[i] ?? null, i + 4),
                       )}
-                    </div>
-                  </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

@@ -8,22 +8,25 @@ import {
   type RefObject,
 } from "react";
 
-/** Прямоугольник в % от обложки книги (как выделение в Paint). */
+/** Прямоугольник в % от обложки книги. */
 export type BoxPct = { x: number; y: number; w: number; h: number };
 
 export type BookLayout = {
-  pageL: BoxPct;
-  pageR: BoxPct;
-  /** 6 закладок слева направо */
+  /** 8 слотов разворота: 0–3 левая стр., 4–7 правая */
+  slots: [
+    BoxPct,
+    BoxPct,
+    BoxPct,
+    BoxPct,
+    BoxPct,
+    BoxPct,
+    BoxPct,
+    BoxPct,
+  ];
   ribbons: [BoxPct, BoxPct, BoxPct, BoxPct, BoxPct, BoxPct];
-  /** Кнопки листания школы — ставишь сам */
   btnBack: BoxPct;
   btnFwd: BoxPct;
   coverW: number;
-  /** Размер карт в книге (1 = обычно) */
-  cardScale: number;
-  /** Зазор сетки карт, rem */
-  cardGap: number;
 };
 
 const RIBBON_LABELS = [
@@ -44,10 +47,41 @@ const RIBBON_COLORS = [
   "#c0c4cc",
 ] as const;
 
+function gridOnPage(
+  px: number,
+  py: number,
+  pw: number,
+  ph: number,
+): [BoxPct, BoxPct, BoxPct, BoxPct] {
+  const padX = pw * 0.06;
+  const padY = ph * 0.05;
+  const gapX = pw * 0.04;
+  const gapY = ph * 0.05;
+  const cellW = (pw - padX * 2 - gapX) / 2;
+  const cellH = (ph - padY * 2 - gapY) / 2;
+  const out: BoxPct[] = [];
+  for (let row = 0; row < 2; row++) {
+    for (let col = 0; col < 2; col++) {
+      out.push({
+        x: round1(px + padX + col * (cellW + gapX)),
+        y: round1(py + padY + row * (cellH + gapY)),
+        w: round1(cellW),
+        h: round1(cellH),
+      });
+    }
+  }
+  return out as [BoxPct, BoxPct, BoxPct, BoxPct];
+}
+
+function defaultSlots(): BookLayout["slots"] {
+  return [
+    ...gridOnPage(11.5, 10.5, 36, 66),
+    ...gridOnPage(52.5, 10.5, 36, 66),
+  ] as BookLayout["slots"];
+}
+
 export const DEFAULT_BOOK_LAYOUT: BookLayout = {
-  /* страницы на пергаменте, 4 карты влезают крупно */
-  pageL: { x: 11.5, y: 10.5, w: 36, h: 66 },
-  pageR: { x: 52.5, y: 10.5, w: 36, h: 66 },
+  slots: defaultSlots(),
   ribbons: [
     { x: 25.5, y: 84.5, w: 6.2, h: 13.5 },
     { x: 32.5, y: 84.5, w: 6.2, h: 13.5 },
@@ -56,18 +90,15 @@ export const DEFAULT_BOOK_LAYOUT: BookLayout = {
     { x: 59.5, y: 84.5, w: 6.2, h: 13.5 },
     { x: 66.5, y: 84.5, w: 6.2, h: 13.5 },
   ],
-  /* на углах страниц книги, не под книгой */
   btnBack: { x: 13, y: 72, w: 11, h: 6 },
   btnFwd: { x: 76, y: 72, w: 11, h: 6 },
   coverW: 4000,
-  cardScale: 1.15,
-  cardGap: 0.32,
 };
 
-const STORAGE_KEY = "orakul-book-layout-v6";
-const MIN = 3;
+const STORAGE_KEY = "orakul-book-layout-v7";
+const MIN = 2.5;
 
-type Mode = "pages" | "ribbons" | "cards" | "turn" | "cover";
+type Mode = "cards" | "ribbons" | "turn" | "cover";
 type Handle =
   | "move"
   | "n"
@@ -92,8 +123,7 @@ const BOX_HANDLES: Handle[] = [
 ];
 
 type Target =
-  | { kind: "pageL" }
-  | { kind: "pageR" }
+  | { kind: "slot"; index: number }
   | { kind: "ribbon"; index: number }
   | { kind: "btnBack" }
   | { kind: "btnFwd" }
@@ -118,6 +148,19 @@ function normalizeBox(b: BoxPct): BoxPct {
   return { x: round1(x), y: round1(y), w: round1(w), h: round1(h) };
 }
 
+function hasW(h: Handle) {
+  return h === "w" || h === "nw" || h === "sw";
+}
+function hasE(h: Handle) {
+  return h === "e" || h === "ne" || h === "se";
+}
+function hasN(h: Handle) {
+  return h === "n" || h === "nw" || h === "ne";
+}
+function hasS(h: Handle) {
+  return h === "s" || h === "sw" || h === "se";
+}
+
 function applyHandle(
   box: BoxPct,
   handle: Handle,
@@ -126,13 +169,11 @@ function applyHandle(
 ): BoxPct {
   let { x, y, w, h } = box;
   if (handle === "move") {
-    x += dx;
-    y += dy;
-    x = clamp(x, 0, 100 - w);
-    y = clamp(y, 0, 100 - h);
+    x = clamp(x + dx, 0, 100 - w);
+    y = clamp(y + dy, 0, 100 - h);
     return normalizeBox({ x, y, w, h });
   }
-  if (handle === "w" || handle === "nw" || handle === "sw") {
+  if (hasW(handle)) {
     const nx = x + dx;
     const nw = w - dx;
     if (nw >= MIN) {
@@ -140,10 +181,8 @@ function applyHandle(
       w = nw;
     }
   }
-  if (handle === "e" || handle === "ne" || handle === "se") {
-    w += dx;
-  }
-  if (handle === "n" || handle === "nw" || handle === "ne") {
+  if (hasE(handle)) w += dx;
+  if (hasN(handle)) {
     const ny = y + dy;
     const nh = h - dy;
     if (nh >= MIN) {
@@ -151,9 +190,7 @@ function applyHandle(
       h = nh;
     }
   }
-  if (handle === "s" || handle === "sw" || handle === "se") {
-    h += dy;
-  }
+  if (hasS(handle)) h += dy;
   return normalizeBox({ x, y, w, h });
 }
 
@@ -165,13 +202,13 @@ function isBoxPct(v: unknown): v is BoxPct {
 
 export function loadBookLayout(): BookLayout {
   try {
-    // старые кривые калибровки — выкинуть
     for (const k of [
       "orakul-book-layout-v1",
       "orakul-book-layout-v2",
       "orakul-book-layout-v3",
       "orakul-book-layout-v4",
       "orakul-book-layout-v5",
+      "orakul-book-layout-v6",
     ]) {
       localStorage.removeItem(k);
     }
@@ -179,24 +216,21 @@ export function loadBookLayout(): BookLayout {
     if (!raw) return structuredClone(DEFAULT_BOOK_LAYOUT);
     const parsed = JSON.parse(raw) as Partial<BookLayout>;
     const base = structuredClone(DEFAULT_BOOK_LAYOUT);
-    if (isBoxPct(parsed.pageL)) base.pageL = normalizeBox(parsed.pageL);
-    if (isBoxPct(parsed.pageR)) base.pageR = normalizeBox(parsed.pageR);
+    if (Array.isArray(parsed.slots) && parsed.slots.length === 8) {
+      base.slots = parsed.slots.map((s, i) =>
+        isBoxPct(s) ? normalizeBox(s) : base.slots[i],
+      ) as BookLayout["slots"];
+    }
     if (Array.isArray(parsed.ribbons) && parsed.ribbons.length === 6) {
       base.ribbons = parsed.ribbons.map((r, i) =>
         isBoxPct(r) ? normalizeBox(r) : base.ribbons[i],
       ) as BookLayout["ribbons"];
     }
+    if (isBoxPct(parsed.btnBack)) base.btnBack = normalizeBox(parsed.btnBack);
+    if (isBoxPct(parsed.btnFwd)) base.btnFwd = normalizeBox(parsed.btnFwd);
     if (typeof parsed.coverW === "number") {
       base.coverW = clamp(parsed.coverW, 800, 6000);
     }
-    if (typeof parsed.cardScale === "number") {
-      base.cardScale = clamp(parsed.cardScale, 0.45, 1.9);
-    }
-    if (typeof parsed.cardGap === "number") {
-      base.cardGap = clamp(parsed.cardGap, 0.05, 1.2);
-    }
-    if (isBoxPct(parsed.btnBack)) base.btnBack = normalizeBox(parsed.btnBack);
-    if (isBoxPct(parsed.btnFwd)) base.btnFwd = normalizeBox(parsed.btnFwd);
     return base;
   } catch {
     return structuredClone(DEFAULT_BOOK_LAYOUT);
@@ -212,33 +246,16 @@ export function saveBookLayout(layout: BookLayout) {
 }
 
 export function bookLayoutToCssVars(layout: BookLayout): CSSProperties {
-  const vars: Record<string, string> = {
-    "--ob-cover-w": `${layout.coverW}px`,
-    "--ob-page-l-x": `${layout.pageL.x}%`,
-    "--ob-page-l-y": `${layout.pageL.y}%`,
-    "--ob-page-l-w": `${layout.pageL.w}%`,
-    "--ob-page-l-h": `${layout.pageL.h}%`,
-    "--ob-page-r-x": `${layout.pageR.x}%`,
-    "--ob-page-r-y": `${layout.pageR.y}%`,
-    "--ob-page-r-w": `${layout.pageR.w}%`,
-    "--ob-page-r-h": `${layout.pageR.h}%`,
-    "--ob-card-scale": String(layout.cardScale),
-    "--ob-card-gap": `${layout.cardGap}rem`,
+  return {
+    ["--ob-cover-w" as string]: `${layout.coverW}px`,
   };
-  layout.ribbons.forEach((r, i) => {
-    vars[`--ob-rib-${i}-x`] = `${r.x}%`;
-    vars[`--ob-rib-${i}-y`] = `${r.y}%`;
-    vars[`--ob-rib-${i}-w`] = `${r.w}%`;
-    vars[`--ob-rib-${i}-h`] = `${r.h}%`;
-  });
-  return vars as CSSProperties;
 }
 
 export function formatBookLayoutCss(layout: BookLayout): string {
   return JSON.stringify(layout, null, 2);
 }
 
-function ribbonButtonStyle(box: BoxPct, schoolColor: string): CSSProperties {
+export function ribbonButtonStyle(box: BoxPct, schoolColor: string): CSSProperties {
   return {
     left: `${box.x}%`,
     top: `${box.y}%`,
@@ -257,7 +274,16 @@ export function turnButtonStyle(box: BoxPct): CSSProperties {
   };
 }
 
-export { RIBBON_LABELS, ribbonButtonStyle };
+export function slotBoxStyle(box: BoxPct): CSSProperties {
+  return {
+    left: `${box.x}%`,
+    top: `${box.y}%`,
+    width: `${box.w}%`,
+    height: `${box.h}%`,
+  };
+}
+
+export { RIBBON_LABELS };
 
 type Props = {
   layout: BookLayout;
@@ -272,8 +298,8 @@ export function OracleBookCalibrate({
   onClose,
   coverRef,
 }: Props) {
-  const [mode, setMode] = useState<Mode>("pages");
-  const [focus, setFocus] = useState<Target>({ kind: "pageL" });
+  const [mode, setMode] = useState<Mode>("cards");
+  const [focus, setFocus] = useState<Target>({ kind: "slot", index: 0 });
   const [copied, setCopied] = useState(false);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const dragRef = useRef<{
@@ -297,17 +323,31 @@ export function OracleBookCalibrate({
       if (d.target.kind === "cover") {
         onChange({
           ...s,
-          coverW: clamp(Math.round(s.coverW + (e.clientX - d.startX) * 3), 800, 6000),
+          coverW: clamp(
+            Math.round(s.coverW + (e.clientX - d.startX) * 3),
+            800,
+            6000,
+          ),
         });
         return;
       }
-      if (d.target.kind === "pageL") {
-        s.pageL = applyHandle(s.pageL, d.handle, dx, dy);
+      if (d.target.kind === "slot") {
+        s.slots[d.target.index] = applyHandle(
+          s.slots[d.target.index],
+          d.handle,
+          dx,
+          dy,
+        );
         onChange(s);
         return;
       }
-      if (d.target.kind === "pageR") {
-        s.pageR = applyHandle(s.pageR, d.handle, dx, dy);
+      if (d.target.kind === "ribbon") {
+        s.ribbons[d.target.index] = applyHandle(
+          s.ribbons[d.target.index],
+          d.handle,
+          dx,
+          dy,
+        );
         onChange(s);
         return;
       }
@@ -318,12 +358,6 @@ export function OracleBookCalibrate({
       }
       if (d.target.kind === "btnFwd") {
         s.btnFwd = applyHandle(s.btnFwd, d.handle, dx, dy);
-        onChange(s);
-        return;
-      }
-      if (d.target.kind === "ribbon") {
-        const i = d.target.index;
-        s.ribbons[i] = applyHandle(s.ribbons[i], d.handle, dx, dy);
         onChange(s);
       }
     },
@@ -356,7 +390,7 @@ export function OracleBookCalibrate({
     if (!el) return;
     const rect = el.getBoundingClientRect();
     setFocus(target);
-    if (target.kind === "pageL" || target.kind === "pageR") setMode("pages");
+    if (target.kind === "slot") setMode("cards");
     if (target.kind === "ribbon") setMode("ribbons");
     if (target.kind === "btnBack" || target.kind === "btnFwd") setMode("turn");
     if (target.kind === "cover") setMode("cover");
@@ -390,13 +424,21 @@ export function OracleBookCalibrate({
     visible: boolean,
   ) => {
     const focused =
-      (focus.kind === target.kind && target.kind !== "ribbon") ||
-      (focus.kind === "ribbon" &&
-        target.kind === "ribbon" &&
-        focus.index === target.index);
+      focus.kind === target.kind &&
+      (target.kind !== "slot" && target.kind !== "ribbon"
+        ? true
+        : focus.kind === "slot" && target.kind === "slot"
+          ? focus.index === target.index
+          : focus.kind === "ribbon" && target.kind === "ribbon"
+            ? focus.index === target.index
+            : true);
+    const key =
+      target.kind === "slot" || target.kind === "ribbon"
+        ? `${target.kind}-${target.index}`
+        : target.kind;
     return (
       <div
-        key={label}
+        key={key}
         className={`ob-cal-box ${focused ? "is-active" : ""} ${visible ? "is-visible" : "is-dim"}`}
         style={{
           left: `${box.x}%`,
@@ -422,37 +464,29 @@ export function OracleBookCalibrate({
     );
   };
 
-  const pagesOn = mode === "pages" || mode === "cards";
+  const cardsOn = mode === "cards";
   const ribsOn = mode === "ribbons";
   const turnOn = mode === "turn";
 
   return (
     <>
       <div className="ob-cal-hud" role="dialog" aria-label="Калибровка книги">
-        <strong>Калибровка как в Paint</strong>
+        <strong>Сам как в Paint</strong>
         <p>
-          Страницы = 4+4 карты. Листы = кнопки НАЗАД/ВПЕРЕД. Закладки = школы.
-          <br />
-          <b>Готово</b> = у тебя в браузере. Для всех — <b>Копировать</b> мне в
-          чат.
+          <b>Карты</b> — двигай/тяни каждую (рамка едет с ней).{" "}
+          <b>Листы</b> — НАЗАД/ВПЕРЕД куда хочешь. <b>Готово</b> = у тебя в
+          браузере. Для всех — «Копировать» мне в чат.
         </p>
         <div className="ob-cal-hud-row">
           <button
             type="button"
-            className={mode === "pages" ? "primary" : "ghost"}
+            className={mode === "cards" ? "primary" : "ghost"}
             onClick={() => {
-              setMode("pages");
-              setFocus({ kind: "pageL" });
+              setMode("cards");
+              setFocus({ kind: "slot", index: 0 });
             }}
           >
-            Страницы
-          </button>
-          <button
-            type="button"
-            className={mode === "cards" ? "primary" : "ghost"}
-            onClick={() => setMode("cards")}
-          >
-            Карты
+            Карты ×8
           </button>
           <button
             type="button"
@@ -462,7 +496,7 @@ export function OracleBookCalibrate({
               setFocus({ kind: "btnBack" });
             }}
           >
-            Листы
+            НАЗАД/ВПЕРЕД
           </button>
           <button
             type="button"
@@ -472,7 +506,7 @@ export function OracleBookCalibrate({
               setFocus({ kind: "ribbon", index: 0 });
             }}
           >
-            Закладки ×6
+            Закладки
           </button>
           <button
             type="button"
@@ -485,6 +519,34 @@ export function OracleBookCalibrate({
             Книга
           </button>
         </div>
+        {mode === "cards" ? (
+          <div className="ob-cal-hud-row ob-cal-rib-picks">
+            {layout.slots.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                className={
+                  focus.kind === "slot" && focus.index === i ? "primary" : "ghost"
+                }
+                onClick={() => setFocus({ kind: "slot", index: i })}
+              >
+                {i < 4 ? `Л${i + 1}` : `П${i - 3}`}
+              </button>
+            ))}
+            <button
+              type="button"
+              className="ghost"
+              onClick={() =>
+                onChange({
+                  ...layout,
+                  slots: defaultSlots(),
+                })
+              }
+            >
+              Сетка 4+4
+            </button>
+          </div>
+        ) : null}
         {mode === "ribbons" ? (
           <div className="ob-cal-hud-row ob-cal-rib-picks">
             {RIBBON_LABELS.map((name, i) => (
@@ -504,46 +566,6 @@ export function OracleBookCalibrate({
             ))}
           </div>
         ) : null}
-        {mode === "cards" ? (
-          <div className="ob-cal-cards-panel">
-            <p>
-              Позиция карт = зелёные страницы (подвинь страницу — карты поедут).
-              Здесь крути <b>размер</b> и зазор — смотри на карты в книге сразу.
-            </p>
-            <label className="ob-cal-size">
-              Размер карт {layout.cardScale.toFixed(2)}
-              <input
-                type="range"
-                min={0.45}
-                max={1.85}
-                step={0.05}
-                value={layout.cardScale}
-                onChange={(e) =>
-                  onChange({
-                    ...layout,
-                    cardScale: Number(e.target.value),
-                  })
-                }
-              />
-            </label>
-            <label className="ob-cal-size">
-              Зазор {layout.cardGap.toFixed(2)}
-              <input
-                type="range"
-                min={0.05}
-                max={1.1}
-                step={0.05}
-                value={layout.cardGap}
-                onChange={(e) =>
-                  onChange({
-                    ...layout,
-                    cardGap: Number(e.target.value),
-                  })
-                }
-              />
-            </label>
-          </div>
-        ) : null}
         {savedMsg ? <p className="ob-cal-saved">{savedMsg}</p> : null}
         <div className="ob-cal-hud-row">
           <button
@@ -551,7 +573,7 @@ export function OracleBookCalibrate({
             className="ghost"
             onClick={() => onChange(structuredClone(DEFAULT_BOOK_LAYOUT))}
           >
-            Сброс
+            Сброс всего
           </button>
           <button type="button" className="ghost" onClick={() => void copyCss()}>
             {copied ? "Скопировано ✓" : "Копировать для меня"}
@@ -561,30 +583,23 @@ export function OracleBookCalibrate({
             className="primary"
             onClick={() => {
               saveBookLayout(layout);
-              setSavedMsg(
-                "Сохранено в ЭТОМ браузере ✓. Для всех навсегда — «Копировать для меня» и вставь в чат.",
-              );
-              window.setTimeout(() => onClose(), 900);
+              setSavedMsg("Сохранено в этом браузере ✓");
+              window.setTimeout(() => onClose(), 700);
             }}
           >
-            Готово
+            Готово / сохранить
           </button>
         </div>
       </div>
 
-      {renderPaintBox(
-        { kind: "pageL" },
-        layout.pageL,
-        "Левая стр.",
-        "#3dcc7a",
-        pagesOn,
-      )}
-      {renderPaintBox(
-        { kind: "pageR" },
-        layout.pageR,
-        "Правая стр.",
-        "#2aad66",
-        pagesOn,
+      {layout.slots.map((box, i) =>
+        renderPaintBox(
+          { kind: "slot", index: i },
+          box,
+          i < 4 ? `Карта Л${i + 1}` : `Карта П${i - 3}`,
+          i < 4 ? "#3dcc7a" : "#2aad66",
+          cardsOn,
+        ),
       )}
 
       {layout.ribbons.map((box, i) =>
