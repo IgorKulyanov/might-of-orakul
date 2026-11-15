@@ -8636,6 +8636,9 @@ html.is-hand-dragging .grave-row {
 }
 
 .oracle-book-abs-slot .oracle-book-slot-frame {
+  /* окно рамки: карта+статы внутри, PNG-обод ЦЕЛИКОМ сверху */
+  --ob-frame-hole-w: 58%;
+  --ob-frame-hole-h: 62%;
   position: relative;
   flex: 1 1 auto;
   width: 100%;
@@ -8651,24 +8654,15 @@ html.is-hand-dragging .grave-row {
   box-shadow: none;
 }
 
-.oracle-book-abs-slot .oracle-book-card-frame {
-  grid-area: 1 / 1;
-  width: 100%;
-  height: 100%;
-  object-fit: fill;
-  pointer-events: none;
-  z-index: 1;
-  user-select: none;
-}
-
+/* слой 1: арт карты строго в прозрачном окне */
 .oracle-book-abs-slot .oracle-book-card-core {
   grid-area: 1 / 1;
-  z-index: 2;
-  width: 68%;
-  height: 70%;
+  z-index: 1;
+  width: var(--ob-frame-hole-w);
+  height: var(--ob-frame-hole-h);
   margin: auto;
   overflow: hidden;
-  border-radius: 6px;
+  border-radius: 4px;
   pointer-events: none;
 }
 
@@ -8681,24 +8675,32 @@ html.is-hand-dragging .grave-row {
   --card-h: 100%;
 }
 
-/* внутренние статы CardView прячем — рисуем свои поверх */
 .oracle-book-abs-slot .oracle-book-card-core .card-stats,
 .oracle-book-abs-slot .oracle-book-card-core .card-footer,
 .oracle-book-abs-slot .oracle-book-card-core .card-frame-ornament {
   display: none !important;
 }
 
+.oracle-book-abs-slot .oracle-book-card-core .card-inner {
+  border-radius: 4px;
+  padding: 0;
+  background: #0a0c12;
+  box-shadow: none;
+}
+
+/* слой 2: статы в том же окне — под ободом, но в прозрачной дырке */
 .oracle-book-stat-hud {
   grid-area: 1 / 1;
-  z-index: 30;
-  width: 68%;
-  height: 70%;
+  z-index: 2;
+  width: var(--ob-frame-hole-w);
+  height: var(--ob-frame-hole-h);
   margin: auto;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   pointer-events: none;
   box-sizing: border-box;
+  padding: 0.15rem;
 }
 
 .oracle-book-stat-top {
@@ -8706,13 +8708,13 @@ html.is-hand-dragging .grave-row {
   align-items: center;
   justify-content: space-between;
   gap: 0.25rem;
-  padding: 0.22rem 0.35rem;
-  border-radius: 5px;
+  padding: 0.18rem 0.3rem;
+  border-radius: 4px;
   background: rgba(6, 8, 14, 0.92);
   border: 1px solid rgba(232, 197, 71, 0.45);
   color: #fff;
   font-weight: 800;
-  font-size: clamp(0.62rem, 2.1cqw, 0.9rem);
+  font-size: clamp(0.58rem, 2cqw, 0.85rem);
   line-height: 1.1;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
 }
@@ -8730,18 +8732,29 @@ html.is-hand-dragging .grave-row {
 }
 
 .oracle-book-stat-name {
-  padding: 0.2rem 0.3rem;
-  border-radius: 5px;
+  padding: 0.16rem 0.28rem;
+  border-radius: 4px;
   background: rgba(6, 8, 14, 0.9);
   border: 1px solid rgba(232, 197, 71, 0.35);
   color: #f7e7b0;
   font-family: var(--display);
   font-weight: 700;
-  font-size: clamp(0.55rem, 1.9cqw, 0.8rem);
+  font-size: clamp(0.52rem, 1.8cqw, 0.78rem);
   text-align: center;
   line-height: 1.15;
   text-shadow: 0 1px 2px #000;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+/* слой 3: рамка ЦЕЛИКОМ сверху — вензели не режет чёрный прямоугольник */
+.oracle-book-abs-slot .oracle-book-card-frame {
+  grid-area: 1 / 1;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+  z-index: 5;
+  user-select: none;
 }
 
 .oracle-book-abs-slot .oracle-book-slot-meta {

@@ -265,12 +265,6 @@ export function Cabinet({
         title={`${card.name} · в колоду`}
       >
         <div className="oracle-book-slot-frame">
-          <img
-            className="oracle-book-card-frame"
-            src="/ui/card-frame-book.png?v=3"
-            alt=""
-            draggable={false}
-          />
           <div className="oracle-book-card-core">
             <CardView
               card={card}
@@ -279,7 +273,6 @@ export function Cabinet({
               upgradeLevel={upLv}
             />
           </div>
-          {/* Статы ВСЕГДА поверх рамки — отдельно от CardView */}
           <div className="oracle-book-stat-hud" aria-label="Показатели карты">
             <div className="oracle-book-stat-top">
               <span className="oracle-book-stat-school">
@@ -296,6 +289,13 @@ export function Cabinet({
             </div>
             <div className="oracle-book-stat-name">{card.name}</div>
           </div>
+          {/* Рамка сверху — целостность обода, контент только в окне */}
+          <img
+            className="oracle-book-card-frame"
+            src="/ui/card-frame-book.png?v=4"
+            alt=""
+            draggable={false}
+          />
         </div>
         <div className="oracle-book-slot-meta">
           <div className="cabinet-card-actions">
