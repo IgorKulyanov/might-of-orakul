@@ -8897,6 +8897,22 @@ html.is-hand-dragging .grave-row {
   outline-offset: 2px;
 }
 
+/* в руке — карта в книге бледнее (арт), рамка без filter */
+.oracle-book-abs-slot.in-deck .oracle-book-card-core {
+  opacity: 0.38 !important;
+  filter: saturate(0.4) brightness(1.15) !important;
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.oracle-book-abs-slot:not(.in-deck) .oracle-book-card-core {
+  opacity: 1;
+  filter: none;
+}
+
+.oracle-book-abs-slot.in-deck .oracle-book-stat-hud {
+  opacity: 0.55;
+}
+
 .oracle-book-pages {
   position: absolute;
   inset: 0;
@@ -9391,12 +9407,25 @@ html.is-hand-dragging .grave-row {
     padding: 0 0.1em;
   }
 
-  /* узкая рамка на всю страницу; без +/− — свайп вверх/вниз */
+  /* узкая рамка на всю страницу; свайп / двойной тап */
   .oracle-book-abs-slot.is-mobile-hero {
     touch-action: none;
     gap: 0.2rem;
     user-select: none;
     -webkit-user-select: none;
+    cursor: pointer;
+  }
+
+  .cabinet-hand-card.is-mobile-gestures .cabinet-hand-gesture-target {
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: pointer;
+  }
+
+  .oracle-book-abs-slot.is-mobile-hero.in-deck .oracle-book-card-core {
+    opacity: 0.34 !important;
+    filter: saturate(0.35) brightness(1.18) !important;
   }
 
   .oracle-book-abs-slot.is-mobile-hero .oracle-book-slot-frame {
@@ -9404,7 +9433,7 @@ html.is-hand-dragging .grave-row {
     --ob-hole-top: 8%;
     --ob-hole-w: 77%;
     --ob-hole-h: 84%;
-    height: calc(100% - 1.1rem);
+    height: 100%;
     place-items: center;
   }
 
@@ -9460,19 +9489,6 @@ html.is-hand-dragging .grave-row {
     font-size: clamp(0.65rem, 2.5vw, 0.9rem);
     padding: 0.18rem 0.3rem;
     line-height: 1.2;
-  }
-
-  .oracle-book-swipe-hint {
-    margin: 0;
-    padding: 0;
-    text-align: center;
-    font-size: 0.62rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    color: #3a2814;
-    text-shadow: 0 1px 0 rgba(255, 248, 220, 0.55);
-    line-height: 1.2;
-    pointer-events: none;
   }
 
   .oracle-book-page {

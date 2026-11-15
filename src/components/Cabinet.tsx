@@ -4,6 +4,8 @@ import {
   useRef,
   useState,
   type DragEvent,
+  type PointerEvent as ReactPointerEvent,
+  type TouchEvent as ReactTouchEvent,
 } from "react";
 import { CardView } from "./CardView";
 import {
@@ -72,7 +74,8 @@ const MOBILE_CARDS_PER_LEAF = 1;
 const MOBILE_SLOT_LEFT = { x: 17.5, y: 9, w: 32, h: 68 };
 const MOBILE_SLOT_RIGHT = { x: 50, y: 9, w: 32, h: 68 };
 
-const SWIPE_MIN_PX = 48;
+const SWIPE_MIN_PX = 36;
+const DOUBLE_TAP_MS = 340;
 
 type Tab = "oracle" | "deck";
 
@@ -120,9 +123,12 @@ export function Cabinet({
   const folioCoverRef = useRef<HTMLDivElement>(null);
   const swipeRef = useRef<{
     cardId: string;
+    from: "book" | "hand";
     x0: number;
     y0: number;
+    pointerId: number;
   } | null>(null);
+  const lastTapRef = useRef<{ cardId: string; t: number } | null>(null);
 
   useEffect(() => {
     if (forcedTab) setTab(forcedTab);
@@ -230,6 +236,150 @@ export function Cabinet({
   const leftPageCards = spreadCards.slice(0, cardsPerLeaf);
   const rightPageCards = spreadCards.slice(cardsPerLeaf, cardsPerSpread);
 
+  const say = (msg: string) => {
+    setFlash(msg);
+    window.setTimeout(() => setFlash(null), 2200);
+  };
+
+  const addToDeck = (cardId: string) => {
+    if (!isUnlocked(owned, cardId)) {
+      say("Карта не открыта");
+      return;
+    }
+    const have = ownedCopies(owned, cardId);
+    const inDeck = deckCounts[cardId] ?? 0;
+    const cap = Math.min(maxCopiesForCard(cardId), have);
+    if (inDeck >= cap) {
+      say(`Лимит копий «${getCard(cardId).name}»: ${cap}`);
+      return;
+    }
+    if (deck.length >= DECK_SIZE) {
+      say(`В колоде максимум ${DECK_SIZE} карт`);
+      return;
+    }
+    const card = getCard(cardId);
+    onChange(saveDeck(owned, deckId, [...deck, cardId]));
+    say(`→ в колоду: ${card.name} (${inDeck + 1}/${cap})`);
+  };
+
+  const removeFromDeck = (cardId: string) => {
+    if (!deckCounts[cardId]) {
+      say("Этой карты нет в колоде");
+      return;
+    }
+    const idx = deck.lastIndexOf(cardId);
+    const next = deck.filter((_, i) => i !== idx);
+    const card = getCard(cardId);
+    onChange(saveDeck(owned, deckId, next));
+    say(`← убрана копия: ${card.name}`);
+  };
+
+  /** Книга: тап×2 = в руку / из руки. Рука: тап×2 = в оракул. */
+  const onCardDoubleTap = (cardId: string, from: "book" | "hand") => {
+    const now = Date.now();
+    const last = lastTapRef.current;
+    if (last && last.cardId === cardId && now - last.t <= DOUBLE_TAP_MS) {
+      lastTapRef.current = null;
+      if (from === "hand") {
+        removeFromDeck(cardId);
+        return;
+      }
+      if ((deckCounts[cardId] ?? 0) > 0) removeFromDeck(cardId);
+      else addToDeck(cardId);
+      return;
+    }
+    lastTapRef.current = { cardId, t: now };
+  };
+
+  const beginCardGesture = (
+    cardId: string,
+    from: "book" | "hand",
+    x: number,
+    y: number,
+    pointerId = -1,
+  ) => {
+    if (!mobileBook || calibrating) return;
+    swipeRef.current = { cardId, from, x0: x, y0: y, pointerId };
+  };
+
+  const endCardGesture = (
+    cardId: string,
+    from: "book" | "hand",
+    x: number,
+    y: number,
+    pointerId?: number,
+  ) => {
+    if (!mobileBook || calibrating) return;
+    const start = swipeRef.current;
+    swipeRef.current = null;
+    if (!start || start.cardId !== cardId || start.from !== from) return;
+    if (
+      pointerId != null &&
+      start.pointerId >= 0 &&
+      start.pointerId !== pointerId
+    ) {
+      return;
+    }
+    const dy = y - start.y0;
+    const dx = x - start.x0;
+    const absY = Math.abs(dy);
+    const absX = Math.abs(dx);
+    if (absY >= SWIPE_MIN_PX && absY > absX * 0.85) {
+      lastTapRef.current = null;
+      if (from === "book") {
+        if (dy < 0) addToDeck(cardId);
+        else removeFromDeck(cardId);
+      } else {
+        removeFromDeck(cardId);
+      }
+      return;
+    }
+    if (absY < 22 && absX < 22) onCardDoubleTap(cardId, from);
+  };
+
+  const onCardPointerDown = (
+    e: ReactPointerEvent,
+    cardId: string,
+    from: "book" | "hand",
+  ) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    beginCardGesture(cardId, from, e.clientX, e.clientY, e.pointerId);
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const onCardPointerUp = (
+    e: ReactPointerEvent,
+    cardId: string,
+    from: "book" | "hand",
+  ) => {
+    endCardGesture(cardId, from, e.clientX, e.clientY, e.pointerId);
+  };
+
+  /** iOS/Android: touches[0] на start, changedTouches на end */
+  const onCardTouchStart = (
+    e: ReactTouchEvent,
+    cardId: string,
+    from: "book" | "hand",
+  ) => {
+    const t = e.touches[0];
+    if (!t) return;
+    beginCardGesture(cardId, from, t.clientX, t.clientY);
+  };
+
+  const onCardTouchEnd = (
+    e: ReactTouchEvent,
+    cardId: string,
+    from: "book" | "hand",
+  ) => {
+    const t = e.changedTouches[0];
+    if (!t) return;
+    endCardGesture(cardId, from, t.clientX, t.clientY);
+  };
+
   const openBookSchool = (s: School) => {
     if (s === bookSchool) return;
     const from = BOOK_SCHOOLS.indexOf(bookSchool);
@@ -297,39 +447,43 @@ export function Cabinet({
             : undefined
         }
         onDragEnd={allowCardDrag ? () => setDragOver(null) : undefined}
+        onPointerDown={
+          mobileHero
+            ? (e) => onCardPointerDown(e, card.id, "book")
+            : undefined
+        }
+        onPointerUp={
+          mobileHero
+            ? (e) => onCardPointerUp(e, card.id, "book")
+            : undefined
+        }
+        onPointerCancel={
+          mobileHero
+            ? () => {
+                swipeRef.current = null;
+              }
+            : undefined
+        }
         onTouchStart={
           mobileHero
-            ? (e) => {
-                const t = e.changedTouches[0];
-                if (!t) return;
-                swipeRef.current = {
-                  cardId: card.id,
-                  x0: t.clientX,
-                  y0: t.clientY,
-                };
-              }
+            ? (e) => onCardTouchStart(e, card.id, "book")
             : undefined
         }
         onTouchEnd={
           mobileHero
-            ? (e) => {
-                const start = swipeRef.current;
+            ? (e) => onCardTouchEnd(e, card.id, "book")
+            : undefined
+        }
+        onTouchCancel={
+          mobileHero
+            ? () => {
                 swipeRef.current = null;
-                if (!start || start.cardId !== card.id) return;
-                const t = e.changedTouches[0];
-                if (!t) return;
-                const dy = t.clientY - start.y0;
-                const dx = t.clientX - start.x0;
-                if (Math.abs(dy) < SWIPE_MIN_PX) return;
-                if (Math.abs(dy) < Math.abs(dx) * 1.15) return;
-                if (dy < 0) addToDeck(card.id);
-                else removeFromDeck(card.id);
               }
             : undefined
         }
         title={
           mobileHero
-            ? `${card.name} · вверх — в руку, вниз — убрать`
+            ? `${card.name} · ↑/двойной тап — в руку · ↓/двойной тап — в оракул`
             : `${card.name} · в колоду`
         }
       >
@@ -371,12 +525,7 @@ export function Cabinet({
             />
           </div>
         </div>
-        {mobileHero ? (
-          <p className="oracle-book-swipe-hint">
-            ↑ в руку · ↓ убрать
-            {inDeck > 0 ? ` · в руке ×${inDeck}` : ""}
-          </p>
-        ) : (
+        {mobileHero ? null : (
           <div className="oracle-book-slot-meta">
             <div className="cabinet-card-actions">
               <button
@@ -424,44 +573,6 @@ export function Cabinet({
       .filter((x): x is { card: ReturnType<typeof getCard>; n: number } => !!x)
       .sort((a, b) => compareCatalogCards(a.card, b.card));
   }, [deckCounts]);
-
-  const say = (msg: string) => {
-    setFlash(msg);
-    window.setTimeout(() => setFlash(null), 2200);
-  };
-
-  const addToDeck = (cardId: string) => {
-    if (!isUnlocked(owned, cardId)) {
-      say("Карта не открыта");
-      return;
-    }
-    const have = ownedCopies(owned, cardId);
-    const inDeck = deckCounts[cardId] ?? 0;
-    const cap = Math.min(maxCopiesForCard(cardId), have);
-    if (inDeck >= cap) {
-      say(`Лимит копий «${getCard(cardId).name}»: ${cap}`);
-      return;
-    }
-    if (deck.length >= DECK_SIZE) {
-      say(`В колоде максимум ${DECK_SIZE} карт`);
-      return;
-    }
-    const card = getCard(cardId);
-    onChange(saveDeck(owned, deckId, [...deck, cardId]));
-    say(`→ в колоду: ${card.name} (${inDeck + 1}/${cap})`);
-  };
-
-  const removeFromDeck = (cardId: string) => {
-    if (!deckCounts[cardId]) {
-      say("Этой карты нет в колоде");
-      return;
-    }
-    const idx = deck.lastIndexOf(cardId);
-    const next = deck.filter((_, i) => i !== idx);
-    const card = getCard(cardId);
-    onChange(saveDeck(owned, deckId, next));
-    say(`← убрана копия: ${card.name}`);
-  };
 
   const clearDeck = () => {
     if (deck.length === 0) {
@@ -684,28 +795,70 @@ export function Cabinet({
                   return (
                     <div
                       key={card.id}
-                      className={`cabinet-hand-card ${allowCardDrag ? "is-draggable" : ""}`}
-                      draggable={allowCardDrag}
+                      className={`cabinet-hand-card ${allowCardDrag ? "is-draggable" : ""} ${mobileBook ? "is-mobile-gestures" : ""}`}
+                      draggable={allowCardDrag && !mobileBook}
                       onDragStart={
-                        allowCardDrag
+                        allowCardDrag && !mobileBook
                           ? (e) => onCardDragStart(e, card.id, "deck")
                           : undefined
                       }
                       onDragEnd={
                         allowCardDrag ? () => setDragOver(null) : undefined
                       }
-                      title={card.name}
+                      title={
+                        mobileBook
+                          ? `${card.name} · ↓ или 2× тап — в оракул`
+                          : card.name
+                      }
                     >
-                      <CardView
-                        card={card}
-                        compact
-                        flippable={false}
-                        upgradeLevel={
-                          isUpgradeableCard(card.id)
-                            ? getCardUpgradeLevel(owned, card.id)
-                            : null
+                      <div
+                        className="cabinet-hand-gesture-target"
+                        onPointerDown={
+                          mobileBook
+                            ? (e) => onCardPointerDown(e, card.id, "hand")
+                            : undefined
                         }
-                      />
+                        onPointerUp={
+                          mobileBook
+                            ? (e) => onCardPointerUp(e, card.id, "hand")
+                            : undefined
+                        }
+                        onPointerCancel={
+                          mobileBook
+                            ? () => {
+                                swipeRef.current = null;
+                              }
+                            : undefined
+                        }
+                        onTouchStart={
+                          mobileBook
+                            ? (e) => onCardTouchStart(e, card.id, "hand")
+                            : undefined
+                        }
+                        onTouchEnd={
+                          mobileBook
+                            ? (e) => onCardTouchEnd(e, card.id, "hand")
+                            : undefined
+                        }
+                        onTouchCancel={
+                          mobileBook
+                            ? () => {
+                                swipeRef.current = null;
+                              }
+                            : undefined
+                        }
+                      >
+                        <CardView
+                          card={card}
+                          compact
+                          flippable={false}
+                          upgradeLevel={
+                            isUpgradeableCard(card.id)
+                              ? getCardUpgradeLevel(owned, card.id)
+                              : null
+                          }
+                        />
+                      </div>
                       <div className="cabinet-hand-actions">
                         <button
                           type="button"
