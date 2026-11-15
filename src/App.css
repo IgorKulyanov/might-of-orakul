@@ -8636,33 +8636,35 @@ html.is-hand-dragging .grave-row {
 }
 
 .oracle-book-abs-slot .oracle-book-slot-frame {
-  /* окно рамки: карта+статы внутри, PNG-обод ЦЕЛИКОМ сверху */
-  --ob-frame-hole-w: 58%;
-  --ob-frame-hole-h: 62%;
+  /* дырка рамки: карта только тут; PNG-обод абсолютом СВЕРХУ */
+  --ob-hole-left: 21%;
+  --ob-hole-top: 19%;
+  --ob-hole-w: 58%;
+  --ob-hole-h: 62%;
   position: relative;
+  isolation: isolate;
   flex: 1 1 auto;
   width: 100%;
   min-height: 0;
   height: calc(100% - 1.35rem);
-  display: grid;
-  grid-template: 1fr / 1fr;
-  place-items: center;
   overflow: visible;
   background: transparent;
   padding: 0;
+  margin: 0;
+  border: none;
   border-radius: 0;
   box-shadow: none;
 }
 
-/* слой 1: арт карты строго в прозрачном окне */
 .oracle-book-abs-slot .oracle-book-card-core {
-  grid-area: 1 / 1;
+  position: absolute;
+  left: var(--ob-hole-left);
+  top: var(--ob-hole-top);
+  width: var(--ob-hole-w);
+  height: var(--ob-hole-h);
   z-index: 1;
-  width: var(--ob-frame-hole-w);
-  height: var(--ob-frame-hole-h);
-  margin: auto;
   overflow: hidden;
-  border-radius: 4px;
+  border-radius: 3px;
   pointer-events: none;
 }
 
@@ -8682,28 +8684,28 @@ html.is-hand-dragging .grave-row {
 }
 
 .oracle-book-abs-slot .oracle-book-card-core .card-inner {
-  border-radius: 4px;
+  border-radius: 3px;
   padding: 0;
   background: #0a0c12;
   box-shadow: none;
 }
 
-/* слой 2: статы в том же окне — под ободом, но в прозрачной дырке */
-.oracle-book-stat-hud {
-  grid-area: 1 / 1;
+.oracle-book-abs-slot .oracle-book-stat-hud {
+  position: absolute;
+  left: var(--ob-hole-left);
+  top: var(--ob-hole-top);
+  width: var(--ob-hole-w);
+  height: var(--ob-hole-h);
   z-index: 2;
-  width: var(--ob-frame-hole-w);
-  height: var(--ob-frame-hole-h);
-  margin: auto;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   pointer-events: none;
   box-sizing: border-box;
-  padding: 0.15rem;
+  padding: 0.12rem;
 }
 
-.oracle-book-stat-top {
+.oracle-book-abs-slot .oracle-book-stat-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -8719,19 +8721,19 @@ html.is-hand-dragging .grave-row {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
 }
 
-.oracle-book-stat-school {
+.oracle-book-abs-slot .oracle-book-stat-school {
   display: inline-flex;
   align-items: center;
   gap: 0.2rem;
   min-width: 0;
 }
 
-.oracle-book-stat-combat {
+.oracle-book-abs-slot .oracle-book-stat-combat {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.oracle-book-stat-name {
+.oracle-book-abs-slot .oracle-book-stat-name {
   padding: 0.16rem 0.28rem;
   border-radius: 4px;
   background: rgba(6, 8, 14, 0.9);
@@ -8746,24 +8748,34 @@ html.is-hand-dragging .grave-row {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
 }
 
-/* слой 3: рамка ЦЕЛИКОМ сверху — вензели не режет чёрный прямоугольник */
+/* рамка — самый верхний слой, ничто её не перекрывает */
 .oracle-book-abs-slot .oracle-book-card-frame {
-  grid-area: 1 / 1;
-  width: 100%;
-  height: 100%;
-  object-fit: fill;
-  pointer-events: none;
-  z-index: 5;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  object-fit: fill !important;
+  pointer-events: none !important;
+  z-index: 50 !important;
   user-select: none;
 }
 
 .oracle-book-abs-slot .oracle-book-slot-meta {
   flex: 0 0 auto;
   width: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 .oracle-book-abs-slot.in-deck .oracle-book-slot-frame {
-  filter: drop-shadow(0 0 3px rgba(82, 183, 136, 0.85));
+  /* без filter на родителе — иначе ломается stacking рамки */
+  outline: 2px solid rgba(82, 183, 136, 0.75);
+  outline-offset: 2px;
 }
 
 .oracle-book-pages {
@@ -9104,15 +9116,15 @@ html.is-hand-dragging .grave-row {
   display: none;
 }
 
-.oracle-book-card-frame {
+/* старое правило рамки — только для устаревших слотов, не abs */
+.oracle-book-slot > .oracle-book-slot-frame > .oracle-book-card-frame {
   position: absolute;
-  left: -5%;
-  top: -5%;
-  width: 110%;
-  height: 110%;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   max-width: none;
   pointer-events: none;
-  z-index: 8;
+  z-index: 50;
   object-fit: fill;
   user-select: none;
 }
