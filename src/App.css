@@ -8092,8 +8092,17 @@ html.is-hand-dragging .grave-row {
 }
 
 .oracle-folio-cover {
+  --ob-spread-l: 11.5%;
+  --ob-spread-r: 11.5%;
+  --ob-spread-t: 11%;
+  --ob-spread-b: 19%;
+  --ob-ribbons-l: 24.5%;
+  --ob-ribbons-r: 26.5%;
+  --ob-ribbons-b: 0.5%;
+  --ob-ribbons-h: 14.8%;
+  --ob-cover-w: 1380px;
   position: relative;
-  width: min(98vw, calc((100dvh - 9.5rem) * 1.5), 1380px);
+  width: min(98vw, calc((100dvh - 9.5rem) * 1.5), var(--ob-cover-w));
   margin: 0 auto;
   aspect-ratio: 1536 / 1024;
   padding: 0;
@@ -8102,6 +8111,157 @@ html.is-hand-dragging .grave-row {
   background: transparent;
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.58);
   overflow: visible;
+}
+
+.oracle-folio-cover.is-calibrating {
+  outline: 2px dashed rgba(255, 220, 120, 0.55);
+  outline-offset: 4px;
+}
+
+.oracle-folio-cover.is-calibrating .oracle-book-ribbons,
+.oracle-folio-cover.is-calibrating .oracle-book-spread,
+.oracle-folio-cover.is-calibrating .oracle-page-corner {
+  pointer-events: none !important;
+}
+
+.ob-cal-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.35rem auto 0.5rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.78rem;
+}
+
+.ob-cal-hud {
+  position: absolute;
+  z-index: 60;
+  left: 50%;
+  top: 2%;
+  transform: translateX(-50%);
+  width: min(92%, 340px);
+  padding: 0.55rem 0.7rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid rgba(232, 197, 71, 0.45);
+  background: rgba(12, 10, 8, 0.92);
+  color: #f3e6c8;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.ob-cal-hud strong {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 0.9rem;
+  color: #ffe9a8;
+}
+
+.ob-cal-hud p {
+  margin: 0 0 0.45rem;
+  opacity: 0.9;
+}
+
+.ob-cal-hud-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  margin-top: 0.35rem;
+}
+
+.ob-cal-hud-row .primary,
+.ob-cal-hud-row .ghost {
+  padding: 0.28rem 0.55rem;
+  font-size: 0.72rem;
+}
+
+.ob-cal-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 1 1 auto;
+  min-width: 8rem;
+  font-size: 0.7rem;
+}
+
+.ob-cal-size input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ob-cal-box {
+  position: absolute;
+  z-index: 55;
+  box-sizing: border-box;
+  border: 2px solid rgba(80, 220, 140, 0.85);
+  background: rgba(60, 200, 120, 0.18);
+  cursor: move;
+  touch-action: none;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.ob-cal-box.is-ribbons {
+  border-color: rgba(190, 120, 255, 0.9);
+  background: rgba(160, 90, 255, 0.22);
+}
+
+.ob-cal-box.is-active {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35), 0 0 16px rgba(0, 0, 0, 0.35);
+}
+
+.ob-cal-label {
+  position: absolute;
+  top: 0.2rem;
+  left: 0.35rem;
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 0.65rem;
+  pointer-events: none;
+}
+
+.ob-cal-handle {
+  position: absolute;
+  background: #fff8d0;
+  border: 1px solid #3a2a10;
+  border-radius: 2px;
+  pointer-events: auto;
+}
+
+.ob-cal-handle.is-n,
+.ob-cal-handle.is-s {
+  left: 18%;
+  right: 18%;
+  height: 10px;
+  cursor: ns-resize;
+}
+
+.ob-cal-handle.is-n {
+  top: -5px;
+}
+
+.ob-cal-handle.is-s {
+  bottom: -5px;
+}
+
+.ob-cal-handle.is-e,
+.ob-cal-handle.is-w {
+  top: 18%;
+  bottom: 18%;
+  width: 10px;
+  cursor: ew-resize;
+}
+
+.ob-cal-handle.is-w {
+  left: -5px;
+}
+
+.ob-cal-handle.is-e {
+  right: -5px;
 }
 
 .oracle-folio-art {
@@ -8121,13 +8281,13 @@ html.is-hand-dragging .grave-row {
   display: none;
 }
 
-/* Закладки: 3+щель корешка+3 ровно по лентам на арте (~25%…73%) */
+/* Закладки: 3+щель корешка+3 — % из CSS-переменных (калибровка мышкой) */
 .oracle-book-ribbons {
   position: absolute;
-  left: 24.5%;
-  right: 26.5%;
-  bottom: 0.5%;
-  height: 14.8%;
+  left: var(--ob-ribbons-l);
+  right: var(--ob-ribbons-r);
+  bottom: var(--ob-ribbons-b);
+  height: var(--ob-ribbons-h);
   z-index: 40;
   display: grid;
   grid-template-columns: 1fr 1fr 1fr 0.72fr 1fr 1fr 1fr;
@@ -8213,10 +8373,10 @@ html.is-hand-dragging .grave-row {
 .oracle-book-spread {
   position: absolute;
   z-index: 2;
-  left: 11.5%;
-  right: 11.5%;
-  top: 11%;
-  bottom: 19%;
+  left: var(--ob-spread-l);
+  right: var(--ob-spread-r);
+  top: var(--ob-spread-t);
+  bottom: var(--ob-spread-b);
   margin: 0;
   display: flex;
   flex-direction: column;
@@ -8616,23 +8776,12 @@ html.is-hand-dragging .grave-row {
   }
 
   .oracle-folio-cover {
-    width: min(100vw - 0.35rem, calc((100dvh - 11rem) * 1.5));
+    width: min(100vw - 0.35rem, calc((100dvh - 11rem) * 1.5), var(--ob-cover-w));
     max-width: none;
   }
 
   .oracle-book-ribbons {
-    left: 24%;
-    right: 26%;
-    bottom: 0.3%;
-    height: 15.8%;
     column-gap: 1.2%;
-  }
-
-  .oracle-book-spread {
-    left: 12%;
-    right: 12%;
-    top: 11%;
-    bottom: 20%;
   }
 
   .oracle-book-page.is-left {
@@ -8683,17 +8832,6 @@ html.is-hand-dragging .grave-row {
     --card-h: calc(var(--card-w) * 1.5);
   }
 
-  .oracle-book-ribbons {
-    left: 23.5%;
-    right: 25.5%;
-    height: 16.2%;
-  }
-
-  .oracle-book-spread {
-    left: 12.5%;
-    right: 12.5%;
-    bottom: 20.5%;
-  }
 
   .oracle-book-slot .card.compact {
     --card-w: min(100cqw, calc((100cqh - 1.1rem) * 0.66), 78px);

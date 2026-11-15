@@ -1,11 +1,19 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type DragEvent,
 } from "react";
 import { CardView } from "./CardView";
+import {
+  bookLayoutToCssVars,
+  loadBookLayout,
+  OracleBookCalibrate,
+  saveBookLayout,
+  type BookLayout,
+} from "./OracleBookCalibrate";
 import {
   CARDS,
   DECK_SIZE,
@@ -93,10 +101,17 @@ export function Cabinet({
   const [bookFlipDir, setBookFlipDir] = useState<"fwd" | "back">("fwd");
   /** На телефоне drag блокирует скролл — только кнопки. */
   const [allowCardDrag, setAllowCardDrag] = useState(true);
+  const [bookLayout, setBookLayout] = useState<BookLayout>(() => loadBookLayout());
+  const [calibrating, setCalibrating] = useState(false);
+  const folioCoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (forcedTab) setTab(forcedTab);
   }, [forcedTab]);
+
+  useEffect(() => {
+    if (!calibrating) saveBookLayout(bookLayout);
+  }, [bookLayout, calibrating]);
 
   useEffect(() => {
     setBookSchool(homeSchool);
@@ -616,13 +631,36 @@ export function Cabinet({
             onDrop={onDropToCase}
           >
             <div className="oracle-folio" aria-label="Фолиант оракула">
-              <div className="oracle-folio-cover">
+              <button
+                type="button"
+                className={`ob-cal-toggle ${calibrating ? "primary" : "ghost"}`}
+                onClick={() => setCalibrating((v) => !v)}
+                title="Подогнать книгу мышкой, как в Paint"
+              >
+                {calibrating ? "Калибровка: вкл" : "Подогнать мышкой"}
+              </button>
+              <div
+                ref={folioCoverRef}
+                className={`oracle-folio-cover ${calibrating ? "is-calibrating" : ""}`}
+                style={bookLayoutToCssVars(bookLayout)}
+              >
                 <img
                   className="oracle-folio-art"
                   src="/ui/oracle-book.png"
                   alt=""
                   draggable={false}
                 />
+                {calibrating ? (
+                  <OracleBookCalibrate
+                    layout={bookLayout}
+                    onChange={setBookLayout}
+                    onClose={() => {
+                      saveBookLayout(bookLayout);
+                      setCalibrating(false);
+                    }}
+                    coverRef={folioCoverRef}
+                  />
+                ) : null}
                 <nav className="oracle-book-ribbons" aria-label="Школы">
                   {BOOK_SCHOOLS.slice(0, 3).map((s) => {
                     const n = schoolCounts[s];
