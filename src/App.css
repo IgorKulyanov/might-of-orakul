@@ -8088,19 +8088,11 @@ html.is-hand-dragging .grave-row {
 .oracle-folio {
   position: relative;
   padding: 0;
-  overflow: visible;
+  overflow: visible !important;
 }
 
 .oracle-folio-cover {
   --ob-cover-w: 4000px;
-  --ob-page-l-x: 11%;
-  --ob-page-l-y: 10%;
-  --ob-page-l-w: 37%;
-  --ob-page-l-h: 68%;
-  --ob-page-r-x: 52%;
-  --ob-page-r-y: 10%;
-  --ob-page-r-w: 37%;
-  --ob-page-r-h: 68%;
   position: relative;
   /* от края до края: без потолка по высоте экрана */
   width: min(100vw - 0.4rem, var(--ob-cover-w));
@@ -8112,7 +8104,7 @@ html.is-hand-dragging .grave-row {
   border-radius: 0;
   background: transparent;
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.58);
-  overflow: visible;
+  overflow: visible !important;
 }
 
 .oracle-folio-cover.is-calibrating {
@@ -8600,8 +8592,11 @@ html.is-hand-dragging .grave-row {
   color: #2a1c10;
   background: transparent;
   box-shadow: none;
-  overflow: visible;
+  overflow: visible !important;
   pointer-events: none;
+  /* transform от анимации листания режет потомков — отключаем */
+  transform: none !important;
+  animation: none !important;
 }
 
 .oracle-book-empty.is-abs {
@@ -8627,7 +8622,8 @@ html.is-hand-dragging .grave-row {
   min-height: 0;
   box-sizing: border-box;
   pointer-events: auto;
-  overflow: visible;
+  overflow: visible !important;
+  contain: none;
 }
 
 .oracle-book-abs-slot.is-empty {
@@ -8748,18 +8744,17 @@ html.is-hand-dragging .grave-row {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
 }
 
-/* рамка — самый верхний слой, ничто её не перекрывает */
+/* рамка целиком: contain = не обрезать вензели; по центру слота */
 .oracle-book-abs-slot .oracle-book-card-frame {
   position: absolute !important;
   left: 0 !important;
   top: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
   width: 100% !important;
   height: 100% !important;
   max-width: none !important;
   margin: 0 !important;
-  object-fit: fill !important;
+  object-fit: contain !important;
+  object-position: center center !important;
   pointer-events: none !important;
   z-index: 50 !important;
   user-select: none;

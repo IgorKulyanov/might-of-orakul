@@ -292,7 +292,7 @@ export function Cabinet({
           {/* Рамка сверху — целостность обода, контент только в окне */}
           <img
             className="oracle-book-card-frame"
-            src="/ui/card-frame-book.png?v=5"
+            src="/ui/card-frame-book.png?v=6"
             alt=""
             draggable={false}
           />

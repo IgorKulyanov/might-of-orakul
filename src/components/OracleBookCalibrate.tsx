@@ -53,10 +53,11 @@ function gridOnPage(
   pw: number,
   ph: number,
 ): [BoxPct, BoxPct, BoxPct, BoxPct] {
-  const padX = pw * 0.06;
-  const padY = ph * 0.05;
-  const gapX = pw * 0.04;
-  const gapY = ph * 0.05;
+  /* больше зазор — рамки не наезжают и не «съедают» друг друга */
+  const padX = pw * 0.04;
+  const padY = ph * 0.04;
+  const gapX = pw * 0.1;
+  const gapY = ph * 0.1;
   const cellW = (pw - padX * 2 - gapX) / 2;
   const cellH = (ph - padY * 2 - gapY) / 2;
   const out: BoxPct[] = [];
@@ -75,8 +76,8 @@ function gridOnPage(
 
 function defaultSlots(): BookLayout["slots"] {
   return [
-    ...gridOnPage(11.5, 10.5, 36, 66),
-    ...gridOnPage(52.5, 10.5, 36, 66),
+    ...gridOnPage(11, 10, 37, 68),
+    ...gridOnPage(52, 10, 37, 68),
   ] as BookLayout["slots"];
 }
 
@@ -95,7 +96,7 @@ export const DEFAULT_BOOK_LAYOUT: BookLayout = {
   coverW: 4000,
 };
 
-const STORAGE_KEY = "orakul-book-layout-v7";
+const STORAGE_KEY = "orakul-book-layout-v8";
 const MIN = 2.5;
 
 type Mode = "cards" | "ribbons" | "turn" | "cover";
@@ -209,6 +210,7 @@ export function loadBookLayout(): BookLayout {
       "orakul-book-layout-v4",
       "orakul-book-layout-v5",
       "orakul-book-layout-v6",
+      "orakul-book-layout-v7",
     ]) {
       localStorage.removeItem(k);
     }
