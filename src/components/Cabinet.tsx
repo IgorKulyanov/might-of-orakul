@@ -295,7 +295,7 @@ export function Cabinet({
             </div>
             <img
               className="oracle-book-card-frame"
-              src="/ui/card-frame-book.png?v=8"
+              src="/ui/card-frame-book.png?v=9"
               alt=""
               draggable={false}
             />

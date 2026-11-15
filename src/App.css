@@ -8637,11 +8637,11 @@ html.is-hand-dragging .grave-row {
 }
 
 .oracle-book-abs-slot .oracle-book-slot-frame {
-  /* окно ≈ до золотого канта + чуть под него */
-  --ob-hole-left: 20%;
-  --ob-hole-top: 19.5%;
-  --ob-hole-w: 60%;
-  --ob-hole-h: 61%;
+  /* окно рамка2 (замер alpha) + чуть под золотой кант */
+  --ob-hole-left: 24%;
+  --ob-hole-top: 18.5%;
+  --ob-hole-w: 52%;
+  --ob-hole-h: 63%;
   position: relative;
   flex: 1 1 auto;
   width: 100%;
@@ -8664,7 +8664,7 @@ html.is-hand-dragging .grave-row {
   isolation: isolate;
   height: 100%;
   width: auto;
-  aspect-ratio: 719 / 1024;
+  aspect-ratio: 1051 / 1496;
   max-width: 100%;
   margin: 0 auto;
   overflow: visible !important;
