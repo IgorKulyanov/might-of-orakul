@@ -256,6 +256,12 @@ export function Cabinet({
                 : null
             }
           />
+          <img
+            className="oracle-book-card-frame"
+            src="/ui/card-frame-book.svg"
+            alt=""
+            draggable={false}
+          />
         </div>
         <div className="oracle-book-slot-meta">
           <div className="cabinet-card-actions">
@@ -721,19 +727,20 @@ export function Cabinet({
                   <div className="oracle-book-pages">
                     <div className="oracle-book-page is-left">
                       {bookSchoolCards.length === 0 ? (
-                        <>
-                          <p className="oracle-book-empty">
-                            Пустая глава «{SCHOOL_LABEL[bookSchool]}»
-                          </p>
-                          {renderPageSlots([], "L")}
-                        </>
+                        <p className="oracle-book-empty">
+                          Пустая глава «{SCHOOL_LABEL[bookSchool]}»
+                        </p>
                       ) : (
                         renderPageSlots(leftPageCards, "L")
                       )}
                     </div>
 
                     <div className="oracle-book-page is-right">
-                      {renderPageSlots(rightPageCards, "R")}
+                      {bookSchoolCards.length === 0 ? (
+                        <p className="oracle-book-empty is-quiet"> </p>
+                      ) : (
+                        renderPageSlots(rightPageCards, "R")
+                      )}
                     </div>
                   </div>
                 </div>

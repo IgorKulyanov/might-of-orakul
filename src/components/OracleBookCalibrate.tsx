@@ -45,8 +45,8 @@ const RIBBON_COLORS = [
 ] as const;
 
 export const DEFAULT_BOOK_LAYOUT: BookLayout = {
-  pageL: { x: 11, y: 10, w: 37, h: 68 },
-  pageR: { x: 52, y: 10, w: 37, h: 68 },
+  pageL: { x: 12, y: 11, w: 35, h: 64 },
+  pageR: { x: 53, y: 11, w: 35, h: 64 },
   ribbons: [
     { x: 25.0, y: 85, w: 6.5, h: 14 },
     { x: 32.2, y: 85, w: 6.5, h: 14 },
@@ -58,11 +58,11 @@ export const DEFAULT_BOOK_LAYOUT: BookLayout = {
   btnBack: { x: 12, y: 78, w: 12, h: 5 },
   btnFwd: { x: 76, y: 78, w: 12, h: 5 },
   coverW: 4000,
-  cardScale: 1,
-  cardGap: 0.35,
+  cardScale: 0.95,
+  cardGap: 0.28,
 };
 
-const STORAGE_KEY = "orakul-book-layout-v4";
+const STORAGE_KEY = "orakul-book-layout-v5";
 const MIN = 3;
 
 type Mode = "pages" | "ribbons" | "cards" | "turn" | "cover";
