@@ -9319,27 +9319,76 @@ html.is-hand-dragging .grave-row {
     --card-h: calc(var(--card-w) * 1.5);
   }
 
-  .oracle-folio-cover {
+  /* Книга на телефоне: на весь экран по ширине, по центру, без уезда вправо */
+  .cabinet:has(.oracle-book) {
+    padding-left: 0;
+    padding-right: 0;
+    overflow-x: clip;
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .cabinet:has(.oracle-book) .page-bar,
+  .cabinet:has(.oracle-book) .cabinet-zone-deck,
+  .cabinet:has(.oracle-book) .oracle-book-toolbar,
+  .cabinet:has(.oracle-book) .ob-cal-hud,
+  .cabinet:has(.oracle-book) .cabinet-flash {
+    margin-left: 0.5rem;
+    margin-right: 0.5rem;
+    max-width: calc(100% - 1rem);
+    box-sizing: border-box;
+  }
+
+  .cabinet:has(.oracle-book) .cabinet-zone-deck {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .cabinet:has(.oracle-book) .cabinet-deck-hand-scroll {
     width: 100%;
     max-width: 100%;
-  }
-
-  /* на узком экране золотые подписи чуть компактнее, чтобы ВПЕРЕД не обрезало */
-  .oracle-book-turn {
-    font-size: clamp(1.15rem, 6.2vw, 2.35rem);
-    letter-spacing: 0.04em;
-    -webkit-text-stroke: 0.04em #0a0600;
-  }
-
-  .cabinet:has(.oracle-book) {
-    padding-left: 0.35rem;
-    padding-right: 0.35rem;
-    overflow-x: hidden;
   }
 
   .cabinet-cards:has(.oracle-book) {
     padding-left: 0;
     padding-right: 0;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  .cabinet:has(.oracle-book) .oracle-book {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    overflow: visible;
+  }
+
+  .cabinet:has(.oracle-book) .oracle-folio {
+    /* вырыв на всю ширину вьюпорта + центрирование */
+    width: 100vw;
+    max-width: 100vw;
+    margin-left: 50%;
+    transform: translateX(-50%);
+    overflow: visible;
+  }
+
+  .oracle-folio-cover {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+  }
+
+  /* НАЗАД/ВПЕРЕД целиком в хитбоксе, не торчат за край экрана */
+  .oracle-book-turn {
+    font-size: clamp(0.82rem, 4vw, 1.28rem);
+    letter-spacing: 0.03em;
+    -webkit-text-stroke: 0.035em #0a0600;
+    white-space: nowrap;
+    overflow: hidden;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 0 0.1em;
   }
 
   .oracle-book-page {
