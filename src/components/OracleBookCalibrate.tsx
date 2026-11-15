@@ -17,6 +17,10 @@ export type BookLayout = {
   /** 6 закладок слева направо */
   ribbons: [BoxPct, BoxPct, BoxPct, BoxPct, BoxPct, BoxPct];
   coverW: number;
+  /** Размер карт в книге (1 = обычно) */
+  cardScale: number;
+  /** Зазор сетки карт, rem */
+  cardGap: number;
 };
 
 const RIBBON_LABELS = [
@@ -49,12 +53,14 @@ export const DEFAULT_BOOK_LAYOUT: BookLayout = {
     { x: 66.4, y: 85, w: 6.5, h: 14 },
   ],
   coverW: 4000,
+  cardScale: 1,
+  cardGap: 0.35,
 };
 
 const STORAGE_KEY = "orakul-book-layout-v3";
 const MIN = 3;
 
-type Mode = "pages" | "ribbons" | "cover";
+type Mode = "pages" | "ribbons" | "cards" | "cover";
 type Handle =
   | "move"
   | "n"
@@ -164,6 +170,12 @@ export function loadBookLayout(): BookLayout {
     if (typeof parsed.coverW === "number") {
       base.coverW = clamp(parsed.coverW, 800, 6000);
     }
+    if (typeof parsed.cardScale === "number") {
+      base.cardScale = clamp(parsed.cardScale, 0.45, 1.9);
+    }
+    if (typeof parsed.cardGap === "number") {
+      base.cardGap = clamp(parsed.cardGap, 0.05, 1.2);
+    }
     return base;
   } catch {
     return structuredClone(DEFAULT_BOOK_LAYOUT);
@@ -189,6 +201,8 @@ export function bookLayoutToCssVars(layout: BookLayout): CSSProperties {
     "--ob-page-r-y": `${layout.pageR.y}%`,
     "--ob-page-r-w": `${layout.pageR.w}%`,
     "--ob-page-r-h": `${layout.pageR.h}%`,
+    "--ob-card-scale": String(layout.cardScale),
+    "--ob-card-gap": `${layout.cardGap}rem`,
   };
   layout.ribbons.forEach((r, i) => {
     vars[`--ob-rib-${i}-x`] = `${r.x}%`;
@@ -231,6 +245,7 @@ export function OracleBookCalibrate({
   const [mode, setMode] = useState<Mode>("pages");
   const [focus, setFocus] = useState<Target>({ kind: "pageL" });
   const [copied, setCopied] = useState(false);
+  const [savedMsg, setSavedMsg] = useState<string | null>(null);
   const dragRef = useRef<{
     target: Target;
     handle: Handle;
@@ -364,7 +379,7 @@ export function OracleBookCalibrate({
     );
   };
 
-  const pagesOn = mode === "pages";
+  const pagesOn = mode === "pages" || mode === "cards";
   const ribsOn = mode === "ribbons";
 
   return (
@@ -372,9 +387,10 @@ export function OracleBookCalibrate({
       <div className="ob-cal-hud" role="dialog" aria-label="Калибровка книги">
         <strong>Калибровка как в Paint</strong>
         <p>
-          <b>2 зелёных</b> = левая и правая страница.{" "}
-          <b>6 цветных</b> = каждая закладка-кнопка отдельно. Кружок — двигать,
-          угол — растянуть.
+          Страницы = где карты. Закладки = 6 кнопок. Карты = размер карт.
+          <br />
+          <b>Готово</b> = сохранено у тебя в браузере. Чтобы я вшил в игру для
+          всех — жми <b>Копировать</b> и пришли текст мне в чат.
         </p>
         <div className="ob-cal-hud-row">
           <button
@@ -386,6 +402,13 @@ export function OracleBookCalibrate({
             }}
           >
             Страницы
+          </button>
+          <button
+            type="button"
+            className={mode === "cards" ? "primary" : "ghost"}
+            onClick={() => setMode("cards")}
+          >
+            Карты
           </button>
           <button
             type="button"
@@ -427,6 +450,47 @@ export function OracleBookCalibrate({
             ))}
           </div>
         ) : null}
+        {mode === "cards" ? (
+          <div className="ob-cal-cards-panel">
+            <p>
+              Позиция карт = зелёные страницы (подвинь страницу — карты поедут).
+              Здесь крути <b>размер</b> и зазор — смотри на карты в книге сразу.
+            </p>
+            <label className="ob-cal-size">
+              Размер карт {layout.cardScale.toFixed(2)}
+              <input
+                type="range"
+                min={0.45}
+                max={1.85}
+                step={0.05}
+                value={layout.cardScale}
+                onChange={(e) =>
+                  onChange({
+                    ...layout,
+                    cardScale: Number(e.target.value),
+                  })
+                }
+              />
+            </label>
+            <label className="ob-cal-size">
+              Зазор {layout.cardGap.toFixed(2)}
+              <input
+                type="range"
+                min={0.05}
+                max={1.1}
+                step={0.05}
+                value={layout.cardGap}
+                onChange={(e) =>
+                  onChange({
+                    ...layout,
+                    cardGap: Number(e.target.value),
+                  })
+                }
+              />
+            </label>
+          </div>
+        ) : null}
+        {savedMsg ? <p className="ob-cal-saved">{savedMsg}</p> : null}
         <div className="ob-cal-hud-row">
           <button
             type="button"
@@ -436,14 +500,17 @@ export function OracleBookCalibrate({
             Сброс
           </button>
           <button type="button" className="ghost" onClick={() => void copyCss()}>
-            {copied ? "Скопировано" : "Копировать"}
+            {copied ? "Скопировано ✓" : "Копировать для меня"}
           </button>
           <button
             type="button"
             className="primary"
             onClick={() => {
               saveBookLayout(layout);
-              onClose();
+              setSavedMsg(
+                "Сохранено в ЭТОМ браузере ✓. Для всех навсегда — «Копировать для меня» и вставь в чат.",
+              );
+              window.setTimeout(() => onClose(), 900);
             }}
           >
             Готово

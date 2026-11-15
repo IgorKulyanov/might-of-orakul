@@ -8126,6 +8126,49 @@ html.is-hand-dragging .grave-row {
   pointer-events: none !important;
 }
 
+.oracle-book-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  margin: 0 auto 0.45rem;
+  padding: 0.35rem 0.5rem;
+  width: min(100%, 42rem);
+  border-radius: 8px;
+  background: rgba(12, 10, 8, 0.72);
+  border: 1px solid rgba(232, 197, 71, 0.35);
+}
+
+.oracle-book-pager-btn {
+  min-width: 6.5rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border-radius: 6px;
+  border: 1px solid #c9a227;
+  background: linear-gradient(180deg, #3a2a12, #1a1208);
+  color: #ffe9a8;
+  cursor: pointer;
+}
+
+.oracle-book-pager-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.oracle-book-pager-btn:not(:disabled):hover {
+  filter: brightness(1.12);
+}
+
+.oracle-book-pager-meta {
+  flex: 1 1 auto;
+  text-align: center;
+  font-size: 0.78rem;
+  color: #e8d5a8;
+  letter-spacing: 0.04em;
+}
+
 .ob-cal-toggle {
   display: inline-flex;
   align-items: center;
@@ -8133,6 +8176,24 @@ html.is-hand-dragging .grave-row {
   margin: 0.35rem auto 0.5rem;
   padding: 0.35rem 0.75rem;
   font-size: 0.78rem;
+}
+
+.ob-cal-cards-panel {
+  margin-top: 0.35rem;
+  padding: 0.4rem 0.45rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ob-cal-cards-panel p {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+}
+
+.ob-cal-saved {
+  margin: 0.4rem 0 0 !important;
+  color: #9dffb0 !important;
+  font-weight: 700;
 }
 
 .ob-cal-hud {
@@ -8554,23 +8615,23 @@ html.is-hand-dragging .grave-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
-  gap: 0.35rem 0.4rem;
+  gap: var(--ob-card-gap, 0.35rem);
   overflow: hidden;
   pointer-events: none;
 }
 
 .oracle-page-corner {
   position: absolute;
-  bottom: 0.15rem;
-  width: 22%;
-  max-width: 3.2rem;
-  height: 1.55rem;
-  border: none;
+  bottom: 0.25rem;
+  width: 28%;
+  max-width: 4rem;
+  height: 1.85rem;
+  border: 1px solid rgba(90, 55, 20, 0.35);
   padding: 0;
-  background: transparent;
+  background: rgba(255, 248, 220, 0.25);
   cursor: pointer;
   z-index: 5;
-  opacity: 0.35;
+  opacity: 0.75;
   pointer-events: auto;
   transition: opacity 0.15s ease, filter 0.15s ease;
 }
@@ -8783,8 +8844,12 @@ html.is-hand-dragging .grave-row {
 }
 
 .oracle-book-slot .card.compact {
-  /* размер от ячейки, не от vw — не вылезает за страницу */
-  --card-w: min(100cqw, calc((100cqh - 1.35rem) * 0.66), 118px);
+  /* размер от ячейки + калибровка --ob-card-scale */
+  --card-w: min(
+    100cqw,
+    calc((100cqh - 1.35rem) * 0.66),
+    calc(118px * var(--ob-card-scale, 1))
+  );
   --card-h: calc(var(--card-w) * 1.5);
   width: var(--card-w) !important;
   height: var(--card-h) !important;
@@ -8911,7 +8976,11 @@ html.is-hand-dragging .grave-row {
   }
 
   .oracle-book-slot .card.compact {
-    --card-w: min(100cqw, calc((100cqh - 1.2rem) * 0.66), 92px);
+    --card-w: min(
+      100cqw,
+      calc((100cqh - 1.2rem) * 0.66),
+      calc(92px * var(--ob-card-scale, 1))
+    );
     --card-h: calc(var(--card-w) * 1.5);
     max-height: calc(100% - 1.2rem);
   }
@@ -8944,7 +9013,11 @@ html.is-hand-dragging .grave-row {
 
 
   .oracle-book-slot .card.compact {
-    --card-w: min(100cqw, calc((100cqh - 1.1rem) * 0.66), 78px);
+    --card-w: min(
+      100cqw,
+      calc((100cqh - 1.1rem) * 0.66),
+      calc(78px * var(--ob-card-scale, 1))
+    );
     --card-h: calc(var(--card-w) * 1.5);
     max-height: calc(100% - 1.1rem);
   }

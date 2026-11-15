@@ -631,6 +631,35 @@ export function Cabinet({
             onDrop={onDropToCase}
           >
             <div className="oracle-folio" aria-label="Фолиант оракула">
+              <div className="oracle-book-pager">
+                <button
+                  type="button"
+                  className="oracle-book-pager-btn"
+                  disabled={bookSpread <= 0 || calibrating}
+                  onClick={() => turnBookPage("back")}
+                >
+                  ← Назад
+                </button>
+                <span className="oracle-book-pager-meta">
+                  {SCHOOL_LABEL[bookSchool]} · лист {bookSpread + 1}/
+                  {spreadCount}
+                  {bookSchoolCards.length
+                    ? ` · ${bookSchoolCards.length} карт`
+                    : ""}
+                </span>
+                <button
+                  type="button"
+                  className="oracle-book-pager-btn"
+                  disabled={
+                    bookSpread >= spreadCount - 1 ||
+                    calibrating ||
+                    bookSchoolCards.length === 0
+                  }
+                  onClick={() => turnBookPage("fwd")}
+                >
+                  Вперёд →
+                </button>
+              </div>
               <button
                 type="button"
                 className={`ob-cal-toggle ${calibrating ? "primary" : "ghost"}`}
