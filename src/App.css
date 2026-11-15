@@ -8092,17 +8092,19 @@ html.is-hand-dragging .grave-row {
 }
 
 .oracle-folio-cover {
-  --ob-spread-l: 11.5%;
-  --ob-spread-r: 11.5%;
-  --ob-spread-t: 11%;
-  --ob-spread-b: 19%;
-  --ob-ribbons-l: 24.5%;
-  --ob-ribbons-r: 26.5%;
+  --ob-spread-l: 10%;
+  --ob-spread-r: 10%;
+  --ob-spread-t: 10%;
+  --ob-spread-b: 18%;
+  --ob-ribbons-l: 24%;
+  --ob-ribbons-r: 26%;
   --ob-ribbons-b: 0.5%;
-  --ob-ribbons-h: 14.8%;
-  --ob-cover-w: 1380px;
+  --ob-ribbons-h: 15%;
+  --ob-cover-w: 4000px;
   position: relative;
-  width: min(98vw, calc((100dvh - 9.5rem) * 1.5), var(--ob-cover-w));
+  /* от края до края: без потолка по высоте экрана */
+  width: min(100vw - 0.4rem, var(--ob-cover-w));
+  max-width: 100%;
   margin: 0 auto;
   aspect-ratio: 1536 / 1024;
   padding: 0;
@@ -8875,8 +8877,8 @@ html.is-hand-dragging .grave-row {
   }
 
   .oracle-folio-cover {
-    width: min(100vw - 0.35rem, calc((100dvh - 11rem) * 1.5), var(--ob-cover-w));
-    max-width: none;
+    width: min(100vw - 0.25rem, var(--ob-cover-w));
+    max-width: 100%;
   }
 
   .oracle-book-ribbons {

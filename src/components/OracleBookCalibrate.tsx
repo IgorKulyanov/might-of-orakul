@@ -20,22 +20,23 @@ export type BookLayout = {
   coverW: number;
 };
 
+/** Обе страницы + все 6 закладок; книга на всю ширину окна */
 export const DEFAULT_BOOK_LAYOUT: BookLayout = {
-  spreadL: 11.5,
-  spreadR: 11.5,
-  spreadT: 11,
-  spreadB: 19,
-  ribbonsL: 24.5,
-  ribbonsR: 26.5,
+  spreadL: 10,
+  spreadR: 10,
+  spreadT: 10,
+  spreadB: 18,
+  ribbonsL: 24,
+  ribbonsR: 26,
   ribbonsB: 0.5,
-  ribbonsH: 14.8,
-  coverW: 1380,
+  ribbonsH: 15,
+  coverW: 4000,
 };
 
-const STORAGE_KEY = "orakul-book-layout-v1";
+const STORAGE_KEY = "orakul-book-layout-v2";
+const MIN_SPAN = 8; // минимальная ширина/высота рамки в %
 
 type BoxKind = "spread" | "ribbons" | "cover";
-/** Paint-style: углы + стороны + перенос */
 type Handle =
   | "move"
   | "n"
@@ -78,6 +79,49 @@ function hasN(h: Handle) {
 }
 function hasS(h: Handle) {
   return h === "s" || h === "sw" || h === "se";
+}
+
+/** Сдвиг inset-пары left/right без прилипания к центру */
+function moveInsets(
+  left: number,
+  right: number,
+  dx: number,
+  maxInset = 100 - MIN_SPAN,
+): { left: number; right: number } {
+  const width = 100 - left - right;
+  let nextL = left + dx;
+  let nextR = right - dx;
+  if (nextL < 0) {
+    nextR += nextL;
+    nextL = 0;
+  }
+  if (nextR < 0) {
+    nextL += nextR;
+    nextR = 0;
+  }
+  nextL = clamp(nextL, 0, maxInset);
+  nextR = clamp(nextR, 0, maxInset);
+  if (nextL + nextR > 100 - MIN_SPAN) {
+    // сохранить ширину у края
+    if (dx >= 0) {
+      nextL = 100 - MIN_SPAN - nextR;
+    } else {
+      nextR = 100 - MIN_SPAN - nextL;
+    }
+  }
+  // если упёрлись — не сжимать рамку
+  if (100 - nextL - nextR < width - 0.05) {
+    if (dx > 0) {
+      nextL = 100 - width - nextR;
+      nextL = clamp(nextL, 0, maxInset);
+      nextR = 100 - width - nextL;
+    } else {
+      nextR = 100 - width - nextL;
+      nextR = clamp(nextR, 0, maxInset);
+      nextL = 100 - width - nextR;
+    }
+  }
+  return { left: round1(nextL), right: round1(clamp(nextR, 0, maxInset)) };
 }
 
 export function loadBookLayout(): BookLayout {
@@ -127,6 +171,17 @@ export function formatBookLayoutCss(layout: BookLayout): string {
   ].join("\n");
 }
 
+function fitPair(a: number, b: number): { a: number; b: number } {
+  let left = clamp(a, 0, 100 - MIN_SPAN);
+  let right = clamp(b, 0, 100 - MIN_SPAN);
+  if (left + right > 100 - MIN_SPAN) {
+    const overflow = left + right - (100 - MIN_SPAN);
+    if (left >= right) left = round1(left - overflow);
+    else right = round1(right - overflow);
+  }
+  return { a: round1(left), b: round1(right) };
+}
+
 function applySpread(
   s: BookLayout,
   h: Handle,
@@ -135,24 +190,24 @@ function applySpread(
 ): BookLayout {
   const next = { ...s };
   if (h === "move") {
-    next.spreadL = clamp(round1(s.spreadL + dx), 0, 42);
-    next.spreadR = clamp(round1(s.spreadR - dx), 0, 42);
-    next.spreadT = clamp(round1(s.spreadT + dy), 0, 42);
-    next.spreadB = clamp(round1(s.spreadB - dy), 4, 48);
+    const x = moveInsets(s.spreadL, s.spreadR, dx);
+    next.spreadL = x.left;
+    next.spreadR = x.right;
+    const y = moveInsets(s.spreadT, s.spreadB, dy);
+    next.spreadT = y.left;
+    next.spreadB = y.right;
     return next;
   }
-  if (hasW(h)) next.spreadL = clamp(round1(s.spreadL + dx), 0, 42);
-  if (hasE(h)) next.spreadR = clamp(round1(s.spreadR - dx), 0, 42);
-  if (hasN(h)) next.spreadT = clamp(round1(s.spreadT + dy), 0, 42);
-  if (hasS(h)) next.spreadB = clamp(round1(s.spreadB - dy), 4, 48);
-  if (next.spreadL + next.spreadR > 88) {
-    if (hasW(h)) next.spreadL = round1(88 - next.spreadR);
-    if (hasE(h)) next.spreadR = round1(88 - next.spreadL);
-  }
-  if (next.spreadT + next.spreadB > 88) {
-    if (hasN(h)) next.spreadT = round1(88 - next.spreadB);
-    if (hasS(h)) next.spreadB = round1(88 - next.spreadT);
-  }
+  if (hasW(h)) next.spreadL = round1(s.spreadL + dx);
+  if (hasE(h)) next.spreadR = round1(s.spreadR - dx);
+  if (hasN(h)) next.spreadT = round1(s.spreadT + dy);
+  if (hasS(h)) next.spreadB = round1(s.spreadB - dy);
+  const x = fitPair(next.spreadL, next.spreadR);
+  const y = fitPair(next.spreadT, next.spreadB);
+  next.spreadL = x.a;
+  next.spreadR = x.b;
+  next.spreadT = y.a;
+  next.spreadB = y.b;
   return next;
 }
 
@@ -164,20 +219,24 @@ function applyRibbons(
 ): BookLayout {
   const next = { ...s };
   if (h === "move") {
-    next.ribbonsL = clamp(round1(s.ribbonsL + dx), 0, 48);
-    next.ribbonsR = clamp(round1(s.ribbonsR - dx), 0, 48);
-    next.ribbonsB = clamp(round1(s.ribbonsB - dy), 0, 22);
+    const x = moveInsets(s.ribbonsL, s.ribbonsR, dx);
+    next.ribbonsL = x.left;
+    next.ribbonsR = x.right;
+    // низ: ribbonsB от низа; высота отдельно — двигаем только bottom
+    next.ribbonsB = clamp(round1(s.ribbonsB - dy), 0, 100 - s.ribbonsH - 1);
     return next;
   }
-  if (hasW(h)) next.ribbonsL = clamp(round1(s.ribbonsL + dx), 0, 48);
-  if (hasE(h)) next.ribbonsR = clamp(round1(s.ribbonsR - dx), 0, 48);
-  // низ рамки (ближе к низу картинки)
-  if (hasS(h)) next.ribbonsB = clamp(round1(s.ribbonsB - dy), 0, 22);
-  // верх рамки = высота столбиков закладок
-  if (hasN(h)) next.ribbonsH = clamp(round1(s.ribbonsH - dy), 5, 30);
-  if (next.ribbonsL + next.ribbonsR > 92) {
-    if (hasW(h)) next.ribbonsL = round1(92 - next.ribbonsR);
-    if (hasE(h)) next.ribbonsR = round1(92 - next.ribbonsL);
+  if (hasW(h)) next.ribbonsL = round1(s.ribbonsL + dx);
+  if (hasE(h)) next.ribbonsR = round1(s.ribbonsR - dx);
+  if (hasS(h)) next.ribbonsB = round1(s.ribbonsB - dy);
+  if (hasN(h)) next.ribbonsH = round1(s.ribbonsH - dy);
+  const x = fitPair(next.ribbonsL, next.ribbonsR);
+  next.ribbonsL = x.a;
+  next.ribbonsR = x.b;
+  next.ribbonsB = clamp(next.ribbonsB, 0, 60);
+  next.ribbonsH = clamp(next.ribbonsH, 4, 50);
+  if (next.ribbonsB + next.ribbonsH > 98) {
+    next.ribbonsH = round1(98 - next.ribbonsB);
   }
   return next;
 }
@@ -216,10 +275,11 @@ export function OracleBookCalibrate({
       const s = d.start;
 
       if (d.kind === "cover") {
-        // тянем угол книги — шире/уже (как растягивание картинки)
         const px = e.clientX - d.startX;
-        const nextW = clamp(Math.round(s.coverW + px * 2), 640, 1700);
-        onChange({ ...s, coverW: nextW });
+        onChange({
+          ...s,
+          coverW: clamp(Math.round(s.coverW + px * 3), 800, 6000),
+        });
         return;
       }
       if (d.kind === "spread") {
@@ -310,9 +370,9 @@ export function OracleBookCalibrate({
       <div className="ob-cal-hud" role="dialog" aria-label="Калибровка книги">
         <strong>Как в Paint</strong>
         <p>
-          Зажми <b>середину</b> рамки — двигай. Тяни за <b>угол</b> или{" "}
-          <b>край</b> — растягивай шире/уже/выше. Жёлтый угол книги — размер
-          всей книги.
+          Зелёная рамка должна накрыть <b>обе</b> страницы. Фиолетовая — все
+          6 закладок. Кружок = двигать, угол = растянуть. Жёлтый угол книги =
+          ширина на весь экран.
         </p>
         <div className="ob-cal-hud-row">
           <button
@@ -369,7 +429,7 @@ export function OracleBookCalibrate({
           top: `${layout.spreadT}%`,
           bottom: `${layout.spreadB}%`,
         },
-        "Карты",
+        "Карты (обе страницы)",
       )}
 
       {renderBox(
@@ -380,14 +440,13 @@ export function OracleBookCalibrate({
           bottom: `${layout.ribbonsB}%`,
           height: `${layout.ribbonsH}%`,
         },
-        "Закладки",
+        "Все закладки",
       )}
 
-      {/* угол всей книги — растянуть шире/уже */}
       <button
         type="button"
         className={`ob-cal-cover-corner ${active === "cover" ? "is-active" : ""}`}
-        title="Потяни — размер книги"
+        title="Потяни — книга на всю ширину"
         aria-label="Растянуть книгу"
         onPointerDown={(e) => startDrag("cover", "se", e)}
       />
