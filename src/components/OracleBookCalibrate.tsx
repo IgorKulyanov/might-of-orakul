@@ -45,24 +45,26 @@ const RIBBON_COLORS = [
 ] as const;
 
 export const DEFAULT_BOOK_LAYOUT: BookLayout = {
-  pageL: { x: 12, y: 11, w: 35, h: 64 },
-  pageR: { x: 53, y: 11, w: 35, h: 64 },
+  /* страницы на пергаменте, 4 карты влезают крупно */
+  pageL: { x: 11.5, y: 10.5, w: 36, h: 66 },
+  pageR: { x: 52.5, y: 10.5, w: 36, h: 66 },
   ribbons: [
-    { x: 25.0, y: 85, w: 6.5, h: 14 },
-    { x: 32.2, y: 85, w: 6.5, h: 14 },
-    { x: 39.4, y: 85, w: 6.5, h: 14 },
-    { x: 52.0, y: 85, w: 6.5, h: 14 },
-    { x: 59.2, y: 85, w: 6.5, h: 14 },
-    { x: 66.4, y: 85, w: 6.5, h: 14 },
+    { x: 25.5, y: 84.5, w: 6.2, h: 13.5 },
+    { x: 32.5, y: 84.5, w: 6.2, h: 13.5 },
+    { x: 39.5, y: 84.5, w: 6.2, h: 13.5 },
+    { x: 52.5, y: 84.5, w: 6.2, h: 13.5 },
+    { x: 59.5, y: 84.5, w: 6.2, h: 13.5 },
+    { x: 66.5, y: 84.5, w: 6.2, h: 13.5 },
   ],
-  btnBack: { x: 12, y: 78, w: 12, h: 5 },
-  btnFwd: { x: 76, y: 78, w: 12, h: 5 },
+  /* на углах страниц книги, не под книгой */
+  btnBack: { x: 13, y: 72, w: 11, h: 6 },
+  btnFwd: { x: 76, y: 72, w: 11, h: 6 },
   coverW: 4000,
-  cardScale: 0.95,
-  cardGap: 0.28,
+  cardScale: 1.15,
+  cardGap: 0.32,
 };
 
-const STORAGE_KEY = "orakul-book-layout-v5";
+const STORAGE_KEY = "orakul-book-layout-v6";
 const MIN = 3;
 
 type Mode = "pages" | "ribbons" | "cards" | "turn" | "cover";
@@ -163,6 +165,16 @@ function isBoxPct(v: unknown): v is BoxPct {
 
 export function loadBookLayout(): BookLayout {
   try {
+    // старые кривые калибровки — выкинуть
+    for (const k of [
+      "orakul-book-layout-v1",
+      "orakul-book-layout-v2",
+      "orakul-book-layout-v3",
+      "orakul-book-layout-v4",
+      "orakul-book-layout-v5",
+    ]) {
+      localStorage.removeItem(k);
+    }
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return structuredClone(DEFAULT_BOOK_LAYOUT);
     const parsed = JSON.parse(raw) as Partial<BookLayout>;

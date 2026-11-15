@@ -8651,9 +8651,13 @@ html.is-hand-dragging .grave-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
-  gap: var(--ob-card-gap, 0.35rem);
+  gap: var(--ob-card-gap, 0.32rem);
+  align-content: stretch;
+  justify-items: center;
+  align-items: center;
   overflow: hidden;
   pointer-events: none;
+  box-sizing: border-box;
 }
 
 .oracle-page-corner {
@@ -8881,17 +8885,16 @@ html.is-hand-dragging .grave-row {
 }
 
 .oracle-book-slot .card.compact {
-  /* строго внутри ячейки страницы */
+  /* заполняют ячейку 2×2, без потолка 110px */
   --card-w: min(
-    calc(100cqw - 0.35rem),
-    calc((100cqh - 1.45rem) * 0.64),
-    calc(110px * var(--ob-card-scale, 1))
+    calc(100cqw * 0.92 * var(--ob-card-scale, 1)),
+    calc((100cqh - 1.5rem) * 0.62 * var(--ob-card-scale, 1))
   );
   --card-h: calc(var(--card-w) * 1.5);
   width: var(--card-w) !important;
   height: var(--card-h) !important;
-  max-width: 100%;
-  max-height: calc(100% - 1.45rem);
+  max-width: 96%;
+  max-height: calc(100% - 1.5rem);
   flex-shrink: 1;
   overflow: hidden;
   position: relative;
@@ -8925,8 +8928,9 @@ html.is-hand-dragging .grave-row {
   display: grid;
   place-items: center;
   flex: 0 1 auto;
+  width: auto;
   max-width: 100%;
-  max-height: calc(100% - 1.35rem);
+  max-height: calc(100% - 1.5rem);
   border-radius: 6px;
   padding: 0;
   background: transparent;
@@ -8940,9 +8944,10 @@ html.is-hand-dragging .grave-row {
 
 .oracle-book-card-frame {
   position: absolute;
-  inset: -4%;
-  width: 108%;
-  height: 108%;
+  left: -5%;
+  top: -5%;
+  width: 110%;
+  height: 110%;
   max-width: none;
   pointer-events: none;
   z-index: 8;
@@ -9036,12 +9041,11 @@ html.is-hand-dragging .grave-row {
 
   .oracle-book-slot .card.compact {
     --card-w: min(
-      100cqw,
-      calc((100cqh - 1.2rem) * 0.66),
-      calc(92px * var(--ob-card-scale, 1))
+      calc(100cqw * 0.92 * var(--ob-card-scale, 1)),
+      calc((100cqh - 1.3rem) * 0.62 * var(--ob-card-scale, 1))
     );
     --card-h: calc(var(--card-w) * 1.5);
-    max-height: calc(100% - 1.2rem);
+    max-height: calc(100% - 1.3rem);
   }
 
   .oracle-book-slot-frame {
@@ -9073,12 +9077,11 @@ html.is-hand-dragging .grave-row {
 
   .oracle-book-slot .card.compact {
     --card-w: min(
-      100cqw,
-      calc((100cqh - 1.1rem) * 0.66),
-      calc(78px * var(--ob-card-scale, 1))
+      calc(100cqw * 0.9 * var(--ob-card-scale, 1)),
+      calc((100cqh - 1.2rem) * 0.6 * var(--ob-card-scale, 1))
     );
     --card-h: calc(var(--card-w) * 1.5);
-    max-height: calc(100% - 1.1rem);
+    max-height: calc(100% - 1.2rem);
   }
 
   .oracle-book-page.is-left {
