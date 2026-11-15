@@ -4333,7 +4333,6 @@ html.is-hand-dragging .oracle-folio {
   width: 100%;
   display: flex;
   flex-direction: column;
-  background: #0a0c12;
   padding: 0 0 0.65rem;
   box-sizing: border-box;
 }
@@ -4590,13 +4589,6 @@ html.is-hand-dragging .oracle-folio {
   width: 100%;
   display: flex;
   flex-direction: column;
-  background:
-    radial-gradient(
-      ellipse 80% 50% at 50% -10%,
-      rgba(180, 90, 40, 0.22),
-      transparent 55%
-    ),
-    linear-gradient(165deg, #12161f 0%, #0a0c12 45%, #141018 100%);
   padding: 0 0 1rem;
   box-sizing: border-box;
 }
@@ -5270,7 +5262,6 @@ html.is-hand-dragging .oracle-folio {
 .dev-sandbox {
   min-height: 100vh;
   padding: 1rem;
-  background: linear-gradient(180deg, #1a1520, var(--bg0));
 }
 
 .dev-sandbox h1 {
@@ -5694,11 +5685,94 @@ html.is-hand-dragging .oracle-folio {
   }
 }
 
+/*
+ * Деревянный стол для меню (не splash / не бой).
+ * Один цвет и идея; разные файлы + --desk-pos = сучки в другом месте.
+ */
+.collection,
+.hero-screen,
+.cabinet,
+.auth-screen,
+.onboard-screen,
+.multi-screen,
+.arena-screen,
+.campaign-screen,
+.dev-sandbox {
+  --desk-img: url("/ui/oracle-desk-bg.jpg");
+  --desk-pos: center 30%;
+  background-color: #1a120c;
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(10, 8, 6, 0.7) 0%,
+      rgba(12, 8, 5, 0.26) 8rem,
+      rgba(18, 12, 8, 0.1) 14rem,
+      transparent 22rem
+    ),
+    radial-gradient(
+      ellipse 85% 50% at 50% 40%,
+      rgba(255, 190, 110, 0.1),
+      transparent 62%
+    ),
+    var(--desk-img);
+  background-size: auto, auto, cover;
+  background-position: center, center, var(--desk-pos);
+  background-repeat: no-repeat;
+}
+
+.collection {
+  --desk-img: url("/ui/oracle-desk-bg-b.jpg");
+  --desk-pos: 40% 18%;
+}
+
+.hero-screen {
+  --desk-img: url("/ui/oracle-desk-bg-c.jpg");
+  --desk-pos: 68% 52%;
+}
+
+.cabinet {
+  --desk-img: url("/ui/oracle-desk-bg.jpg");
+  --desk-pos: 22% 40%;
+}
+
+.cabinet:has(.oracle-book) {
+  --desk-pos: center 32%;
+}
+
+.auth-screen {
+  --desk-img: url("/ui/oracle-desk-bg-b.jpg");
+  --desk-pos: 74% 38%;
+}
+
+.onboard-screen {
+  --desk-img: url("/ui/oracle-desk-bg-c.jpg");
+  --desk-pos: 16% 26%;
+}
+
+.multi-screen {
+  --desk-img: url("/ui/oracle-desk-bg-c.jpg");
+  --desk-pos: 28% 64%;
+}
+
+.arena-screen {
+  --desk-img: url("/ui/oracle-desk-bg-b.jpg");
+  --desk-pos: 58% 76%;
+}
+
+.campaign-screen {
+  --desk-img: url("/ui/oracle-desk-bg.jpg");
+  --desk-pos: 46% 10%;
+}
+
+.dev-sandbox {
+  --desk-img: url("/ui/oracle-desk-bg-c.jpg");
+  --desk-pos: 82% 20%;
+}
+
 /* —— Collection —— */
 .collection {
   min-height: 100vh;
   padding: 1rem;
-  background: linear-gradient(180deg, #121826, var(--bg0));
 }
 
 .collection h1 {
@@ -6106,9 +6180,6 @@ html.is-hand-dragging .oracle-folio {
 .cabinet {
   min-height: 100vh;
   padding: 1rem;
-  background:
-    radial-gradient(ellipse 70% 40% at 50% 0%, rgba(212, 163, 115, 0.12), transparent),
-    linear-gradient(180deg, #121826, var(--bg0));
 }
 
 .hero-screen-hint {
@@ -6675,18 +6746,6 @@ html.is-hand-dragging .oracle-folio {
   min-height: 100dvh;
   padding: 1.5rem;
   overflow: hidden;
-  background-color: #07090f;
-  background-image:
-    linear-gradient(
-      180deg,
-      rgba(7, 9, 15, 0.55) 0%,
-      rgba(7, 9, 15, 0.42) 45%,
-      rgba(7, 9, 15, 0.72) 100%
-    ),
-    url("/splash-elements-v2.jpg?v=4");
-  background-size: cover, cover;
-  background-position: center, center;
-  background-repeat: no-repeat;
 }
 
 .multi-room-code {
@@ -6742,19 +6801,6 @@ html.is-hand-dragging .oracle-folio {
   min-height: 100dvh;
   padding: 1.5rem;
   overflow: hidden;
-  background-color: #0a0806;
-  background-image:
-    linear-gradient(
-      180deg,
-      rgba(6, 4, 3, 0.72) 0%,
-      rgba(8, 5, 4, 0.55) 42%,
-      rgba(5, 3, 2, 0.78) 100%
-    ),
-    radial-gradient(ellipse at 50% 40%, transparent 20%, rgba(0, 0, 0, 0.55) 100%),
-    url("/multi-battle-bg.jpg");
-  background-size: cover, cover, cover;
-  background-position: center, center, center;
-  background-repeat: no-repeat;
 }
 
 .multi-screen .page-bar {
@@ -7912,25 +7958,6 @@ html.is-hand-dragging .oracle-folio {
   padding-right: 0;
   position: relative;
   isolation: isolate;
-}
-
-/* Стол под рукой и книгой — вместо плоского синего */
-.cabinet:has(.oracle-book) {
-  background:
-    linear-gradient(
-      180deg,
-      rgba(10, 8, 6, 0.72) 0%,
-      rgba(12, 8, 5, 0.28) 9rem,
-      rgba(18, 12, 8, 0.12) 14rem,
-      transparent 22rem
-    ),
-    radial-gradient(
-      ellipse 85% 50% at 50% 42%,
-      rgba(255, 190, 110, 0.1),
-      transparent 62%
-    ),
-    url("/ui/oracle-desk-bg.jpg") center 32% / cover no-repeat,
-    #1a120c;
 }
 
 .cabinet:has(.oracle-book) .cabinet-zone-deck {
@@ -9406,21 +9433,7 @@ html.is-hand-dragging .oracle-folio {
     max-width: 100%;
     width: 100%;
     box-sizing: border-box;
-    background:
-      linear-gradient(
-        180deg,
-        rgba(8, 6, 4, 0.78) 0%,
-        rgba(10, 7, 5, 0.35) 5.5rem,
-        rgba(16, 10, 6, 0.14) 9rem,
-        transparent 13rem
-      ),
-      radial-gradient(
-        ellipse 100% 42% at 50% 38%,
-        rgba(255, 176, 90, 0.12),
-        transparent 68%
-      ),
-      url("/ui/oracle-desk-bg.jpg") center 18% / cover no-repeat,
-      #1a120c;
+    --desk-pos: center 18%;
   }
 
   .cabinet:has(.oracle-book) .page-bar,
