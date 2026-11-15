@@ -29,7 +29,9 @@ import {
 import {
   getCardUpgradeLevel,
   isUpgradeableCard,
+  upgradeStatBonus,
 } from "../game/cardUpgrades";
+import { GameIcon, ManaCostIcons, SchoolBadge } from "./GameIcon";
 import {
   activeDeck,
   activeHeroId,
@@ -40,7 +42,6 @@ import {
   saveDeck,
 } from "../game/owned";
 import { getHero, oracleLore, orakulArtUrl } from "../game/heroes";
-import { GameIcon, SchoolBadge } from "./GameIcon";
 import {
   oracleGiftCardText,
   orakulBattleHp,
@@ -241,6 +242,14 @@ export function Cabinet({
     const have = ownedCopies(owned, card.id);
     const cap = Math.min(maxCopiesForCard(card.id), have);
     const canAdd = inDeck < cap && deck.length < DECK_SIZE && have > 0;
+    const upLv = isUpgradeableCard(card.id)
+      ? getCardUpgradeLevel(owned, card.id)
+      : null;
+    const bonus =
+      upLv != null ? upgradeStatBonus(card.id, upLv) : { atk: 0, hp: 0 };
+    const atk = (card.attack ?? 0) + bonus.atk;
+    const hp = (card.health ?? 0) + bonus.hp;
+    const mana = card.manaCost ?? {};
     return (
       <div
         key={`slot-${slotIndex}-${card.id}`}
@@ -256,22 +265,37 @@ export function Cabinet({
         title={`${card.name} · в колоду`}
       >
         <div className="oracle-book-slot-frame">
-          <CardView
-            card={card}
-            compact
-            flippable={false}
-            upgradeLevel={
-              isUpgradeableCard(card.id)
-                ? getCardUpgradeLevel(owned, card.id)
-                : null
-            }
-          />
           <img
             className="oracle-book-card-frame"
-            src="/ui/card-frame-book.png"
+            src="/ui/card-frame-book.png?v=3"
             alt=""
             draggable={false}
           />
+          <div className="oracle-book-card-core">
+            <CardView
+              card={card}
+              compact
+              flippable={false}
+              upgradeLevel={upLv}
+            />
+          </div>
+          {/* Статы ВСЕГДА поверх рамки — отдельно от CardView */}
+          <div className="oracle-book-stat-hud" aria-label="Показатели карты">
+            <div className="oracle-book-stat-top">
+              <span className="oracle-book-stat-school">
+                <GameIcon name={card.school} size={13} />
+                <ManaCostIcons cost={mana} size={11} />
+              </span>
+              {card.kind === "creature" ? (
+                <span className="oracle-book-stat-combat">
+                  {atk}/{hp}
+                </span>
+              ) : (
+                <span className="oracle-book-stat-combat">✦</span>
+              )}
+            </div>
+            <div className="oracle-book-stat-name">{card.name}</div>
+          </div>
         </div>
         <div className="oracle-book-slot-meta">
           <div className="cabinet-card-actions">

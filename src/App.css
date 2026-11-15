@@ -8651,7 +8651,6 @@ html.is-hand-dragging .grave-row {
   box-shadow: none;
 }
 
-/* Рамка сзади по краю; карта меньше — в прозрачном «окне», статы сверху видны */
 .oracle-book-abs-slot .oracle-book-card-frame {
   grid-area: 1 / 1;
   width: 100%;
@@ -8662,47 +8661,87 @@ html.is-hand-dragging .grave-row {
   user-select: none;
 }
 
-.oracle-book-abs-slot .card.compact {
+.oracle-book-abs-slot .oracle-book-card-core {
   grid-area: 1 / 1;
   z-index: 2;
-  width: 74% !important;
-  height: 78% !important;
+  width: 68%;
+  height: 70%;
+  margin: auto;
+  overflow: hidden;
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+.oracle-book-abs-slot .oracle-book-card-core .card.compact {
+  width: 100% !important;
+  height: 100% !important;
   max-width: none;
   max-height: none;
   --card-w: 100%;
   --card-h: 100%;
-  margin: 0;
 }
 
-.oracle-book-abs-slot .card-frame-ornament {
+/* внутренние статы CardView прячем — рисуем свои поверх */
+.oracle-book-abs-slot .oracle-book-card-core .card-stats,
+.oracle-book-abs-slot .oracle-book-card-core .card-footer,
+.oracle-book-abs-slot .oracle-book-card-core .card-frame-ornament {
   display: none !important;
 }
 
-/* Показатели обязательны и читаемы */
-.oracle-book-abs-slot .card-stats {
-  position: relative;
-  z-index: 3;
-  padding: 0.2rem 0.28rem 0.22rem !important;
-  background: linear-gradient(
-    180deg,
-    #0a0c12 0%,
-    color-mix(in srgb, var(--school) 32%, #0d111a 68%) 100%
-  );
+.oracle-book-stat-hud {
+  grid-area: 1 / 1;
+  z-index: 30;
+  width: 68%;
+  height: 70%;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+  box-sizing: border-box;
 }
 
-.oracle-book-abs-slot .stats-school,
-.oracle-book-abs-slot .stats-combat {
-  font-size: 0.78rem !important;
+.oracle-book-stat-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+  padding: 0.22rem 0.35rem;
+  border-radius: 5px;
+  background: rgba(6, 8, 14, 0.92);
+  border: 1px solid rgba(232, 197, 71, 0.45);
+  color: #fff;
   font-weight: 800;
+  font-size: clamp(0.62rem, 2.1cqw, 0.9rem);
+  line-height: 1.1;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
 }
 
-.oracle-book-abs-slot .card-footer {
-  z-index: 3;
+.oracle-book-stat-school {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 0;
 }
 
-.oracle-book-abs-slot .card-name {
-  font-size: 0.72rem !important;
+.oracle-book-stat-combat {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.oracle-book-stat-name {
+  padding: 0.2rem 0.3rem;
+  border-radius: 5px;
+  background: rgba(6, 8, 14, 0.9);
+  border: 1px solid rgba(232, 197, 71, 0.35);
+  color: #f7e7b0;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: clamp(0.55rem, 1.9cqw, 0.8rem);
+  text-align: center;
+  line-height: 1.15;
   text-shadow: 0 1px 2px #000;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
 }
 
 .oracle-book-abs-slot .oracle-book-slot-meta {
