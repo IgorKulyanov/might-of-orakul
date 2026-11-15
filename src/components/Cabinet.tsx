@@ -275,10 +275,13 @@ export function Cabinet({
     const atk = (card.attack ?? 0) + bonus.atk;
     const hp = (card.health ?? 0) + bonus.hp;
     const mana = card.manaCost ?? {};
+    const mobileHero = mobileBook && !calibrating;
+    const ico = mobileHero ? 15 : 13;
+    const manaIco = mobileHero ? 13 : 11;
     return (
       <div
         key={`slot-${slotIndex}-${card.id}`}
-        className={`oracle-book-abs-slot ${allowCardDrag ? "is-draggable" : ""} ${inDeck > 0 ? "in-deck" : ""} ${mobileBook && !calibrating ? "is-mobile-hero" : ""}`}
+        className={`oracle-book-abs-slot ${allowCardDrag ? "is-draggable" : ""} ${inDeck > 0 ? "in-deck" : ""} ${mobileHero ? "is-mobile-hero" : ""}`}
         style={slotBoxStyle(box)}
         draggable={allowCardDrag && !calibrating}
         onDragStart={
@@ -303,8 +306,8 @@ export function Cabinet({
             <div className="oracle-book-stat-hud" aria-label="Показатели карты">
               <div className="oracle-book-stat-top">
                 <span className="oracle-book-stat-school">
-                  <GameIcon name={card.school} size={13} />
-                  <ManaCostIcons cost={mana} size={11} />
+                  <GameIcon name={card.school} size={ico} />
+                  <ManaCostIcons cost={mana} size={manaIco} />
                 </span>
                 {card.kind === "creature" ? (
                   <span className="oracle-book-stat-combat">
@@ -318,7 +321,11 @@ export function Cabinet({
             </div>
             <img
               className="oracle-book-card-frame"
-              src="/ui/card-frame-book.png?v=9"
+              src={
+                mobileHero
+                  ? "/ui/card-frame-book-mobile.png?v=1"
+                  : "/ui/card-frame-book.png?v=9"
+              }
               alt=""
               draggable={false}
             />

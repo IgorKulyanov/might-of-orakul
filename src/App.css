@@ -9391,21 +9391,48 @@ html.is-hand-dragging .grave-row {
     padding: 0 0.1em;
   }
 
-  /* 1 карта на страницу — крупный HUD */
+  /* узкая рамка: большое окно, аккуратный HUD без каши */
+  .oracle-book-abs-slot.is-mobile-hero .oracle-book-slot-frame {
+    --ob-hole-left: 11.5%;
+    --ob-hole-top: 8%;
+    --ob-hole-w: 77%;
+    --ob-hole-h: 84%;
+  }
+
+  .oracle-book-abs-slot.is-mobile-hero .oracle-book-stat-hud {
+    padding: 0.2rem;
+    gap: 0.2rem;
+  }
+
   .oracle-book-abs-slot.is-mobile-hero .oracle-book-stat-top {
-    font-size: clamp(0.78rem, 3.4vw, 1.15rem);
-    padding: 0.28rem 0.4rem;
+    font-size: clamp(0.7rem, 2.8vw, 0.95rem);
+    padding: 0.2rem 0.35rem;
+    gap: 0.35rem;
+    flex-wrap: nowrap;
+  }
+
+  .oracle-book-abs-slot.is-mobile-hero .oracle-book-stat-school {
+    gap: 0.25rem;
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .oracle-book-abs-slot.is-mobile-hero .oracle-book-stat-combat {
+    flex-shrink: 0;
+    font-size: 1.05em;
   }
 
   .oracle-book-abs-slot.is-mobile-hero .oracle-book-stat-name {
-    font-size: clamp(0.72rem, 3vw, 1.05rem);
-    padding: 0.22rem 0.35rem;
+    font-size: clamp(0.65rem, 2.5vw, 0.9rem);
+    padding: 0.18rem 0.3rem;
+    line-height: 1.2;
   }
 
   .oracle-book-abs-slot.is-mobile-hero .oracle-book-qty {
-    min-width: 2.15rem;
-    min-height: 2.15rem;
-    font-size: 1.2rem;
+    min-width: 2rem;
+    min-height: 2rem;
+    font-size: 1.1rem;
   }
 
   .oracle-book-page {
