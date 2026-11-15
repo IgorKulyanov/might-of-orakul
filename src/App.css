@@ -8195,73 +8195,172 @@ html.is-hand-dragging .grave-row {
   position: absolute;
   z-index: 55;
   box-sizing: border-box;
-  border: 2px solid rgba(80, 220, 140, 0.85);
-  background: rgba(60, 200, 120, 0.18);
-  cursor: move;
+  border: 2px solid rgba(80, 220, 140, 0.95);
+  background: rgba(60, 200, 120, 0.16);
   touch-action: none;
-  pointer-events: auto;
+  pointer-events: none;
   user-select: none;
 }
 
 .ob-cal-box.is-ribbons {
-  border-color: rgba(190, 120, 255, 0.9);
-  background: rgba(160, 90, 255, 0.22);
+  border-color: rgba(190, 120, 255, 0.95);
+  background: rgba(160, 90, 255, 0.2);
 }
 
 .ob-cal-box.is-active {
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35), 0 0 16px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.4),
+    0 0 18px rgba(0, 0, 0, 0.4);
 }
 
 .ob-cal-label {
   position: absolute;
-  top: 0.2rem;
-  left: 0.35rem;
-  padding: 0.05rem 0.3rem;
+  top: 0.35rem;
+  left: 0.45rem;
+  padding: 0.08rem 0.35rem;
   border-radius: 3px;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.6);
   color: #fff;
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   pointer-events: none;
+  z-index: 1;
 }
 
 .ob-cal-handle {
   position: absolute;
-  background: #fff8d0;
-  border: 1px solid #3a2a10;
+  z-index: 2;
+  margin: 0;
+  padding: 0;
+  border: 2px solid #1a1208;
   border-radius: 2px;
+  background: #fff4c0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
   pointer-events: auto;
+  touch-action: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
+/* середина — перенос зажатием */
+.ob-cal-handle.is-move {
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, #fff8d8 0 35%, transparent 36%),
+    #e8c547;
+  cursor: move;
+}
+
+.ob-cal-handle.is-move::after {
+  content: "✥";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 1rem;
+  color: #2a1c08;
+  pointer-events: none;
+}
+
+/* стороны */
 .ob-cal-handle.is-n,
 .ob-cal-handle.is-s {
-  left: 18%;
-  right: 18%;
-  height: 10px;
+  left: 50%;
+  width: 28px;
+  height: 14px;
+  margin-left: -14px;
   cursor: ns-resize;
 }
 
 .ob-cal-handle.is-n {
-  top: -5px;
+  top: -7px;
 }
 
 .ob-cal-handle.is-s {
-  bottom: -5px;
+  bottom: -7px;
 }
 
 .ob-cal-handle.is-e,
 .ob-cal-handle.is-w {
-  top: 18%;
-  bottom: 18%;
-  width: 10px;
+  top: 50%;
+  width: 14px;
+  height: 28px;
+  margin-top: -14px;
   cursor: ew-resize;
 }
 
 .ob-cal-handle.is-w {
-  left: -5px;
+  left: -7px;
 }
 
 .ob-cal-handle.is-e {
-  right: -5px;
+  right: -7px;
+}
+
+/* углы — как в Paint */
+.ob-cal-handle.is-nw,
+.ob-cal-handle.is-ne,
+.ob-cal-handle.is-sw,
+.ob-cal-handle.is-se {
+  width: 18px;
+  height: 18px;
+  background: #ffe566;
+  border-width: 2px;
+  z-index: 3;
+}
+
+.ob-cal-handle.is-nw {
+  top: -9px;
+  left: -9px;
+  cursor: nwse-resize;
+}
+
+.ob-cal-handle.is-ne {
+  top: -9px;
+  right: -9px;
+  cursor: nesw-resize;
+}
+
+.ob-cal-handle.is-sw {
+  bottom: -9px;
+  left: -9px;
+  cursor: nesw-resize;
+}
+
+.ob-cal-handle.is-se {
+  bottom: -9px;
+  right: -9px;
+  cursor: nwse-resize;
+}
+
+/* угол всей книги */
+.ob-cal-cover-corner {
+  position: absolute;
+  z-index: 58;
+  right: -10px;
+  bottom: -10px;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 2px solid #3a2a08;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #ffe9a0, #d4a017);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  cursor: nwse-resize;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.ob-cal-cover-corner.is-active,
+.ob-cal-cover-corner:hover {
+  transform: scale(1.12);
+  filter: brightness(1.08);
 }
 
 .oracle-folio-art {
