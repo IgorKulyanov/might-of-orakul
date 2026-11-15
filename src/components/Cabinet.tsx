@@ -564,7 +564,7 @@ export function Cabinet({
     return (
       <div
         key={`slot-${slotIndex}-${card.id}`}
-        className={`oracle-book-abs-slot ${allowCardDrag ? "is-draggable" : ""} ${inDeck > 0 ? "in-deck" : ""} ${mobileHero ? "is-mobile-hero" : ""} ${carryDrag?.cardId === card.id && carryDrag.from === "book" ? "is-dragging" : ""}`}
+        className={`oracle-book-abs-slot ${allowCardDrag ? "is-draggable" : ""} ${inDeck > 0 ? "in-deck" : ""} ${mobileHero ? "is-mobile-hero" : ""} ${slotIndex < 4 ? "is-left-page" : "is-right-page"} ${carryDrag?.cardId === card.id && carryDrag.from === "book" ? "is-dragging" : ""}`}
         style={slotBoxStyle(box)}
         draggable={allowCardDrag && !calibrating && !mobileHero}
         onDragStart={
@@ -1044,7 +1044,15 @@ export function Cabinet({
                 <button
                   type="button"
                   className="oracle-book-turn is-fwd"
-                  style={turnButtonStyle(bookLayout.btnFwd)}
+                  style={turnButtonStyle(
+                    mobileBook && !calibrating
+                      ? {
+                          ...bookLayout.btnFwd,
+                          x: Math.max(0, bookLayout.btnFwd.x - 1.4),
+                          w: Math.min(28, bookLayout.btnFwd.w + 3.6),
+                        }
+                      : bookLayout.btnFwd,
+                  )}
                   disabled={
                     bookSpread >= spreadCount - 1 ||
                     calibrating ||

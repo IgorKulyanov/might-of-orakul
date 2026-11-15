@@ -9418,16 +9418,21 @@ html.is-hand-dragging .oracle-folio {
     margin: 0;
   }
 
-  /* НАЗАД/ВПЕРЕД целиком в хитбоксе, не торчат за край экрана */
+  /* НАЗАД/ВПЕРЕД — без crop букв (Д у ВПЕРЕД) */
   .oracle-book-turn {
-    font-size: clamp(0.82rem, 4vw, 1.28rem);
-    letter-spacing: 0.03em;
-    -webkit-text-stroke: 0.035em #0a0600;
+    font-size: clamp(0.78rem, 3.7vw, 1.18rem);
+    letter-spacing: 0.02em;
+    -webkit-text-stroke: 0.03em #0a0600;
     white-space: nowrap;
-    overflow: hidden;
-    max-width: 100%;
+    overflow: visible;
+    max-width: none;
     box-sizing: border-box;
-    padding: 0 0.1em;
+    padding: 0 0.12em;
+  }
+
+  .oracle-book-turn.is-fwd {
+    letter-spacing: 0.01em;
+    padding-right: 0.22em;
   }
 
   /* узкая рамка; жест как в бою — несёшь карту */
@@ -9495,6 +9500,11 @@ html.is-hand-dragging .oracle-folio {
     background-position: center center !important;
     background-repeat: no-repeat !important;
     border-radius: 4px;
+  }
+
+  /* левая страница: персонаж на ~1мм правее */
+  .oracle-book-abs-slot.is-mobile-hero.is-left-page .oracle-book-card-core {
+    background-position: calc(50% + 1mm) center !important;
   }
 
   .oracle-book-abs-slot.is-mobile-hero .oracle-book-stat-hud {
