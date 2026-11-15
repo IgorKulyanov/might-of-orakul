@@ -8,35 +8,53 @@ import {
   type RefObject,
 } from "react";
 
+/** Прямоугольник в % от обложки книги (как выделение в Paint). */
+export type BoxPct = { x: number; y: number; w: number; h: number };
+
 export type BookLayout = {
-  spreadL: number;
-  spreadR: number;
-  spreadT: number;
-  spreadB: number;
-  ribbonsL: number;
-  ribbonsR: number;
-  ribbonsB: number;
-  ribbonsH: number;
+  pageL: BoxPct;
+  pageR: BoxPct;
+  /** 6 закладок слева направо */
+  ribbons: [BoxPct, BoxPct, BoxPct, BoxPct, BoxPct, BoxPct];
   coverW: number;
 };
 
-/** Обе страницы + все 6 закладок; книга на всю ширину окна */
+const RIBBON_LABELS = [
+  "Смерть",
+  "Ад",
+  "Природа",
+  "Жизнь",
+  "Вода",
+  "Нейтрал",
+] as const;
+
+const RIBBON_COLORS = [
+  "#7b4bb8",
+  "#c23b3b",
+  "#3d9a4a",
+  "#d4a017",
+  "#3a7fd4",
+  "#c0c4cc",
+] as const;
+
 export const DEFAULT_BOOK_LAYOUT: BookLayout = {
-  spreadL: 10,
-  spreadR: 10,
-  spreadT: 10,
-  spreadB: 18,
-  ribbonsL: 24,
-  ribbonsR: 26,
-  ribbonsB: 0.5,
-  ribbonsH: 15,
+  pageL: { x: 11, y: 10, w: 37, h: 68 },
+  pageR: { x: 52, y: 10, w: 37, h: 68 },
+  ribbons: [
+    { x: 25.0, y: 85, w: 6.5, h: 14 },
+    { x: 32.2, y: 85, w: 6.5, h: 14 },
+    { x: 39.4, y: 85, w: 6.5, h: 14 },
+    { x: 52.0, y: 85, w: 6.5, h: 14 },
+    { x: 59.2, y: 85, w: 6.5, h: 14 },
+    { x: 66.4, y: 85, w: 6.5, h: 14 },
+  ],
   coverW: 4000,
 };
 
-const STORAGE_KEY = "orakul-book-layout-v2";
-const MIN_SPAN = 8; // минимальная ширина/высота рамки в %
+const STORAGE_KEY = "orakul-book-layout-v3";
+const MIN = 3;
 
-type BoxKind = "spread" | "ribbons" | "cover";
+type Mode = "pages" | "ribbons" | "cover";
 type Handle =
   | "move"
   | "n"
@@ -60,6 +78,12 @@ const BOX_HANDLES: Handle[] = [
   "se",
 ];
 
+type Target =
+  | { kind: "pageL" }
+  | { kind: "pageR" }
+  | { kind: "ribbon"; index: number }
+  | { kind: "cover" };
+
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
 }
@@ -68,70 +92,81 @@ function round1(n: number) {
   return Math.round(n * 10) / 10;
 }
 
-function hasW(h: Handle) {
-  return h === "w" || h === "nw" || h === "sw";
-}
-function hasE(h: Handle) {
-  return h === "e" || h === "ne" || h === "se";
-}
-function hasN(h: Handle) {
-  return h === "n" || h === "nw" || h === "ne";
-}
-function hasS(h: Handle) {
-  return h === "s" || h === "sw" || h === "se";
+function normalizeBox(b: BoxPct): BoxPct {
+  let { x, y, w, h } = b;
+  w = clamp(w, MIN, 100);
+  h = clamp(h, MIN, 100);
+  x = clamp(x, 0, 100 - MIN);
+  y = clamp(y, 0, 100 - MIN);
+  if (x + w > 100) w = 100 - x;
+  if (y + h > 100) h = 100 - y;
+  return { x: round1(x), y: round1(y), w: round1(w), h: round1(h) };
 }
 
-/** Сдвиг inset-пары left/right без прилипания к центру */
-function moveInsets(
-  left: number,
-  right: number,
+function applyHandle(
+  box: BoxPct,
+  handle: Handle,
   dx: number,
-  maxInset = 100 - MIN_SPAN,
-): { left: number; right: number } {
-  const width = 100 - left - right;
-  let nextL = left + dx;
-  let nextR = right - dx;
-  if (nextL < 0) {
-    nextR += nextL;
-    nextL = 0;
+  dy: number,
+): BoxPct {
+  let { x, y, w, h } = box;
+  if (handle === "move") {
+    x += dx;
+    y += dy;
+    x = clamp(x, 0, 100 - w);
+    y = clamp(y, 0, 100 - h);
+    return normalizeBox({ x, y, w, h });
   }
-  if (nextR < 0) {
-    nextL += nextR;
-    nextR = 0;
-  }
-  nextL = clamp(nextL, 0, maxInset);
-  nextR = clamp(nextR, 0, maxInset);
-  if (nextL + nextR > 100 - MIN_SPAN) {
-    // сохранить ширину у края
-    if (dx >= 0) {
-      nextL = 100 - MIN_SPAN - nextR;
-    } else {
-      nextR = 100 - MIN_SPAN - nextL;
+  if (handle === "w" || handle === "nw" || handle === "sw") {
+    const nx = x + dx;
+    const nw = w - dx;
+    if (nw >= MIN) {
+      x = nx;
+      w = nw;
     }
   }
-  // если упёрлись — не сжимать рамку
-  if (100 - nextL - nextR < width - 0.05) {
-    if (dx > 0) {
-      nextL = 100 - width - nextR;
-      nextL = clamp(nextL, 0, maxInset);
-      nextR = 100 - width - nextL;
-    } else {
-      nextR = 100 - width - nextL;
-      nextR = clamp(nextR, 0, maxInset);
-      nextL = 100 - width - nextR;
+  if (handle === "e" || handle === "ne" || handle === "se") {
+    w += dx;
+  }
+  if (handle === "n" || handle === "nw" || handle === "ne") {
+    const ny = y + dy;
+    const nh = h - dy;
+    if (nh >= MIN) {
+      y = ny;
+      h = nh;
     }
   }
-  return { left: round1(nextL), right: round1(clamp(nextR, 0, maxInset)) };
+  if (handle === "s" || handle === "sw" || handle === "se") {
+    h += dy;
+  }
+  return normalizeBox({ x, y, w, h });
+}
+
+function isBoxPct(v: unknown): v is BoxPct {
+  if (!v || typeof v !== "object") return false;
+  const o = v as BoxPct;
+  return [o.x, o.y, o.w, o.h].every((n) => typeof n === "number");
 }
 
 export function loadBookLayout(): BookLayout {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_BOOK_LAYOUT };
+    if (!raw) return structuredClone(DEFAULT_BOOK_LAYOUT);
     const parsed = JSON.parse(raw) as Partial<BookLayout>;
-    return { ...DEFAULT_BOOK_LAYOUT, ...parsed };
+    const base = structuredClone(DEFAULT_BOOK_LAYOUT);
+    if (isBoxPct(parsed.pageL)) base.pageL = normalizeBox(parsed.pageL);
+    if (isBoxPct(parsed.pageR)) base.pageR = normalizeBox(parsed.pageR);
+    if (Array.isArray(parsed.ribbons) && parsed.ribbons.length === 6) {
+      base.ribbons = parsed.ribbons.map((r, i) =>
+        isBoxPct(r) ? normalizeBox(r) : base.ribbons[i],
+      ) as BookLayout["ribbons"];
+    }
+    if (typeof parsed.coverW === "number") {
+      base.coverW = clamp(parsed.coverW, 800, 6000);
+    }
+    return base;
   } catch {
-    return { ...DEFAULT_BOOK_LAYOUT };
+    return structuredClone(DEFAULT_BOOK_LAYOUT);
   }
 }
 
@@ -144,102 +179,41 @@ export function saveBookLayout(layout: BookLayout) {
 }
 
 export function bookLayoutToCssVars(layout: BookLayout): CSSProperties {
-  return {
-    ["--ob-spread-l" as string]: `${layout.spreadL}%`,
-    ["--ob-spread-r" as string]: `${layout.spreadR}%`,
-    ["--ob-spread-t" as string]: `${layout.spreadT}%`,
-    ["--ob-spread-b" as string]: `${layout.spreadB}%`,
-    ["--ob-ribbons-l" as string]: `${layout.ribbonsL}%`,
-    ["--ob-ribbons-r" as string]: `${layout.ribbonsR}%`,
-    ["--ob-ribbons-b" as string]: `${layout.ribbonsB}%`,
-    ["--ob-ribbons-h" as string]: `${layout.ribbonsH}%`,
-    ["--ob-cover-w" as string]: `${layout.coverW}px`,
+  const vars: Record<string, string> = {
+    "--ob-cover-w": `${layout.coverW}px`,
+    "--ob-page-l-x": `${layout.pageL.x}%`,
+    "--ob-page-l-y": `${layout.pageL.y}%`,
+    "--ob-page-l-w": `${layout.pageL.w}%`,
+    "--ob-page-l-h": `${layout.pageL.h}%`,
+    "--ob-page-r-x": `${layout.pageR.x}%`,
+    "--ob-page-r-y": `${layout.pageR.y}%`,
+    "--ob-page-r-w": `${layout.pageR.w}%`,
+    "--ob-page-r-h": `${layout.pageR.h}%`,
   };
+  layout.ribbons.forEach((r, i) => {
+    vars[`--ob-rib-${i}-x`] = `${r.x}%`;
+    vars[`--ob-rib-${i}-y`] = `${r.y}%`;
+    vars[`--ob-rib-${i}-w`] = `${r.w}%`;
+    vars[`--ob-rib-${i}-h`] = `${r.h}%`;
+  });
+  return vars as CSSProperties;
 }
 
 export function formatBookLayoutCss(layout: BookLayout): string {
-  return [
-    `--ob-spread-l: ${layout.spreadL}%;`,
-    `--ob-spread-r: ${layout.spreadR}%;`,
-    `--ob-spread-t: ${layout.spreadT}%;`,
-    `--ob-spread-b: ${layout.spreadB}%;`,
-    `--ob-ribbons-l: ${layout.ribbonsL}%;`,
-    `--ob-ribbons-r: ${layout.ribbonsR}%;`,
-    `--ob-ribbons-b: ${layout.ribbonsB}%;`,
-    `--ob-ribbons-h: ${layout.ribbonsH}%;`,
-    `--ob-cover-w: ${layout.coverW}px;`,
-  ].join("\n");
+  return JSON.stringify(layout, null, 2);
 }
 
-function fitPair(a: number, b: number): { a: number; b: number } {
-  let left = clamp(a, 0, 100 - MIN_SPAN);
-  let right = clamp(b, 0, 100 - MIN_SPAN);
-  if (left + right > 100 - MIN_SPAN) {
-    const overflow = left + right - (100 - MIN_SPAN);
-    if (left >= right) left = round1(left - overflow);
-    else right = round1(right - overflow);
-  }
-  return { a: round1(left), b: round1(right) };
+function ribbonButtonStyle(box: BoxPct, schoolColor: string): CSSProperties {
+  return {
+    left: `${box.x}%`,
+    top: `${box.y}%`,
+    width: `${box.w}%`,
+    height: `${box.h}%`,
+    ["--school" as string]: schoolColor,
+  };
 }
 
-function applySpread(
-  s: BookLayout,
-  h: Handle,
-  dx: number,
-  dy: number,
-): BookLayout {
-  const next = { ...s };
-  if (h === "move") {
-    const x = moveInsets(s.spreadL, s.spreadR, dx);
-    next.spreadL = x.left;
-    next.spreadR = x.right;
-    const y = moveInsets(s.spreadT, s.spreadB, dy);
-    next.spreadT = y.left;
-    next.spreadB = y.right;
-    return next;
-  }
-  if (hasW(h)) next.spreadL = round1(s.spreadL + dx);
-  if (hasE(h)) next.spreadR = round1(s.spreadR - dx);
-  if (hasN(h)) next.spreadT = round1(s.spreadT + dy);
-  if (hasS(h)) next.spreadB = round1(s.spreadB - dy);
-  const x = fitPair(next.spreadL, next.spreadR);
-  const y = fitPair(next.spreadT, next.spreadB);
-  next.spreadL = x.a;
-  next.spreadR = x.b;
-  next.spreadT = y.a;
-  next.spreadB = y.b;
-  return next;
-}
-
-function applyRibbons(
-  s: BookLayout,
-  h: Handle,
-  dx: number,
-  dy: number,
-): BookLayout {
-  const next = { ...s };
-  if (h === "move") {
-    const x = moveInsets(s.ribbonsL, s.ribbonsR, dx);
-    next.ribbonsL = x.left;
-    next.ribbonsR = x.right;
-    // низ: ribbonsB от низа; высота отдельно — двигаем только bottom
-    next.ribbonsB = clamp(round1(s.ribbonsB - dy), 0, 100 - s.ribbonsH - 1);
-    return next;
-  }
-  if (hasW(h)) next.ribbonsL = round1(s.ribbonsL + dx);
-  if (hasE(h)) next.ribbonsR = round1(s.ribbonsR - dx);
-  if (hasS(h)) next.ribbonsB = round1(s.ribbonsB - dy);
-  if (hasN(h)) next.ribbonsH = round1(s.ribbonsH - dy);
-  const x = fitPair(next.ribbonsL, next.ribbonsR);
-  next.ribbonsL = x.a;
-  next.ribbonsR = x.b;
-  next.ribbonsB = clamp(next.ribbonsB, 0, 60);
-  next.ribbonsH = clamp(next.ribbonsH, 4, 50);
-  if (next.ribbonsB + next.ribbonsH > 98) {
-    next.ribbonsH = round1(98 - next.ribbonsB);
-  }
-  return next;
-}
+export { RIBBON_LABELS, ribbonButtonStyle };
 
 type Props = {
   layout: BookLayout;
@@ -254,10 +228,11 @@ export function OracleBookCalibrate({
   onClose,
   coverRef,
 }: Props) {
-  const [active, setActive] = useState<BoxKind>("spread");
+  const [mode, setMode] = useState<Mode>("pages");
+  const [focus, setFocus] = useState<Target>({ kind: "pageL" });
   const [copied, setCopied] = useState(false);
   const dragRef = useRef<{
-    kind: BoxKind;
+    target: Target;
     handle: Handle;
     startX: number;
     startY: number;
@@ -272,21 +247,28 @@ export function OracleBookCalibrate({
       if (!d) return;
       const dx = ((e.clientX - d.startX) / d.coverW) * 100;
       const dy = ((e.clientY - d.startY) / d.coverH) * 100;
-      const s = d.start;
+      const s = structuredClone(d.start);
 
-      if (d.kind === "cover") {
-        const px = e.clientX - d.startX;
+      if (d.target.kind === "cover") {
         onChange({
           ...s,
-          coverW: clamp(Math.round(s.coverW + px * 3), 800, 6000),
+          coverW: clamp(Math.round(s.coverW + (e.clientX - d.startX) * 3), 800, 6000),
         });
         return;
       }
-      if (d.kind === "spread") {
-        onChange(applySpread(s, d.handle, dx, dy));
+      if (d.target.kind === "pageL") {
+        s.pageL = applyHandle(s.pageL, d.handle, dx, dy);
+        onChange(s);
         return;
       }
-      onChange(applyRibbons(s, d.handle, dx, dy));
+      if (d.target.kind === "pageR") {
+        s.pageR = applyHandle(s.pageR, d.handle, dx, dy);
+        onChange(s);
+        return;
+      }
+      const i = d.target.index;
+      s.ribbons[i] = applyHandle(s.ribbons[i], d.handle, dx, dy);
+      onChange(s);
     },
     [onChange],
   );
@@ -307,7 +289,7 @@ export function OracleBookCalibrate({
   }, [onPointerMove, endDrag]);
 
   const startDrag = (
-    kind: BoxKind,
+    target: Target,
     handle: Handle,
     e: ReactPointerEvent<HTMLElement>,
   ) => {
@@ -316,13 +298,16 @@ export function OracleBookCalibrate({
     const el = coverRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    setActive(kind);
+    setFocus(target);
+    if (target.kind === "pageL" || target.kind === "pageR") setMode("pages");
+    if (target.kind === "ribbon") setMode("ribbons");
+    if (target.kind === "cover") setMode("cover");
     dragRef.current = {
-      kind,
+      target,
       handle,
       startX: e.clientX,
       startY: e.clientY,
-      start: { ...layout },
+      start: structuredClone(layout),
       coverW: Math.max(1, rect.width),
       coverH: Math.max(1, rect.height),
     };
@@ -335,78 +320,123 @@ export function OracleBookCalibrate({
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1600);
     } catch {
-      window.prompt("Скопируй цифры:", text);
+      window.prompt("Скопируй:", text);
     }
   };
 
-  const renderBox = (
-    kind: "spread" | "ribbons",
-    style: CSSProperties,
+  const renderPaintBox = (
+    target: Target,
+    box: BoxPct,
     label: string,
-  ) => (
-    <div
-      className={`ob-cal-box is-${kind} ${active === kind ? "is-active" : ""}`}
-      style={style}
-    >
-      <span className="ob-cal-label">{label}</span>
-      {BOX_HANDLES.map((handle) => (
-        <button
-          key={handle}
-          type="button"
-          className={`ob-cal-handle is-${handle}`}
-          aria-label={
-            handle === "move"
-              ? `Переместить: ${label}`
-              : `Растянуть ${handle}: ${label}`
-          }
-          onPointerDown={(e) => startDrag(kind, handle, e)}
-        />
-      ))}
-    </div>
-  );
+    color: string,
+    visible: boolean,
+  ) => {
+    const focused =
+      (focus.kind === target.kind && target.kind !== "ribbon") ||
+      (focus.kind === "ribbon" &&
+        target.kind === "ribbon" &&
+        focus.index === target.index);
+    return (
+      <div
+        key={label}
+        className={`ob-cal-box ${focused ? "is-active" : ""} ${visible ? "is-visible" : "is-dim"}`}
+        style={{
+          left: `${box.x}%`,
+          top: `${box.y}%`,
+          width: `${box.w}%`,
+          height: `${box.h}%`,
+          borderColor: color,
+          background: `${color}33`,
+          zIndex: focused ? 57 : visible ? 55 : 52,
+        }}
+      >
+        <span className="ob-cal-label">{label}</span>
+        {BOX_HANDLES.map((handle) => (
+          <button
+            key={handle}
+            type="button"
+            className={`ob-cal-handle is-${handle}`}
+            aria-label={`${handle} ${label}`}
+            onPointerDown={(e) => startDrag(target, handle, e)}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  const pagesOn = mode === "pages";
+  const ribsOn = mode === "ribbons";
 
   return (
     <>
       <div className="ob-cal-hud" role="dialog" aria-label="Калибровка книги">
-        <strong>Как в Paint</strong>
+        <strong>Калибровка как в Paint</strong>
         <p>
-          Зелёная рамка должна накрыть <b>обе</b> страницы. Фиолетовая — все
-          6 закладок. Кружок = двигать, угол = растянуть. Жёлтый угол книги =
-          ширина на весь экран.
+          <b>2 зелёных</b> = левая и правая страница.{" "}
+          <b>6 цветных</b> = каждая закладка-кнопка отдельно. Кружок — двигать,
+          угол — растянуть.
         </p>
         <div className="ob-cal-hud-row">
           <button
             type="button"
-            className={active === "spread" ? "primary" : "ghost"}
-            onClick={() => setActive("spread")}
+            className={mode === "pages" ? "primary" : "ghost"}
+            onClick={() => {
+              setMode("pages");
+              setFocus({ kind: "pageL" });
+            }}
           >
-            Карты
+            Страницы
           </button>
           <button
             type="button"
-            className={active === "ribbons" ? "primary" : "ghost"}
-            onClick={() => setActive("ribbons")}
+            className={mode === "ribbons" ? "primary" : "ghost"}
+            onClick={() => {
+              setMode("ribbons");
+              setFocus({ kind: "ribbon", index: 0 });
+            }}
           >
-            Закладки
+            Закладки ×6
           </button>
           <button
             type="button"
-            className={active === "cover" ? "primary" : "ghost"}
-            onClick={() => setActive("cover")}
+            className={mode === "cover" ? "primary" : "ghost"}
+            onClick={() => {
+              setMode("cover");
+              setFocus({ kind: "cover" });
+            }}
           >
             Книга
           </button>
         </div>
+        {mode === "ribbons" ? (
+          <div className="ob-cal-hud-row ob-cal-rib-picks">
+            {RIBBON_LABELS.map((name, i) => (
+              <button
+                key={name}
+                type="button"
+                className={
+                  focus.kind === "ribbon" && focus.index === i
+                    ? "primary"
+                    : "ghost"
+                }
+                style={{ borderColor: RIBBON_COLORS[i] }}
+                onClick={() => setFocus({ kind: "ribbon", index: i })}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <div className="ob-cal-hud-row">
           <button
             type="button"
             className="ghost"
-            onClick={() => onChange({ ...DEFAULT_BOOK_LAYOUT })}
+            onClick={() => onChange(structuredClone(DEFAULT_BOOK_LAYOUT))}
           >
             Сброс
           </button>
           <button type="button" className="ghost" onClick={() => void copyCss()}>
-            {copied ? "Скопировано" : "Копировать цифры"}
+            {copied ? "Скопировано" : "Копировать"}
           </button>
           <button
             type="button"
@@ -421,34 +451,37 @@ export function OracleBookCalibrate({
         </div>
       </div>
 
-      {renderBox(
-        "spread",
-        {
-          left: `${layout.spreadL}%`,
-          right: `${layout.spreadR}%`,
-          top: `${layout.spreadT}%`,
-          bottom: `${layout.spreadB}%`,
-        },
-        "Карты (обе страницы)",
+      {renderPaintBox(
+        { kind: "pageL" },
+        layout.pageL,
+        "Левая стр.",
+        "#3dcc7a",
+        pagesOn,
+      )}
+      {renderPaintBox(
+        { kind: "pageR" },
+        layout.pageR,
+        "Правая стр.",
+        "#2aad66",
+        pagesOn,
       )}
 
-      {renderBox(
-        "ribbons",
-        {
-          left: `${layout.ribbonsL}%`,
-          right: `${layout.ribbonsR}%`,
-          bottom: `${layout.ribbonsB}%`,
-          height: `${layout.ribbonsH}%`,
-        },
-        "Все закладки",
+      {layout.ribbons.map((box, i) =>
+        renderPaintBox(
+          { kind: "ribbon", index: i },
+          box,
+          RIBBON_LABELS[i],
+          RIBBON_COLORS[i],
+          ribsOn,
+        ),
       )}
 
       <button
         type="button"
-        className={`ob-cal-cover-corner ${active === "cover" ? "is-active" : ""}`}
-        title="Потяни — книга на всю ширину"
+        className={`ob-cal-cover-corner ${mode === "cover" ? "is-active" : ""}`}
+        title="Размер книги"
         aria-label="Растянуть книгу"
-        onPointerDown={(e) => startDrag("cover", "se", e)}
+        onPointerDown={(e) => startDrag({ kind: "cover" }, "se", e)}
       />
     </>
   );

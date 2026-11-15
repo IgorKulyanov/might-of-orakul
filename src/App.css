@@ -8092,15 +8092,15 @@ html.is-hand-dragging .grave-row {
 }
 
 .oracle-folio-cover {
-  --ob-spread-l: 10%;
-  --ob-spread-r: 10%;
-  --ob-spread-t: 10%;
-  --ob-spread-b: 18%;
-  --ob-ribbons-l: 24%;
-  --ob-ribbons-r: 26%;
-  --ob-ribbons-b: 0.5%;
-  --ob-ribbons-h: 15%;
   --ob-cover-w: 4000px;
+  --ob-page-l-x: 11%;
+  --ob-page-l-y: 10%;
+  --ob-page-l-w: 37%;
+  --ob-page-l-h: 68%;
+  --ob-page-r-x: 52%;
+  --ob-page-r-y: 10%;
+  --ob-page-r-w: 37%;
+  --ob-page-r-h: 68%;
   position: relative;
   /* от края до края: без потолка по высоте экрана */
   width: min(100vw - 0.4rem, var(--ob-cover-w));
@@ -8213,6 +8213,30 @@ html.is-hand-dragging .grave-row {
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.4),
     0 0 18px rgba(0, 0, 0, 0.4);
+}
+
+.ob-cal-box.is-dim {
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+.ob-cal-box.is-dim .ob-cal-handle {
+  pointer-events: none !important;
+}
+
+.ob-cal-box.is-visible {
+  opacity: 1;
+  pointer-events: none;
+}
+
+.ob-cal-box.is-visible .ob-cal-handle {
+  pointer-events: auto;
+}
+
+.ob-cal-rib-picks .ghost,
+.ob-cal-rib-picks .primary {
+  font-size: 0.65rem;
+  padding: 0.2rem 0.4rem;
 }
 
 .ob-cal-label {
@@ -8382,31 +8406,27 @@ html.is-hand-dragging .grave-row {
   display: none;
 }
 
-/* Закладки: 3+щель корешка+3 — % из CSS-переменных (калибровка мышкой) */
+/* Закладки: каждая лента — свой абсолютный хитбокс (калибровка ×6) */
 .oracle-book-ribbons {
   position: absolute;
-  left: var(--ob-ribbons-l);
-  right: var(--ob-ribbons-r);
-  bottom: var(--ob-ribbons-b);
-  height: var(--ob-ribbons-h);
+  inset: 0;
   z-index: 40;
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 0.72fr 1fr 1fr 1fr;
-  column-gap: 1.4%;
-  align-items: stretch;
+  display: block;
   margin: 0;
   padding: 0;
   pointer-events: none;
 }
 
 .oracle-book-ribbon-gap {
-  pointer-events: none;
+  display: none;
 }
 
 .oracle-book-ribbon {
-  position: relative;
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 8%;
+  height: 14%;
   min-width: 0;
   display: block;
   pointer-events: auto;
@@ -8474,54 +8494,55 @@ html.is-hand-dragging .grave-row {
 .oracle-book-spread {
   position: absolute;
   z-index: 2;
-  left: var(--ob-spread-l);
-  right: var(--ob-spread-r);
-  top: var(--ob-spread-t);
-  bottom: var(--ob-spread-b);
+  inset: 0;
   margin: 0;
-  display: flex;
-  flex-direction: column;
+  display: block;
   min-height: 0;
   padding: 0;
   border: none;
   color: #2a1c10;
   background: transparent;
   box-shadow: none;
-  overflow: hidden;
+  overflow: visible;
   pointer-events: none;
 }
 
 .oracle-book-pages {
-  position: relative;
+  position: absolute;
+  inset: 0;
   z-index: 2;
-  flex: 1 1 auto;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0;
-  height: 100%;
+  display: block;
   pointer-events: none;
 }
 
 .oracle-book-page {
-  position: relative;
+  position: absolute;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: stretch;
-  padding: 0.55rem 0.65rem 1.4rem;
+  padding: 0.35rem 0.4rem 1.1rem;
   overflow: hidden;
   pointer-events: none;
+  box-sizing: border-box;
 }
 
 .oracle-book-page.is-left {
-  padding-right: 1.45rem;
+  left: var(--ob-page-l-x, 11%);
+  top: var(--ob-page-l-y, 10%);
+  width: var(--ob-page-l-w, 37%);
+  height: var(--ob-page-l-h, 68%);
+  padding-right: 0.55rem;
 }
 
 .oracle-book-page.is-right {
-  padding-left: 1.45rem;
+  left: var(--ob-page-r-x, 52%);
+  top: var(--ob-page-r-y, 10%);
+  width: var(--ob-page-r-w, 37%);
+  height: var(--ob-page-r-h, 68%);
+  padding-left: 0.55rem;
 }
 
 .oracle-book-page-slots {
@@ -8879,18 +8900,6 @@ html.is-hand-dragging .grave-row {
   .oracle-folio-cover {
     width: min(100vw - 0.25rem, var(--ob-cover-w));
     max-width: 100%;
-  }
-
-  .oracle-book-ribbons {
-    column-gap: 1.2%;
-  }
-
-  .oracle-book-page.is-left {
-    padding-right: 1rem;
-  }
-
-  .oracle-book-page.is-right {
-    padding-left: 1rem;
   }
 
   .oracle-book-page {

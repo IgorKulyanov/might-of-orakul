@@ -3,7 +3,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type DragEvent,
 } from "react";
 import { CardView } from "./CardView";
@@ -11,6 +10,7 @@ import {
   bookLayoutToCssVars,
   loadBookLayout,
   OracleBookCalibrate,
+  ribbonButtonStyle,
   saveBookLayout,
   type BookLayout,
 } from "./OracleBookCalibrate";
@@ -662,44 +662,16 @@ export function Cabinet({
                   />
                 ) : null}
                 <nav className="oracle-book-ribbons" aria-label="Школы">
-                  {BOOK_SCHOOLS.slice(0, 3).map((s) => {
+                  {BOOK_SCHOOLS.map((s, i) => {
                     const n = schoolCounts[s];
                     const on = bookSchool === s;
+                    const box = bookLayout.ribbons[i];
                     return (
                       <button
                         key={s}
                         type="button"
                         className={`oracle-book-ribbon ${on ? "is-on" : ""}`}
-                        style={
-                          {
-                            "--school": SCHOOL_COLOR[s],
-                          } as CSSProperties
-                        }
-                        onClick={() => openBookSchool(s)}
-                        title={`${SCHOOL_LABEL[s]} · ${n}`}
-                        aria-label={`${SCHOOL_LABEL[s]}, ${n} карт`}
-                        aria-pressed={on}
-                      >
-                        <span className="oracle-book-ribbon-name">
-                          {SCHOOL_LABEL[s]}
-                        </span>
-                      </button>
-                    );
-                  })}
-                  <span className="oracle-book-ribbon-gap" aria-hidden />
-                  {BOOK_SCHOOLS.slice(3).map((s) => {
-                    const n = schoolCounts[s];
-                    const on = bookSchool === s;
-                    return (
-                      <button
-                        key={s}
-                        type="button"
-                        className={`oracle-book-ribbon ${on ? "is-on" : ""}`}
-                        style={
-                          {
-                            "--school": SCHOOL_COLOR[s],
-                          } as CSSProperties
-                        }
+                        style={ribbonButtonStyle(box, SCHOOL_COLOR[s])}
                         onClick={() => openBookSchool(s)}
                         title={`${SCHOOL_LABEL[s]} · ${n}`}
                         aria-label={`${SCHOOL_LABEL[s]}, ${n} карт`}
