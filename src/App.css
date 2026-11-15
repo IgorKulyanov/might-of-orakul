@@ -9391,12 +9391,31 @@ html.is-hand-dragging .grave-row {
     padding: 0 0.1em;
   }
 
-  /* узкая рамка: большое окно, аккуратный HUD без каши */
+  /* узкая рамка на всю страницу; без +/− — свайп вверх/вниз */
+  .oracle-book-abs-slot.is-mobile-hero {
+    touch-action: none;
+    gap: 0.2rem;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
   .oracle-book-abs-slot.is-mobile-hero .oracle-book-slot-frame {
     --ob-hole-left: 11.5%;
     --ob-hole-top: 8%;
     --ob-hole-w: 77%;
     --ob-hole-h: 84%;
+    height: calc(100% - 1.1rem);
+    place-items: stretch center;
+  }
+
+  /* без чёрных шторок: тянем рамку на слот */
+  .oracle-book-abs-slot.is-mobile-hero .oracle-book-frame-stage {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    aspect-ratio: auto;
+    margin: 0;
   }
 
   .oracle-book-abs-slot.is-mobile-hero .oracle-book-stat-hud {
@@ -9429,10 +9448,17 @@ html.is-hand-dragging .grave-row {
     line-height: 1.2;
   }
 
-  .oracle-book-abs-slot.is-mobile-hero .oracle-book-qty {
-    min-width: 2rem;
-    min-height: 2rem;
-    font-size: 1.1rem;
+  .oracle-book-swipe-hint {
+    margin: 0;
+    padding: 0;
+    text-align: center;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #3a2814;
+    text-shadow: 0 1px 0 rgba(255, 248, 220, 0.55);
+    line-height: 1.2;
+    pointer-events: none;
   }
 
   .oracle-book-page {

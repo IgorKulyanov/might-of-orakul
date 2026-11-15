@@ -68,9 +68,11 @@ const DESKTOP_CARDS_PER_LEAF = 4;
 /** Телефон: 1 карта на страницу, разворот 2 — читаемый размер. */
 const MOBILE_CARDS_PER_LEAF = 1;
 
-/** Крупные слоты по центру левой/правой страницы (только мобилка). */
-const MOBILE_SLOT_LEFT = { x: 20, y: 11, w: 28, h: 62 };
-const MOBILE_SLOT_RIGHT = { x: 51.5, y: 11, w: 28, h: 62 };
+/** Почти вся страница книги (только мобилка, без +/−). */
+const MOBILE_SLOT_LEFT = { x: 17.5, y: 9, w: 32, h: 68 };
+const MOBILE_SLOT_RIGHT = { x: 50, y: 9, w: 32, h: 68 };
+
+const SWIPE_MIN_PX = 48;
 
 type Tab = "oracle" | "deck";
 
@@ -116,6 +118,11 @@ export function Cabinet({
   const [bookLayout, setBookLayout] = useState<BookLayout>(() => loadBookLayout());
   const [calibrating, setCalibrating] = useState(false);
   const folioCoverRef = useRef<HTMLDivElement>(null);
+  const swipeRef = useRef<{
+    cardId: string;
+    x0: number;
+    y0: number;
+  } | null>(null);
 
   useEffect(() => {
     if (forcedTab) setTab(forcedTab);
@@ -283,17 +290,50 @@ export function Cabinet({
         key={`slot-${slotIndex}-${card.id}`}
         className={`oracle-book-abs-slot ${allowCardDrag ? "is-draggable" : ""} ${inDeck > 0 ? "in-deck" : ""} ${mobileHero ? "is-mobile-hero" : ""}`}
         style={slotBoxStyle(box)}
-        draggable={allowCardDrag && !calibrating}
+        draggable={allowCardDrag && !calibrating && !mobileHero}
         onDragStart={
-          allowCardDrag && !calibrating
+          allowCardDrag && !calibrating && !mobileHero
             ? (e) => onCardDragStart(e, card.id, "case")
             : undefined
         }
         onDragEnd={allowCardDrag ? () => setDragOver(null) : undefined}
-        title={`${card.name} · в колоду`}
+        onTouchStart={
+          mobileHero
+            ? (e) => {
+                const t = e.changedTouches[0];
+                if (!t) return;
+                swipeRef.current = {
+                  cardId: card.id,
+                  x0: t.clientX,
+                  y0: t.clientY,
+                };
+              }
+            : undefined
+        }
+        onTouchEnd={
+          mobileHero
+            ? (e) => {
+                const start = swipeRef.current;
+                swipeRef.current = null;
+                if (!start || start.cardId !== card.id) return;
+                const t = e.changedTouches[0];
+                if (!t) return;
+                const dy = t.clientY - start.y0;
+                const dx = t.clientX - start.x0;
+                if (Math.abs(dy) < SWIPE_MIN_PX) return;
+                if (Math.abs(dy) < Math.abs(dx) * 1.15) return;
+                if (dy < 0) addToDeck(card.id);
+                else removeFromDeck(card.id);
+              }
+            : undefined
+        }
+        title={
+          mobileHero
+            ? `${card.name} · вверх — в руку, вниз — убрать`
+            : `${card.name} · в колоду`
+        }
       >
         <div className="oracle-book-slot-frame">
-          {/* stage = пропорции PNG; арт напрямую в окне — без CardView (он не тянется) */}
           <div className="oracle-book-frame-stage">
             <div
               className="oracle-book-card-core"
@@ -331,36 +371,43 @@ export function Cabinet({
             />
           </div>
         </div>
-        <div className="oracle-book-slot-meta">
-          <div className="cabinet-card-actions">
-            <button
-              type="button"
-              className="oracle-book-qty is-add"
-              disabled={!canAdd || calibrating}
-              onClick={(e) => {
-                e.stopPropagation();
-                addToDeck(card.id);
-              }}
-              title={inDeck > 0 ? `в колоде ×${inDeck}` : `добавить в руку`}
-              aria-label="Добавить в руку"
-            >
-              +
-            </button>
-            <button
-              type="button"
-              className="oracle-book-qty is-sub"
-              disabled={inDeck <= 0 || calibrating}
-              onClick={(e) => {
-                e.stopPropagation();
-                removeFromDeck(card.id);
-              }}
-              title="Убрать из руки"
-              aria-label="Убрать из руки"
-            >
-              −
-            </button>
+        {mobileHero ? (
+          <p className="oracle-book-swipe-hint">
+            ↑ в руку · ↓ убрать
+            {inDeck > 0 ? ` · в руке ×${inDeck}` : ""}
+          </p>
+        ) : (
+          <div className="oracle-book-slot-meta">
+            <div className="cabinet-card-actions">
+              <button
+                type="button"
+                className="oracle-book-qty is-add"
+                disabled={!canAdd || calibrating}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  addToDeck(card.id);
+                }}
+                title={inDeck > 0 ? `в колоде ×${inDeck}` : `добавить в руку`}
+                aria-label="Добавить в руку"
+              >
+                +
+              </button>
+              <button
+                type="button"
+                className="oracle-book-qty is-sub"
+                disabled={inDeck <= 0 || calibrating}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeFromDeck(card.id);
+                }}
+                title="Убрать из руки"
+                aria-label="Убрать из руки"
+              >
+                −
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     );
   };
