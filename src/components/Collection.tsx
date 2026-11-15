@@ -552,7 +552,7 @@ export function Collection({
                 />
                 <div className="grid-meta">
                   <div className="card-live-tag inline-icos">
-                    <SchoolBadge school={c.school} size={12} />
+                    <SchoolBadge school={c.school} size={15} />
                     {" · "}
                     {c.kind === "spell" ? "Заклинание" : "Существо"}
                     {c.unitLevel
@@ -807,7 +807,7 @@ export function Collection({
                     />
                     <div className="grid-meta">
                       <div className="card-live-tag inline-icos">
-                        <SchoolBadge school={c.school} size={12} />
+                        <SchoolBadge school={c.school} size={15} />
                         {c.school === homeFaction ? " · своя" : ""}
                         {" · "}
                         в колоде {inDeck}/{cap} (есть {have})
