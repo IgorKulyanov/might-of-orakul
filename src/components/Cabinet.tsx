@@ -265,37 +265,39 @@ export function Cabinet({
         title={`${card.name} · в колоду`}
       >
         <div className="oracle-book-slot-frame">
-          <div className="oracle-book-card-core">
-            <CardView
-              card={card}
-              compact
-              flippable={false}
-              upgradeLevel={upLv}
+          {/* stage = пропорции PNG; дыра и обод совпадают 1:1 */}
+          <div className="oracle-book-frame-stage">
+            <div className="oracle-book-card-core">
+              <CardView
+                card={card}
+                compact
+                flippable={false}
+                upgradeLevel={upLv}
+              />
+            </div>
+            <div className="oracle-book-stat-hud" aria-label="Показатели карты">
+              <div className="oracle-book-stat-top">
+                <span className="oracle-book-stat-school">
+                  <GameIcon name={card.school} size={13} />
+                  <ManaCostIcons cost={mana} size={11} />
+                </span>
+                {card.kind === "creature" ? (
+                  <span className="oracle-book-stat-combat">
+                    {atk}/{hp}
+                  </span>
+                ) : (
+                  <span className="oracle-book-stat-combat">✦</span>
+                )}
+              </div>
+              <div className="oracle-book-stat-name">{card.name}</div>
+            </div>
+            <img
+              className="oracle-book-card-frame"
+              src="/ui/card-frame-book.png?v=7"
+              alt=""
+              draggable={false}
             />
           </div>
-          <div className="oracle-book-stat-hud" aria-label="Показатели карты">
-            <div className="oracle-book-stat-top">
-              <span className="oracle-book-stat-school">
-                <GameIcon name={card.school} size={13} />
-                <ManaCostIcons cost={mana} size={11} />
-              </span>
-              {card.kind === "creature" ? (
-                <span className="oracle-book-stat-combat">
-                  {atk}/{hp}
-                </span>
-              ) : (
-                <span className="oracle-book-stat-combat">✦</span>
-              )}
-            </div>
-            <div className="oracle-book-stat-name">{card.name}</div>
-          </div>
-          {/* Рамка сверху — целостность обода, контент только в окне */}
-          <img
-            className="oracle-book-card-frame"
-            src="/ui/card-frame-book.png?v=6"
-            alt=""
-            draggable={false}
-          />
         </div>
         <div className="oracle-book-slot-meta">
           <div className="cabinet-card-actions">

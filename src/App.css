@@ -7842,6 +7842,11 @@ html.is-hand-dragging .grave-row {
   padding: 0 1rem 2rem;
   display: grid;
   gap: 1.5rem;
+  overflow: visible;
+}
+
+.cabinet-cards:has(.oracle-book) {
+  overflow: visible !important;
 }
 
 .cabinet-card-section h2 {
@@ -8632,24 +8637,41 @@ html.is-hand-dragging .grave-row {
 }
 
 .oracle-book-abs-slot .oracle-book-slot-frame {
-  /* дырка рамки: карта только тут; PNG-обод абсолютом СВЕРХУ */
-  --ob-hole-left: 21%;
-  --ob-hole-top: 19%;
-  --ob-hole-w: 58%;
-  --ob-hole-h: 62%;
+  /* окно = реальная прозрачная дыра PNG 719×1024 (замер alpha) */
+  --ob-hole-left: 28.65%;
+  --ob-hole-top: 27.9%;
+  --ob-hole-w: 42.7%;
+  --ob-hole-h: 44.2%;
   position: relative;
-  isolation: isolate;
   flex: 1 1 auto;
   width: 100%;
   min-height: 0;
   height: calc(100% - 1.35rem);
-  overflow: visible;
+  display: grid;
+  place-items: center;
+  overflow: visible !important;
   background: transparent;
   padding: 0;
   margin: 0;
   border: none;
   border-radius: 0;
   box-shadow: none;
+  container-type: size;
+}
+
+/* сцена рамки: всегда 719:1024, влезает целиком, без crop */
+.oracle-book-abs-slot .oracle-book-frame-stage {
+  position: relative;
+  isolation: isolate;
+  aspect-ratio: 719 / 1024;
+  width: min(100cqw, calc(100cqh * 719 / 1024));
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: visible !important;
+  clip-path: none;
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 .oracle-book-abs-slot .oracle-book-card-core {
@@ -8692,7 +8714,8 @@ html.is-hand-dragging .grave-row {
   top: var(--ob-hole-top);
   width: var(--ob-hole-w);
   height: var(--ob-hole-h);
-  z-index: 2;
+  /* поверх рамки, но только в прозрачном окне */
+  z-index: 60;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -8744,7 +8767,7 @@ html.is-hand-dragging .grave-row {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
 }
 
-/* рамка целиком: contain = не обрезать вензели; по центру слота */
+/* рамка 1:1 с aspect-ratio слота — весь обод, без crop */
 .oracle-book-abs-slot .oracle-book-card-frame {
   position: absolute !important;
   left: 0 !important;
@@ -8752,12 +8775,14 @@ html.is-hand-dragging .grave-row {
   width: 100% !important;
   height: 100% !important;
   max-width: none !important;
+  max-height: none !important;
   margin: 0 !important;
-  object-fit: contain !important;
+  object-fit: fill !important;
   object-position: center center !important;
   pointer-events: none !important;
   z-index: 50 !important;
   user-select: none;
+  overflow: visible !important;
 }
 
 .oracle-book-abs-slot .oracle-book-slot-meta {
