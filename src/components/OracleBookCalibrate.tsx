@@ -47,56 +47,36 @@ const RIBBON_COLORS = [
   "#c0c4cc",
 ] as const;
 
-function gridOnPage(
-  px: number,
-  py: number,
-  pw: number,
-  ph: number,
-): [BoxPct, BoxPct, BoxPct, BoxPct] {
-  /* больше зазор — рамки не наезжают и не «съедают» друг друга */
-  const padX = pw * 0.04;
-  const padY = ph * 0.04;
-  const gapX = pw * 0.1;
-  const gapY = ph * 0.1;
-  const cellW = (pw - padX * 2 - gapX) / 2;
-  const cellH = (ph - padY * 2 - gapY) / 2;
-  const out: BoxPct[] = [];
-  for (let row = 0; row < 2; row++) {
-    for (let col = 0; col < 2; col++) {
-      out.push({
-        x: round1(px + padX + col * (cellW + gapX)),
-        y: round1(py + padY + row * (cellH + gapY)),
-        w: round1(cellW),
-        h: round1(cellH),
-      });
-    }
-  }
-  return out as [BoxPct, BoxPct, BoxPct, BoxPct];
-}
-
+/** Запечённая сетка с калибровки (Paint). */
 function defaultSlots(): BookLayout["slots"] {
   return [
-    ...gridOnPage(11, 10, 37, 68),
-    ...gridOnPage(52, 10, 37, 68),
-  ] as BookLayout["slots"];
+    { x: 19.7, y: 12.8, w: 15.2, h: 27.9 },
+    { x: 34.8, y: 12.8, w: 15.2, h: 27.9 },
+    { x: 19.8, y: 47.3, w: 15.2, h: 27.9 },
+    { x: 34.9, y: 47.4, w: 15.2, h: 27.9 },
+    { x: 49.9, y: 12.8, w: 15.2, h: 27.9 },
+    { x: 65.0, y: 12.8, w: 15.2, h: 27.9 },
+    { x: 50.0, y: 47.4, w: 15.2, h: 27.9 },
+    { x: 65.1, y: 47.5, w: 15.2, h: 27.9 },
+  ];
 }
 
 export const DEFAULT_BOOK_LAYOUT: BookLayout = {
   slots: defaultSlots(),
   ribbons: [
-    { x: 25.5, y: 84.5, w: 6.2, h: 13.5 },
-    { x: 32.5, y: 84.5, w: 6.2, h: 13.5 },
-    { x: 39.5, y: 84.5, w: 6.2, h: 13.5 },
-    { x: 52.5, y: 84.5, w: 6.2, h: 13.5 },
-    { x: 59.5, y: 84.5, w: 6.2, h: 13.5 },
-    { x: 66.5, y: 84.5, w: 6.2, h: 13.5 },
+    { x: 26.0, y: 79.9, w: 6.2, h: 18.1 },
+    { x: 33.8, y: 79.9, w: 6.2, h: 18.1 },
+    { x: 41.7, y: 79.9, w: 6.2, h: 18.2 },
+    { x: 51.5, y: 79.7, w: 6.2, h: 18.7 },
+    { x: 59.5, y: 79.8, w: 6.2, h: 18.5 },
+    { x: 67.4, y: 79.8, w: 6.2, h: 18.6 },
   ],
-  btnBack: { x: 13, y: 72, w: 11, h: 6 },
-  btnFwd: { x: 76, y: 72, w: 11, h: 6 },
+  btnBack: { x: 7.8, y: 73.9, w: 16.0, h: 15.4 },
+  btnFwd: { x: 75.1, y: 76.3, w: 16.1, h: 15.3 },
   coverW: 4000,
 };
 
-const STORAGE_KEY = "orakul-book-layout-v8";
+const STORAGE_KEY = "orakul-book-layout-v9";
 const MIN = 2.5;
 
 type Mode = "cards" | "ribbons" | "turn" | "cover";
@@ -211,6 +191,7 @@ export function loadBookLayout(): BookLayout {
       "orakul-book-layout-v5",
       "orakul-book-layout-v6",
       "orakul-book-layout-v7",
+      "orakul-book-layout-v8",
     ]) {
       localStorage.removeItem(k);
     }
