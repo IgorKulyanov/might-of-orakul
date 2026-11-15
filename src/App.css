@@ -5739,6 +5739,48 @@ html.is-hand-dragging .oracle-folio {
   --desk-pos: center 32%;
 }
 
+/*
+ * Длинные экраны (магазин и т.п.): стол = фон окна, не растягивается на всю прокрутку.
+ */
+.collection,
+.hero-screen,
+.cabinet,
+.dev-sandbox {
+  position: relative;
+  isolation: isolate;
+  background-image: none;
+  background-color: #1a120c;
+}
+
+.collection::before,
+.hero-screen::before,
+.cabinet::before,
+.dev-sandbox::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: #1a120c;
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(10, 8, 6, 0.7) 0%,
+      rgba(12, 8, 5, 0.26) 8rem,
+      rgba(18, 12, 8, 0.1) 14rem,
+      transparent 22rem
+    ),
+    radial-gradient(
+      ellipse 85% 50% at 50% 40%,
+      rgba(255, 190, 110, 0.1),
+      transparent 62%
+    ),
+    var(--desk-img);
+  background-size: auto, auto, cover;
+  background-position: center, center, var(--desk-pos);
+  background-repeat: no-repeat;
+}
+
 .auth-screen {
   --desk-img: url("/ui/oracle-desk-bg-b.jpg");
   --desk-pos: 74% 38%;
