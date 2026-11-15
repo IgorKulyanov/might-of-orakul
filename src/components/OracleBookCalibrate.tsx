@@ -16,6 +16,9 @@ export type BookLayout = {
   pageR: BoxPct;
   /** 6 закладок слева направо */
   ribbons: [BoxPct, BoxPct, BoxPct, BoxPct, BoxPct, BoxPct];
+  /** Кнопки листания школы — ставишь сам */
+  btnBack: BoxPct;
+  btnFwd: BoxPct;
   coverW: number;
   /** Размер карт в книге (1 = обычно) */
   cardScale: number;
@@ -52,15 +55,17 @@ export const DEFAULT_BOOK_LAYOUT: BookLayout = {
     { x: 59.2, y: 85, w: 6.5, h: 14 },
     { x: 66.4, y: 85, w: 6.5, h: 14 },
   ],
+  btnBack: { x: 12, y: 78, w: 12, h: 5 },
+  btnFwd: { x: 76, y: 78, w: 12, h: 5 },
   coverW: 4000,
   cardScale: 1,
   cardGap: 0.35,
 };
 
-const STORAGE_KEY = "orakul-book-layout-v3";
+const STORAGE_KEY = "orakul-book-layout-v4";
 const MIN = 3;
 
-type Mode = "pages" | "ribbons" | "cards" | "cover";
+type Mode = "pages" | "ribbons" | "cards" | "turn" | "cover";
 type Handle =
   | "move"
   | "n"
@@ -88,6 +93,8 @@ type Target =
   | { kind: "pageL" }
   | { kind: "pageR" }
   | { kind: "ribbon"; index: number }
+  | { kind: "btnBack" }
+  | { kind: "btnFwd" }
   | { kind: "cover" };
 
 function clamp(n: number, min: number, max: number) {
@@ -176,6 +183,8 @@ export function loadBookLayout(): BookLayout {
     if (typeof parsed.cardGap === "number") {
       base.cardGap = clamp(parsed.cardGap, 0.05, 1.2);
     }
+    if (isBoxPct(parsed.btnBack)) base.btnBack = normalizeBox(parsed.btnBack);
+    if (isBoxPct(parsed.btnFwd)) base.btnFwd = normalizeBox(parsed.btnFwd);
     return base;
   } catch {
     return structuredClone(DEFAULT_BOOK_LAYOUT);
@@ -224,6 +233,15 @@ function ribbonButtonStyle(box: BoxPct, schoolColor: string): CSSProperties {
     width: `${box.w}%`,
     height: `${box.h}%`,
     ["--school" as string]: schoolColor,
+  };
+}
+
+export function turnButtonStyle(box: BoxPct): CSSProperties {
+  return {
+    left: `${box.x}%`,
+    top: `${box.y}%`,
+    width: `${box.w}%`,
+    height: `${box.h}%`,
   };
 }
 
@@ -281,9 +299,21 @@ export function OracleBookCalibrate({
         onChange(s);
         return;
       }
-      const i = d.target.index;
-      s.ribbons[i] = applyHandle(s.ribbons[i], d.handle, dx, dy);
-      onChange(s);
+      if (d.target.kind === "btnBack") {
+        s.btnBack = applyHandle(s.btnBack, d.handle, dx, dy);
+        onChange(s);
+        return;
+      }
+      if (d.target.kind === "btnFwd") {
+        s.btnFwd = applyHandle(s.btnFwd, d.handle, dx, dy);
+        onChange(s);
+        return;
+      }
+      if (d.target.kind === "ribbon") {
+        const i = d.target.index;
+        s.ribbons[i] = applyHandle(s.ribbons[i], d.handle, dx, dy);
+        onChange(s);
+      }
     },
     [onChange],
   );
@@ -316,6 +346,7 @@ export function OracleBookCalibrate({
     setFocus(target);
     if (target.kind === "pageL" || target.kind === "pageR") setMode("pages");
     if (target.kind === "ribbon") setMode("ribbons");
+    if (target.kind === "btnBack" || target.kind === "btnFwd") setMode("turn");
     if (target.kind === "cover") setMode("cover");
     dragRef.current = {
       target,
@@ -381,16 +412,17 @@ export function OracleBookCalibrate({
 
   const pagesOn = mode === "pages" || mode === "cards";
   const ribsOn = mode === "ribbons";
+  const turnOn = mode === "turn";
 
   return (
     <>
       <div className="ob-cal-hud" role="dialog" aria-label="Калибровка книги">
         <strong>Калибровка как в Paint</strong>
         <p>
-          Страницы = где карты. Закладки = 6 кнопок. Карты = размер карт.
+          Страницы = 4+4 карты. Листы = кнопки НАЗАД/ВПЕРЕД. Закладки = школы.
           <br />
-          <b>Готово</b> = сохранено у тебя в браузере. Чтобы я вшил в игру для
-          всех — жми <b>Копировать</b> и пришли текст мне в чат.
+          <b>Готово</b> = у тебя в браузере. Для всех — <b>Копировать</b> мне в
+          чат.
         </p>
         <div className="ob-cal-hud-row">
           <button
@@ -409,6 +441,16 @@ export function OracleBookCalibrate({
             onClick={() => setMode("cards")}
           >
             Карты
+          </button>
+          <button
+            type="button"
+            className={mode === "turn" ? "primary" : "ghost"}
+            onClick={() => {
+              setMode("turn");
+              setFocus({ kind: "btnBack" });
+            }}
+          >
+            Листы
           </button>
           <button
             type="button"
@@ -541,6 +583,21 @@ export function OracleBookCalibrate({
           RIBBON_COLORS[i],
           ribsOn,
         ),
+      )}
+
+      {renderPaintBox(
+        { kind: "btnBack" },
+        layout.btnBack,
+        "НАЗАД",
+        "#e8c547",
+        turnOn,
+      )}
+      {renderPaintBox(
+        { kind: "btnFwd" },
+        layout.btnFwd,
+        "ВПЕРЕД",
+        "#e8a020",
+        turnOn,
       )}
 
       <button

@@ -12,6 +12,7 @@ import {
   OracleBookCalibrate,
   ribbonButtonStyle,
   saveBookLayout,
+  turnButtonStyle,
   type BookLayout,
 } from "./OracleBookCalibrate";
 import {
@@ -631,35 +632,6 @@ export function Cabinet({
             onDrop={onDropToCase}
           >
             <div className="oracle-folio" aria-label="Фолиант оракула">
-              <div className="oracle-book-pager">
-                <button
-                  type="button"
-                  className="oracle-book-pager-btn"
-                  disabled={bookSpread <= 0 || calibrating}
-                  onClick={() => turnBookPage("back")}
-                >
-                  ← Назад
-                </button>
-                <span className="oracle-book-pager-meta">
-                  {SCHOOL_LABEL[bookSchool]} · лист {bookSpread + 1}/
-                  {spreadCount}
-                  {bookSchoolCards.length
-                    ? ` · ${bookSchoolCards.length} карт`
-                    : ""}
-                </span>
-                <button
-                  type="button"
-                  className="oracle-book-pager-btn"
-                  disabled={
-                    bookSpread >= spreadCount - 1 ||
-                    calibrating ||
-                    bookSchoolCards.length === 0
-                  }
-                  onClick={() => turnBookPage("fwd")}
-                >
-                  Вперёд →
-                </button>
-              </div>
               <button
                 type="button"
                 className={`ob-cal-toggle ${calibrating ? "primary" : "ghost"}`}
@@ -714,6 +686,31 @@ export function Cabinet({
                   })}
                 </nav>
 
+                <button
+                  type="button"
+                  className="oracle-book-turn is-back"
+                  style={turnButtonStyle(bookLayout.btnBack)}
+                  disabled={bookSpread <= 0 || calibrating}
+                  onClick={() => turnBookPage("back")}
+                  aria-label="Назад"
+                >
+                  НАЗАД
+                </button>
+                <button
+                  type="button"
+                  className="oracle-book-turn is-fwd"
+                  style={turnButtonStyle(bookLayout.btnFwd)}
+                  disabled={
+                    bookSpread >= spreadCount - 1 ||
+                    calibrating ||
+                    bookSchoolCards.length === 0
+                  }
+                  onClick={() => turnBookPage("fwd")}
+                  aria-label="Вперёд"
+                >
+                  ВПЕРЕД
+                </button>
+
                 <div
                   key={bookFlip}
                   className={`oracle-book-spread is-flip is-turn-${bookFlipDir}`}
@@ -724,36 +721,19 @@ export function Cabinet({
                   <div className="oracle-book-pages">
                     <div className="oracle-book-page is-left">
                       {bookSchoolCards.length === 0 ? (
-                        <p className="oracle-book-empty">
-                          Пустая глава «{SCHOOL_LABEL[bookSchool]}»
-                        </p>
+                        <>
+                          <p className="oracle-book-empty">
+                            Пустая глава «{SCHOOL_LABEL[bookSchool]}»
+                          </p>
+                          {renderPageSlots([], "L")}
+                        </>
                       ) : (
                         renderPageSlots(leftPageCards, "L")
                       )}
-                      <button
-                        type="button"
-                        className="oracle-page-corner is-prev"
-                        disabled={bookSpread <= 0}
-                        onClick={() => turnBookPage("back")}
-                        aria-label="Предыдущая страница"
-                        title="Назад"
-                      />
                     </div>
 
                     <div className="oracle-book-page is-right">
-                      {bookSchoolCards.length === 0 ? (
-                        <p className="oracle-book-empty is-quiet"> </p>
-                      ) : (
-                        renderPageSlots(rightPageCards, "R")
-                      )}
-                      <button
-                        type="button"
-                        className="oracle-page-corner is-next"
-                        disabled={bookSpread >= spreadCount - 1}
-                        onClick={() => turnBookPage("fwd")}
-                        aria-label="Следующая страница"
-                        title="Вперёд"
-                      />
+                      {renderPageSlots(rightPageCards, "R")}
                     </div>
                   </div>
                 </div>
