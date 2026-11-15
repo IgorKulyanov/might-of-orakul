@@ -3,7 +3,7 @@
  * Не панацея от читов в соло (клиентский движок), но режет тупые атаки и накрутку на сервере.
  * Рост коллекции/эпиков через PUT запрещён — только POST /api/shop/*.
  */
-import { applyShardUnlocks, clampOwnedShopGains } from "./shopCatalog.js";
+import { clampOwnedShopGains } from "./shopCatalog.js";
 
 const loginFails = new Map(); // ip|login -> { n, until }
 const hitBuckets = new Map(); // key -> { n, reset }
@@ -265,8 +265,7 @@ export function sanitizeOwned(raw, prev) {
   }
 
   const clamped = clampOwnedShopGains(base, next);
-  // Осколки с боёв/магазина: порог ур.1 → карта в оракуле (после clamp копий).
-  applyShardUnlocks(clamped);
+  /* Открытие в оракул — только POST /api/shop/unlock (кнопка осколков). */
   return clamped;
 }
 

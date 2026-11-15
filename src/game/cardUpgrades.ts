@@ -1372,9 +1372,8 @@ export function grantCardShards(
   if (amount <= 0 || !isUpgradeableCard(cardId)) return owned;
   const shards = { ...(owned.cardShards ?? {}) };
   shards[cardId] = Math.max(0, (shards[cardId] ?? 0) + amount);
-  const next = { ...owned, cardShards: shards };
-  const unlocked = tryUnlockCardFromShards(next, cardId);
-  return unlocked.ok ? unlocked.owned : next;
+  /* В оракул — только по кнопке осколков (tryUnlockCardFromShards). */
+  return { ...owned, cardShards: shards };
 }
 
 export function tryUpgradeCard(

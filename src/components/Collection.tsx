@@ -22,7 +22,7 @@ import {
   minPlayerLevelForShopCard,
   starterDeckForFaction,
 } from "../game/progression";
-import { apiCreatePayment, apiShopBuy } from "../game/api";
+import { apiCreatePayment, apiShopBuy, apiShopUnlock } from "../game/api";
 import {
   getCardShards,
   getCardUpgradeLevel,
@@ -30,6 +30,7 @@ import {
   shardsNeededForNext,
   shardsNeededForUnlock,
   shardsPerShopBuy,
+  tryUnlockCardFromShards,
 } from "../game/cardUpgrades";
 import {
   buyShardsWithDiamonds,
@@ -40,8 +41,10 @@ import {
   ownedCopies,
   playerLevel,
   saveDeck,
+  saveOwned,
   tryUpgradeCard,
 } from "../game/owned";
+import { sfxCardUnlock } from "../game/sfx";
 import type { CardKind, OwnedState, School } from "../game/types";
 import { USER_AGREEMENT_URL } from "../game/legal";
 import {
@@ -160,11 +163,57 @@ export function Collection({
     if (unlockTimer.current != null) {
       window.clearTimeout(unlockTimer.current);
     }
+    sfxCardUnlock();
     setUnlockReveal({ id, name });
     unlockTimer.current = window.setTimeout(() => {
       setUnlockReveal(null);
       unlockTimer.current = null;
-    }, 2800);
+    }, 3200);
+  };
+
+  const unlockBusy = useRef(false);
+
+  /** Осколков хватает на ур.1 — игрок жмёт кнопку → карта в оракуле. */
+  const unlockFromShards = async (id: string) => {
+    if (unlockBusy.current) return;
+    unlockBusy.current = true;
+    const cardName = CARDS.find((c) => c.id === id)?.name ?? id;
+    try {
+      if (authToken) {
+        const { user } = await apiShopUnlock(authToken, id);
+        if (!user.owned) {
+          say("Сервер не вернул сейв");
+          return;
+        }
+        const next: OwnedState = {
+          ...owned,
+          ...user.owned,
+          cardShards: user.owned.cardShards ?? owned.cardShards,
+          cardUpgrades: user.owned.cardUpgrades ?? owned.cardUpgrades,
+          decks: user.owned.decks ?? owned.decks,
+          activeDeckId: user.owned.activeDeckId ?? owned.activeDeckId,
+          homeFaction: owned.homeFaction ?? user.owned.homeFaction,
+        };
+        saveOwned(next);
+        onChange(next);
+        showUnlockReveal(id, cardName);
+        say(`«${cardName}» открыта в оракуле`);
+        return;
+      }
+      const res = tryUnlockCardFromShards(owned, id);
+      if (!res.ok) {
+        say(res.reason ?? "Нельзя открыть");
+        return;
+      }
+      saveOwned(res.owned);
+      onChange(res.owned);
+      showUnlockReveal(id, cardName);
+      say(`«${cardName}» открыта в оракуле`);
+    } catch (e) {
+      say(e instanceof Error ? e.message : "Не удалось открыть");
+    } finally {
+      unlockBusy.current = false;
+    }
   };
 
   useEffect(() => {
@@ -288,15 +337,13 @@ export function Collection({
     const before = owned;
     const hadCopy = ownedCopies(before, cardId) > 0;
     const flashAfter = (next: OwnedState) => {
-      const opened = !hadCopy && ownedCopies(next, cardId) > 0;
-      if (opened) {
-        showUnlockReveal(cardId, cardName);
-        say(`«${cardName}» открыта в оракуле (ур.1)`);
-        return;
-      }
       if (!hadCopy) {
         const need = shardsNeededForUnlock(cardId) ?? 0;
         const have = getCardShards(next, cardId);
+        if (need > 0 && have >= need) {
+          say(`«${cardName}» осколки готовы — жми ${have}/${need}!`);
+          return;
+        }
         say(`«${cardName}» +${shardN} осколок · ${have}/${need} до оракула`);
         return;
       }
@@ -426,7 +473,8 @@ export function Collection({
         <>
           <p className="hint catalog-status">
             Оракул: <strong>{catalogStats.unlocked}</strong> /{" "}
-            {catalogStats.total}. Ценник = <strong>1 осколок</strong>. Карта в
+            {catalogStats.total}. Ценник = <strong>1 осколок</strong>. Набрал
+            осколки на ур.1 — жми подсвеченную кнопку. Карта в
             оракуле — только когда наберёшь осколки на <strong>ур.1</strong>.
             Дальше осколки на ур.2/3. Тиры I–V: с 1 / 10 / 15 / 25 / 30 ур.
           </p>
@@ -523,15 +571,22 @@ export function Collection({
                         if (!inOracle) {
                           const need = shardsNeededForUnlock(c.id);
                           if (need == null) return null;
+                          const ready =
+                            !locked && need > 0 && haveSh >= need;
                           return (
                             <button
                               type="button"
-                              className="shard-upgrade-btn is-farm-green"
-                              disabled
+                              className={`shard-upgrade-btn ${
+                                ready ? "is-ready" : "is-farm-green"
+                              }`}
+                              disabled={!ready}
+                              onClick={() => ready && void unlockFromShards(c.id)}
                               title={
                                 locked
                                   ? `С ${needLv} ур. · в оракул: ${need} осколков`
-                                  : `В оракул (ур.1): ${haveSh}/${need}`
+                                  : ready
+                                    ? `Открыть в оракуле (ур.1)`
+                                    : `В оракул (ур.1): ${haveSh}/${need}`
                               }
                             >
                               {haveSh}/{need}

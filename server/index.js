@@ -32,7 +32,11 @@ import {
   sanitizeLogin,
   sanitizeOwned,
 } from "./security.js";
-import { applyHeroBuy, applyShopBuy } from "./shopCatalog.js";
+import {
+  applyHeroBuy,
+  applyShopBuy,
+  applyShardUnlockCard,
+} from "./shopCatalog.js";
 import { maybeAutoSnapshot } from "./ownedSnapshots.js";
 
 const VERIFY_TTL_MS = 15 * 60 * 1000;
@@ -1087,6 +1091,51 @@ app.post(
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: "Ошибка покупки" });
+    }
+  },
+);
+
+/** Открыть карту в оракуле за накопленные осколки (кнопка в магазине). */
+app.post(
+  "/api/shop/unlock",
+  auth,
+  rateLimitMiddleware({
+    name: "shop-unlock",
+    maxN: 40,
+    windowMs: 60_000,
+    keyFn: (req) => `shop-unlock:${req.user?.id || clientIp(req)}`,
+  }),
+  async (req, res) => {
+    try {
+      const cardId = String(req.body?.cardId || "").slice(0, 64);
+      if (!cardId) {
+        res.status(400).json({ error: "Не указана карта" });
+        return;
+      }
+      const result = await withDb((db) => {
+        const user = db.users.find((u) => u.id === req.user.id);
+        if (!user) return null;
+        if (!user.owned || typeof user.owned !== "object") {
+          return { error: "Нет сейва" };
+        }
+        const unlock = applyShardUnlockCard(user.owned, cardId);
+        if (!unlock.ok) return { error: unlock.error };
+        flushPendingGrants(user);
+        persistLiveDb();
+        return { user: publicUser(user) };
+      });
+      if (!result) {
+        res.status(401).json({ error: "Нужен вход" });
+        return;
+      }
+      if (result.error) {
+        res.status(400).json({ error: result.error });
+        return;
+      }
+      res.json(result);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Ошибка открытия карты" });
     }
   },
 );

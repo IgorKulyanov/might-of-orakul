@@ -305,24 +305,27 @@ export function Cabinet({
           <div className="cabinet-card-actions">
             <button
               type="button"
-              className="primary"
+              className="oracle-book-qty is-add"
               disabled={!canAdd || calibrating}
               onClick={(e) => {
                 e.stopPropagation();
                 addToDeck(card.id);
               }}
-              title={inDeck > 0 ? `в колоде ×${inDeck}` : `есть ×${have}`}
+              title={inDeck > 0 ? `в колоде ×${inDeck}` : `добавить в руку`}
+              aria-label="Добавить в руку"
             >
               +
             </button>
             <button
               type="button"
-              className="ghost"
+              className="oracle-book-qty is-sub"
               disabled={inDeck <= 0 || calibrating}
               onClick={(e) => {
                 e.stopPropagation();
                 removeFromDeck(card.id);
               }}
+              title="Убрать из руки"
+              aria-label="Убрать из руки"
             >
               −
             </button>

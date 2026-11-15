@@ -258,6 +258,15 @@ export function apiShopBuy(
   });
 }
 
+/** Открыть карту в оракуле за осколки (кнопка в магазине). */
+export function apiShopUnlock(token: string, cardId: string) {
+  return request<{ user: ApiUser }>("/api/shop/unlock", {
+    method: "POST",
+    token,
+    body: JSON.stringify({ cardId }),
+  });
+}
+
 /** Серверная покупка эпического облика. */
 export function apiShopBuyHero(
   token: string,

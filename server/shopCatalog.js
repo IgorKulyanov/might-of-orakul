@@ -567,19 +567,73 @@ export function applyShopBuy(owned, cardId, currency) {
   shards[cardId] = (Math.floor(Number(shards[cardId])) || 0) + add;
   owned.cardShards = shards;
 
-  const unlockedNow = applyShardUnlocks(owned);
+  /* В оракул — POST /api/shop/unlock, не автоматом при покупке осколка. */
   const inOracle =
     Math.floor(Number((owned.collection || {})[cardId])) > 0;
+  const haveSh = Math.floor(Number(shards[cardId])) || 0;
+  const ready =
+    !inOracle && haveSh >= Math.max(1, Math.floor(Number(card.needUnlock)) || 1);
 
   return {
     ok: true,
-    kind: unlockedNow && inOracle ? "unlock" : "shards",
+    kind: "shards",
     shardsAdded: add,
-    unlocked: unlockedNow && inOracle,
+    unlocked: false,
+    readyToUnlock: ready,
     needUnlock: card.needUnlock,
     needTo2: card.needTo2,
     needTo3: card.needTo3,
   };
+}
+
+/**
+ * Открыть одну карту в оракуле за осколки (кнопка в магазине).
+ * Мутирует owned.
+ */
+export function applyShardUnlockCard(owned, cardId) {
+  if (!owned || typeof owned !== "object") {
+    return { ok: false, error: "Нет сейва" };
+  }
+  const id = String(cardId || "");
+  const card = getShopCard(id);
+  if (!card) return { ok: false, error: "Нет такой карты" };
+  const col =
+    owned.collection && typeof owned.collection === "object"
+      ? { ...owned.collection }
+      : {};
+  if ((Math.floor(Number(col[id])) || 0) > 0) {
+    return { ok: false, error: "Уже в оракуле" };
+  }
+  const shards =
+    owned.cardShards && typeof owned.cardShards === "object"
+      ? { ...owned.cardShards }
+      : {};
+  const need = Math.max(1, Math.floor(Number(card.needUnlock)) || 1);
+  const have = Math.floor(Number(shards[id])) || 0;
+  if (have < need) {
+    return { ok: false, error: `Нужно ${need} осколков (есть ${have})` };
+  }
+  shards[id] = 0;
+  col[id] = 1;
+  owned.cardShards = shards;
+  owned.collection = col;
+  const purchased = new Set(
+    Array.isArray(owned.purchased) ? owned.purchased.map(String) : [],
+  );
+  purchased.add(id);
+  owned.purchased = [...purchased].slice(0, 500);
+  const unlocked = new Set(
+    Array.isArray(owned.unlocked) ? owned.unlocked.map(String) : [],
+  );
+  unlocked.add(id);
+  owned.unlocked = [...unlocked].slice(0, 500);
+  const upgrades =
+    owned.cardUpgrades && typeof owned.cardUpgrades === "object"
+      ? { ...owned.cardUpgrades }
+      : {};
+  if (upgrades[id] == null) upgrades[id] = 1;
+  owned.cardUpgrades = upgrades;
+  return { ok: true };
 }
 
 /**

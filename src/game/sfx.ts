@@ -738,6 +738,42 @@ export function sfxUiClick(): void {
   softTone({ freq: 640, dur: 0.07, gain: 0.03, attack: 0.01, harmonics: [1, 0.2] });
 }
 
+/** Карта открыта в оракуле: блеск + короткий подъём. */
+export function sfxCardUnlock(): void {
+  unlockSfx();
+  softTone({
+    freq: 520,
+    dur: 0.22,
+    gain: 0.055,
+    attack: 0.02,
+    harmonics: [1, 0.45, 0.2],
+  });
+  softTone({
+    freq: 780,
+    dur: 0.28,
+    gain: 0.045,
+    delay: 0.08,
+    attack: 0.02,
+    harmonics: [1, 0.35],
+  });
+  softTone({
+    freq: 1040,
+    dur: 0.35,
+    gain: 0.035,
+    delay: 0.16,
+    attack: 0.03,
+    harmonics: [1, 0.25],
+  });
+  softNoise({
+    dur: 0.28,
+    gain: 0.04,
+    freq: 2400,
+    delay: 0.05,
+    type: "bandpass",
+    q: 0.7,
+  });
+}
+
 /** Выкладывание карты: public/sfx/play-card.wav (fallback → карта.wav → synth). */
 export function sfxPlayCard(): void {
   const synth = () => {
