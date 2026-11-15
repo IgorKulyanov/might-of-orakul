@@ -50,14 +50,14 @@ const RIBBON_COLORS = [
 /** Запечённая сетка с калибровки (Paint). */
 function defaultSlots(): BookLayout["slots"] {
   return [
-    { x: 18.5, y: 12.6, w: 19.1, h: 33.2 },
-    { x: 32.9, y: 12.6, w: 19.2, h: 33.2 },
-    { x: 18.6, y: 45.6, w: 19.1, h: 32.6 },
-    { x: 33.0, y: 45.6, w: 19.0, h: 32.6 },
-    { x: 48.6, y: 12.6, w: 19.1, h: 33.3 },
-    { x: 61.9, y: 12.7, w: 19.4, h: 33.3 },
-    { x: 48.6, y: 45.7, w: 19.0, h: 32.4 },
-    { x: 61.9, y: 45.8, w: 19.4, h: 32.5 },
+    { x: 18.6, y: 10.1, w: 19.1, h: 33.2 },
+    { x: 32.8, y: 10.0, w: 19.2, h: 33.2 },
+    { x: 18.5, y: 43.1, w: 19.1, h: 32.6 },
+    { x: 32.9, y: 43.0, w: 19.1, h: 32.7 },
+    { x: 48.4, y: 9.9, w: 19.1, h: 33.3 },
+    { x: 61.8, y: 9.9, w: 19.4, h: 33.3 },
+    { x: 48.5, y: 43.0, w: 19.0, h: 32.4 },
+    { x: 61.8, y: 43.0, w: 19.4, h: 32.5 },
   ];
 }
 
@@ -76,7 +76,7 @@ export const DEFAULT_BOOK_LAYOUT: BookLayout = {
   coverW: 4000,
 };
 
-const STORAGE_KEY = "orakul-book-layout-v10";
+const STORAGE_KEY = "orakul-book-layout-v11";
 const MIN = 2.5;
 
 type Mode = "cards" | "ribbons" | "turn" | "cover";
@@ -193,6 +193,7 @@ export function loadBookLayout(): BookLayout {
       "orakul-book-layout-v7",
       "orakul-book-layout-v8",
       "orakul-book-layout-v9",
+      "orakul-book-layout-v10",
     ]) {
       localStorage.removeItem(k);
     }
