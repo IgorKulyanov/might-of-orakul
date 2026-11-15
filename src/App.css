@@ -8160,36 +8160,21 @@ html.is-hand-dragging .grave-row {
   overflow: visible !important;
 }
 
-/* сцена: размер книги; НАЗАД/ВПЕРЕД якорятся сюда (не в зум) */
-.oracle-folio-stage {
+.oracle-folio-cover {
   --ob-cover-w: 4000px;
   position: relative;
+  /* % родителя, не 100vw — иначе на телефоне уезжает вправо из паддингов */
   width: 100%;
   max-width: min(100%, var(--ob-cover-w));
   margin: 0 auto;
   aspect-ratio: 1536 / 1024;
-  box-sizing: border-box;
-}
-
-.oracle-folio-cover {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
   padding: 0;
   border: none;
   border-radius: 0;
   background: transparent;
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.58);
-  overflow: hidden;
+  overflow: visible !important;
   box-sizing: border-box;
-}
-
-.oracle-folio-zoom {
-  position: absolute;
-  inset: 0;
-  transform-origin: 50% 40%;
 }
 
 .oracle-folio-cover.is-calibrating {
@@ -8199,11 +8184,8 @@ html.is-hand-dragging .grave-row {
 
 .oracle-folio-cover.is-calibrating .oracle-book-ribbons,
 .oracle-folio-cover.is-calibrating .oracle-book-spread,
+.oracle-folio-cover.is-calibrating .oracle-book-turn,
 .oracle-folio-cover.is-calibrating .oracle-page-corner {
-  pointer-events: none !important;
-}
-
-.oracle-folio-stage:has(.is-calibrating) .oracle-book-turn {
   pointer-events: none !important;
 }
 
@@ -9383,6 +9365,7 @@ html.is-hand-dragging .grave-row {
   }
 
   .cabinet:has(.oracle-book) .oracle-folio {
+    /* вырыв на всю ширину вьюпорта + центрирование */
     width: 100vw;
     max-width: 100vw;
     margin-left: 50%;
@@ -9390,45 +9373,22 @@ html.is-hand-dragging .grave-row {
     overflow: visible;
   }
 
-  .cabinet:has(.oracle-book) .oracle-folio-stage {
+  .oracle-folio-cover {
     width: 100%;
     max-width: 100%;
-    overflow: hidden;
+    margin: 0;
   }
 
-  /* зум страниц: обложку по краям можно обрезать, карты крупнее */
-  .cabinet:has(.oracle-book) .oracle-folio-zoom {
-    transform: scale(1.42);
-    transform-origin: 50% 38%;
-  }
-
-  /* в калибровке без зума — иначе хитбоксы поедут */
-  .cabinet:has(.oracle-book)
-    .oracle-folio-cover.is-calibrating
-    .oracle-folio-zoom {
-    transform: none;
-  }
-
-  /* подписи всегда поверх зума, целиком в кадре */
+  /* НАЗАД/ВПЕРЕД целиком в хитбоксе, не торчат за край экрана */
   .oracle-book-turn {
-    z-index: 60;
-    font-size: clamp(1rem, 4.6vw, 1.45rem);
-    letter-spacing: 0.04em;
-    -webkit-text-stroke: 0.04em #0a0600;
+    font-size: clamp(0.82rem, 4vw, 1.28rem);
+    letter-spacing: 0.03em;
+    -webkit-text-stroke: 0.035em #0a0600;
     white-space: nowrap;
-    overflow: visible;
-    max-width: none;
+    overflow: hidden;
+    max-width: 100%;
     box-sizing: border-box;
-    padding: 0 0.12em;
-  }
-
-  .oracle-book-abs-slot .oracle-book-stat-top {
-    font-size: clamp(0.62rem, 2.6vw, 0.95rem);
-    padding: 0.14rem 0.28rem;
-  }
-
-  .oracle-book-abs-slot .oracle-book-stat-name {
-    font-size: clamp(0.58rem, 2.3vw, 0.88rem);
+    padding: 0 0.1em;
   }
 
   .oracle-book-page {

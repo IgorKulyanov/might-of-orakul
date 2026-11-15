@@ -680,79 +680,50 @@ export function Cabinet({
                 {calibrating ? "Калибровка: вкл" : "Подогнать мышкой"}
               </button>
               <div
-                className="oracle-folio-stage"
+                ref={folioCoverRef}
+                className={`oracle-folio-cover ${calibrating ? "is-calibrating" : ""}`}
                 style={bookLayoutToCssVars(bookLayout)}
               >
-                <div
-                  ref={folioCoverRef}
-                  className={`oracle-folio-cover ${calibrating ? "is-calibrating" : ""}`}
-                >
-                  {/* На телефоне зумится; НАЗАД/ВПЕРЕД снаружи — всегда в кадре */}
-                  <div className="oracle-folio-zoom">
-                    <img
-                      className="oracle-folio-art"
-                      src="/ui/oracle-book.png"
-                      alt=""
-                      draggable={false}
-                    />
-                    {calibrating ? (
-                      <OracleBookCalibrate
-                        layout={bookLayout}
-                        onChange={setBookLayout}
-                        onClose={() => {
-                          saveBookLayout(bookLayout);
-                          setCalibrating(false);
-                        }}
-                        coverRef={folioCoverRef}
-                      />
-                    ) : null}
-                    <nav className="oracle-book-ribbons" aria-label="Школы">
-                      {BOOK_SCHOOLS.map((s, i) => {
-                        const n = schoolCounts[s];
-                        const on = bookSchool === s;
-                        const box = bookLayout.ribbons[i];
-                        return (
-                          <button
-                            key={s}
-                            type="button"
-                            className={`oracle-book-ribbon ${on ? "is-on" : ""}`}
-                            style={ribbonButtonStyle(box, SCHOOL_COLOR[s])}
-                            onClick={() => openBookSchool(s)}
-                            title={`${SCHOOL_LABEL[s]} · ${n}`}
-                            aria-label={`${SCHOOL_LABEL[s]}, ${n} карт`}
-                            aria-pressed={on}
-                          >
-                            <span className="oracle-book-ribbon-name">
-                              {SCHOOL_LABEL[s]}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </nav>
-
-                    <div
-                      key={bookFlip}
-                      className={`oracle-book-spread is-flip is-turn-${bookFlipDir}`}
-                      data-school={bookSchool}
-                    >
-                      <div className="oracle-book-leaf" aria-hidden="true" />
-                      {bookSchoolCards.length === 0 ? (
-                        <p className="oracle-book-empty is-abs">
-                          Пустая глава «{SCHOOL_LABEL[bookSchool]}»
-                        </p>
-                      ) : (
-                        <>
-                          {Array.from({ length: CARDS_PER_LEAF }, (_, i) =>
-                            renderAbsSlot(leftPageCards[i] ?? null, i),
-                          )}
-                          {Array.from({ length: CARDS_PER_LEAF }, (_, i) =>
-                            renderAbsSlot(rightPageCards[i] ?? null, i + 4),
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <img
+                  className="oracle-folio-art"
+                  src="/ui/oracle-book.png"
+                  alt=""
+                  draggable={false}
+                />
+                {calibrating ? (
+                  <OracleBookCalibrate
+                    layout={bookLayout}
+                    onChange={setBookLayout}
+                    onClose={() => {
+                      saveBookLayout(bookLayout);
+                      setCalibrating(false);
+                    }}
+                    coverRef={folioCoverRef}
+                  />
+                ) : null}
+                <nav className="oracle-book-ribbons" aria-label="Школы">
+                  {BOOK_SCHOOLS.map((s, i) => {
+                    const n = schoolCounts[s];
+                    const on = bookSchool === s;
+                    const box = bookLayout.ribbons[i];
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        className={`oracle-book-ribbon ${on ? "is-on" : ""}`}
+                        style={ribbonButtonStyle(box, SCHOOL_COLOR[s])}
+                        onClick={() => openBookSchool(s)}
+                        title={`${SCHOOL_LABEL[s]} · ${n}`}
+                        aria-label={`${SCHOOL_LABEL[s]}, ${n} карт`}
+                        aria-pressed={on}
+                      >
+                        <span className="oracle-book-ribbon-name">
+                          {SCHOOL_LABEL[s]}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </nav>
 
                 <button
                   type="button"
@@ -778,6 +749,28 @@ export function Cabinet({
                 >
                   ВПЕРЕД
                 </button>
+
+                <div
+                  key={bookFlip}
+                  className={`oracle-book-spread is-flip is-turn-${bookFlipDir}`}
+                  data-school={bookSchool}
+                >
+                  <div className="oracle-book-leaf" aria-hidden="true" />
+                  {bookSchoolCards.length === 0 ? (
+                    <p className="oracle-book-empty is-abs">
+                      Пустая глава «{SCHOOL_LABEL[bookSchool]}»
+                    </p>
+                  ) : (
+                    <>
+                      {Array.from({ length: CARDS_PER_LEAF }, (_, i) =>
+                        renderAbsSlot(leftPageCards[i] ?? null, i),
+                      )}
+                      {Array.from({ length: CARDS_PER_LEAF }, (_, i) =>
+                        renderAbsSlot(rightPageCards[i] ?? null, i + 4),
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </section>
