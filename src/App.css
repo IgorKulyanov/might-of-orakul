@@ -8556,42 +8556,51 @@ html.is-hand-dragging .grave-row {
   transition: transform 0.12s ease;
 }
 
-/* Листание школы — ярко на пергаменте */
+/* Листание: золото как «Might of Orakul», поле прозрачное вне редактора */
 .oracle-book-turn {
   position: absolute;
   z-index: 45;
   display: grid;
   place-items: center;
   margin: 0;
-  padding: 0.2rem 0.4rem;
-  border: 2px solid #ffe08a;
-  border-radius: 8px;
-  background:
-    linear-gradient(180deg, #f0c14b 0%, #c47820 48%, #8a4a10 100%);
-  color: #1a1006;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #f0d060;
   font-family: var(--display-ornate), var(--display);
-  font-size: clamp(0.72rem, 1.8vw, 1.05rem);
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-shadow: 0 1px 0 rgba(255, 240, 200, 0.55);
-  box-shadow:
-    0 0 0 2px rgba(40, 22, 8, 0.85),
-    0 4px 14px rgba(0, 0, 0, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  /* ~5× прежнего размера */
+  font-size: clamp(2rem, 5.8vw, 4.2rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  -webkit-text-stroke: 0.045em #0a0600;
+  paint-order: stroke fill;
+  text-shadow:
+    0 2px 0 #000,
+    0 3px 0 #000,
+    0 5px 12px rgba(0, 0, 0, 0.55);
+  box-shadow: none;
   cursor: pointer;
   pointer-events: auto;
   -webkit-tap-highlight-color: transparent;
 }
 
 .oracle-book-turn:hover:not(:disabled) {
-  filter: brightness(1.1);
-  transform: translateY(-1px);
+  filter: brightness(1.12);
 }
 
 .oracle-book-turn:disabled {
-  opacity: 0.42;
+  opacity: 0.5;
   cursor: default;
-  filter: grayscale(0.35);
+}
+
+/* В калибровке — видно поле хитбокса */
+.oracle-folio-cover.is-calibrating .oracle-book-turn {
+  background: rgba(60, 200, 120, 0.18);
+  border: 2px solid rgba(80, 220, 140, 0.95);
+  border-radius: 4px;
+  box-shadow: none;
 }
 
 .oracle-book-ribbon::before,
@@ -8680,7 +8689,7 @@ html.is-hand-dragging .grave-row {
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
-  gap: 0.15rem;
+  gap: 0.06rem;
   min-width: 0;
   min-height: 0;
   box-sizing: border-box;
@@ -8704,9 +8713,12 @@ html.is-hand-dragging .grave-row {
   flex: 1 1 auto;
   width: 100%;
   min-height: 0;
-  height: calc(100% - 1.35rem);
+  /* меньше запас под +/− — не «сползают» вниз */
+  height: calc(100% - 1.05rem);
   display: grid;
-  place-items: center;
+  /* к верху слота — иначе на нижнем ряду центрирование даёт дыру над +/− */
+  place-items: start center;
+  align-content: start;
   overflow: visible !important;
   background: transparent;
   padding: 0;
@@ -8724,7 +8736,10 @@ html.is-hand-dragging .grave-row {
   width: auto;
   aspect-ratio: 1051 / 1496;
   max-width: 100%;
+  max-height: 100%;
   margin: 0 auto;
+  /* ~5 мм вверх на всех страницах */
+  transform: translateY(-5mm);
   overflow: visible !important;
   clip-path: none;
   -webkit-mask-image: none;
@@ -8832,20 +8847,22 @@ html.is-hand-dragging .grave-row {
   z-index: 1;
 }
 
-/* +/− в книгу/из руки — не тонут в пергаменте */
+/* +/− сразу под рамкой, не у низа зелёного бокса */
 .oracle-book-abs-slot .cabinet-card-actions {
   display: flex;
   justify-content: center;
-  gap: 0.35rem;
+  gap: 0.28rem;
   margin: 0;
+  padding: 0;
+  transform: translateY(-2mm);
 }
 
 .oracle-book-abs-slot .oracle-book-qty {
-  min-width: 1.85rem;
-  min-height: 1.85rem;
+  min-width: 1.7rem;
+  min-height: 1.7rem;
   padding: 0;
   border-radius: 999px;
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 800;
   line-height: 1;
   border: 2px solid #fff4c8;
