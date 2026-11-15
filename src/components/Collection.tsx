@@ -474,9 +474,9 @@ export function Collection({
           <p className="hint catalog-status">
             Оракул: <strong>{catalogStats.unlocked}</strong> /{" "}
             {catalogStats.total}. Ценник = <strong>1 осколок</strong>. Набрал
-            осколки на ур.1 — жми подсвеченную кнопку. Карта в
-            оракуле — только когда наберёшь осколки на <strong>ур.1</strong>.
-            Дальше осколки на ур.2/3. Тиры I–V: с 1 / 10 / 15 / 25 / 30 ур.
+            на <strong>ур.1</strong> — жми подсвеченную кнопку осколков (свечение
+            + звук → карта в книге). Дальше осколки на ур.2/3. Тиры I–V: с 1 /
+            10 / 15 / 25 / 30 ур.
           </p>
           {tab === "cards" && (
             <>
