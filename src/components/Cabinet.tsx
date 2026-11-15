@@ -21,6 +21,8 @@ import {
   DECK_SIZE,
   SCHOOL_COLOR,
   SCHOOL_LABEL,
+  cardArtStyle,
+  cardArtUrl,
   compareCatalogCards,
   getCard,
   maxCopiesForCard,
@@ -265,16 +267,16 @@ export function Cabinet({
         title={`${card.name} · в колоду`}
       >
         <div className="oracle-book-slot-frame">
-          {/* stage = пропорции PNG; дыра и обод совпадают 1:1 */}
+          {/* stage = пропорции PNG; арт напрямую в окне — без CardView (он не тянется) */}
           <div className="oracle-book-frame-stage">
-            <div className="oracle-book-card-core">
-              <CardView
-                card={card}
-                compact
-                flippable={false}
-                upgradeLevel={upLv}
-              />
-            </div>
+            <div
+              className="oracle-book-card-core"
+              style={{
+                backgroundImage: `url(${cardArtUrl(card)})`,
+                ...cardArtStyle(card),
+              }}
+              aria-hidden
+            />
             <div className="oracle-book-stat-hud" aria-label="Показатели карты">
               <div className="oracle-book-stat-top">
                 <span className="oracle-book-stat-school">
@@ -293,7 +295,7 @@ export function Cabinet({
             </div>
             <img
               className="oracle-book-card-frame"
-              src="/ui/card-frame-book.png?v=7"
+              src="/ui/card-frame-book.png?v=8"
               alt=""
               draggable={false}
             />

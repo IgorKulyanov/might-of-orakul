@@ -8637,11 +8637,11 @@ html.is-hand-dragging .grave-row {
 }
 
 .oracle-book-abs-slot .oracle-book-slot-frame {
-  /* окно чуть больше alpha-дыры — карта подлезает под золотой кант */
-  --ob-hole-left: 22%;
-  --ob-hole-top: 21.5%;
-  --ob-hole-w: 56%;
-  --ob-hole-h: 57%;
+  /* окно ≈ до золотого канта + чуть под него */
+  --ob-hole-left: 20%;
+  --ob-hole-top: 19.5%;
+  --ob-hole-w: 60%;
+  --ob-hole-h: 61%;
   position: relative;
   flex: 1 1 auto;
   width: 100%;
@@ -8656,24 +8656,24 @@ html.is-hand-dragging .grave-row {
   border: none;
   border-radius: 0;
   box-shadow: none;
-  container-type: size;
 }
 
-/* сцена рамки: всегда 719:1024, влезает целиком, без crop */
+/* сцена: высота слота → ширина по PNG; без container-query */
 .oracle-book-abs-slot .oracle-book-frame-stage {
   position: relative;
   isolation: isolate;
+  height: 100%;
+  width: auto;
   aspect-ratio: 719 / 1024;
-  width: min(100cqw, calc(100cqh * 719 / 1024));
-  height: auto;
   max-width: 100%;
-  max-height: 100%;
+  margin: 0 auto;
   overflow: visible !important;
   clip-path: none;
   -webkit-mask-image: none;
   mask-image: none;
 }
 
+/* арт = фон окна, без CardView */
 .oracle-book-abs-slot .oracle-book-card-core {
   position: absolute;
   left: var(--ob-hole-left);
@@ -8682,59 +8682,12 @@ html.is-hand-dragging .grave-row {
   height: var(--ob-hole-h);
   z-index: 1;
   overflow: hidden;
-  border-radius: 6px;
+  border-radius: 8px;
   pointer-events: none;
-}
-
-.oracle-book-abs-slot .oracle-book-card-core .card.compact {
-  position: absolute !important;
-  inset: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  max-width: none !important;
-  max-height: none !important;
-  --card-w: 100% !important;
-  --card-h: 100% !important;
-  flex-shrink: 0;
-  perspective: none;
-}
-
-.oracle-book-abs-slot .oracle-book-card-core .card-stats,
-.oracle-book-abs-slot .oracle-book-card-core .card-footer,
-.oracle-book-abs-slot .oracle-book-card-core .card-frame-ornament {
-  display: none !important;
-}
-
-.oracle-book-abs-slot .oracle-book-card-core .card-inner {
-  position: absolute !important;
-  inset: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  border-radius: 6px !important;
-  padding: 0 !important;
-  background: #0a0c12 !important;
-  box-shadow: none !important;
-  transform: none !important;
-}
-
-.oracle-book-abs-slot .oracle-book-card-core .card-face {
-  position: absolute !important;
-  inset: 0 !important;
-  border-radius: 6px !important;
-  overflow: hidden;
-}
-
-.oracle-book-abs-slot .oracle-book-card-core .card-art-wrap {
-  position: absolute !important;
-  inset: 0 !important;
-  flex: none !important;
-  min-height: 0 !important;
-}
-
-.oracle-book-abs-slot .oracle-book-card-core .card-art {
-  inset: 0 !important;
-  background-size: cover !important;
-  background-position: center 40% !important;
+  background-color: #0a0c12;
+  background-size: cover;
+  background-position: center 40%;
+  background-repeat: no-repeat;
 }
 
 .oracle-book-abs-slot .oracle-book-stat-hud {
