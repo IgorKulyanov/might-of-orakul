@@ -208,14 +208,17 @@ export function Cabinet({
     setBookFlip((n) => n + 1);
   };
 
-  const renderBookSlot = (card: CardDef) => {
+  const renderBookSlot = (card: CardDef | null, key: string) => {
+    if (!card) {
+      return <div key={key} className="oracle-book-slot is-empty" aria-hidden />;
+    }
     const inDeck = deckCounts[card.id] ?? 0;
     const have = ownedCopies(owned, card.id);
     const cap = Math.min(maxCopiesForCard(card.id), have);
     const canAdd = inDeck < cap && deck.length < DECK_SIZE && have > 0;
     return (
       <div
-        key={card.id}
+        key={key}
         className={`oracle-book-slot ${allowCardDrag ? "is-draggable" : ""} ${inDeck > 0 ? "in-deck" : ""}`}
         draggable={allowCardDrag}
         onDragStart={
@@ -268,6 +271,14 @@ export function Cabinet({
       </div>
     );
   };
+
+  const renderPageSlots = (cards: CardDef[], side: "L" | "R") => (
+    <div className="oracle-book-page-slots">
+      {Array.from({ length: CARDS_PER_LEAF }, (_, i) =>
+        renderBookSlot(cards[i] ?? null, `${side}-${i}`),
+      )}
+    </div>
+  );
 
   const inDeckOnly = useMemo(() => {
     return Object.entries(deckCounts)
@@ -613,7 +624,32 @@ export function Cabinet({
                   draggable={false}
                 />
                 <nav className="oracle-book-ribbons" aria-label="Школы">
-                  {BOOK_SCHOOLS.map((s) => {
+                  {BOOK_SCHOOLS.slice(0, 3).map((s) => {
+                    const n = schoolCounts[s];
+                    const on = bookSchool === s;
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        className={`oracle-book-ribbon ${on ? "is-on" : ""}`}
+                        style={
+                          {
+                            "--school": SCHOOL_COLOR[s],
+                          } as CSSProperties
+                        }
+                        onClick={() => openBookSchool(s)}
+                        title={`${SCHOOL_LABEL[s]} · ${n}`}
+                        aria-label={`${SCHOOL_LABEL[s]}, ${n} карт`}
+                        aria-pressed={on}
+                      >
+                        <span className="oracle-book-ribbon-name">
+                          {SCHOOL_LABEL[s]}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  <span className="oracle-book-ribbon-gap" aria-hidden />
+                  {BOOK_SCHOOLS.slice(3).map((s) => {
                     const n = schoolCounts[s];
                     const on = bookSchool === s;
                     return (
@@ -652,12 +688,8 @@ export function Cabinet({
                         <p className="oracle-book-empty">
                           Пустая глава «{SCHOOL_LABEL[bookSchool]}»
                         </p>
-                      ) : leftPageCards.length === 0 ? (
-                        <p className="oracle-book-empty is-quiet"> </p>
                       ) : (
-                        <div className="oracle-book-page-slots">
-                          {leftPageCards.map(renderBookSlot)}
-                        </div>
+                        renderPageSlots(leftPageCards, "L")
                       )}
                       <button
                         type="button"
@@ -670,13 +702,10 @@ export function Cabinet({
                     </div>
 
                     <div className="oracle-book-page is-right">
-                      {rightPageCards.length === 0 &&
-                      bookSchoolCards.length > 0 ? (
+                      {bookSchoolCards.length === 0 ? (
                         <p className="oracle-book-empty is-quiet"> </p>
                       ) : (
-                        <div className="oracle-book-page-slots">
-                          {rightPageCards.map(renderBookSlot)}
-                        </div>
+                        renderPageSlots(rightPageCards, "R")
                       )}
                       <button
                         type="button"

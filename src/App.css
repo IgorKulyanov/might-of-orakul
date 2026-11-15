@@ -8109,7 +8109,8 @@ html.is-hand-dragging .grave-row {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  /* fill: % хитбоксов закладок совпадают с артом (aspect 1536/1024) */
+  object-fit: fill;
   object-position: center center;
   pointer-events: none;
   z-index: 0;
@@ -8120,22 +8121,32 @@ html.is-hand-dragging .grave-row {
   display: none;
 }
 
-/* Закладки: абсолютные хитбоксы ровно по каждой ленте на арте */
+/* Закладки: 3+щель корешка+3 ровно по лентам на арте (~25%…73%) */
 .oracle-book-ribbons {
   position: absolute;
-  inset: 0;
-  z-index: 6;
-  display: block;
-  pointer-events: none;
+  left: 24.5%;
+  right: 26.5%;
+  bottom: 0.5%;
+  height: 14.8%;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 0.72fr 1fr 1fr 1fr;
+  column-gap: 1.4%;
+  align-items: stretch;
   margin: 0;
   padding: 0;
+  pointer-events: none;
+}
+
+.oracle-book-ribbon-gap {
+  pointer-events: none;
 }
 
 .oracle-book-ribbon {
-  position: absolute;
-  bottom: 1.8%;
-  height: 13.5%;
-  width: 7.6%;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
   display: block;
   pointer-events: auto;
   padding: 0;
@@ -8147,27 +8158,7 @@ html.is-hand-dragging .grave-row {
   box-shadow: none !important;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.12s ease, filter 0.12s ease;
-}
-
-/* 3 слева + щель корешка + 3 справа — по лентам на ORAKUL.png */
-.oracle-book-ribbon:nth-child(1) {
-  left: 20.4%;
-}
-.oracle-book-ribbon:nth-child(2) {
-  left: 29.6%;
-}
-.oracle-book-ribbon:nth-child(3) {
-  left: 38.8%;
-}
-.oracle-book-ribbon:nth-child(4) {
-  left: 54.2%;
-}
-.oracle-book-ribbon:nth-child(5) {
-  left: 63.4%;
-}
-.oracle-book-ribbon:nth-child(6) {
-  left: 72.6%;
+  transition: transform 0.12s ease;
 }
 
 .oracle-book-ribbon::before,
@@ -8177,19 +8168,18 @@ html.is-hand-dragging .grave-row {
 }
 
 .oracle-book-ribbon:hover {
-  transform: translateY(2px);
-  filter: brightness(1.12);
-  z-index: 7;
+  transform: translateY(3px);
+  z-index: 41;
 }
 
 .oracle-book-ribbon.is-on {
-  transform: translateY(4px);
-  filter: brightness(1.25);
-  z-index: 8;
+  transform: translateY(5px);
+  z-index: 42;
 }
 
 .oracle-book-ribbon:focus-visible {
-  filter: brightness(1.15);
+  outline: 1px dashed rgba(255, 230, 160, 0.5) !important;
+  outline-offset: -2px;
 }
 
 .oracle-book-ribbon-ico {
@@ -8223,10 +8213,10 @@ html.is-hand-dragging .grave-row {
 .oracle-book-spread {
   position: absolute;
   z-index: 2;
-  left: 10.8%;
-  right: 10.8%;
-  top: 10%;
-  bottom: 18.5%;
+  left: 11.5%;
+  right: 11.5%;
+  top: 11%;
+  bottom: 19%;
   margin: 0;
   display: flex;
   flex-direction: column;
@@ -8237,6 +8227,7 @@ html.is-hand-dragging .grave-row {
   background: transparent;
   box-shadow: none;
   overflow: hidden;
+  pointer-events: none;
 }
 
 .oracle-book-pages {
@@ -8248,6 +8239,7 @@ html.is-hand-dragging .grave-row {
   grid-template-columns: 1fr 1fr;
   gap: 0;
   height: 100%;
+  pointer-events: none;
 }
 
 .oracle-book-page {
@@ -8256,18 +8248,19 @@ html.is-hand-dragging .grave-row {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 0.45rem 0.55rem 1.35rem;
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 0.55rem 0.65rem 1.4rem;
   overflow: hidden;
+  pointer-events: none;
 }
 
 .oracle-book-page.is-left {
-  padding-right: 1.35rem;
+  padding-right: 1.45rem;
 }
 
 .oracle-book-page.is-right {
-  padding-left: 1.35rem;
+  padding-left: 1.45rem;
 }
 
 .oracle-book-page-slots {
@@ -8279,11 +8272,9 @@ html.is-hand-dragging .grave-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
-  gap: 0.28rem 0.35rem;
-  place-items: center;
-  align-content: center;
-  justify-content: center;
+  gap: 0.35rem 0.4rem;
   overflow: hidden;
+  pointer-events: none;
 }
 
 .oracle-page-corner {
@@ -8298,6 +8289,7 @@ html.is-hand-dragging .grave-row {
   cursor: pointer;
   z-index: 5;
   opacity: 0.35;
+  pointer-events: auto;
   transition: opacity 0.15s ease, filter 0.15s ease;
 }
 
@@ -8483,44 +8475,69 @@ html.is-hand-dragging .grave-row {
 }
 
 .oracle-book-slot {
-  display: grid;
-  justify-items: center;
-  gap: 0.12rem;
+  container-type: size;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
   width: 100%;
-  max-width: 100%;
   height: 100%;
-  max-height: 100%;
-  padding: 0.08rem;
-  border-radius: 4px;
-  background: rgba(255, 252, 240, 0.18);
-  border: 1px solid rgba(90, 55, 20, 0.1);
+  min-width: 0;
+  min-height: 0;
+  padding: 0.1rem;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: hidden;
   touch-action: pan-y;
-  align-content: center;
+  pointer-events: auto;
+}
+
+.oracle-book-slot.is-empty {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .oracle-book-slot .card.compact {
-  --card-w: clamp(70px, 9.2vw, 104px);
-  --card-h: calc(var(--card-w) * 1.48);
-  width: var(--card-w);
-  height: var(--card-h);
+  /* размер от ячейки, не от vw — не вылезает за страницу */
+  --card-w: min(100cqw, calc((100cqh - 1.35rem) * 0.66), 118px);
+  --card-h: calc(var(--card-w) * 1.5);
+  width: var(--card-w) !important;
+  height: var(--card-h) !important;
   max-width: 100%;
+  max-height: calc(100% - 1.35rem);
+  flex-shrink: 1;
+  overflow: hidden;
 }
 
-.oracle-book-slot.in-deck {
-  border-color: color-mix(in srgb, var(--ok) 55%, #5a3a18);
-  box-shadow: 0 0 0 1px rgba(82, 183, 136, 0.3);
+.oracle-book-slot .card.compact .card-inner,
+.oracle-book-slot .card.compact .card-face {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.oracle-book-slot.in-deck .oracle-book-slot-frame {
+  box-shadow:
+    inset 0 0 0 1px rgba(232, 197, 71, 0.35),
+    0 0 0 2px rgba(82, 183, 136, 0.75);
 }
 
 .oracle-book-slot-frame {
   position: relative;
   display: grid;
   place-items: center;
+  flex: 0 1 auto;
+  max-width: 100%;
+  max-height: calc(100% - 1.35rem);
   border-radius: 4px;
-  padding: 0.08rem;
+  padding: 0.06rem;
   background: linear-gradient(160deg, #8a5a28, #3a2410 55%, #1f140a);
   box-shadow:
     inset 0 0 0 1px rgba(232, 197, 71, 0.35),
     0 1px 3px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
 }
 
 .oracle-book-slot-frame::after {
@@ -8603,36 +8620,19 @@ html.is-hand-dragging .grave-row {
     max-width: none;
   }
 
-  .oracle-book-ribbon {
-    bottom: 1.7%;
-    height: 14%;
-    width: 8%;
-  }
-
-  .oracle-book-ribbon:nth-child(1) {
-    left: 19.8%;
-  }
-  .oracle-book-ribbon:nth-child(2) {
-    left: 29.2%;
-  }
-  .oracle-book-ribbon:nth-child(3) {
-    left: 38.6%;
-  }
-  .oracle-book-ribbon:nth-child(4) {
-    left: 53.8%;
-  }
-  .oracle-book-ribbon:nth-child(5) {
-    left: 63.2%;
-  }
-  .oracle-book-ribbon:nth-child(6) {
-    left: 72.6%;
+  .oracle-book-ribbons {
+    left: 24%;
+    right: 26%;
+    bottom: 0.3%;
+    height: 15.8%;
+    column-gap: 1.2%;
   }
 
   .oracle-book-spread {
-    left: 11%;
-    right: 11%;
-    top: 10%;
-    bottom: 17.5%;
+    left: 12%;
+    right: 12%;
+    top: 11%;
+    bottom: 20%;
   }
 
   .oracle-book-page.is-left {
@@ -8644,16 +8644,21 @@ html.is-hand-dragging .grave-row {
   }
 
   .oracle-book-page {
-    padding: 0.3rem 0.3rem 1.15rem;
+    padding: 0.28rem 0.28rem 1.1rem;
   }
 
   .oracle-book-page-slots {
-    gap: 0.18rem 0.22rem;
+    gap: 0.16rem 0.2rem;
   }
 
   .oracle-book-slot .card.compact {
-    --card-w: clamp(64px, 18vw, 88px);
-    --card-h: calc(var(--card-w) * 1.48);
+    --card-w: min(100cqw, calc((100cqh - 1.2rem) * 0.66), 92px);
+    --card-h: calc(var(--card-w) * 1.5);
+    max-height: calc(100% - 1.2rem);
+  }
+
+  .oracle-book-slot-frame {
+    max-height: calc(100% - 1.2rem);
   }
 
   .oracle-book-slot-meta {
@@ -8678,9 +8683,22 @@ html.is-hand-dragging .grave-row {
     --card-h: calc(var(--card-w) * 1.5);
   }
 
+  .oracle-book-ribbons {
+    left: 23.5%;
+    right: 25.5%;
+    height: 16.2%;
+  }
+
+  .oracle-book-spread {
+    left: 12.5%;
+    right: 12.5%;
+    bottom: 20.5%;
+  }
+
   .oracle-book-slot .card.compact {
-    --card-w: clamp(58px, 17vw, 78px);
-    --card-h: calc(var(--card-w) * 1.48);
+    --card-w: min(100cqw, calc((100cqh - 1.1rem) * 0.66), 78px);
+    --card-h: calc(var(--card-w) * 1.5);
+    max-height: calc(100% - 1.1rem);
   }
 
   .oracle-book-page.is-left {
