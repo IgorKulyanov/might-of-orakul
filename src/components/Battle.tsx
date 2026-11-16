@@ -191,8 +191,6 @@ type Props = {
   /** Сетевой бой: стейт с сервера + отправка действий. */
   network?: {
     sendAction: (action: PvpAction) => void;
-    /** Застряли без ответа сервера — запросить стол заново. */
-    onNeedSync?: () => void;
     turnEndsAt?: number | null;
     yourTimeouts?: number;
     foeTimeouts?: number;
@@ -1167,18 +1165,6 @@ export function Battle({
     setBusy(false);
     lock.current = false;
   }, [externalState, network, network?.ended]);
-
-  // Если ответ сервера потерялся — через 2с просим resync, не висим вечно.
-  useEffect(() => {
-    if (!network || !pvpAwaiting) return;
-    const t = window.setTimeout(() => {
-      setPvpAwaiting(false);
-      setBusy(false);
-      lock.current = false;
-      network.onNeedSync?.();
-    }, 2000);
-    return () => window.clearTimeout(t);
-  }, [pvpAwaiting, network]);
 
   useLayoutEffect(() => {
     if (tutorialStep == null || state.winner) {

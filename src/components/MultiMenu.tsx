@@ -280,49 +280,14 @@ export function MultiMenu({
     }
   };
 
+  /** Без авто-восстановления сессий — только ручной вход по коду. */
   const rejoinLobby = async () => {
-    const cur = lobbyRef.current;
-    const token = getToken();
-    if (!cur || !token || startedRef.current) return;
-    if (reconnectingRef.current) return;
-    reconnectingRef.current = true;
-    setMessage("Связь пропала — возвращаем в комнату…");
-    setBusy(true);
-    setBusyHint("Переподключение…");
-    try {
-      const liveDeck = pvpDeck();
-      if (liveDeck.length < 4) {
-        setMessage("Собери колоду в кабинете (минимум 4 карты)");
-        reconnectingRef.current = false;
-        setBusy(false);
-        setBusyHint(null);
-        return;
-      }
-      const sock = await ensureSocket(token, { silentReplace: true });
-      sock.join({
-        mode: "join",
-        code: cur.code,
-        token,
-        heroId,
-        deck: liveDeck,
-        name: displayName,
-        level: playerLevel,
-      });
-      clearLobbyWait();
-      lobbyWaitRef.current = window.setTimeout(() => {
-        reconnectingRef.current = false;
-        setBusy(false);
-        setBusyHint(null);
-        setMessage(
-          "Не удалось вернуться в комнату. Зайди по коду ещё раз или создай новую.",
-        );
-      }, 18_000);
-    } catch (err) {
-      reconnectingRef.current = false;
-      setBusy(false);
-      setBusyHint(null);
-      setMessage(err instanceof Error ? err.message : "Нет связи");
-    }
+    reconnectingRef.current = false;
+    saveLobbyCode(null);
+    setLobby(null);
+    setMessage("Связь оборвалась. Создай новую комнату или войди по коду.");
+    setBusy(false);
+    setBusyHint(null);
   };
 
   const ensureSocket = async (
@@ -352,20 +317,7 @@ export function MultiMenu({
     return sock;
   };
 
-  useEffect(() => {
-    const onVis = () => {
-      if (document.visibilityState !== "visible") return;
-      if (!lobbyRef.current || startedRef.current) return;
-      if (socketRef.current?.connected) return;
-      void rejoinLobby();
-    };
-    document.addEventListener("visibilitychange", onVis);
-    window.addEventListener("focus", onVis);
-    return () => {
-      document.removeEventListener("visibilitychange", onVis);
-      window.removeEventListener("focus", onVis);
-    };
-  }, [heroId, displayName, playerLevel, deck]);
+  // Не авто-rejoin при фокусе — это возвращало в мёртвые/ломаные комнаты.
 
   const findOpponent = async () => {
     const token = getToken();
@@ -510,15 +462,14 @@ export function MultiMenu({
 
   const autoJoinOnce = useRef(false);
   useEffect(() => {
+    // Старые коды из sessionStorage больше не поднимаем — только явная ссылка ?pvp=
+    saveLobbyCode(null);
     if (autoJoinOnce.current) return;
     const fromLink = (initialCode || "").trim().toUpperCase();
-    const saved = readSavedLobbyCode();
-    const target = fromLink || saved;
-    if (!target) return;
+    if (!fromLink) return;
     autoJoinOnce.current = true;
-    setCode(target);
-    void enterRoom("join", target);
-    // enterRoom стабилен по смыслу на маунте
+    setCode(fromLink);
+    void enterRoom("join", fromLink);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
