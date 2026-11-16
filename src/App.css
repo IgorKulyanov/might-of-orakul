@@ -4431,6 +4431,13 @@ html.is-hand-dragging .oracle-folio {
     overflow: hidden;
   }
 
+  /* Несколько магий: стопка в высоту ряда, скролл внутри, поле не растёт */
+  .board .linger-side.is-multi {
+    --linger-card-w: min(30px, 8.2vw);
+    --linger-card-h: calc(var(--linger-card-w) * 1.5);
+    max-width: min(3.2rem, 24vw);
+  }
+
   .linger-cards {
     justify-content: center;
     align-content: center;
@@ -4441,6 +4448,16 @@ html.is-hand-dragging .oracle-folio {
     flex-wrap: wrap;
     gap: 0.12rem;
     padding: 0;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .board .linger-side.is-multi .linger-cards {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.1rem;
   }
 }
 
@@ -4450,7 +4467,7 @@ html.is-hand-dragging .oracle-folio {
     --board-card-h: calc(var(--board-card-w) * 1.5);
     --hand-card-w: min(70px, 21vw);
     --hand-card-h: calc(var(--hand-card-w) * 1.5);
-    --linger-card-w: min(42px, 12vw);
+    --linger-card-w: min(34px, 9.5vw);
     --linger-card-h: calc(var(--linger-card-w) * 1.5);
     padding: 0.15rem 0.2rem 0.18rem;
     grid-template-rows: auto auto minmax(0, 1fr) auto;

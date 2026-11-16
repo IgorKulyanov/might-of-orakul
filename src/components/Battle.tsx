@@ -2964,7 +2964,7 @@ export function Battle({
     side: "you" | "enemy",
   ) => (
     <div
-      className={`linger-side ${side}`}
+      className={`linger-side ${side}${spells.length > 1 ? " is-multi" : ""}`}
       aria-label={side === "you" ? "Заклинания у тебя" : "Заклинания у врага"}
     >
       <div className="linger-cards">
