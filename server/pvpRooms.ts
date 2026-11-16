@@ -40,6 +40,8 @@ type SeatPlayer = {
   /** false = сокет умер (свернул вкладку), место держим для reclaim. */
   online: boolean;
   disconnectedAt: number | null;
+  /** Инкремент отменяет отложенный soft-disconnect (быстрый reclaim). */
+  disconnectEpoch: number;
 };
 
 type Room = {
@@ -69,10 +71,15 @@ const MAX_MSG_BYTES = 120_000;
 const ROOM_TTL_MS = 2 * 60 * 60 * 1000;
 /** Сколько держим место в лобби после обрыва (Telegram / сворачивание). */
 const LOBBY_RECONNECT_MS = 5 * 60 * 1000;
+/** Не помечаем offline сразу — Telegram/CF часто рвут WS на долю секунды. */
+const SOFT_DISCONNECT_GRACE_MS = 2800;
 const TURN_MS = PVP_TURN_SEC * 1000;
 
 function makeSeat(
-  partial: Omit<SeatPlayer, "online" | "disconnectedAt" | "ready"> & {
+  partial: Omit<
+    SeatPlayer,
+    "online" | "disconnectedAt" | "ready" | "disconnectEpoch"
+  > & {
     ready?: boolean;
   },
 ): SeatPlayer {
@@ -81,6 +88,7 @@ function makeSeat(
     ready: Boolean(partial.ready),
     online: true,
     disconnectedAt: null,
+    disconnectEpoch: 0,
   };
 }
 
@@ -272,35 +280,45 @@ function seatOnline(p: SeatPlayer | null): boolean {
 
 /**
  * Обрыв сокета: место держим.
- * Лобби — до 5 мин; бой — пока не наберёт PVP_OFFLINE_TIMEOUTS пропусков.
+ * Grace ~3с — если клиент сразу reclaim, ход сопернику не «теряется».
  */
 function softDisconnect(room: Room, seat: PvpSeat, ws: WebSocket) {
   const me = seat === "host" ? room.host : room.guest;
   if (!me || me.ws !== ws) return;
-  me.online = false;
-  me.ready = false;
-  me.disconnectedAt = Date.now();
   bindSocketRoom(ws, null);
-  if (room.battle && !winnerSeat(room.battle)) {
-    room.battle = {
-      ...room.battle,
-      log: [
-        `${me.name}: связь пропала — ждём возврат (ещё ${PVP_OFFLINE_TIMEOUTS} проп. хода)`,
-        ...(room.battle.log ?? []),
-      ].slice(0, 14),
-    };
-    console.warn(
-      "[pvp] soft disconnect battle code=",
-      room.code,
-      "seat=",
-      seat,
-      "user=",
-      me.userId,
-    );
-    broadcastBattle(room);
-    return;
-  }
-  broadcastLobby(room);
+  me.ready = false;
+  me.disconnectEpoch += 1;
+  const epoch = me.disconnectEpoch;
+  const inBattle = Boolean(room.battle && !winnerSeat(room.battle));
+  setTimeout(() => {
+    const cur = seat === "host" ? room.host : room.guest;
+    if (!cur || cur.disconnectEpoch !== epoch) return;
+    // Уже другой живой сокет (reclaim) — обрыв был мимолётный.
+    if (cur.ws !== ws && cur.online && isWsOpen(cur.ws)) return;
+    if (cur.ws === ws && isWsOpen(ws)) return;
+    cur.online = false;
+    cur.disconnectedAt = Date.now();
+    if (inBattle && room.battle && !winnerSeat(room.battle)) {
+      room.battle = {
+        ...room.battle,
+        log: [
+          `${cur.name}: связь пропала — ждём возврат (ещё ${PVP_OFFLINE_TIMEOUTS} проп. хода)`,
+          ...(room.battle.log ?? []),
+        ].slice(0, 14),
+      };
+      console.warn(
+        "[pvp] soft disconnect battle code=",
+        room.code,
+        "seat=",
+        seat,
+        "user=",
+        cur.userId,
+      );
+      broadcastBattle(room);
+      return;
+    }
+    if (!room.battle) broadcastLobby(room);
+  }, SOFT_DISCONNECT_GRACE_MS);
 }
 
 /** Если таймер reveal потерялся — не держим стол вечно (без рекурсии broadcast). */
@@ -395,7 +413,8 @@ function broadcastBattle(room: Room) {
   const reason = room.endReason ?? "combat";
   for (const seat of ["host", "guest"] as const) {
     const p = seat === "host" ? room.host : room.guest;
-    if (!p || !p.online || !isWsOpen(p.ws)) continue;
+    // Шлём на любой ещё открытый сокет (не ждём флага online — иначе ход «висит»).
+    if (!p || !isWsOpen(p.ws)) continue;
     if (win && !room.endedSent) {
       send(p.ws, endMessage(seat, win, reason));
     }
@@ -1039,6 +1058,7 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           cur.ws = ws;
           cur.online = true;
           cur.disconnectedAt = null;
+          cur.disconnectEpoch += 1;
           cur.name = name;
           room.offlineTimeouts[reclaim] = 0;
           bindSocketRoom(ws, code);

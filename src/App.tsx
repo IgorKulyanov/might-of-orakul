@@ -584,6 +584,7 @@ export default function App() {
   const pvpSocketRef = useRef<PvpSocket | null>(null);
   const pvpRoomCodeRef = useRef("");
   const pvpReconnectBusyRef = useRef(false);
+  const pvpReconnectTimerRef = useRef<number | null>(null);
   const pvpSettledRef = useRef(false);
   /** Сбежал из PvP — без наград (даже утешительных). */
   const pvpFledRef = useRef(false);
@@ -1172,27 +1173,35 @@ export default function App() {
     }
   };
 
+  const schedulePvpReconnect = () => {
+    if (pvpSettledRef.current || screenRef.current !== "battle_pvp") return;
+    if (pvpReconnectTimerRef.current != null) return;
+    // Не дёргаем reclaim на каждый мимолётный close — иначе ход «висит» у двоих.
+    pvpReconnectTimerRef.current = window.setTimeout(() => {
+      pvpReconnectTimerRef.current = null;
+      void reconnectPvpBattle();
+    }, 1200);
+  };
+
   const reconnectPvpBattle = async () => {
     if (pvpReconnectBusyRef.current || pvpSettledRef.current) return;
     if (screenRef.current !== "battle_pvp") return;
+    if (pvpSocketRef.current?.connected) return;
     const code = pvpRoomCodeRef.current;
     const token = getToken();
     if (!code || !token) return;
     pvpReconnectBusyRef.current = true;
-    setPvpState((s) =>
-      s
-        ? {
-            ...s,
-            log: ["Связь пропала — возвращаем в бой…", ...s.log].slice(0, 12),
-          }
-        : s,
-    );
     try {
+      try {
+        pvpSocketRef.current?.leave({ silent: true });
+      } catch {
+        /* ignore */
+      }
       const sock = new PvpSocket();
       await sock.connect(token, applyPvpServerMsg);
       sock.setHandler(applyPvpServerMsg);
       sock.setDropHandler(() => {
-        void reconnectPvpBattle();
+        schedulePvpReconnect();
       });
       sock.join({
         mode: "join",
@@ -1221,6 +1230,7 @@ export default function App() {
             }
           : s,
       );
+      schedulePvpReconnect();
     } finally {
       pvpReconnectBusyRef.current = false;
     }
@@ -1233,13 +1243,17 @@ export default function App() {
       if (pvpSettledRef.current) return;
       const sock = pvpSocketRef.current;
       if (sock?.connected) return;
-      void reconnectPvpBattle();
+      schedulePvpReconnect();
     };
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("focus", onVis);
     return () => {
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("focus", onVis);
+      if (pvpReconnectTimerRef.current != null) {
+        window.clearTimeout(pvpReconnectTimerRef.current);
+        pvpReconnectTimerRef.current = null;
+      }
     };
   }, [screen]);
 
@@ -1736,7 +1750,7 @@ export default function App() {
           });
           socket.setHandler(applyPvpServerMsg);
           socket.setDropHandler(() => {
-            void reconnectPvpBattle();
+            schedulePvpReconnect();
           });
           unlockSfx();
           void startBattleMusic();
