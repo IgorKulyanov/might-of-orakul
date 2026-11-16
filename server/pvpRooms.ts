@@ -154,7 +154,60 @@ function sendQueueStatus(entry: QueueEntry) {
   });
 }
 
+function requeuePlayer(p: SeatPlayer, queuedAt = Date.now()) {
+  if (!isWsOpen(p.ws)) return;
+  removeFromQueue(p.ws);
+  removeUserFromQueue(p.userId);
+  const entry: QueueEntry = {
+    ...makeSeat({
+      ws: p.ws,
+      userId: p.userId,
+      name: p.name,
+      heroId: p.heroId,
+      deck: p.deck,
+      level: p.level,
+      ready: false,
+    }),
+    queuedAt,
+  };
+  matchQueue.push(entry);
+  const band = pvpQueueBand(entry.level, 0);
+  send(entry.ws, {
+    type: "queued",
+    levelMin: band.levelMin,
+    levelMax: band.levelMax,
+    delta: band.delta,
+    waiting: 0,
+  });
+}
+
+/** Сломать кривой матч: без победы, живых вернуть в поиск. */
+function dissolveMatchRequeue(room: Room, reason: string) {
+  clearTurnTimer(room);
+  const host = room.host;
+  const guest = room.guest;
+  room.battle = null;
+  room.host = null;
+  room.guest = null;
+  room.endReason = null;
+  room.openingPhase = "done";
+  room.endedSent = false;
+  for (const p of [host, guest]) {
+    if (!p) continue;
+    bindSocketRoom(p.ws, null);
+    if (!isWsOpen(p.ws)) continue;
+    send(p.ws, {
+      type: "error",
+      message: reason,
+    });
+    requeuePlayer(p);
+  }
+  rooms.delete(room.code);
+  console.warn("[pvp] dissolve match", room.code, reason);
+}
+
 function pairIntoRoom(a: QueueEntry, b: QueueEntry): Room | null {
+  if (!isWsOpen(a.ws) || !isWsOpen(b.ws)) return null;
   removeFromQueue(a.ws);
   removeFromQueue(b.ws);
   // Случайный код, пока не свободен
@@ -165,7 +218,12 @@ function pairIntoRoom(a: QueueEntry, b: QueueEntry): Room | null {
     guard++;
   }
   const room = getOrCreate(code);
-  if (!room) return null;
+  if (!room) {
+    // Вернуть в очередь, если комнату не создали
+    requeuePlayer(a, a.queuedAt);
+    requeuePlayer(b, b.queuedAt);
+    return null;
+  }
   room.host = makeSeat({
     ws: a.ws,
     userId: a.userId,
@@ -204,12 +262,38 @@ function tryMatchQueue(seed?: QueueEntry) {
   if (!startWith) return null;
   const partner = findMatchFor(startWith);
   if (!partner) return null;
+  // Ещё раз прямо перед парой — иначе один уже в бою, второй крутит поиск.
+  if (!isWsOpen(startWith.ws) || !isWsOpen(partner.ws)) {
+    pruneQueue();
+    return null;
+  }
   const room = pairIntoRoom(startWith, partner);
   if (!room || !room.host || !room.guest) return null;
+  if (!isWsOpen(room.host.ws) || !isWsOpen(room.guest.ws)) {
+    dissolveMatchRequeue(room, "Связь соперника пропала — ищем снова");
+    return null;
+  }
   bindSocketRoom(room.host.ws, room.code);
   bindSocketRoom(room.guest.ws, room.code);
-  broadcastLobby(room);
+  console.warn(
+    "[pvp] match",
+    room.code,
+    room.host.name,
+    "vs",
+    room.guest.name,
+  );
+  // Сразу бой — без лобби-экрана, чтобы оба гарантированно получили battle.
   tryStart(room);
+  if (
+    room.battle &&
+    (!isWsOpen(room.host.ws) || !isWsOpen(room.guest.ws))
+  ) {
+    dissolveMatchRequeue(
+      room,
+      "Соперник не подключился к бою — ищем снова",
+    );
+    return null;
+  }
   return room;
 }
 
@@ -508,6 +592,10 @@ function rollSeatDice(room: Room, seat: PvpSeat) {
 function tryStart(room: Room) {
   if (room.battle) return;
   if (!room.host?.ready || !room.guest?.ready) return;
+  if (!seatOnline(room.host) || !seatOnline(room.guest)) {
+    dissolveMatchRequeue(room, "Соперник офлайн — ищем снова");
+    return;
+  }
   try {
     const started = startPvpBattle({
       host: {
@@ -541,6 +629,17 @@ function tryStart(room: Room) {
       ].slice(0, 14),
     };
     broadcastBattle(room);
+    // Повторный снимок через 1с — если у одного Telegram проглотил пакет.
+    const code = room.code;
+    setTimeout(() => {
+      const r = rooms.get(code);
+      if (!r?.battle || r.openingPhase === "done") return;
+      if (!seatOnline(r.host) || !seatOnline(r.guest)) {
+        dissolveMatchRequeue(r, "Соперник не вошёл в бой — ищем снова");
+        return;
+      }
+      broadcastBattle(r);
+    }, 1000);
     clearTurnTimer(room);
     // Если кто-то не нажмёт — бросаем за него, бой не зависает.
     room.turnTimer = setTimeout(() => {
@@ -551,11 +650,7 @@ function tryStart(room: Room) {
     }, 12_000);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Не удалось начать бой";
-    if (room.host) send(room.host.ws, { type: "error", message });
-    if (room.guest) send(room.guest.ws, { type: "error", message });
-    if (room.host) room.host.ready = false;
-    if (room.guest) room.guest.ready = false;
-    broadcastLobby(room);
+    dissolveMatchRequeue(room, message);
   }
 }
 
@@ -571,6 +666,17 @@ function detach(
   reason: "leave" | "disconnect" = "leave",
 ) {
   const hadLiveBattle = Boolean(room.battle && !winnerSeat(room.battle));
+  // Кубик / старт: уход ≠ победа сопернику (типичный баг «я в бою, она ещё ищет»).
+  if (
+    hadLiveBattle &&
+    (room.openingPhase === "wait" || room.openingPhase === "reveal")
+  ) {
+    dissolveMatchRequeue(
+      room,
+      "Соперник не успел войти в бой — ищем снова",
+    );
+    return;
+  }
   if (hadLiveBattle) {
     finishForfeit(room, seat, reason === "disconnect" ? "disconnect" : "leave");
   }

@@ -138,6 +138,10 @@ export function MultiMenu({
       setMessage(msg.message);
       setBusy(false);
       setBusyHint(null);
+      // «ищем снова» — следом придёт queued, поиск не сбрасываем.
+      if (/ищем снова/i.test(msg.message) && searchingRef.current) {
+        return;
+      }
       setSearching(null);
       return;
     }
@@ -216,10 +220,16 @@ export function MultiMenu({
     if (msg.type === "battle" && !startedRef.current) {
       startedRef.current = true;
       setSearching(null);
+      setLobby(null);
+      setMessage(null);
       // Отдаём сокет в бой — иначе unmount MultiMenu вызовет leave() и оборвёт PvP.
       const sock = socketRef.current;
       socketRef.current = null;
-      if (!sock) return;
+      if (!sock) {
+        setMessage("Бой найден, но связь оборвалась — зайди в поиск снова");
+        startedRef.current = false;
+        return;
+      }
       onPvpStart({
         socket: sock,
         state: msg.state,
@@ -359,7 +369,13 @@ export function MultiMenu({
     } catch {
       /* ignore */
     }
-    socketRef.current?.leave();
+    // Только закрыть сокет без leave-по-комнате: иначе если матч уже
+    // случился, а UI ещё крутит поиск — сопернику засчитывают победу.
+    try {
+      socketRef.current?.leave({ silent: true });
+    } catch {
+      /* ignore */
+    }
     socketRef.current = null;
     setSearching(null);
     setBusy(false);
