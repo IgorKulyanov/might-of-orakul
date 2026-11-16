@@ -101,6 +101,8 @@ export function MultiMenu({
     delta: number;
     waiting: number;
   } | null>(null);
+  const searchingRef = useRef(searching);
+  searchingRef.current = searching;
   const [lobby, setLobby] = useState<{
     code: string;
     youAre: PvpSeat;
@@ -145,7 +147,17 @@ export function MultiMenu({
   }, [searching]);
 
   const handleMsg = (msg: PvpServerMsg) => {
+    if (msg.type === "pong" || msg.type === "tick" || msg.type === "hello") {
+      return;
+    }
     if (msg.type === "error") {
+      // Старый баг: ping вне комнаты слал «Сначала войди» и сбрасывал поиск.
+      if (
+        searchingRef.current &&
+        /войди в комнату|не в комнате/i.test(msg.message)
+      ) {
+        return;
+      }
       clearLobbyWait();
       setMessage(msg.message);
       setBusy(false);

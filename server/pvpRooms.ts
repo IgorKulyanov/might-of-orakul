@@ -939,6 +939,39 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
         return;
       }
 
+      // Ping до проверки комнаты — иначе поиск каждый 12с ловит error и UI сбрасывает очередь.
+      if (msg.type === "ping") {
+        const qCode = socketRoom.get(ws) ?? null;
+        const qRoom = qCode ? rooms.get(qCode) : null;
+        const qSeat = qRoom ? seatOf(qRoom, ws) : null;
+        if (qRoom && qSeat) {
+          const me = qSeat === "host" ? qRoom.host! : qRoom.guest!;
+          me.online = true;
+          me.disconnectedAt = null;
+          const foe = qSeat === "host" ? qRoom.guest : qRoom.host;
+          const inFight = Boolean(qRoom.battle && !winnerSeat(qRoom.battle));
+          send(ws, {
+            type: "pong",
+            code: qRoom.code,
+            seq: qRoom.battleSeq || 0,
+            yourTurn: inFight
+              ? isSeatTurn(qRoom.battle!, qSeat)
+              : false,
+            turnEndsAt: inFight ? qRoom.turnEndsAt : null,
+            foeOnline: seatOnline(foe),
+          });
+        } else {
+          send(ws, {
+            type: "pong",
+            seq: 0,
+            yourTurn: false,
+            turnEndsAt: null,
+            foeOnline: true,
+          });
+        }
+        return;
+      }
+
       if (msg.type === "queue") {
         const user = resolveUser(msg.token);
         if (!user) {
@@ -1212,33 +1245,6 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
 
       if (msg.type === "leave") {
         leaveCurrentRoom("leave");
-        return;
-      }
-
-      if (msg.type === "ping") {
-        // Держим CF/Telegram alive + мини-сверка хода.
-        me.online = true;
-        me.disconnectedAt = null;
-        const foe = seat === "host" ? room.guest : room.host;
-        if (room.battle && !winnerSeat(room.battle)) {
-          send(ws, {
-            type: "pong",
-            code: room.code,
-            seq: room.battleSeq || 0,
-            yourTurn: isSeatTurn(room.battle, seat),
-            turnEndsAt: room.turnEndsAt,
-            foeOnline: seatOnline(foe),
-          });
-        } else {
-          send(ws, {
-            type: "pong",
-            code: room.code,
-            seq: room.battleSeq || 0,
-            yourTurn: false,
-            turnEndsAt: null,
-            foeOnline: seatOnline(foe),
-          });
-        }
         return;
       }
 
