@@ -205,6 +205,7 @@ type Props = {
     needRoll?: boolean;
     youRolled?: boolean;
     foeRolled?: boolean;
+    foeOnline?: boolean;
     ended?: boolean;
     rollDice?: () => void;
     exitLabel?: string;
@@ -1315,6 +1316,17 @@ export function Battle({
     }, 2500);
     return () => window.clearTimeout(t);
   }, [pvpAwaiting]);
+
+  // Пока ждём ход врага — каждые 3с тянем стол (если WS флапал, иначе «зависает»).
+  useEffect(() => {
+    if (!network) return;
+    if (state.winner || networkEnded) return;
+    if (state.active !== "enemy") return;
+    const id = window.setInterval(() => {
+      onNeedSyncRef.current?.();
+    }, 3000);
+    return () => window.clearInterval(id);
+  }, [network, state.active, state.winner, networkEnded, state.turn]);
 
   useLayoutEffect(() => {
     if (tutorialStep == null || state.winner) {
@@ -3274,6 +3286,14 @@ export function Battle({
           <div className={`turn-pill ${phase === "enemy" ? "enemy-phase" : ""}`}>
             {phase === "enemy" ? "Ход врага" : `Ход ${state.turn}`}
           </div>
+          {network && network.foeOnline === false && !state.winner ? (
+            <div
+              className="turn-pill foe-offline-pill"
+              title="Соперник потерял связь — ждём возврат или авто-пропуск хода"
+            >
+              соперник офлайн
+            </div>
+          ) : null}
           {state.bloodFrenzy > 0 ? (
             <div
               className="blood-frenzy-pill is-on"

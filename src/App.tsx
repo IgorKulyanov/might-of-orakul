@@ -116,6 +116,7 @@ type PvpClock = {
   needRoll: boolean;
   youRolled: boolean;
   foeRolled: boolean;
+  foeOnline: boolean;
 };
 
 type Screen =
@@ -581,6 +582,7 @@ export default function App() {
     needRoll: false,
     youRolled: false,
     foeRolled: false,
+    foeOnline: true,
   });
   const pvpSocketRef = useRef<PvpSocket | null>(null);
   const pvpRoomCodeRef = useRef("");
@@ -1119,7 +1121,7 @@ export default function App() {
   const [pvpSeq, setPvpSeq] = useState(0);
 
   const applyPvpServerMsg = (msg: PvpServerMsg) => {
-    if (msg.type === "tick") {
+    if (msg.type === "tick" || msg.type === "pong") {
       if (msg.code) pvpRoomCodeRef.current = msg.code;
       const local = pvpStateRef.current;
       const seqGap = msg.seq > pvpBattleSeqRef.current;
@@ -1128,13 +1130,20 @@ export default function App() {
         !local.winner &&
         !pvpSettledRef.current &&
         msg.yourTurn !== (local.active === "you");
-      if (seqGap || turnMismatch) {
-        pvpSocketRef.current?.resync();
-      } else {
+      if (typeof msg.foeOnline === "boolean") {
+        setPvpClock((c) => ({
+          ...c,
+          turnEndsAt: msg.turnEndsAt,
+          foeOnline: msg.foeOnline!,
+        }));
+      } else if (msg.type === "tick") {
         setPvpClock((c) => ({
           ...c,
           turnEndsAt: msg.turnEndsAt,
         }));
+      }
+      if (seqGap || turnMismatch) {
+        pvpSocketRef.current?.resync();
       }
       return;
     }
@@ -1183,6 +1192,8 @@ export default function App() {
         needRoll: finished ? false : Boolean(msg.needRoll),
         youRolled: Boolean(msg.youRolled),
         foeRolled: Boolean(msg.foeRolled),
+        foeOnline:
+          typeof msg.foeOnline === "boolean" ? msg.foeOnline : c.foeOnline,
         endMessage: finished
           ? (c.endMessage ??
             msg.endMessage ??
@@ -1297,7 +1308,14 @@ export default function App() {
       if (document.visibilityState !== "visible") return;
       if (pvpSettledRef.current) return;
       const sock = pvpSocketRef.current;
-      if (sock?.connected) return;
+      if (sock?.connected) {
+        try {
+          sock.resync();
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
       schedulePvpReconnect();
     };
     document.addEventListener("visibilitychange", onVis);
@@ -1380,6 +1398,7 @@ export default function App() {
       needRoll: false,
       youRolled: false,
       foeRolled: false,
+      foeOnline: true,
     });
     setScreen("multi");
   };
@@ -1409,6 +1428,7 @@ export default function App() {
       needRoll: pvpClock.needRoll,
       youRolled: pvpClock.youRolled,
       foeRolled: pvpClock.foeRolled,
+      foeOnline: pvpClock.foeOnline,
       ended: Boolean(pvpClock.endMessage),
       rollDice: () => {
         try {
@@ -1430,6 +1450,7 @@ export default function App() {
       pvpClock.needRoll,
       pvpClock.youRolled,
       pvpClock.foeRolled,
+      pvpClock.foeOnline,
       pvpClock.endMessage,
     ],
   );
@@ -1831,6 +1852,7 @@ export default function App() {
             needRoll: Boolean(needRoll),
             youRolled: Boolean(youRolled),
             foeRolled: Boolean(foeRolled),
+            foeOnline: true,
           });
           socket.setHandler(applyPvpServerMsg);
           socket.setDropHandler(() => {

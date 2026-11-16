@@ -76,8 +76,8 @@ const MAX_MSG_BYTES = 120_000;
 const ROOM_TTL_MS = 2 * 60 * 60 * 1000;
 /** Сколько держим место в лобби после обрыва (Telegram / сворачивание). */
 const LOBBY_RECONNECT_MS = 5 * 60 * 1000;
-/** Не помечаем offline сразу — Telegram/CF часто рвут WS на долю секунды. */
-const SOFT_DISCONNECT_GRACE_MS = 2800;
+/** Не помечаем offline сразу — Telegram/CF часто рвут WS на несколько секунд. */
+const SOFT_DISCONNECT_GRACE_MS = 9000;
 const TURN_MS = PVP_TURN_SEC * 1000;
 
 function makeSeat(
@@ -367,6 +367,7 @@ function battlePayload(room: Room, seat: PvpSeat): PvpServerMsg {
         { type: "ended" }
       >)
     : null;
+  const foe = seat === "host" ? room.guest : room.host;
   return {
     type: "battle",
     code: room.code,
@@ -386,6 +387,7 @@ function battlePayload(room: Room, seat: PvpSeat): PvpServerMsg {
     foeRolled: opening.foeRolled,
     actedBy: room.lastActedBy ?? undefined,
     lastAction: room.lastAction ?? undefined,
+    foeOnline: seatOnline(foe),
     matchEnded: matchEnded || undefined,
     youWon: endMsg ? endMsg.youWon : undefined,
     endMessage: endMsg?.message,
@@ -459,12 +461,14 @@ setInterval(() => {
     for (const seat of ["host", "guest"] as const) {
       const p = seat === "host" ? room.host : room.guest;
       if (!p || !isWsOpen(p.ws)) continue;
+      const foe = seat === "host" ? room.guest : room.host;
       send(p.ws, {
         type: "tick",
         code: room.code,
         seq: room.battleSeq || 0,
         turnEndsAt: room.turnEndsAt,
         yourTurn: isSeatTurn(room.battle, seat),
+        foeOnline: seatOnline(foe),
       });
     }
   }
@@ -1208,6 +1212,33 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
 
       if (msg.type === "leave") {
         leaveCurrentRoom("leave");
+        return;
+      }
+
+      if (msg.type === "ping") {
+        // Держим CF/Telegram alive + мини-сверка хода.
+        me.online = true;
+        me.disconnectedAt = null;
+        const foe = seat === "host" ? room.guest : room.host;
+        if (room.battle && !winnerSeat(room.battle)) {
+          send(ws, {
+            type: "pong",
+            code: room.code,
+            seq: room.battleSeq || 0,
+            yourTurn: isSeatTurn(room.battle, seat),
+            turnEndsAt: room.turnEndsAt,
+            foeOnline: seatOnline(foe),
+          });
+        } else {
+          send(ws, {
+            type: "pong",
+            code: room.code,
+            seq: room.battleSeq || 0,
+            yourTurn: false,
+            turnEndsAt: null,
+            foeOnline: seatOnline(foe),
+          });
+        }
         return;
       }
 
