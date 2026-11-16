@@ -2967,6 +2967,9 @@ export function Battle({
       className={`linger-side ${side}${spells.length > 1 ? " is-multi" : ""}`}
       aria-label={side === "you" ? "Заклинания у тебя" : "Заклинания у врага"}
     >
+      <div className="linger-plate" aria-hidden>
+        <span className="linger-plate-label">магия</span>
+      </div>
       <div className="linger-cards">
         {spells.length === 0 ? (
           <span className="linger-empty" aria-hidden />
@@ -2974,15 +2977,17 @@ export function Battle({
           spells.map((sp, i) => {
             const active = (sp.mode ?? "active") === "active";
             const card = getCard(sp.cardId);
-  return (
+            return (
               <div
                 key={sp.uid}
                 className={`linger-item ${active ? "is-active" : "is-echo"}`}
                 style={{ ["--linger-i" as string]: i }}
+                data-linger-uid={sp.uid}
+                data-linger-side={side}
                 title={
                   active
-                    ? `Активно: ${card.text}`
-                    : `Применено в этом ходу: ${card.text}`
+                    ? `На поле: ${card.name}. ${card.text}`
+                    : `Сработало в этом ходу: ${card.name}`
                 }
               >
                 <CardView cardId={sp.cardId} compact flippable />

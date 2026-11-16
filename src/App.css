@@ -4106,11 +4106,11 @@ html.is-hand-dragging .oracle-folio {
     padding: 0.06rem 0;
   }
 
-  /* Если на столе linger — чуть мельче слоты, чтобы магия влезла сбоку */
+  /* Если на столе linger — чуть мельче слоты, магия крупнее и читаемее */
   .board-shell:has(.linger-item) {
-    --board-card-w: min(64px, calc((100vw - 1.2rem - 3.4rem) / 5.35));
+    --board-card-w: min(62px, calc((100vw - 1.2rem - 4rem) / 5.35));
     --board-card-h: calc(var(--board-card-w) * 1.5);
-    --linger-card-w: min(34px, 9.5vw);
+    --linger-card-w: min(42px, 11.5vw);
     --linger-card-h: calc(var(--linger-card-w) * 1.5);
   }
 
@@ -4191,7 +4191,7 @@ html.is-hand-dragging .oracle-folio {
     justify-content: center;
     align-self: center;
     min-height: 0;
-    max-width: min(3.6rem, 26vw);
+    max-width: min(4.4rem, 30vw);
   }
 
   .board-lane-side.right:not(:has(.linger-item)) {
@@ -4422,20 +4422,19 @@ html.is-hand-dragging .oracle-folio {
     height: var(--board-card-h);
     max-height: var(--board-card-h);
     width: auto;
-    max-width: min(3.6rem, 26vw);
+    max-width: min(4.4rem, 30vw);
     border-left: none;
     border-top: none;
-    padding-left: 0;
-    padding-top: 0;
+    padding: 0.28rem 0.22rem 0.18rem;
     justify-content: center;
     overflow: hidden;
   }
 
   /* Несколько магий: стопка в высоту ряда, скролл внутри, поле не растёт */
   .board .linger-side.is-multi {
-    --linger-card-w: min(30px, 8.2vw);
+    --linger-card-w: min(36px, 10vw);
     --linger-card-h: calc(var(--linger-card-w) * 1.5);
-    max-width: min(3.2rem, 24vw);
+    max-width: min(4rem, 28vw);
   }
 
   .linger-cards {
@@ -6884,6 +6883,7 @@ html.is-hand-dragging .oracle-folio {
 }
 
 .board .linger-side {
+  position: relative;
   display: flex;
   flex: 0 1 auto;
   align-items: center;
@@ -6894,7 +6894,45 @@ html.is-hand-dragging .oracle-folio {
   max-height: var(--board-card-h);
   overflow: hidden;
   border-left: none;
-  padding-left: 0.35rem;
+  padding: 0.2rem 0.28rem 0.2rem 0.35rem;
+  border-radius: 10px;
+  /* Плита на столе — магия не теряется в текстуре фона */
+  background:
+    linear-gradient(
+      165deg,
+      rgba(28, 18, 10, 0.94) 0%,
+      rgba(12, 10, 16, 0.9) 55%,
+      rgba(8, 14, 22, 0.92) 100%
+    );
+  border: 1px solid rgba(232, 190, 110, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.55),
+    0 6px 16px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 1px rgba(255, 220, 150, 0.12),
+    0 0 18px rgba(200, 140, 50, 0.22);
+}
+
+.linger-plate {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.linger-plate-label {
+  position: absolute;
+  top: 0.14rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  font-size: 0.52rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f0d090;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  white-space: nowrap;
+  opacity: 0.95;
 }
 
 .linger-empty {
@@ -6904,6 +6942,8 @@ html.is-hand-dragging .oracle-folio {
 }
 
 .linger-cards {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   gap: 0.3rem;
@@ -6913,7 +6953,7 @@ html.is-hand-dragging .oracle-folio {
   min-height: 0;
   height: 100%;
   overflow: hidden;
-  padding: 0.1rem 0.15rem;
+  padding: 0.35rem 0.1rem 0.1rem;
 }
 
 .linger-item {
@@ -6923,6 +6963,7 @@ html.is-hand-dragging .oracle-folio {
   flex: none;
   animation: linger-in 0.85s cubic-bezier(0.22, 0.82, 0.28, 1) both;
   animation-delay: calc(var(--linger-i, 0) * 0.14s + 0.12s);
+  cursor: pointer;
 }
 
 @keyframes linger-in {
@@ -6945,37 +6986,43 @@ html.is-hand-dragging .oracle-folio {
 
 .linger-item.is-active .card.compact {
   opacity: 1;
+  filter: brightness(1.12) saturate(1.15);
   box-shadow:
-    0 0 0 2px color-mix(in srgb, var(--accent) 75%, transparent),
-    0 0 12px color-mix(in srgb, var(--accent) 35%, transparent);
-  filter: none;
+    0 0 0 2px #f0c86a,
+    0 0 0 4px rgba(0, 0, 0, 0.55),
+    0 0 14px rgba(255, 190, 70, 0.55);
 }
 
 .linger-item.is-echo .card.compact {
-  opacity: 0.45;
-  filter: grayscale(0.2);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
+  opacity: 0.72;
+  filter: grayscale(0.15) brightness(0.95);
+  box-shadow:
+    0 0 0 2px rgba(180, 200, 220, 0.55),
+    0 0 0 3px rgba(0, 0, 0, 0.4);
 }
 
 .linger-turns {
   position: absolute;
-  top: -0.2rem;
-  right: -0.2rem;
-  z-index: 2;
-  min-width: 1.2rem;
-  padding: 0.05rem 0.25rem;
+  top: -0.28rem;
+  right: -0.28rem;
+  z-index: 3;
+  min-width: 1.35rem;
+  padding: 0.08rem 0.3rem;
   border-radius: 999px;
-  font-size: 0.62rem;
-  font-weight: 700;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.15;
   text-align: center;
-  background: #121826;
-  border: 1px solid var(--accent);
-  color: var(--accent);
+  background: #1a1208;
+  border: 1.5px solid #f0c86a;
+  color: #ffe6a8;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
 }
 
 .linger-item.is-echo .linger-turns {
-  border-color: rgba(255, 255, 255, 0.35);
-  color: #b8c2d6;
+  border-color: rgba(180, 200, 220, 0.7);
+  color: #d5e0f0;
+  background: #121826;
 }
 
 .hero-sub {
