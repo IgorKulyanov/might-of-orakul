@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { alog } from "./game/actionLog";
 import { ArenaHub } from "./components/ArenaHub";
 import { AuthScreen } from "./components/AuthScreen";
@@ -94,6 +94,7 @@ import { PvpSocket } from "./game/pvpClient";
 import {
   PVP_MAX_TIMEOUTS,
   PVP_TURN_SEC,
+  type PvpAction,
   type PvpSeat,
   type PvpServerMsg,
   type SeatOpeningDice,
@@ -1110,10 +1111,23 @@ export default function App() {
     };
   };
 
+  const [pvpEcho, setPvpEcho] = useState<{
+    seq: number;
+    actedBy: PvpSeat;
+    action: PvpAction;
+  } | null>(null);
+
   const applyPvpServerMsg = (msg: PvpServerMsg) => {
     if (msg.type === "tick") {
       if (msg.code) pvpRoomCodeRef.current = msg.code;
-      if (msg.seq > pvpBattleSeqRef.current) {
+      const local = pvpStateRef.current;
+      const seqGap = msg.seq > pvpBattleSeqRef.current;
+      const turnMismatch =
+        !!local &&
+        !local.winner &&
+        !pvpSettledRef.current &&
+        msg.yourTurn !== (local.active === "you");
+      if (seqGap || turnMismatch) {
         pvpSocketRef.current?.resync();
       } else {
         setPvpClock((c) => ({
@@ -1134,6 +1148,20 @@ export default function App() {
       if (typeof msg.seq === "number") pvpBattleSeqRef.current = msg.seq;
       setPvpSeat(msg.youAre);
       setPvpState(msg.state);
+      if (
+        msg.actedBy &&
+        msg.lastAction &&
+        msg.actedBy !== msg.youAre &&
+        typeof msg.seq === "number"
+      ) {
+        setPvpEcho({
+          seq: msg.seq,
+          actedBy: msg.actedBy,
+          action: msg.lastAction,
+        });
+      } else {
+        setPvpEcho(null);
+      }
       setPvpClock((c) => ({
         ...c,
         turnEndsAt: finished ? null : msg.turnEndsAt,
@@ -1328,6 +1356,7 @@ export default function App() {
     }
     pvpSocketRef.current = null;
     pvpRoomCodeRef.current = "";
+    setPvpEcho(null);
     setPvpState(null);
     setPvpClock({
       turnEndsAt: null,
@@ -1344,6 +1373,56 @@ export default function App() {
     });
     setScreen("multi");
   };
+
+  /** Стабильный объект — иначе Battle сбрасывает awaiting на каждом рендере App. */
+  const pvpNetwork = useMemo(
+    () => ({
+      sendAction: (action: PvpAction) => {
+        try {
+          pvpSocketRef.current?.action(action);
+        } catch {
+          /* ignore */
+        }
+      },
+      onNeedSync: () => {
+        const sock = pvpSocketRef.current;
+        if (sock?.connected) sock.resync();
+        else schedulePvpReconnect();
+      },
+      turnEndsAt: pvpClock.turnEndsAt,
+      yourTimeouts: pvpClock.yourTimeouts,
+      foeTimeouts: pvpClock.foeTimeouts,
+      maxTimeouts: pvpClock.maxTimeouts,
+      turnLimitSec: pvpClock.turnLimitSec,
+      openingDice: pvpClock.openingDice,
+      openingLocked: pvpClock.openingLocked,
+      needRoll: pvpClock.needRoll,
+      youRolled: pvpClock.youRolled,
+      foeRolled: pvpClock.foeRolled,
+      ended: Boolean(pvpClock.endMessage),
+      rollDice: () => {
+        try {
+          pvpSocketRef.current?.rollDice();
+        } catch {
+          /* ignore */
+        }
+      },
+      exitLabel: "Сдаться" as const,
+    }),
+    [
+      pvpClock.turnEndsAt,
+      pvpClock.yourTimeouts,
+      pvpClock.foeTimeouts,
+      pvpClock.maxTimeouts,
+      pvpClock.turnLimitSec,
+      pvpClock.openingDice,
+      pvpClock.openingLocked,
+      pvpClock.needRoll,
+      pvpClock.youRolled,
+      pvpClock.foeRolled,
+      pvpClock.endMessage,
+    ],
+  );
 
   if (boot) {
     return (
@@ -1655,7 +1734,6 @@ export default function App() {
   }
 
   if (screen === "battle_pvp" && pvpState) {
-    const sock = pvpSocketRef.current;
     return (
       <Battle
         key={`pvp-${pvpSeat}-${pvpMatchKey}`}
@@ -1667,38 +1745,8 @@ export default function App() {
         yourLevel={pvpState.you.level ?? level}
         enemyLevel={pvpState.enemy.level ?? 1}
         externalState={pvpState}
-        network={{
-          sendAction: (action) => {
-            try {
-              sock?.action(action);
-            } catch {
-              /* ignore */
-            }
-          },
-          onNeedSync: () => {
-            if (sock?.connected) sock.resync();
-            else schedulePvpReconnect();
-          },
-          turnEndsAt: pvpClock.turnEndsAt,
-          yourTimeouts: pvpClock.yourTimeouts,
-          foeTimeouts: pvpClock.foeTimeouts,
-          maxTimeouts: pvpClock.maxTimeouts,
-          turnLimitSec: pvpClock.turnLimitSec,
-          openingDice: pvpClock.openingDice,
-          openingLocked: pvpClock.openingLocked,
-          needRoll: pvpClock.needRoll,
-          youRolled: pvpClock.youRolled,
-          foeRolled: pvpClock.foeRolled,
-          ended: Boolean(pvpClock.endMessage),
-          rollDice: () => {
-            try {
-              sock?.rollDice();
-            } catch {
-              /* ignore */
-            }
-          },
-          exitLabel: "Сдаться",
-        }}
+        pvpEcho={pvpEcho}
+        network={pvpNetwork}
         allowRematch={false}
         onExit={leavePvp}
         onBattleEnd={onBattleEnd}
@@ -1737,6 +1785,7 @@ export default function App() {
           state,
           youAre,
           code,
+          seq,
           turnEndsAt,
           yourTimeouts,
           foeTimeouts,
@@ -1752,8 +1801,9 @@ export default function App() {
           pvpSettledRef.current = false;
           pvpReconnectBusyRef.current = false;
           pvpRoomCodeRef.current = code;
-          pvpBattleSeqRef.current = 0;
+          pvpBattleSeqRef.current = typeof seq === "number" ? seq : 0;
           pvpSocketRef.current = socket;
+          setPvpEcho(null);
           setPvpMatchKey((n) => n + 1);
           setPvpSeat(youAre);
           setPvpState(state);

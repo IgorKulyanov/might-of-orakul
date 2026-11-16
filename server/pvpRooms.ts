@@ -57,6 +57,9 @@ type Room = {
   offlineTimeouts: { host: number; guest: number };
   /** Версия стола — клиент сверкает по tick/battle. */
   battleSeq: number;
+  /** Последний принятый ход — для FX/SFX у наблюдателя. */
+  lastAction: PvpAction | null;
+  lastActedBy: PvpSeat | null;
   endReason: PvpEndReason | null;
   openingDice: OpeningDice | null;
   diceRolls: { host: number | null; guest: number | null };
@@ -317,7 +320,7 @@ function softDisconnect(room: Room, seat: PvpSeat, ws: WebSocket) {
         "user=",
         cur.userId,
       );
-      broadcastBattle(room);
+      broadcastBattle(room, "clearEcho");
       return;
     }
     if (!room.battle) broadcastLobby(room);
@@ -381,6 +384,8 @@ function battlePayload(room: Room, seat: PvpSeat): PvpServerMsg {
     needRoll: opening.needRoll,
     youRolled: opening.youRolled,
     foeRolled: opening.foeRolled,
+    actedBy: room.lastActedBy ?? undefined,
+    lastAction: room.lastAction ?? undefined,
     matchEnded: matchEnded || undefined,
     youWon: endMsg ? endMsg.youWon : undefined,
     endMessage: endMsg?.message,
@@ -416,8 +421,18 @@ function endMessage(
   };
 }
 
-function broadcastBattle(room: Room) {
+function broadcastBattle(
+  room: Room,
+  meta?: { action?: PvpAction; actedBy?: PvpSeat } | "clearEcho",
+) {
   if (!room.battle) return;
+  if (meta === "clearEcho") {
+    room.lastAction = null;
+    room.lastActedBy = null;
+  } else if (meta?.action && meta.actedBy) {
+    room.lastAction = meta.action;
+    room.lastActedBy = meta.actedBy;
+  }
   bumpBattleSeq(room);
   const win = winnerSeat(room.battle);
   const reason = room.endReason ?? "combat";
@@ -492,7 +507,7 @@ function onTurnTimeout(room: Room) {
         `${name}: нет связи ${PVP_OFFLINE_TIMEOUTS} хода подряд — поражение`,
       );
       clearTurnTimer(room);
-      broadcastBattle(room);
+      broadcastBattle(room, "clearEcho");
       return;
     }
   }
@@ -509,7 +524,7 @@ function onTurnTimeout(room: Room) {
       `${name}: ${PVP_MAX_TIMEOUTS} пропусков хода — поражение`,
     );
     clearTurnTimer(room);
-    broadcastBattle(room);
+    broadcastBattle(room, "clearEcho");
     return;
   }
 
@@ -532,11 +547,11 @@ function onTurnTimeout(room: Room) {
   if (winnerSeat(room.battle)) {
     room.endReason = room.endReason ?? "combat";
     clearTurnTimer(room);
-    broadcastBattle(room);
+    broadcastBattle(room, "clearEcho");
     return;
   }
   scheduleTurnTimer(room);
-  broadcastBattle(room);
+  broadcastBattle(room, "clearEcho");
 }
 
 function finishForfeit(room: Room, loser: PvpSeat, reason: PvpEndReason) {
@@ -551,7 +566,7 @@ function finishForfeit(room: Room, loser: PvpSeat, reason: PvpEndReason) {
   room.endReason = reason;
   room.battle = forceWin(room.battle, winner, line);
   clearTurnTimer(room);
-  broadcastBattle(room);
+  broadcastBattle(room, "clearEcho");
 }
 
 function d6(): number {
@@ -586,14 +601,14 @@ function finishOpeningDice(room: Room) {
   );
   room.openingPhase = "reveal";
   room.openingLockedUntil = Date.now() + PVP_OPENING_MS;
-  broadcastBattle(room);
+  broadcastBattle(room, "clearEcho");
   clearTurnTimer(room);
   room.turnTimer = setTimeout(() => {
     if (!room.battle || winnerSeat(room.battle)) return;
     room.openingPhase = "done";
     room.openingLockedUntil = null;
     scheduleTurnTimer(room);
-    broadcastBattle(room);
+    broadcastBattle(room, "clearEcho");
   }, PVP_OPENING_MS);
 }
 
@@ -605,7 +620,7 @@ function rollSeatDice(room: Room, seat: PvpSeat) {
     finishOpeningDice(room);
     return;
   }
-  broadcastBattle(room);
+  broadcastBattle(room, "clearEcho");
 }
 
 function tryStart(room: Room) {
@@ -645,7 +660,7 @@ function tryStart(room: Room) {
         ...(room.battle.log ?? []),
       ].slice(0, 14),
     };
-    broadcastBattle(room);
+    broadcastBattle(room, "clearEcho");
     clearTurnTimer(room);
     // Если кто-то не нажмёт — бросаем за него, бой не зависает.
     room.turnTimer = setTimeout(() => {
@@ -719,6 +734,8 @@ function getOrCreate(code: string): Room | null {
       timeouts: { host: 0, guest: 0 },
       offlineTimeouts: { host: 0, guest: 0 },
       battleSeq: 0,
+      lastAction: null,
+      lastActedBy: null,
       endReason: null,
       openingDice: null,
       diceRolls: { host: null, guest: null },
@@ -1107,8 +1124,8 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
             "user=",
             user.id,
           );
-          send(ws, battlePayload(room, reclaim));
-          broadcastBattle(room);
+          // Один снимок: без двойного seq и без ложного lastAction.
+          broadcastBattle(room, "clearEcho");
           return;
         }
         // После оконченного боя — чистая комната
@@ -1226,20 +1243,20 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
         }
         if (room.battle.winner) {
           send(ws, { type: "error", message: "Бой уже окончен" });
-          broadcastBattle(room);
+          broadcastBattle(room, "clearEcho");
           return;
         }
         unlockOpeningIfDue(room);
         const action = msg.action as PvpAction;
         if (room.openingPhase !== "done") {
           send(ws, { type: "error", message: "Сначала бросьте кубики" });
-          broadcastBattle(room);
+          broadcastBattle(room, "clearEcho");
           return;
         }
         if (!isSeatTurn(room.battle, seat)) {
           send(ws, { type: "error", message: "Сейчас ход соперника" });
           // Клиент мог успеть применить ход локально — вернём правду со стола.
-          broadcastBattle(room);
+          broadcastBattle(room, "clearEcho");
           return;
         }
         try {
@@ -1249,7 +1266,7 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           if (winnerSeat(room.battle)) {
             room.endReason = "combat";
             clearTurnTimer(room);
-            broadcastBattle(room);
+            broadcastBattle(room, { action, actedBy: seat });
             return;
           }
           if (
@@ -1258,13 +1275,13 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           ) {
             scheduleTurnTimer(room);
           }
-          broadcastBattle(room);
+          broadcastBattle(room, { action, actedBy: seat });
         } catch (e) {
           send(ws, {
             type: "error",
             message: e instanceof Error ? e.message : "Ход отклонён",
           });
-          broadcastBattle(room);
+          broadcastBattle(room, "clearEcho");
         }
       }
     });

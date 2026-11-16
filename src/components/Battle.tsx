@@ -116,7 +116,9 @@ import {
   applyPvpAction,
   PVP_OPENING_MS,
   type PvpAction,
+  type PvpSeat,
 } from "../game/pvpProtocol";
+import { fxFromRemoteAction } from "../game/pvpRemoteFx";
 import type { BattleState, CreatureInstance } from "../game/types";
 
 function upgradeLvFor(
@@ -209,6 +211,12 @@ type Props = {
   };
   /** Подмена стейта с сервера (каждый тик PvP). */
   externalState?: BattleState | null;
+  /** Чужой ход с сервера — для FX/SFX (свои эхо не приходят). */
+  pvpEcho?: {
+    seq: number;
+    actedBy: PvpSeat;
+    action: PvpAction;
+  } | null;
   onExit: () => void;
   /** Верни награды — покажем в окне результата. */
   onBattleEnd?: (won: boolean) => BattleEndInfo | void;
@@ -872,6 +880,7 @@ export function Battle({
   onRematch,
   network,
   externalState = null,
+  pvpEcho = null,
   onExit,
   onBattleEnd,
   onForfeitExit,
@@ -1150,14 +1159,51 @@ export function Battle({
     return () => window.clearTimeout(t);
   }, [diceUi]);
 
+  const networkEnded = Boolean(network?.ended);
+  const onNeedSyncRef = useRef(network?.onNeedSync);
+  onNeedSyncRef.current = network?.onNeedSync;
+  const lastEchoSeqRef = useRef(0);
+  const remoteFxTimer = useRef<number | null>(null);
+
   useEffect(() => {
     if (!externalState) return;
     // Стол с сервера — winner больше не вычищаем (иначе при потере `ended`
     // проигравший навечно «ждёт хода» без оверлея).
     const next = externalState;
-    const matchOver = Boolean(next.winner) || Boolean(network?.ended);
+    const matchOver = Boolean(next.winner) || networkEnded;
     const keepBusy =
       !matchOver && lock.current && next.active === "you";
+    const prev = stateRef.current;
+    const echo =
+      pvpEcho &&
+      pvpEcho.seq > lastEchoSeqRef.current &&
+      pvpEcho.action
+        ? pvpEcho
+        : null;
+    if (echo) {
+      lastEchoSeqRef.current = echo.seq;
+      if (echo.action.kind === "endTurn") {
+        sfxTurn();
+      } else {
+        const raw = fxFromRemoteAction(prev, echo.action);
+        if (raw) {
+          const remoteFx =
+            raw.kind === "spell" && raw.cardId
+              ? enrichSpellFx(raw, prev)
+              : normalizeBattleFx(raw);
+          if (remoteFxTimer.current != null) {
+            window.clearTimeout(remoteFxTimer.current);
+          }
+          setFx(remoteFx);
+          playActionSfx(remoteFx, prev);
+          playResultSfx(prev, next);
+          remoteFxTimer.current = window.setTimeout(() => {
+            setFx(null);
+            remoteFxTimer.current = null;
+          }, remoteFx.kind === "spell" ? 1100 : 700);
+        }
+      }
+    }
     stateRef.current = next;
     setState(next);
     setPhase(next.active === "you" ? "you" : "enemy");
@@ -1166,19 +1212,19 @@ export function Battle({
     if (keepBusy) return;
     setBusy(false);
     lock.current = false;
-  }, [externalState, network, network?.ended]);
+  }, [externalState, networkEnded, pvpEcho]);
 
   // Если ответ сервера потерялся — через 2с просим resync, не висим вечно.
   useEffect(() => {
-    if (!network || !pvpAwaiting) return;
+    if (!pvpAwaiting) return;
     const t = window.setTimeout(() => {
       setPvpAwaiting(false);
       setBusy(false);
       lock.current = false;
-      network.onNeedSync?.();
+      onNeedSyncRef.current?.();
     }, 2000);
     return () => window.clearTimeout(t);
-  }, [pvpAwaiting, network]);
+  }, [pvpAwaiting]);
 
   useLayoutEffect(() => {
     if (tutorialStep == null || state.winner) {
@@ -2565,8 +2611,11 @@ export function Battle({
     }
     void runLocked(async () => {
       unlockSfx();
-      let s = state;
+      let s = stateRef.current;
       for (let i = 0; i < 5; i++) {
+        // После чужого эха / серверного снимка не атакуем «из прошлого».
+        s = stateRef.current;
+        if (s.active !== "you" || s.winner) break;
         const target = forwardAttackTarget(s, i);
         if (target == null) continue;
         const preview = attackFxPreview(s, i, target);
@@ -2593,6 +2642,11 @@ export function Battle({
         playResultSfx(before, s);
         if (networkRef.current) {
           networkRef.current.sendAction(action);
+          setPvpAwaiting(true);
+          // Ждём эхо сервера, иначе следующий удар с локального RNG/рук уезжает.
+          await sleep(450);
+          setPvpAwaiting(false);
+          s = stateRef.current;
         }
         setFx(null);
         await sleep(180);
@@ -2610,19 +2664,28 @@ export function Battle({
       sfxTurn();
 
       if (networkRef.current) {
+        // Полный endPlayerTurn как на сервере — не фейковый active:"enemy".
+        const before = stateRef.current;
+        let after: BattleState;
+        try {
+          after = applyPvpAction(before, { kind: "endTurn" });
+        } catch (e) {
+          console.error("[battle] PvP endTurn apply fail:", e);
+          onNeedSyncRef.current?.();
+          return;
+        }
+        if (after.winner) after = { ...after, winner: null };
+        stateRef.current = after;
+        setState(after);
+        setPhase(after.active === "you" ? "you" : "enemy");
+        playResultSfx(before, after);
         setPvpAwaiting(true);
-        setPhase("enemy");
-        setState((s) => {
-          const next = {
-            ...s,
-            active: "enemy" as const,
-            selectedHand: null,
-            selectedSlot: null,
-          };
-          stateRef.current = next;
-          return next;
-        });
-        networkRef.current.sendAction({ kind: "endTurn" });
+        try {
+          networkRef.current.sendAction({ kind: "endTurn" });
+        } catch (e) {
+          console.error("[battle] PvP endTurn send fail:", e);
+          onNeedSyncRef.current?.();
+        }
         await sleep(400);
         return;
       }

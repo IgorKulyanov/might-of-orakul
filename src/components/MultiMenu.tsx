@@ -63,6 +63,7 @@ type Props = {
     state: BattleState;
     youAre: PvpSeat;
     code: string;
+    seq?: number;
     turnEndsAt: number | null;
     yourTimeouts: number;
     foeTimeouts: number;
@@ -236,6 +237,7 @@ export function MultiMenu({
         state: msg.state,
         youAre: msg.youAre,
         code: msg.code,
+        seq: msg.seq,
         turnEndsAt: msg.turnEndsAt,
         yourTimeouts: msg.yourTimeouts,
         foeTimeouts: msg.foeTimeouts,

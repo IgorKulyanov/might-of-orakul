@@ -210,6 +210,10 @@ export type PvpServerMsg =
       needRoll?: boolean;
       youRolled?: boolean;
       foeRolled?: boolean;
+      /** Кто только что сходил (для FX/SFX наблюдателя). */
+      actedBy?: PvpSeat;
+      /** Действие в системе координат кастера (он = you). */
+      lastAction?: PvpAction;
       /** Дубль сигнала конца боя (если `ended` потерялся — клиент не зависает). */
       matchEnded?: boolean;
       youWon?: boolean;
