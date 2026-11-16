@@ -7104,6 +7104,7 @@ html.is-hand-dragging .oracle-folio {
 }
 
 .multi-search-orb {
+  position: relative;
   width: 72px;
   height: 72px;
   margin: 0.4rem auto 0.6rem;
@@ -7113,26 +7114,42 @@ html.is-hand-dragging .oracle-folio {
   box-shadow:
     0 0 28px rgba(80, 220, 150, 0.45),
     inset 0 0 18px rgba(255, 255, 255, 0.25);
-  animation: multi-orb 1.6s ease-in-out infinite;
+  animation: multi-orb-spin 1.1s linear infinite;
+  will-change: transform;
 }
 
 .multi-search-orb span {
   display: block;
+  box-sizing: border-box;
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  border: 2px solid rgba(220, 255, 230, 0.35);
+  border: 2px solid transparent;
+  border-top-color: rgba(240, 255, 245, 0.95);
+  border-right-color: rgba(220, 255, 230, 0.45);
 }
 
-@keyframes multi-orb {
+@keyframes multi-orb-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .multi-search-orb {
+    animation: multi-orb-pulse 1.2s ease-in-out infinite;
+  }
+}
+
+@keyframes multi-orb-pulse {
   0%,
   100% {
-    transform: scale(1);
     filter: brightness(1);
+    opacity: 0.85;
   }
   50% {
-    transform: scale(1.06);
-    filter: brightness(1.12);
+    filter: brightness(1.25);
+    opacity: 1;
   }
 }
 

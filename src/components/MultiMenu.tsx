@@ -4,6 +4,7 @@ import { getCard } from "../game/cards";
 import { PvpSocket } from "../game/pvpClient";
 import {
   PVP_MATCH_LEVEL_DELTA,
+  pvpQueueBand,
   type PvpSeat,
   type PvpServerMsg,
 } from "../game/pvpProtocol";
@@ -381,9 +382,18 @@ export function MultiMenu({
     setBusy(true);
     setMessage(null);
     startedRef.current = false;
+    // Сразу экран поиска — на телефоне иначе «тишина», пока сокет открывается.
+    const band = pvpQueueBand(playerLevel, 0);
+    setSearching({
+      levelMin: band.levelMin,
+      levelMax: band.levelMax,
+      delta: band.delta,
+      waiting: 0,
+    });
     try {
       if (!(await assertSession(token))) {
         setBusy(false);
+        setSearching(null);
         return;
       }
       const sock = await ensureSocket(token);
@@ -394,6 +404,7 @@ export function MultiMenu({
         name: displayName,
         level: playerLevel,
       });
+      setBusy(false);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Ошибка связи");
       setBusy(false);

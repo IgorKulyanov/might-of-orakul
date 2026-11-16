@@ -2,6 +2,14 @@ import type { BattleState } from "./types";
 
 export type PvpSeat = "host" | "guest";
 
+function flipSide(
+  side: "you" | "enemy" | undefined,
+): "you" | "enemy" | undefined {
+  if (side === "you") return "enemy";
+  if (side === "enemy") return "you";
+  return side;
+}
+
 /** Host-frame: host=you, guest=enemy. Flip so viewer is always you. */
 export function flipBattle(state: BattleState): BattleState {
   const next = structuredClone(state) as BattleState;
@@ -16,6 +24,11 @@ export function flipBattle(state: BattleState): BattleState {
   if (state.winner === "you") next.winner = "enemy";
   else if (state.winner === "enemy") next.winner = "you";
   else next.winner = null;
+  // Иначе у гостя чужие касты остаются casterSide:"you" → всё зелёным.
+  for (const sp of [...next.you.activeSpells, ...next.enemy.activeSpells]) {
+    sp.casterSide = flipSide(sp.casterSide);
+    sp.targetSide = flipSide(sp.targetSide);
+  }
   next.selectedHand = null;
   next.selectedSlot = null;
   return next;
