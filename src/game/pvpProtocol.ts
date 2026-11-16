@@ -91,7 +91,8 @@ export type PvpClientMsg =
   | { type: "ready" }
   | { type: "leave" }
   | { type: "roll_dice" }
-  | { type: "action"; action: PvpAction };
+  | { type: "action"; action: PvpAction }
+  | { type: "resync" };
 
 /** Лимит хода PvP (сек) и сколько авто-пропусков до поражения. */
 export const PVP_TURN_SEC = 60;
@@ -193,6 +194,8 @@ export type PvpServerMsg =
       youAre: PvpSeat;
       /** Уже отзеркалено под «ты = you». */
       state: BattleState;
+      /** Монотонный номер стола — клиент ловит пропуски. */
+      seq: number;
       yourTurn: boolean;
       /** Epoch ms — когда истечёт ход (серверный таймер). */
       turnEndsAt: number | null;
@@ -211,6 +214,14 @@ export type PvpServerMsg =
       matchEnded?: boolean;
       youWon?: boolean;
       endMessage?: string;
+    }
+  | {
+      /** Heartbeat + лёгкая сверка seq (CF/Telegram не рвут сокет). */
+      type: "tick";
+      code: string;
+      seq: number;
+      turnEndsAt: number | null;
+      yourTurn: boolean;
     }
   | { type: "error"; message: string }
   | { type: "peer_left"; message: string }

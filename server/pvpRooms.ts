@@ -55,6 +55,8 @@ type Room = {
   timeouts: { host: number; guest: number };
   /** Пропуски хода, пока игрок offline (reconnect). */
   offlineTimeouts: { host: number; guest: number };
+  /** Версия стола — клиент сверкает по tick/battle. */
+  battleSeq: number;
   endReason: PvpEndReason | null;
   openingDice: OpeningDice | null;
   diceRolls: { host: number | null; guest: number | null };
@@ -198,6 +200,7 @@ function pairIntoRoom(a: QueueEntry, b: QueueEntry): Room | null {
   room.battle = null;
   room.timeouts = { host: 0, guest: 0 };
   room.offlineTimeouts = { host: 0, guest: 0 };
+  room.battleSeq = 0;
   room.endReason = null;
   return room;
 }
@@ -334,6 +337,11 @@ function unlockOpeningIfDue(room: Room) {
   }
 }
 
+function bumpBattleSeq(room: Room) {
+  room.battleSeq = (room.battleSeq || 0) + 1;
+  return room.battleSeq;
+}
+
 function battlePayload(room: Room, seat: PvpSeat): PvpServerMsg {
   unlockOpeningIfDue(room);
   const battle = room.battle!;
@@ -361,6 +369,7 @@ function battlePayload(room: Room, seat: PvpSeat): PvpServerMsg {
     code: room.code,
     youAre: seat,
     state: viewForSeat(battle, seat),
+    seq: room.battleSeq || 0,
     yourTurn: isSeatTurn(battle, seat),
     turnEndsAt: matchEnded ? null : room.turnEndsAt,
     yourTimeouts,
@@ -409,6 +418,7 @@ function endMessage(
 
 function broadcastBattle(room: Room) {
   if (!room.battle) return;
+  bumpBattleSeq(room);
   const win = winnerSeat(room.battle);
   const reason = room.endReason ?? "combat";
   for (const seat of ["host", "guest"] as const) {
@@ -422,6 +432,24 @@ function broadcastBattle(room: Room) {
   }
   if (win) room.endedSent = true;
 }
+
+/** Анти-idle для CF/Telegram + сверка seq у клиентов. */
+setInterval(() => {
+  for (const room of rooms.values()) {
+    if (!room.battle || winnerSeat(room.battle)) continue;
+    for (const seat of ["host", "guest"] as const) {
+      const p = seat === "host" ? room.host : room.guest;
+      if (!p || !isWsOpen(p.ws)) continue;
+      send(p.ws, {
+        type: "tick",
+        code: room.code,
+        seq: room.battleSeq || 0,
+        turnEndsAt: room.turnEndsAt,
+        yourTurn: isSeatTurn(room.battle, seat),
+      });
+    }
+  }
+}, 10_000).unref?.();
 
 function scheduleTurnTimer(room: Room) {
   clearTurnTimer(room);
@@ -606,6 +634,7 @@ function tryStart(room: Room) {
     room.endedSent = false;
     room.timeouts = { host: 0, guest: 0 };
     room.offlineTimeouts = { host: 0, guest: 0 };
+    room.battleSeq = 0;
     room.endReason = null;
     room.openingLockedUntil = Date.now() + 120_000;
     room.turnEndsAt = null;
@@ -689,6 +718,7 @@ function getOrCreate(code: string): Room | null {
       turnTimer: null,
       timeouts: { host: 0, guest: 0 },
       offlineTimeouts: { host: 0, guest: 0 },
+      battleSeq: 0,
       endReason: null,
       openingDice: null,
       diceRolls: { host: null, guest: null },
@@ -1157,6 +1187,15 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
 
       if (msg.type === "leave") {
         leaveCurrentRoom("leave");
+        return;
+      }
+
+      if (msg.type === "resync") {
+        if (!room.battle) {
+          broadcastLobby(room);
+          return;
+        }
+        send(ws, battlePayload(room, seat));
         return;
       }
 

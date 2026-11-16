@@ -215,6 +215,14 @@ export class PvpSocket {
     this.send({ type: "action", action });
   }
 
+  resync() {
+    try {
+      this.send({ type: "resync" });
+    } catch {
+      /* ignore */
+    }
+  }
+
   get connected() {
     return this.ws?.readyState === WebSocket.OPEN;
   }

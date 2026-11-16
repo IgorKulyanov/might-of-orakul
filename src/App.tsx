@@ -585,6 +585,7 @@ export default function App() {
   const pvpRoomCodeRef = useRef("");
   const pvpReconnectBusyRef = useRef(false);
   const pvpReconnectTimerRef = useRef<number | null>(null);
+  const pvpBattleSeqRef = useRef(0);
   const pvpSettledRef = useRef(false);
   /** Сбежал из PvP — без наград (даже утешительных). */
   const pvpFledRef = useRef(false);
@@ -1110,11 +1111,27 @@ export default function App() {
   };
 
   const applyPvpServerMsg = (msg: PvpServerMsg) => {
+    if (msg.type === "tick") {
+      if (msg.code) pvpRoomCodeRef.current = msg.code;
+      if (msg.seq > pvpBattleSeqRef.current) {
+        pvpSocketRef.current?.resync();
+      } else {
+        setPvpClock((c) => ({
+          ...c,
+          turnEndsAt: msg.turnEndsAt,
+        }));
+      }
+      return;
+    }
     if (msg.type === "battle") {
       const finished = Boolean(msg.matchEnded) || Boolean(msg.state.winner);
       if (pvpSettledRef.current && !finished) return;
       if (finished) pvpSettledRef.current = true;
       if (msg.code) pvpRoomCodeRef.current = msg.code;
+      if (typeof msg.seq === "number" && msg.seq < pvpBattleSeqRef.current) {
+        return;
+      }
+      if (typeof msg.seq === "number") pvpBattleSeqRef.current = msg.seq;
       setPvpSeat(msg.youAre);
       setPvpState(msg.state);
       setPvpClock((c) => ({
@@ -1176,11 +1193,11 @@ export default function App() {
   const schedulePvpReconnect = () => {
     if (pvpSettledRef.current || screenRef.current !== "battle_pvp") return;
     if (pvpReconnectTimerRef.current != null) return;
-    // Не дёргаем reclaim на каждый мимолётный close — иначе ход «висит» у двоих.
+    // Быстрее reclaim — иначе соперник уже успел убить юнита, а стол старый.
     pvpReconnectTimerRef.current = window.setTimeout(() => {
       pvpReconnectTimerRef.current = null;
       void reconnectPvpBattle();
-    }, 1200);
+    }, 400);
   };
 
   const reconnectPvpBattle = async () => {
@@ -1658,6 +1675,10 @@ export default function App() {
               /* ignore */
             }
           },
+          onNeedSync: () => {
+            if (sock?.connected) sock.resync();
+            else schedulePvpReconnect();
+          },
           turnEndsAt: pvpClock.turnEndsAt,
           yourTimeouts: pvpClock.yourTimeouts,
           foeTimeouts: pvpClock.foeTimeouts,
@@ -1731,6 +1752,7 @@ export default function App() {
           pvpSettledRef.current = false;
           pvpReconnectBusyRef.current = false;
           pvpRoomCodeRef.current = code;
+          pvpBattleSeqRef.current = 0;
           pvpSocketRef.current = socket;
           setPvpMatchKey((n) => n + 1);
           setPvpSeat(youAre);
