@@ -1539,7 +1539,7 @@ function pickWeightedId(
  * Победа: N осколков из пула по уровню.
  * Микс: прокачка своих + прогресс к открытию новых (без «всегда одни и те же»).
  * Без повторов в одном дропе, пока пул позволяет.
- * Бот/тропа/арена: 3–4 · PvP: 3–5. Поражение — не вызывать.
+ * Бот/тропа/арена: 1–3 · PvP (живые): 2–4. Поражение — не вызывать.
  */
 export function rollBattleWinShards(
   owned: OwnedState,
@@ -1618,7 +1618,7 @@ export function rollBotWinShards(owned: OwnedState): {
   owned: OwnedState;
   gains: Array<{ cardId: string; amount: number; name: string }>;
 } {
-  return rollBattleWinShards(owned, { min: 3, max: 4 });
+  return rollBattleWinShards(owned, { min: 1, max: 3 });
 }
 
 /** Сумма маны в стоимости (для лога возврата). */

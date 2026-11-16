@@ -1034,12 +1034,12 @@ export function applyBattleResult(
   let shardLine: string | null = null;
   let shardGains: Array<{ cardId: string; amount: number; name: string }> =
     [];
-  // Осколки только за победу: бот/тропа/арена 3–4, PvP 3–5.
+  // Осколки только за победу: бот/тропа/арена 1–3, живые (PvP) 2–4.
   // Микс своих (кач) и новых (открытие) — не одни и те же каждый бой.
   if (won && mode !== "dev") {
     const drop = rollBattleWinShards(
       next,
-      pvp || mode === "pvp" ? { min: 3, max: 5 } : { min: 3, max: 4 },
+      pvp || mode === "pvp" ? { min: 2, max: 4 } : { min: 1, max: 3 },
     );
     next = drop.owned;
     shardGains = drop.gains;
