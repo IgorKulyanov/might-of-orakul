@@ -2988,13 +2988,11 @@ export function Battle({
                 }
               >
                 <CardView cardId={sp.cardId} compact flippable />
-                <span className="linger-turns">
-                  {active
-                    ? sp.turnsLeft == null
-                      ? "∞"
-                      : `${sp.turnsLeft}х`
-                    : "след"}
-                </span>
+                {active ? (
+                  <span className="linger-turns">
+                    {sp.turnsLeft == null ? "∞" : `${sp.turnsLeft}х`}
+                  </span>
+                ) : null}
               </div>
             );
           })
