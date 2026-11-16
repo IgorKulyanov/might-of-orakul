@@ -320,7 +320,7 @@ function softDisconnect(room: Room, seat: PvpSeat, ws: WebSocket) {
         "user=",
         cur.userId,
       );
-      broadcastBattle(room, "clearEcho");
+      broadcastBattle(room, "softLog");
       return;
     }
     if (!room.battle) broadcastLobby(room);
@@ -423,17 +423,21 @@ function endMessage(
 
 function broadcastBattle(
   room: Room,
-  meta?: { action?: PvpAction; actedBy?: PvpSeat } | "clearEcho",
+  meta?:
+    | { action?: PvpAction; actedBy?: PvpSeat }
+    | "clearEcho"
+    | "softLog",
 ) {
   if (!room.battle) return;
-  if (meta === "clearEcho") {
+  if (meta === "clearEcho" || meta === "softLog") {
     room.lastAction = null;
     room.lastActedBy = null;
-  } else if (meta?.action && meta.actedBy) {
+  } else if (meta && typeof meta === "object" && meta.action && meta.actedBy) {
     room.lastAction = meta.action;
     room.lastActedBy = meta.actedBy;
   }
-  bumpBattleSeq(room);
+  // softLog (обрыв связи) — без bump seq, иначе клиент ложно считает ack своего хода.
+  if (meta !== "softLog") bumpBattleSeq(room);
   const win = winnerSeat(room.battle);
   const reason = room.endReason ?? "combat";
   for (const seat of ["host", "guest"] as const) {

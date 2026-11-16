@@ -1116,6 +1116,7 @@ export default function App() {
     actedBy: PvpSeat;
     action: PvpAction;
   } | null>(null);
+  const [pvpSeq, setPvpSeq] = useState(0);
 
   const applyPvpServerMsg = (msg: PvpServerMsg) => {
     if (msg.type === "tick") {
@@ -1145,7 +1146,12 @@ export default function App() {
       if (typeof msg.seq === "number" && msg.seq < pvpBattleSeqRef.current) {
         return;
       }
-      if (typeof msg.seq === "number") pvpBattleSeqRef.current = msg.seq;
+      if (typeof msg.seq === "number") {
+        pvpBattleSeqRef.current = msg.seq;
+        setPvpSeq(msg.seq);
+      }
+      // Сразу, до paint — иначе tick между setState и рендером ловит stale turn.
+      pvpStateRef.current = msg.state;
       setPvpSeat(msg.youAre);
       setPvpState(msg.state);
       if (
@@ -1746,6 +1752,7 @@ export default function App() {
         enemyLevel={pvpState.enemy.level ?? 1}
         externalState={pvpState}
         pvpEcho={pvpEcho}
+        pvpSeq={pvpSeq}
         network={pvpNetwork}
         allowRematch={false}
         onExit={leavePvp}
@@ -1804,6 +1811,7 @@ export default function App() {
           pvpBattleSeqRef.current = typeof seq === "number" ? seq : 0;
           pvpSocketRef.current = socket;
           setPvpEcho(null);
+          setPvpSeq(typeof seq === "number" ? seq : 0);
           setPvpMatchKey((n) => n + 1);
           setPvpSeat(youAre);
           setPvpState(state);
