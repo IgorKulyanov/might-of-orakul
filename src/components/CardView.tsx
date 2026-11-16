@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useState,
   type KeyboardEvent,
   type MouseEvent,
@@ -59,6 +60,9 @@ type Props = {
   manaCostOverride?: ManaCost;
   /** Уровень прокачки карты (1…3) — бейдж на арте. */
   upgradeLevel?: 1 | 2 | 3 | null;
+  /** Сразу открыть описание (книга оракула и т.п.). */
+  autoOpenDesc?: boolean;
+  onDescClose?: () => void;
   onClick?: () => void;
 };
 
@@ -90,10 +94,15 @@ export function CardView({
   flippable = true,
   manaCostOverride,
   upgradeLevel = null,
+  autoOpenDesc = false,
+  onDescClose,
   onClick,
 }: Props) {
   const c = card ?? (cardId ? getCard(cardId) : null);
-  const [showDesc, setShowDesc] = useState(false);
+  const [showDesc, setShowDesc] = useState(autoOpenDesc);
+  useEffect(() => {
+    if (autoOpenDesc) setShowDesc(true);
+  }, [autoOpenDesc, c?.id]);
   if (!c) return null;
 
   const color = SCHOOL_COLOR[c.school];
@@ -216,7 +225,10 @@ export function CardView({
     setShowDesc(true);
   };
 
-  const closeDesc = () => setShowDesc(false);
+  const closeDesc = () => {
+    setShowDesc(false);
+    onDescClose?.();
+  };
 
   const onCardClick = () => {
     onClick?.();
@@ -242,6 +254,7 @@ export function CardView({
           board ? "board" : "",
           canAttack ? "can-attack" : "",
           interactive || flippable ? "clickable" : "",
+          autoOpenDesc ? "is-desc-host" : "",
         ]
           .filter(Boolean)
           .join(" ")}

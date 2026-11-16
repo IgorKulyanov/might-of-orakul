@@ -244,17 +244,21 @@ const SFX_PLAY_CARD_URL_LEGACY = `/sfx/${encodeURIComponent("карта.wav")}`;
 /** Звук атаки: public/sfx/атака.wav */
 export const SFX_ATTACK_URL = `/sfx/${encodeURIComponent("атака.wav")}`;
 
-/** Магический выстрел (маги / лич / инферно…): public/sfx/метнуть огонь.mp3 */
-export const SFX_MAGE_BOLT_URL = `/sfx/${encodeURIComponent("метнуть огонь.mp3")}`;
+/** Магический выстрел (ASCII — надёжнее на Pages, чем кириллица в URL). */
+export const SFX_MAGE_BOLT_URL = "/sfx/mage-bolt.mp3";
+const SFX_MAGE_BOLT_URL_LEGACY = `/sfx/${encodeURIComponent("метнуть огонь.mp3")}`;
 
-/** Выстрел из лука/арбалета: public/sfx/стрела.mp3 */
-export const SFX_ARROW_URL = `/sfx/${encodeURIComponent("стрела.mp3")}`;
+/** Выстрел из лука/арбалета. */
+export const SFX_ARROW_URL = "/sfx/arrow.mp3";
+const SFX_ARROW_URL_LEGACY = `/sfx/${encodeURIComponent("стрела.mp3")}`;
 
-/** Атакующее заклинание во врага: public/sfx/магия атакующая.mp3 */
-export const SFX_OFFENSIVE_SPELL_URL = `/sfx/${encodeURIComponent("магия атакующая.mp3")}`;
+/** Атакующее заклинание во врага. */
+export const SFX_OFFENSIVE_SPELL_URL = "/sfx/spell-attack.mp3";
+const SFX_OFFENSIVE_SPELL_URL_LEGACY = `/sfx/${encodeURIComponent("магия атакующая.mp3")}`;
 
-/** Положительная магия (хил, баф, мана, добор…): public/sfx/магия положительная.mp3 */
-export const SFX_POSITIVE_SPELL_URL = `/sfx/${encodeURIComponent("магия положительная.mp3")}`;
+/** Положительная магия (хил, баф, мана, добор…). */
+export const SFX_POSITIVE_SPELL_URL = "/sfx/spell-positive.mp3";
+const SFX_POSITIVE_SPELL_URL_LEGACY = `/sfx/${encodeURIComponent("магия положительная.mp3")}`;
 
 /** Крик банши (оглушение): public/sfx/банши.mp3 */
 export const SFX_BANSHEE_URL = `/sfx/${encodeURIComponent("банши.mp3")}`;
@@ -811,9 +815,11 @@ export function sfxAttack(): void {
   playSampleOrFallback(SFX_ATTACK_URL, 0.8, () => sfxMelee());
 }
 
-/** Магический выстрел: public/sfx/метнуть огонь.mp3 */
+/** Магический выстрел: public/sfx/mage-bolt.mp3 */
 export function sfxMageBolt(): void {
-  playSampleOrFallback(SFX_MAGE_BOLT_URL, 0.85, () => sfxFire());
+  playSampleOrFallback(SFX_MAGE_BOLT_URL, 0.85, () => {
+    playSampleOrFallback(SFX_MAGE_BOLT_URL_LEGACY, 0.85, () => sfxFire());
+  });
 }
 
 export function isMageBoltCard(cardId: string | undefined): boolean {
@@ -822,18 +828,24 @@ export function isMageBoltCard(cardId: string | undefined): boolean {
   return shot != null && shot !== "arrow";
 }
 
-/** Стрела / болт: public/sfx/стрела.mp3 */
+/** Стрела / болт: public/sfx/arrow.mp3 */
 export function sfxArrow(): void {
-  playSampleOrFallback(SFX_ARROW_URL, 0.85, () => sfxRanged());
+  playSampleOrFallback(SFX_ARROW_URL, 0.85, () => {
+    playSampleOrFallback(SFX_ARROW_URL_LEGACY, 0.85, () => sfxRanged());
+  });
 }
 
 export function isArrowCard(cardId: string | undefined): boolean {
   return isArrowShotCard(cardId);
 }
 
-/** Атакующая магия по врагу: public/sfx/магия атакующая.mp3 */
+/** Атакующая магия по врагу: public/sfx/spell-attack.mp3 */
 export function sfxOffensiveSpell(): void {
-  playSampleOrFallback(SFX_OFFENSIVE_SPELL_URL, 0.85, () => sfxSpellGeneric());
+  playSampleOrFallback(SFX_OFFENSIVE_SPELL_URL, 0.85, () => {
+    playSampleOrFallback(SFX_OFFENSIVE_SPELL_URL_LEGACY, 0.85, () =>
+      sfxSpellGeneric(),
+    );
+  });
 }
 
 export function isOffensiveSpellCard(cardId: string | undefined): boolean {
@@ -842,9 +854,11 @@ export function isOffensiveSpellCard(cardId: string | undefined): boolean {
   return effects.some((e) => OFFENSIVE_SPELL_EFFECTS.has(e.type));
 }
 
-/** Положительная магия: public/sfx/магия положительная.mp3 */
+/** Положительная магия: public/sfx/spell-positive.mp3 */
 export function sfxPositiveSpell(): void {
-  playSampleOrFallback(SFX_POSITIVE_SPELL_URL, 0.85, () => sfxHeal());
+  playSampleOrFallback(SFX_POSITIVE_SPELL_URL, 0.85, () => {
+    playSampleOrFallback(SFX_POSITIVE_SPELL_URL_LEGACY, 0.85, () => sfxHeal());
+  });
 }
 
 export function isPositiveSpellCard(cardId: string | undefined): boolean {

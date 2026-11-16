@@ -960,7 +960,7 @@ export function Battle({
     cardId: string;
     x: number;
     y: number;
-    magnet: { side: "you" | "enemy"; slot: number } | null;
+    magnet: { side: "you" | "enemy"; slot: number | "hero" } | null;
   } | null>(null);
   /** Счётчик: без него дроп не срабатывает, если карта уже была выбрана в начале драга */
   const [dropSeq, setDropSeq] = useState(0);
@@ -979,7 +979,7 @@ export function Battle({
   const handDragGhostRef = useRef<HTMLDivElement | null>(null);
   const dropAfterSelectRef = useRef<{
     side: "you" | "enemy";
-    slot: number;
+    slot: number | "hero";
   } | null>(null);
 
   const clearHandDragLock = () => {
@@ -990,7 +990,12 @@ export function Battle({
     x: number,
     y: number,
     cardId?: string,
-  ): { side: "you" | "enemy"; slot: number; cx: number; cy: number } | null => {
+  ): {
+    side: "you" | "enemy";
+    slot: number | "hero";
+    cx: number;
+    cy: number;
+  } | null => {
     const card = cardId ? getCard(cardId) : null;
     const live = stateRef.current;
     const allowSide = (side: string, slot: number) => {
@@ -1008,11 +1013,37 @@ export function Battle({
 
     let best: {
       side: "you" | "enemy";
-      slot: number;
+      slot: number | "hero";
       dist: number;
       cx: number;
       cy: number;
     } | null = null;
+
+    // Оракул/герой: приоритет, если палец прямо по портрету (магия «в лицо»)
+    if (card?.kind === "spell") {
+      for (const node of document.querySelectorAll("[data-hero-drop]")) {
+        const side = node.getAttribute("data-hero-drop");
+        if (side !== "you" && side !== "enemy") continue;
+        const r = (node as HTMLElement).getBoundingClientRect();
+        const inside =
+          x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        const dist = (cx - x) * (cx - x) + (cy - y) * (cy - y);
+        const radius = Math.max(64, Math.max(r.width, r.height) * 0.85);
+        if (!inside && dist > radius * radius) continue;
+        const score = inside ? dist * 0.15 : dist;
+        if (!best || score < best.dist) {
+          best = {
+            side,
+            slot: "hero",
+            dist: score,
+            cx,
+            cy,
+          };
+        }
+      }
+    }
 
     for (const node of document.querySelectorAll("[data-board-drop]")) {
       const raw = node.getAttribute("data-board-drop") || "";
@@ -2769,6 +2800,11 @@ export function Battle({
     const pending = dropAfterSelectRef.current;
     if (!pending || state.selectedHand == null || busy) return;
     dropAfterSelectRef.current = null;
+    if (pending.slot === "hero") {
+      if (pending.side === "enemy") onEnemyHero();
+      else onYourHero();
+      return;
+    }
     if (pending.side === "you") onYourSlot(pending.slot);
     else onEnemySlot(pending.slot);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3151,6 +3187,7 @@ export function Battle({
         <div className="oracle-bar enemy-oracle-bar" data-tut="enemy-oracle">
             <button
               type="button"
+              data-hero-drop="enemy"
             className={`oracle-block ${
               attackTargets.has("hero") ||
               (!busy && spellMode === "enemy_or_hero") ||
@@ -3164,6 +3201,11 @@ export function Battle({
                   : ""
             } ${enemyHeroHit || enemyHeroHeal ? "is-hit" : ""} ${
               heroImpact === "slash" && enemyHeroHit ? "is-slash-hit" : ""
+            } ${
+              handDrag?.magnet?.side === "enemy" &&
+              handDrag.magnet.slot === "hero"
+                ? "is-magnet"
+                : ""
             }`}
             onClick={onEnemyHero}
           >
@@ -3472,6 +3514,7 @@ export function Battle({
         <div className="oracle-bar you-oracle-bar" data-tut="you-oracle">
         <button
           type="button"
+          data-hero-drop="you"
             className={`oracle-block ${youHeroHit ? "is-hit" : ""} ${
               heroImpact === "slash" && youHeroHit && fx?.kind !== "heal"
                 ? "is-slash-hit"
@@ -3487,6 +3530,11 @@ export function Battle({
                 ? marionetteRanged || mageReady
                   ? "heal-target"
                   : "targetable"
+                : ""
+            } ${
+              handDrag?.magnet?.side === "you" &&
+              handDrag.magnet.slot === "hero"
+                ? "is-magnet"
                 : ""
             }`}
             onClick={onYourHero}

@@ -1080,6 +1080,36 @@ button {
   color: #ffe9a0;
 }
 
+.card.is-desc-host {
+  position: fixed !important;
+  left: -9999px !important;
+  top: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+}
+
+.oracle-book-frame-stage .oracle-book-flip-btn {
+  position: absolute !important;
+  right: 4% !important;
+  bottom: 5% !important;
+  z-index: 80 !important;
+  width: 1.55rem !important;
+  height: 1.55rem !important;
+  font-size: 0.95rem !important;
+  pointer-events: auto !important;
+}
+
+.oracle-book-abs-slot.is-mobile-hero .oracle-book-flip-btn {
+  width: 1.85rem !important;
+  height: 1.85rem !important;
+  font-size: 1.1rem !important;
+  right: 6% !important;
+  bottom: 7% !important;
+}
+
 .flip-btn {
   position: absolute;
   z-index: 8;

@@ -140,6 +140,7 @@ export function Cabinet({
     y: number;
   } | null>(null);
   const [dragOver, setDragOver] = useState<"deck" | "case" | null>(null);
+  const [bookInspectId, setBookInspectId] = useState<string | null>(null);
 
   useEffect(() => {
     if (forcedTab) setTab(forcedTab);
@@ -620,6 +621,22 @@ export function Cabinet({
               alt=""
               draggable={false}
             />
+            {!calibrating ? (
+              <button
+                type="button"
+                className="flip-btn oracle-book-flip-btn"
+                title="Изучить свойства"
+                aria-label={`Описание: ${card.name}`}
+                draggable={false}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setBookInspectId(card.id);
+                }}
+              >
+                ↻
+              </button>
+            ) : null}
           </div>
         </div>
         {mobileHero ? null : (
@@ -1122,6 +1139,21 @@ export function Cabinet({
             }
           />
         </div>
+      ) : null}
+
+      {bookInspectId ? (
+        <CardView
+          key={`inspect-${bookInspectId}`}
+          cardId={bookInspectId}
+          flippable={false}
+          autoOpenDesc
+          onDescClose={() => setBookInspectId(null)}
+          upgradeLevel={
+            isUpgradeableCard(bookInspectId)
+              ? getCardUpgradeLevel(owned, bookInspectId)
+              : null
+          }
+        />
       ) : null}
     </div>
   );

@@ -95,7 +95,7 @@ const PATTERN_FALLBACK: Record<
   melee_lane3: { icon: "🗡️", title: "Бьёт напротив, слева или справа" },
   ranged: { icon: "✨", title: "Дальний выстрел (не лук)" },
   cleave3: { icon: "🔱", title: "Бьёт цель и соседей" },
-  lane_cleave3: { icon: "🐕", title: "Бьёт сразу троих напротив" },
+  lane_cleave3: { icon: "↖↑↗", title: "Бьёт сразу троих напротив (три направления)" },
   aoe_all: { icon: "🌊", title: "Бьёт всех вражеских существ" },
 };
 

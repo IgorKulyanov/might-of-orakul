@@ -143,7 +143,7 @@ export const PATTERN_LABEL: Record<string, string> = {
   melee_lane3: "⚔ 1 из 3",
   ranged: "🏹 любая",
   cleave3: "🔱 ×3",
-  lane_cleave3: "🔱 ряд",
+  lane_cleave3: "↖↑↗ ряд",
   aoe_all: "🌊 всем",
 };
 
