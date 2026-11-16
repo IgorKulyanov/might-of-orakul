@@ -468,7 +468,7 @@ setInterval(() => {
       });
     }
   }
-}, 10_000).unref?.();
+}, 2_000).unref?.();
 
 function scheduleTurnTimer(room: Room) {
   clearTurnTimer(room);

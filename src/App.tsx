@@ -1213,6 +1213,10 @@ export default function App() {
       });
     }
     if (msg.type === "peer_left" || msg.type === "error") {
+      // Разблокируем ожидание хода и тянем стол заново.
+      if (msg.type === "error") {
+        pvpSocketRef.current?.resync();
+      }
       setPvpState((s) =>
         s
           ? {
