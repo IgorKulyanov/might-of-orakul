@@ -633,7 +633,7 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
   },
   slow_foe: {
     ...SPELL_STAT_ZERO,
-    spellNums: { amount: [1, 2, 3] },
+    spellNums: { amount: [3, 3, 3], turns: [1, 2, 3] },
   },
   mind_grab: {
     ...SPELL_STAT_ZERO,

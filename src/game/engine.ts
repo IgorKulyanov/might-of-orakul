@@ -367,10 +367,10 @@ function syncBoardAuras(p: PlayerState, log: string[]): void {
 }
 
 /**
- * Конец хода: ATK к базе (затем снова вешаем «slow»).
+ * Конец хода: ATK к базе (затем снова вешаем все слои «slow»).
  * HP больше не откатываем — раны остаются до хила / смерти / конца боя.
- * Замедление само по себе здесь НЕ снимаем — иначе «Замедлить врага»
- * сгорает до хода жертвы. Срок: expireSlow у владельца после его хода.
+ * Замедление здесь НЕ тикаем — иначе сгорает до хода жертвы.
+ * Срок слоёв: expireSlow у владельца после его хода (−1 ход / слой).
  */
 function restoreSurvivors(p: PlayerState): void {
   for (let i = 0; i < p.slots.length; i++) {
@@ -394,17 +394,20 @@ function restoreSurvivors(p: PlayerState): void {
   }
 }
 
-/** Снять замедление после хода владельца (он уже успел/не успел бить ослабленным). */
+/**
+ * После хода владельца: у каждого слоя slow −1 ход; слой с 0 — сгорает.
+ * Несколько кастов = отдельные слои (сумма ATK, пока оба живы).
+ * Снимающая магия (filter type===slow) убирает все слои разом.
+ */
 function expireSlow(p: PlayerState): void {
   for (const s of p.slots) {
     if (!s) continue;
     if (!s.statuses.some((st) => st.type === "slow")) continue;
-    s.statuses = s.statuses.filter((st) => st.type !== "slow");
-    if (s.noRestore || s.statuses.some((st) => st.type === "last_gasp")) {
-      continue;
-    }
-    const base = effectiveBase(s);
-    s.attack = base.atk;
+    s.statuses = s.statuses.flatMap((st) => {
+      if (st.type !== "slow") return [st];
+      const left = (st.turns ?? 1) - 1;
+      return left > 0 ? [{ ...st, turns: left }] : [];
+    });
   }
 }
 
@@ -2085,10 +2088,14 @@ function applySpellEffects(
           );
           break;
         }
+        const turns = Math.max(1, eff.turns ?? 1);
         u.attack = Math.max(0, u.attack - eff.amount);
-        u.statuses.push({ type: "slow", amount: eff.amount });
+        // Новый слой со своим сроком — не сливаем со старыми
+        u.statuses.push({ type: "slow", amount: eff.amount, turns });
         log.unshift(
-          `${caster.name}: ${getCard(u.cardId).name}: −${eff.amount} атаки до конца его хода`,
+          `${caster.name}: ${getCard(u.cardId).name}: −${eff.amount} атаки на ${turns} ход` +
+            (turns > 1 ? "а" : "") +
+            ` (слой)`,
         );
         break;
       }
@@ -5040,7 +5047,9 @@ function aiScoreSpell(
         if (cands.length === 0) score -= 25;
         else {
           target = cands[0]!.i;
-          score += 6 + Math.min(eff.amount, cands[0]!.s.attack) * 3;
+          const turns = Math.max(1, eff.turns ?? 1);
+          score +=
+            6 + Math.min(eff.amount, cands[0]!.s.attack) * 3 + (turns - 1) * 4;
         }
         break;
       }

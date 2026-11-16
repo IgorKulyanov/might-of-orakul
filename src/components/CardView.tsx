@@ -190,17 +190,29 @@ export function CardView({
       tone: "bad",
     });
   }
-  const slowAmt = statuses
-    .filter((s) => s.type === "slow")
-    .reduce((sum, s) => sum + s.amount, 0);
+  const slowLayers = statuses.filter((s) => s.type === "slow");
+  const slowAmt = slowLayers.reduce((sum, s) => sum + s.amount, 0);
   const atkLost = Math.max(0, fullAtk - atk);
   if (slowAmt > 0 || atkLost > 0) {
     const n = slowAmt || atkLost;
+    const maxTurns = slowLayers.reduce(
+      (m, s) => Math.max(m, s.turns ?? 1),
+      0,
+    );
+    const layers = slowLayers.length;
     marks.push({
       key: "slow",
       icon: "🧊",
-      label: `−${n} атк`,
-      title: `Замедление: −${n} атаки до конца хода`,
+      label:
+        layers > 1
+          ? `−${n}×${layers}`
+          : maxTurns > 1
+            ? `−${n}/${maxTurns}х`
+            : `−${n} атк`,
+      title:
+        layers > 1
+          ? `Замедление: ${layers} слоя, суммарно −${n} атаки (макс. ${maxTurns} х.)`
+          : `Замедление: −${n} атаки ещё ${maxTurns || 1} ход.`,
       tone: "warn",
     });
   }

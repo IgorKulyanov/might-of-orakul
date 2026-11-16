@@ -1430,16 +1430,16 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
     foe.baseAttack = 5;
     s.enemy.slots[0] = foe;
     s = playCard(s, 0, 0);
-    if ((s.enemy.slots[0]?.attack ?? 99) !== 3) {
-      return `сразу ATK ${s.enemy.slots[0]?.attack}, ждали 3`;
+    // L1: −3 на 1 ход
+    if ((s.enemy.slots[0]?.attack ?? 99) !== 2) {
+      return `сразу ATK ${s.enemy.slots[0]?.attack}, ждали 2`;
     }
     s = endPlayerTurn(s);
-    // Ход врага: замедление ещё висит, иначе спелл бесполезен
     if (!s.enemy.slots[0]?.statuses.some((st) => st.type === "slow")) {
       return "slow слетел до хода врага";
     }
-    if ((s.enemy.slots[0]?.attack ?? 99) !== 3) {
-      return `на ходе врага ATK ${s.enemy.slots[0]?.attack}, ждали 3`;
+    if ((s.enemy.slots[0]?.attack ?? 99) !== 2) {
+      return `на ходе врага ATK ${s.enemy.slots[0]?.attack}, ждали 2`;
     }
     s = endEnemyTurn(s);
     if (s.enemy.slots[0]?.statuses.some((st) => st.type === "slow")) {
@@ -1448,6 +1448,68 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
     if ((s.enemy.slots[0]?.attack ?? 0) !== 5) {
       return `после хода врага ATK ${s.enemy.slots[0]?.attack}, ждали 5`;
     }
+    return null;
+  });
+
+  assert("slow_foe L3 lasts 3 enemy turns", () => {
+    let s = boardForCreatures();
+    s.you.mana = { water: 9, hell: 9, death: 9, life: 9, nature: 9 };
+    s.youCardUpgrades = { slow_foe: 3 };
+    s.you.hand = ["slow_foe"];
+    const foe = arm(dummy("zombie", "zbSlow3", 6));
+    foe.attack = 6;
+    foe.baseAttack = 6;
+    s.enemy.slots[0] = foe;
+    s = playCard(s, 0, 0);
+    if ((s.enemy.slots[0]?.attack ?? 99) !== 3) {
+      return `сразу ATK ${s.enemy.slots[0]?.attack}, ждали 3`;
+    }
+    const layer = s.enemy.slots[0]?.statuses.find((st) => st.type === "slow");
+    if ((layer?.turns ?? 0) !== 3) return `turns=${layer?.turns}, ждали 3`;
+    for (let i = 0; i < 2; i++) {
+      s = endPlayerTurn(s);
+      s = endEnemyTurn(s);
+      if (!s.enemy.slots[0]?.statuses.some((st) => st.type === "slow")) {
+        return `слой слетел после ${i + 1}-го хода врага`;
+      }
+      if ((s.enemy.slots[0]?.attack ?? 99) !== 3) {
+        return `после ${i + 1} хода ATK ${s.enemy.slots[0]?.attack}`;
+      }
+    }
+    s = endPlayerTurn(s);
+    s = endEnemyTurn(s);
+    if (s.enemy.slots[0]?.statuses.some((st) => st.type === "slow")) {
+      return "слой не сгорел после 3-го хода врага";
+    }
+    if ((s.enemy.slots[0]?.attack ?? 0) !== 6) {
+      return `после 3 ходов ATK ${s.enemy.slots[0]?.attack}, ждали 6`;
+    }
+    return null;
+  });
+
+  assert("slow_foe stacks as independent layers", () => {
+    let s = boardForCreatures();
+    s.you.mana = { water: 9, hell: 9, death: 9, life: 9, nature: 9 };
+    s.youCardUpgrades = { slow_foe: 2 };
+    s.you.hand = ["slow_foe", "slow_foe"];
+    const foe = arm(dummy("zombie", "zbStack", 8));
+    foe.attack = 8;
+    foe.baseAttack = 8;
+    s.enemy.slots[0] = foe;
+    s = playCard(s, 0, 0); // L2: −3 / 2 хода
+    s = playCard(s, 0, 0); // второй слой −3 / 2 хода
+    const layers = s.enemy.slots[0]?.statuses.filter((st) => st.type === "slow") ?? [];
+    if (layers.length !== 2) return `слоёв ${layers.length}, ждали 2`;
+    if ((s.enemy.slots[0]?.attack ?? 99) !== 2) {
+      return `сумма ATK ${s.enemy.slots[0]?.attack}, ждали 2`;
+    }
+    // Снятие всех слоёв разом (контракт «снимающей магии»)
+    const u = s.enemy.slots[0]!;
+    u.statuses = u.statuses.filter((st) => st.type !== "slow");
+    const base = 8;
+    u.attack = base;
+    if (u.statuses.some((st) => st.type === "slow")) return "слои не снялись";
+    if (u.attack !== 8) return "ATK не восстановился после снятия";
     return null;
   });
 

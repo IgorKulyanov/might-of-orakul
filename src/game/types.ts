@@ -42,7 +42,7 @@ export type SpellEffect =
   | { type: "poison"; amount: number }
   | { type: "damage_unit"; amount: number }
   | { type: "gain_mana"; faction?: Faction; amount: number }
-  | { type: "slow_enemy"; amount: number }
+  | { type: "slow_enemy"; amount: number; turns?: number }
   | { type: "shield_ally"; turns: number }
   /** Оба войска не атакуют до конца хода соперника. */
   | { type: "skip_combat" }
@@ -268,7 +268,7 @@ export type StatusEffect = {
   amount: number;
   /** Яд без эскалации (паук): каждый ход фиксированный −amount. */
   steady?: boolean;
-  /** Горение / временный яд: сколько ходов ещё тикает (урон = amount). */
+  /** Горение / яд / slow: сколько ходов владельца ещё тикает. */
   turns?: number;
   /** Скорпикора ур.3: яд растёт на +2 вместо +1. */
   fast?: boolean;

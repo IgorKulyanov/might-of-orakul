@@ -1146,14 +1146,15 @@
       "manaCost": {
         "nature": 2
       },
-      "text": "Враг −2 атаки до конца своего хода (бьёт ослабленным).",
+      "text": "Враг −3 атаки на 1 ход (слои стакаются; снятие убирает все).",
       "rarity": "common",
       "premium": false,
       "art": "заклинания/замедлить врага.jpg",
       "spellEffects": [
         {
           "type": "slow_enemy",
-          "amount": 2
+          "amount": 3,
+          "turns": 1
         }
       ],
       "priceGold": 43,
