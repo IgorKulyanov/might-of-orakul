@@ -686,6 +686,13 @@ export function MultiMenu({
 
         {busyHint && <p className="multi-busy-hint">{busyHint}</p>}
         {message && <p className="auth-error">{message}</p>}
+        <p
+          className="hint"
+          style={{ marginTop: 16, opacity: 0.55, fontSize: "0.75rem" }}
+          title="Если другой код — у тебя старый кэш. Ctrl+F5"
+        >
+          билд {typeof __ORAKUL_BUILD__ === "string" ? __ORAKUL_BUILD__ : "?"}
+        </p>
       </div>
     </div>
   );

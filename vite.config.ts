@@ -1,9 +1,21 @@
-import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { execSync } from "node:child_process";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+
+function gitShort(): string {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8" }).trim();
+  } catch {
+    return "dev";
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __ORAKUL_BUILD__: JSON.stringify(gitShort()),
+  },
   // Не подхватывать postcss родителя (mesh-chat).
   css: {
     postcss: {
@@ -28,4 +40,4 @@ export default defineConfig({
       },
     },
   },
-})
+});
