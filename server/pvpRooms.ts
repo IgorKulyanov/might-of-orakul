@@ -7,11 +7,12 @@ import {
   applySeatAction,
   forceWin,
   isSeatTurn,
-  PVP_MATCH_LEVEL_DELTA,
   PVP_MAX_TIMEOUTS,
   PVP_OPENING_MS,
   PVP_TURN_SEC,
   pvpOpeningView,
+  pvpQueueBand,
+  pvpQueueDelta,
   startPvpBattle,
   viewForSeat,
   winnerSeat,
@@ -82,7 +83,7 @@ function makeSeat(
 
 type QueueEntry = SeatPlayer & { queuedAt: number };
 
-/** Очередь автопоиска живых соперников (±PVP_MATCH_LEVEL_DELTA). */
+/** Очередь автопоиска: сначала ±5, потом расширение по времени. */
 const matchQueue: QueueEntry[] = [];
 
 function randomMatchCode() {
@@ -118,6 +119,8 @@ function pruneQueue() {
 
 function findMatchFor(entry: QueueEntry): QueueEntry | null {
   pruneQueue();
+  const now = Date.now();
+  const entryDelta = pvpQueueDelta(now - entry.queuedAt);
   let best: QueueEntry | null = null;
   let bestScore = Infinity;
   for (const other of matchQueue) {
@@ -125,15 +128,30 @@ function findMatchFor(entry: QueueEntry): QueueEntry | null {
     if (other.userId === entry.userId) continue;
     if (!isWsOpen(other.ws)) continue;
     const diff = Math.abs(other.level - entry.level);
-    if (diff > PVP_MATCH_LEVEL_DELTA) continue;
+    // Матч, если разницу покрывает хотя бы один (max delta) — не запираем узкой полосой.
+    const otherDelta = pvpQueueDelta(now - other.queuedAt);
+    const allowed = Math.max(entryDelta, otherDelta);
+    if (diff > allowed) continue;
     // Ближе по уровню важнее; при равенстве — кто дольше ждёт
-    const score = diff * 1000 - (Date.now() - other.queuedAt) / 1000;
+    const score = diff * 1000 - (now - other.queuedAt) / 1000;
     if (score < bestScore) {
       bestScore = score;
       best = other;
     }
   }
   return best;
+}
+
+function sendQueueStatus(entry: QueueEntry) {
+  const waitMs = Date.now() - entry.queuedAt;
+  const band = pvpQueueBand(entry.level, waitMs);
+  send(entry.ws, {
+    type: "queue_update",
+    levelMin: band.levelMin,
+    levelMax: band.levelMax,
+    delta: band.delta,
+    waiting: Math.floor(waitMs / 1000),
+  });
 }
 
 function pairIntoRoom(a: QueueEntry, b: QueueEntry): Room | null {
@@ -200,6 +218,10 @@ setInterval(() => {
   // Повторные попытки на случай, если второй зашёл раньше и ждёт
   for (const entry of [...matchQueue]) {
     if (tryMatchQueue(entry)) break;
+  }
+  // Обновить полосу уровней у оставшихся в очереди (расширение)
+  for (const entry of matchQueue) {
+    if (isWsOpen(entry.ws)) sendQueueStatus(entry);
   }
 }, 2000).unref?.();
 
@@ -836,12 +858,13 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           queuedAt: Date.now(),
         };
         matchQueue.push(entry);
-        const delta = PVP_MATCH_LEVEL_DELTA;
+        const band = pvpQueueBand(level, 0);
         send(ws, {
           type: "queued",
-          levelMin: Math.max(1, level - delta),
-          levelMax: Math.min(50, level + delta),
-          delta,
+          levelMin: band.levelMin,
+          levelMax: band.levelMax,
+          delta: band.delta,
+          waiting: 0,
         });
         tryMatchQueue(entry);
         return;

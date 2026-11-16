@@ -34,8 +34,37 @@ import {
 export type { PvpSeat };
 export { flipBattle, isSeatTurn, viewForSeat };
 
-/** Разница уровней для автопоиска живого соперника. */
+/** Стартовая разница уровней для автопоиска живого соперника. */
 export const PVP_MATCH_LEVEL_DELTA = 5;
+
+/** Пороги расширения очереди (мс ожидания → допустимый |Δlevel|). */
+export const PVP_QUEUE_WIDEN: ReadonlyArray<{ afterMs: number; delta: number }> =
+  [
+    { afterMs: 0, delta: 5 },
+    { afterMs: 15_000, delta: 10 },
+    { afterMs: 30_000, delta: 20 },
+    { afterMs: 60_000, delta: 49 },
+  ];
+
+/** Текущий delta по времени в очереди (слепой матч расширяется). */
+export function pvpQueueDelta(waitMs: number): number {
+  const w = Math.max(0, waitMs);
+  let delta = PVP_MATCH_LEVEL_DELTA;
+  for (const step of PVP_QUEUE_WIDEN) {
+    if (w >= step.afterMs) delta = step.delta;
+  }
+  return delta;
+}
+
+export function pvpQueueBand(level: number, waitMs: number) {
+  const delta = pvpQueueDelta(waitMs);
+  const lv = Math.max(1, Math.min(50, Math.floor(level) || 1));
+  return {
+    delta,
+    levelMin: Math.max(1, lv - delta),
+    levelMax: Math.min(50, lv + delta),
+  };
+}
 
 /** Клиент → сервер */
 export type PvpClientMsg =
@@ -184,11 +213,20 @@ export type PvpServerMsg =
   | { type: "error"; message: string }
   | { type: "peer_left"; message: string }
   | {
-      /** В очереди поиска: ищем соперника ±PVP_MATCH_LEVEL_DELTA уровней. */
+      /** В очереди поиска: старт ±PVP_MATCH_LEVEL_DELTA, потом расширение. */
       type: "queued";
       levelMin: number;
       levelMax: number;
       delta: number;
+      waiting?: number;
+    }
+  | {
+      /** Периодическое обновление полосы уровней / ожидания. */
+      type: "queue_update";
+      levelMin: number;
+      levelMax: number;
+      delta: number;
+      waiting: number;
     }
   | { type: "queue_cancelled" }
   | {

@@ -96,6 +96,8 @@ export function MultiMenu({
   const [searching, setSearching] = useState<{
     levelMin: number;
     levelMax: number;
+    delta: number;
+    waiting: number;
   } | null>(null);
   const [lobby, setLobby] = useState<{
     code: string;
@@ -151,11 +153,29 @@ export function MultiMenu({
     }
     if (msg.type === "queued") {
       clearLobbyWait();
-      setSearching({ levelMin: msg.levelMin, levelMax: msg.levelMax });
+      setSearching({
+        levelMin: msg.levelMin,
+        levelMax: msg.levelMax,
+        delta: msg.delta,
+        waiting: msg.waiting ?? 0,
+      });
       setBusy(false);
       setBusyHint(null);
       setMessage(null);
       setLobby(null);
+      return;
+    }
+    if (msg.type === "queue_update") {
+      setSearching((prev) =>
+        prev
+          ? {
+              levelMin: msg.levelMin,
+              levelMax: msg.levelMax,
+              delta: msg.delta,
+              waiting: msg.waiting,
+            }
+          : prev,
+      );
       return;
     }
     if (msg.type === "queue_cancelled") {
@@ -622,9 +642,13 @@ export function MultiMenu({
             Уровни{" "}
             <strong>
               {searching.levelMin}–{searching.levelMax}
-            </strong>{" "}
-            (±{PVP_MATCH_LEVEL_DELTA} к твоему {playerLevel}). Как только
-            найдётся — бой начнётся сам.
+            </strong>
+            {searching.delta >= 49
+              ? " (любой, кто в поиске)"
+              : ` (±${searching.delta} к твоему ${playerLevel})`}
+            . Сначала ближе по силе, потом диапазон сам расширяется. Как
+            только найдётся — бой начнётся сам
+            {searching.waiting > 0 ? ` · ${searching.waiting} с` : ""}.
           </p>
           <div className="multi-search-orb" aria-hidden>
             <span />
@@ -652,8 +676,9 @@ export function MultiMenu({
 
       <div className="multi-panel">
         <p className="hint">
-          Главное — дуэль с живым игроком рядом по силе (ур. {levelLo}–
-          {levelHi}). Бот и комнаты по коду — запасные пути.
+          Главное — дуэль с живым игроком. Сначала ищем рядом по силе (ур.{" "}
+          {levelLo}–{levelHi}), если пусто — диапазон расширяется до любого в
+          поиске. Бот и комнаты по коду — запасные пути.
         </p>
 
         <button
@@ -665,7 +690,7 @@ export function MultiMenu({
           <span className="cta-live-kicker">Онлайн</span>
           <span className="cta-live-title">Найти соперника</span>
           <span className="cta-live-sub">
-            ±{PVP_MATCH_LEVEL_DELTA} ур. · равный бой
+            слепой матч · сначала ±{PVP_MATCH_LEVEL_DELTA}
           </span>
         </button>
 
