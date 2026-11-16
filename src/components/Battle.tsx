@@ -3160,7 +3160,7 @@ export function Battle({
         </aside>
       </div>
 
-      <div className="board" ref={boardRef}>
+      <div className="board-shell" ref={boardRef}>
         {missileClass && missileKind && fx ? (
           <div className="battle-fx-layer" aria-hidden>
             {fx.kind === "spell" &&
@@ -3253,6 +3253,7 @@ export function Battle({
           </button>
                   </div>
 
+      <div className="board">
         {state.you.revealEnemyHandTurns > 0 ? (
           <div className="enemy-hand-reveal" aria-label="Рука врага">
             <div className="enemy-hand-reveal-label">
@@ -3521,6 +3522,7 @@ export function Battle({
               {renderLinger(state.you.activeSpells, "you")}
             </div>
         </div>
+      </div>
       </div>
 
         <div className="oracle-bar you-oracle-bar" data-tut="you-oracle">
