@@ -45,7 +45,6 @@ export class PvpSocket {
   private onDrop: (() => void) | null = null;
   private closedByUser = false;
   private token: string | null = null;
-  private pingTimer: number | null = null;
 
   setHandler(onMessage: (m: PvpServerMsg) => void) {
     this.onMsg = onMessage;
@@ -125,7 +124,6 @@ export class PvpSocket {
           if (!settled && msg.type === "hello") {
             settled = true;
             window.clearTimeout(timer);
-            this.startPing();
             resolve();
             return;
           }
@@ -135,10 +133,7 @@ export class PvpSocket {
         }
       };
       ws.onclose = () => {
-        if (this.ws === ws) {
-          this.ws = null;
-          this.stopPing();
-        }
+        if (this.ws === ws) this.ws = null;
         if (!settled) {
           settled = true;
           window.clearTimeout(timer);
@@ -189,29 +184,9 @@ export class PvpSocket {
    * @param silent — только закрыть сокет (reconnect в лобби).
    * Иначе серверу уходит leave и комната снимается.
    */
-  private stopPing() {
-    if (this.pingTimer != null) {
-      window.clearInterval(this.pingTimer);
-      this.pingTimer = null;
-    }
-  }
-
-  private startPing() {
-    this.stopPing();
-    // Telegram/CF режут тихие WS — пинг каждые 12с.
-    this.pingTimer = window.setInterval(() => {
-      try {
-        this.send({ type: "ping" });
-      } catch {
-        /* ignore */
-      }
-    }, 12_000);
-  }
-
   leave(opts?: { silent?: boolean }) {
     this.closedByUser = true;
     this.onDrop = null;
-    this.stopPing();
     if (!opts?.silent) {
       try {
         this.send({ type: "cancel_queue" });

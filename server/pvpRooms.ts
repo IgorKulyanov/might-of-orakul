@@ -57,9 +57,6 @@ type Room = {
   offlineTimeouts: { host: number; guest: number };
   /** Версия стола — клиент сверкает по tick/battle. */
   battleSeq: number;
-  /** Последний принятый ход — для FX/SFX у наблюдателя. */
-  lastAction: PvpAction | null;
-  lastActedBy: PvpSeat | null;
   endReason: PvpEndReason | null;
   openingDice: OpeningDice | null;
   diceRolls: { host: number | null; guest: number | null };
@@ -76,8 +73,8 @@ const MAX_MSG_BYTES = 120_000;
 const ROOM_TTL_MS = 2 * 60 * 60 * 1000;
 /** Сколько держим место в лобби после обрыва (Telegram / сворачивание). */
 const LOBBY_RECONNECT_MS = 5 * 60 * 1000;
-/** Не помечаем offline сразу — Telegram/CF часто рвут WS на несколько секунд. */
-const SOFT_DISCONNECT_GRACE_MS = 9000;
+/** Не помечаем offline сразу — Telegram/CF часто рвут WS на долю секунды. */
+const SOFT_DISCONNECT_GRACE_MS = 2800;
 const TURN_MS = PVP_TURN_SEC * 1000;
 
 function makeSeat(
@@ -320,7 +317,7 @@ function softDisconnect(room: Room, seat: PvpSeat, ws: WebSocket) {
         "user=",
         cur.userId,
       );
-      broadcastBattle(room, "softLog");
+      broadcastBattle(room);
       return;
     }
     if (!room.battle) broadcastLobby(room);
@@ -367,7 +364,6 @@ function battlePayload(room: Room, seat: PvpSeat): PvpServerMsg {
         { type: "ended" }
       >)
     : null;
-  const foe = seat === "host" ? room.guest : room.host;
   return {
     type: "battle",
     code: room.code,
@@ -385,9 +381,6 @@ function battlePayload(room: Room, seat: PvpSeat): PvpServerMsg {
     needRoll: opening.needRoll,
     youRolled: opening.youRolled,
     foeRolled: opening.foeRolled,
-    actedBy: room.lastActedBy ?? undefined,
-    lastAction: room.lastAction ?? undefined,
-    foeOnline: seatOnline(foe),
     matchEnded: matchEnded || undefined,
     youWon: endMsg ? endMsg.youWon : undefined,
     endMessage: endMsg?.message,
@@ -423,23 +416,9 @@ function endMessage(
   };
 }
 
-function broadcastBattle(
-  room: Room,
-  meta?:
-    | { action?: PvpAction; actedBy?: PvpSeat }
-    | "clearEcho"
-    | "softLog",
-) {
+function broadcastBattle(room: Room) {
   if (!room.battle) return;
-  if (meta === "clearEcho" || meta === "softLog") {
-    room.lastAction = null;
-    room.lastActedBy = null;
-  } else if (meta && typeof meta === "object" && meta.action && meta.actedBy) {
-    room.lastAction = meta.action;
-    room.lastActedBy = meta.actedBy;
-  }
-  // softLog (обрыв связи) — без bump seq, иначе клиент ложно считает ack своего хода.
-  if (meta !== "softLog") bumpBattleSeq(room);
+  bumpBattleSeq(room);
   const win = winnerSeat(room.battle);
   const reason = room.endReason ?? "combat";
   for (const seat of ["host", "guest"] as const) {
@@ -461,18 +440,16 @@ setInterval(() => {
     for (const seat of ["host", "guest"] as const) {
       const p = seat === "host" ? room.host : room.guest;
       if (!p || !isWsOpen(p.ws)) continue;
-      const foe = seat === "host" ? room.guest : room.host;
       send(p.ws, {
         type: "tick",
         code: room.code,
         seq: room.battleSeq || 0,
         turnEndsAt: room.turnEndsAt,
         yourTurn: isSeatTurn(room.battle, seat),
-        foeOnline: seatOnline(foe),
       });
     }
   }
-}, 2_000).unref?.();
+}, 10_000).unref?.();
 
 function scheduleTurnTimer(room: Room) {
   clearTurnTimer(room);
@@ -515,7 +492,7 @@ function onTurnTimeout(room: Room) {
         `${name}: нет связи ${PVP_OFFLINE_TIMEOUTS} хода подряд — поражение`,
       );
       clearTurnTimer(room);
-      broadcastBattle(room, "clearEcho");
+      broadcastBattle(room);
       return;
     }
   }
@@ -532,7 +509,7 @@ function onTurnTimeout(room: Room) {
       `${name}: ${PVP_MAX_TIMEOUTS} пропусков хода — поражение`,
     );
     clearTurnTimer(room);
-    broadcastBattle(room, "clearEcho");
+    broadcastBattle(room);
     return;
   }
 
@@ -555,11 +532,11 @@ function onTurnTimeout(room: Room) {
   if (winnerSeat(room.battle)) {
     room.endReason = room.endReason ?? "combat";
     clearTurnTimer(room);
-    broadcastBattle(room, "clearEcho");
+    broadcastBattle(room);
     return;
   }
   scheduleTurnTimer(room);
-  broadcastBattle(room, "clearEcho");
+  broadcastBattle(room);
 }
 
 function finishForfeit(room: Room, loser: PvpSeat, reason: PvpEndReason) {
@@ -574,7 +551,7 @@ function finishForfeit(room: Room, loser: PvpSeat, reason: PvpEndReason) {
   room.endReason = reason;
   room.battle = forceWin(room.battle, winner, line);
   clearTurnTimer(room);
-  broadcastBattle(room, "clearEcho");
+  broadcastBattle(room);
 }
 
 function d6(): number {
@@ -609,14 +586,14 @@ function finishOpeningDice(room: Room) {
   );
   room.openingPhase = "reveal";
   room.openingLockedUntil = Date.now() + PVP_OPENING_MS;
-  broadcastBattle(room, "clearEcho");
+  broadcastBattle(room);
   clearTurnTimer(room);
   room.turnTimer = setTimeout(() => {
     if (!room.battle || winnerSeat(room.battle)) return;
     room.openingPhase = "done";
     room.openingLockedUntil = null;
     scheduleTurnTimer(room);
-    broadcastBattle(room, "clearEcho");
+    broadcastBattle(room);
   }, PVP_OPENING_MS);
 }
 
@@ -628,7 +605,7 @@ function rollSeatDice(room: Room, seat: PvpSeat) {
     finishOpeningDice(room);
     return;
   }
-  broadcastBattle(room, "clearEcho");
+  broadcastBattle(room);
 }
 
 function tryStart(room: Room) {
@@ -668,7 +645,7 @@ function tryStart(room: Room) {
         ...(room.battle.log ?? []),
       ].slice(0, 14),
     };
-    broadcastBattle(room, "clearEcho");
+    broadcastBattle(room);
     clearTurnTimer(room);
     // Если кто-то не нажмёт — бросаем за него, бой не зависает.
     room.turnTimer = setTimeout(() => {
@@ -742,8 +719,6 @@ function getOrCreate(code: string): Room | null {
       timeouts: { host: 0, guest: 0 },
       offlineTimeouts: { host: 0, guest: 0 },
       battleSeq: 0,
-      lastAction: null,
-      lastActedBy: null,
       endReason: null,
       openingDice: null,
       diceRolls: { host: null, guest: null },
@@ -936,39 +911,6 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
       if (msg.type === "cancel_queue") {
         removeFromQueue(ws);
         send(ws, { type: "queue_cancelled" });
-        return;
-      }
-
-      // Ping до проверки комнаты — иначе поиск каждый 12с ловит error и UI сбрасывает очередь.
-      if (msg.type === "ping") {
-        const qCode = socketRoom.get(ws) ?? null;
-        const qRoom = qCode ? rooms.get(qCode) : null;
-        const qSeat = qRoom ? seatOf(qRoom, ws) : null;
-        if (qRoom && qSeat) {
-          const me = qSeat === "host" ? qRoom.host! : qRoom.guest!;
-          me.online = true;
-          me.disconnectedAt = null;
-          const foe = qSeat === "host" ? qRoom.guest : qRoom.host;
-          const inFight = Boolean(qRoom.battle && !winnerSeat(qRoom.battle));
-          send(ws, {
-            type: "pong",
-            code: qRoom.code,
-            seq: qRoom.battleSeq || 0,
-            yourTurn: inFight
-              ? isSeatTurn(qRoom.battle!, qSeat)
-              : false,
-            turnEndsAt: inFight ? qRoom.turnEndsAt : null,
-            foeOnline: seatOnline(foe),
-          });
-        } else {
-          send(ws, {
-            type: "pong",
-            seq: 0,
-            yourTurn: false,
-            turnEndsAt: null,
-            foeOnline: true,
-          });
-        }
         return;
       }
 
@@ -1165,8 +1107,8 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
             "user=",
             user.id,
           );
-          // Один снимок: без двойного seq и без ложного lastAction.
-          broadcastBattle(room, "clearEcho");
+          send(ws, battlePayload(room, reclaim));
+          broadcastBattle(room);
           return;
         }
         // После оконченного боя — чистая комната
@@ -1284,20 +1226,20 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
         }
         if (room.battle.winner) {
           send(ws, { type: "error", message: "Бой уже окончен" });
-          broadcastBattle(room, "clearEcho");
+          broadcastBattle(room);
           return;
         }
         unlockOpeningIfDue(room);
         const action = msg.action as PvpAction;
         if (room.openingPhase !== "done") {
           send(ws, { type: "error", message: "Сначала бросьте кубики" });
-          broadcastBattle(room, "clearEcho");
+          broadcastBattle(room);
           return;
         }
         if (!isSeatTurn(room.battle, seat)) {
           send(ws, { type: "error", message: "Сейчас ход соперника" });
           // Клиент мог успеть применить ход локально — вернём правду со стола.
-          broadcastBattle(room, "clearEcho");
+          broadcastBattle(room);
           return;
         }
         try {
@@ -1307,7 +1249,7 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           if (winnerSeat(room.battle)) {
             room.endReason = "combat";
             clearTurnTimer(room);
-            broadcastBattle(room, { action, actedBy: seat });
+            broadcastBattle(room);
             return;
           }
           if (
@@ -1316,13 +1258,13 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           ) {
             scheduleTurnTimer(room);
           }
-          broadcastBattle(room, { action, actedBy: seat });
+          broadcastBattle(room);
         } catch (e) {
           send(ws, {
             type: "error",
             message: e instanceof Error ? e.message : "Ход отклонён",
           });
-          broadcastBattle(room, "clearEcho");
+          broadcastBattle(room);
         }
       }
     });

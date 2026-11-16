@@ -92,9 +92,7 @@ export type PvpClientMsg =
   | { type: "leave" }
   | { type: "roll_dice" }
   | { type: "action"; action: PvpAction }
-  | { type: "resync" }
-  /** Анти-idle Telegram/CF — клиент шлёт каждые ~12с. */
-  | { type: "ping" };
+  | { type: "resync" };
 
 /** Лимит хода PvP (сек) и сколько авто-пропусков до поражения. */
 export const PVP_TURN_SEC = 60;
@@ -212,12 +210,6 @@ export type PvpServerMsg =
       needRoll?: boolean;
       youRolled?: boolean;
       foeRolled?: boolean;
-      /** Кто только что сходил (для FX/SFX наблюдателя). */
-      actedBy?: PvpSeat;
-      /** Действие в системе координат кастера (он = you). */
-      lastAction?: PvpAction;
-      /** Соперник сейчас на живом сокете. */
-      foeOnline?: boolean;
       /** Дубль сигнала конца боя (если `ended` потерялся — клиент не зависает). */
       matchEnded?: boolean;
       youWon?: boolean;
@@ -230,16 +222,6 @@ export type PvpServerMsg =
       seq: number;
       turnEndsAt: number | null;
       yourTurn: boolean;
-      foeOnline?: boolean;
-    }
-  | {
-      /** Ответ на ping — мини-сверка без полного battle. */
-      type: "pong";
-      code?: string;
-      seq: number;
-      yourTurn: boolean;
-      turnEndsAt: number | null;
-      foeOnline: boolean;
     }
   | { type: "error"; message: string }
   | { type: "peer_left"; message: string }

@@ -116,9 +116,7 @@ import {
   applyPvpAction,
   PVP_OPENING_MS,
   type PvpAction,
-  type PvpSeat,
 } from "../game/pvpProtocol";
-import { fxFromRemoteAction } from "../game/pvpRemoteFx";
 import type { BattleState, CreatureInstance } from "../game/types";
 
 function upgradeLvFor(
@@ -205,21 +203,12 @@ type Props = {
     needRoll?: boolean;
     youRolled?: boolean;
     foeRolled?: boolean;
-    foeOnline?: boolean;
     ended?: boolean;
     rollDice?: () => void;
     exitLabel?: string;
   };
   /** Подмена стейта с сервера (каждый тик PvP). */
   externalState?: BattleState | null;
-  /** Чужой ход с сервера — для FX/SFX (свои эхо не приходят). */
-  pvpEcho?: {
-    seq: number;
-    actedBy: PvpSeat;
-    action: PvpAction;
-  } | null;
-  /** Монотонный seq стола — ack хода только после seq > отправленного. */
-  pvpSeq?: number;
   onExit: () => void;
   /** Верни награды — покажем в окне результата. */
   onBattleEnd?: (won: boolean) => BattleEndInfo | void;
@@ -883,8 +872,6 @@ export function Battle({
   onRematch,
   network,
   externalState = null,
-  pvpEcho = null,
-  pvpSeq = 0,
   onExit,
   onBattleEnd,
   onForfeitExit,
@@ -1163,170 +1150,35 @@ export function Battle({
     return () => window.clearTimeout(t);
   }, [diceUi]);
 
-  const networkEnded = Boolean(network?.ended);
-  const onNeedSyncRef = useRef(network?.onNeedSync);
-  onNeedSyncRef.current = network?.onNeedSync;
-  const lastEchoSeqRef = useRef(0);
-  const remoteFxTimer = useRef<number | null>(null);
-  const pvpSeqRef = useRef(pvpSeq);
-  pvpSeqRef.current = pvpSeq;
-  /** seq на момент send — ack только когда сервер прислал больший. */
-  const pvpAwaitAfterSeq = useRef<number | null>(null);
-  /** Ждём battle-эхо сервера — стол только оттуда, без локального apply. */
-  const pvpAckWaiters = useRef<Array<() => void>>([]);
-  const resolvePvpAck = () => {
-    const q = pvpAckWaiters.current;
-    pvpAckWaiters.current = [];
-    pvpAwaitAfterSeq.current = null;
-    for (const r of q) r();
-  };
-  const waitPvpAck = (ms = 2800): Promise<boolean> =>
-    new Promise((resolve) => {
-      let done = false;
-      const finish = (ok: boolean) => {
-        if (done) return;
-        done = true;
-        resolve(ok);
-      };
-      const t = window.setTimeout(() => finish(false), ms);
-      pvpAckWaiters.current.push(() => {
-        window.clearTimeout(t);
-        finish(true);
-      });
-    });
-  const beginPvpAwait = () => {
-    pvpAwaitAfterSeq.current = pvpSeqRef.current;
-    setPvpAwaiting(true);
-  };
-
   useEffect(() => {
     if (!externalState) return;
+    // Стол с сервера — winner больше не вычищаем (иначе при потере `ended`
+    // проигравший навечно «ждёт хода» без оверлея).
     const next = externalState;
-    const matchOver = Boolean(next.winner) || networkEnded;
+    const matchOver = Boolean(next.winner) || Boolean(network?.ended);
     const keepBusy =
       !matchOver && lock.current && next.active === "you";
-    const prev = stateRef.current;
-
-    // СНАЧАЛА стол — FX никогда не должен блокировать появление карты.
     stateRef.current = next;
     setState(next);
     setPhase(next.active === "you" ? "you" : "enemy");
-
-    const boardChanged =
-      prev !== next &&
-      (prev.turn !== next.turn ||
-        prev.active !== next.active ||
-        prev.you.hp !== next.you.hp ||
-        prev.enemy.hp !== next.enemy.hp ||
-        prev.log[0] !== next.log[0] ||
-        prev.you.hand.join() !== next.you.hand.join() ||
-        prev.enemy.hand.join() !== next.enemy.hand.join() ||
-        prev.you.slots.some((u, i) => u?.uid !== next.you.slots[i]?.uid) ||
-        prev.enemy.slots.some(
-          (u, i) => u?.uid !== next.enemy.slots[i]?.uid || u?.cardId !== next.enemy.slots[i]?.cardId,
-        ));
-    if (boardChanged) {
-      try {
-        const ghosts: DyingGhost[] = [];
-        const stamp = Date.now();
-        for (const side of ["you", "enemy"] as const) {
-          for (let i = 0; i < 5; i++) {
-            const was = prev[side].slots[i];
-            const now = next[side].slots[i];
-            if (was && !now) {
-              ghosts.push({
-                key: `${side}-${i}-${was.uid}-${stamp}`,
-                side,
-                slot: i,
-                cardId: was.cardId,
-              });
-            }
-          }
-        }
-        if (ghosts.length) {
-          setDying((d) => [...d, ...ghosts]);
-          const t = window.setTimeout(() => {
-            setDying((d) =>
-              d.filter((g) => !ghosts.some((x) => x.key === g.key)),
-            );
-          }, 700);
-          dyingTimers.current.push(t);
-        }
-        playResultSfx(prev, next);
-      } catch {
-        /* ignore */
-      }
-    }
-
-    const echo =
-      pvpEcho &&
-      pvpEcho.seq > lastEchoSeqRef.current &&
-      pvpEcho.action
-        ? pvpEcho
-        : null;
-    if (echo) {
-      lastEchoSeqRef.current = echo.seq;
-      try {
-        if (echo.action.kind === "endTurn") {
-          sfxTurn();
-        } else {
-          const raw = fxFromRemoteAction(prev, echo.action);
-          if (raw) {
-            const remoteFx =
-              raw.kind === "spell" && raw.cardId
-                ? enrichSpellFx(raw, prev)
-                : normalizeBattleFx(raw);
-            if (remoteFxTimer.current != null) {
-              window.clearTimeout(remoteFxTimer.current);
-            }
-            setFx(remoteFx);
-            playActionSfx(remoteFx, prev);
-            remoteFxTimer.current = window.setTimeout(() => {
-              setFx(null);
-              remoteFxTimer.current = null;
-            }, remoteFx.kind === "spell" ? 1100 : 700);
-          }
-        }
-      } catch (e) {
-        console.error("[battle] remote fx fail:", e);
-      }
-    }
-
-    const waited = pvpAwaitAfterSeq.current;
-    // Ack: новый seq ИЛИ стол реально изменился (resync без bump тоже отпускает).
-    if (waited != null && (pvpSeq > waited || boardChanged || matchOver)) {
-      setPvpAwaiting(false);
-      resolvePvpAck();
-    } else if (waited == null) {
-      setPvpAwaiting(false);
-    }
+    setPvpAwaiting(false);
+    // Стол всегда с сервера. Busy не сбрасываем посреди своей анимации.
     if (keepBusy) return;
     setBusy(false);
     lock.current = false;
-  }, [externalState, networkEnded, pvpEcho, pvpSeq]);
+  }, [externalState, network, network?.ended]);
 
+  // Если ответ сервера потерялся — через 2с просим resync, не висим вечно.
   useEffect(() => {
-    if (!pvpAwaiting) return;
+    if (!network || !pvpAwaiting) return;
     const t = window.setTimeout(() => {
       setPvpAwaiting(false);
       setBusy(false);
       lock.current = false;
-      resolvePvpAck();
-      onNeedSyncRef.current?.();
-    }, 2500);
+      network.onNeedSync?.();
+    }, 2000);
     return () => window.clearTimeout(t);
-  }, [pvpAwaiting]);
-
-  // Пока ждём ход врага — каждые 3с тянем стол (если WS флапал, иначе «зависает»).
-  useEffect(() => {
-    if (!network) return;
-    if (state.winner || networkEnded) return;
-    if (state.active !== "enemy") return;
-    const id = window.setInterval(() => {
-      onNeedSyncRef.current?.();
-    }, 3000);
-    return () => window.clearInterval(id);
-  }, [network, state.active, state.winner, networkEnded, state.turn]);
+  }, [pvpAwaiting, network]);
 
   useLayoutEffect(() => {
     if (tutorialStep == null || state.winner) {
@@ -1516,6 +1368,52 @@ export function Battle({
     setFx(nextFx);
     playActionSfx(nextFx, before);
     const apply = () => {
+      // PvP: тот же applyPvpAction, что на сервере. Без «подождать 1.6с» —
+      // иначе handIndex устаревает, доп. мана не списывается и откатывается.
+      if (networkRef.current) {
+        const action =
+          typeof netAction === "function"
+            ? netAction(stateRef.current)
+            : netAction;
+        if (!action) {
+          console.error("[battle] PvP без типизированного хода");
+          alog("pvp", "apply.missingAction", { fx: nextFx.kind });
+          setFx(null);
+          return stateRef.current;
+        }
+        let after: BattleState;
+        try {
+          after = applyPvpAction(stateRef.current, action);
+          alog("pvp", "apply.ok", {
+            type: (action as { type?: string }).type,
+            turn: after.turn,
+            active: after.active,
+            log0: after.log[0],
+          });
+        } catch (e) {
+          console.error("[battle] PvP apply fail:", e);
+          alog("error", "pvp.apply.fail", {
+            err: e instanceof Error ? e.message : String(e),
+            action,
+          });
+          setFx(null);
+          return stateRef.current;
+        }
+        if (after.winner) after = { ...after, winner: null };
+        stateRef.current = after;
+        setState(after);
+        rememberDeaths(before, after);
+        playResultSfx(before, after);
+        try {
+          networkRef.current.sendAction(action);
+        } catch (e) {
+          console.error("[battle] net send fail:", e);
+          alog("error", "pvp.send.fail", {
+            err: e instanceof Error ? e.message : String(e),
+          });
+        }
+        return after;
+      }
       let after: BattleState;
       try {
         after = run(stateRef.current);
@@ -1542,60 +1440,12 @@ export function Battle({
       playResultSfx(before, after);
       return after;
     };
+    // В сети ход сразу — анимация после.
     // Своя магия — коротко (карту уже видел в руке); вражеская — дольше, чтобы прочитать.
     const ownSpell = isSpellCard && nextFx.side === "you";
     const foeSpell = isSpellCard && nextFx.side === "enemy";
     if (online) {
-      // Как в нормальных CCG: сразу показать ход, сервер — источник правды.
-      // Следующий ввод только после ack (иначе разъезд RNG).
-      const action =
-        typeof netAction === "function"
-          ? netAction(stateRef.current)
-          : netAction;
-      if (!action) {
-        console.error("[battle] PvP без типизированного хода");
-        alog("pvp", "apply.missingAction", { fx: nextFx.kind });
-        setFx(null);
-        return;
-      }
-      let after: BattleState;
-      try {
-        after = applyPvpAction(stateRef.current, action);
-      } catch (e) {
-        console.error("[battle] PvP apply fail:", e);
-        setFx(null);
-        onNeedSyncRef.current?.();
-        return;
-      }
-      if (after.winner) after = { ...after, winner: null };
-      stateRef.current = after;
-      setState(after);
-      rememberDeaths(before, after);
-      playResultSfx(before, after);
-      beginPvpAwait();
-      try {
-        networkRef.current!.sendAction(action);
-        alog("pvp", "send.ok", {
-          kind: action.kind,
-          turn: before.turn,
-          active: before.active,
-        });
-      } catch (e) {
-        console.error("[battle] net send fail:", e);
-        alog("error", "pvp.send.fail", {
-          err: e instanceof Error ? e.message : String(e),
-        });
-        setPvpAwaiting(false);
-        pvpAwaitAfterSeq.current = null;
-        setFx(null);
-        onNeedSyncRef.current?.();
-        return;
-      }
-      const acked = await waitPvpAck();
-      if (!acked) {
-        alog("pvp", "ack.timeout", { kind: action.kind });
-        onNeedSyncRef.current?.();
-      }
+      apply();
       const hold = ownSpell
         ? Math.max(holdMs, 520)
         : foeSpell
@@ -1605,9 +1455,9 @@ export function Battle({
             : nextFx.hitHero && nextFx.kind !== "heal"
               ? Math.max(holdMs, 1400)
               : holdMs;
-      await sleep(Math.min(hold, 700));
+      await sleep(hold);
       setFx(null);
-      await sleep(ownSpell ? 80 : 120);
+      await sleep(ownSpell ? 80 : 200);
       return;
     }
     if (isSpellCard) {
@@ -2715,63 +2565,35 @@ export function Battle({
     }
     void runLocked(async () => {
       unlockSfx();
+      let s = state;
       for (let i = 0; i < 5; i++) {
-        let s = stateRef.current;
-        if (s.active !== "you" || s.winner) break;
         const target = forwardAttackTarget(s, i);
         if (target == null) continue;
         const preview = attackFxPreview(s, i, target);
         setFx(preview);
         playActionSfx(preview, s);
-        await sleep(280);
+        await sleep(320);
+        const before = s;
         const action: PvpAction = {
           kind: "attack",
           fromSlot: i,
           target,
         };
-        if (networkRef.current) {
-          const before = s;
-          let after: BattleState;
-          try {
-            after = applyPvpAction(s, action);
-          } catch {
-            onNeedSyncRef.current?.();
-            break;
-          }
-          if (after.winner) after = { ...after, winner: null };
-          s = after;
-          stateRef.current = s;
-          setState(s);
-          rememberDeaths(before, s);
-          playResultSfx(before, s);
-          beginPvpAwait();
-          try {
-            networkRef.current.sendAction(action);
-          } catch {
-            setPvpAwaiting(false);
-            pvpAwaitAfterSeq.current = null;
-            onNeedSyncRef.current?.();
-            break;
-          }
-          const ok = await waitPvpAck();
-          if (!ok) {
-            onNeedSyncRef.current?.();
-            break;
-          }
-          s = stateRef.current;
-          setFx(null);
-          await sleep(120);
-          if (s.winner || s.enemy.hp <= 0 || s.active !== "you") break;
-          continue;
-        }
-        const before = s;
-        const after = attackWith(s, i, target);
+        const after = networkRef.current
+          ? applyPvpAction(s, action)
+          : attackWith(s, i, target);
         const over = Boolean(after.winner) || after.enemy.hp <= 0;
-        s = after;
+        s =
+          networkRef.current && after.winner
+            ? { ...after, winner: null }
+            : after;
         stateRef.current = s;
         setState(s);
         rememberDeaths(before, s);
         playResultSfx(before, s);
+        if (networkRef.current) {
+          networkRef.current.sendAction(action);
+        }
         setFx(null);
         await sleep(180);
         if (over) break;
@@ -2788,33 +2610,20 @@ export function Battle({
       sfxTurn();
 
       if (networkRef.current) {
-        const before = stateRef.current;
-        let after: BattleState;
-        try {
-          after = applyPvpAction(before, { kind: "endTurn" });
-        } catch (e) {
-          console.error("[battle] PvP endTurn apply fail:", e);
-          onNeedSyncRef.current?.();
-          return;
-        }
-        if (after.winner) after = { ...after, winner: null };
-        stateRef.current = after;
-        setState(after);
-        setPhase(after.active === "you" ? "you" : "enemy");
-        playResultSfx(before, after);
-        beginPvpAwait();
-        try {
-          networkRef.current.sendAction({ kind: "endTurn" });
-        } catch (e) {
-          console.error("[battle] PvP endTurn send fail:", e);
-          setPvpAwaiting(false);
-          pvpAwaitAfterSeq.current = null;
-          onNeedSyncRef.current?.();
-          return;
-        }
-        const ok = await waitPvpAck();
-        if (!ok) onNeedSyncRef.current?.();
-        await sleep(200);
+        setPvpAwaiting(true);
+        setPhase("enemy");
+        setState((s) => {
+          const next = {
+            ...s,
+            active: "enemy" as const,
+            selectedHand: null,
+            selectedSlot: null,
+          };
+          stateRef.current = next;
+          return next;
+        });
+        networkRef.current.sendAction({ kind: "endTurn" });
+        await sleep(400);
         return;
       }
 
@@ -3286,14 +3095,6 @@ export function Battle({
           <div className={`turn-pill ${phase === "enemy" ? "enemy-phase" : ""}`}>
             {phase === "enemy" ? "Ход врага" : `Ход ${state.turn}`}
           </div>
-          {network && network.foeOnline === false && !state.winner ? (
-            <div
-              className="turn-pill foe-offline-pill"
-              title="Соперник потерял связь — ждём возврат или авто-пропуск хода"
-            >
-              соперник офлайн
-            </div>
-          ) : null}
           {state.bloodFrenzy > 0 ? (
             <div
               className="blood-frenzy-pill is-on"

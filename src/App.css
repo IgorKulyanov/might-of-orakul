@@ -2755,23 +2755,6 @@ button {
   border-color: #e63946;
 }
 
-.turn-pill.foe-offline-pill {
-  background: rgba(255, 180, 0, 0.28);
-  border-color: #e6a800;
-  color: #ffe6a0;
-  animation: foe-offline-pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes foe-offline-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.55;
-  }
-}
-
 .battle.is-busy .hand-locked {
   opacity: 0.55;
   pointer-events: none;
