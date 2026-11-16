@@ -615,6 +615,8 @@ export function MultiMenu({
     );
   }
 
+  const buildId = import.meta.env.VITE_ORAKUL_BUILD || "?";
+
   return (
     <div className="multi-screen" aria-label="Одиночный бой">
       <header className="page-bar">
@@ -622,7 +624,12 @@ export function MultiMenu({
           ← Меню
         </button>
         <h1>Одиночный бой</h1>
-        <span />
+        <span
+          className="build-stamp"
+          title="Код версии. Если пусто или старый — Ctrl+F5"
+        >
+          билд {buildId}
+        </span>
       </header>
 
       <div className="multi-panel">
@@ -686,13 +693,6 @@ export function MultiMenu({
 
         {busyHint && <p className="multi-busy-hint">{busyHint}</p>}
         {message && <p className="auth-error">{message}</p>}
-        <p
-          className="hint"
-          style={{ marginTop: 16, opacity: 0.55, fontSize: "0.75rem" }}
-          title="Если другой код — у тебя старый кэш. Ctrl+F5"
-        >
-          билд {import.meta.env.VITE_ORAKUL_BUILD || "?"}
-        </p>
       </div>
     </div>
   );
