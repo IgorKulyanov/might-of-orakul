@@ -582,6 +582,8 @@ export default function App() {
     foeRolled: false,
   });
   const pvpSocketRef = useRef<PvpSocket | null>(null);
+  const pvpRoomCodeRef = useRef("");
+  const pvpReconnectBusyRef = useRef(false);
   const pvpSettledRef = useRef(false);
   /** Сбежал из PvP — без наград (даже утешительных). */
   const pvpFledRef = useRef(false);
@@ -591,6 +593,8 @@ export default function App() {
   pvpStateRef.current = pvpState;
   const ownedRef = useRef(owned);
   ownedRef.current = owned;
+  const userRef = useRef(user);
+  userRef.current = user;
   const campaignRef = useRef(campaign);
   campaignRef.current = campaign;
   const campaignNodeRef = useRef(campaignNode);
@@ -1104,6 +1108,141 @@ export default function App() {
     };
   };
 
+  const applyPvpServerMsg = (msg: PvpServerMsg) => {
+    if (msg.type === "battle") {
+      const finished = Boolean(msg.matchEnded) || Boolean(msg.state.winner);
+      if (pvpSettledRef.current && !finished) return;
+      if (finished) pvpSettledRef.current = true;
+      if (msg.code) pvpRoomCodeRef.current = msg.code;
+      setPvpSeat(msg.youAre);
+      setPvpState(msg.state);
+      setPvpClock((c) => ({
+        ...c,
+        turnEndsAt: finished ? null : msg.turnEndsAt,
+        yourTimeouts: msg.yourTimeouts,
+        foeTimeouts: msg.foeTimeouts,
+        maxTimeouts: msg.maxTimeouts,
+        turnLimitSec: msg.turnLimitSec,
+        openingDice: msg.needRoll
+          ? null
+          : (msg.openingDice ??
+            (msg.openingLocked ? c.openingDice : null)),
+        openingLocked: finished ? false : Boolean(msg.openingLocked),
+        needRoll: finished ? false : Boolean(msg.needRoll),
+        youRolled: Boolean(msg.youRolled),
+        foeRolled: Boolean(msg.foeRolled),
+        endMessage: finished
+          ? (c.endMessage ??
+            msg.endMessage ??
+            (msg.youWon ? "Победа!" : "Поражение"))
+          : c.endMessage,
+      }));
+    }
+    if (msg.type === "ended") {
+      pvpSettledRef.current = true;
+      setPvpClock((c) => ({
+        ...c,
+        turnEndsAt: null,
+        endMessage: msg.message,
+        openingLocked: false,
+        needRoll: false,
+      }));
+      setPvpState((s) => {
+        if (!s) return s;
+        if (s.winner) return s;
+        const won = msg.youWon;
+        return {
+          ...s,
+          winner: won ? "you" : "enemy",
+          you: won ? s.you : { ...s.you, hp: 0 },
+          enemy: won ? { ...s.enemy, hp: 0 } : s.enemy,
+          log: [msg.message, ...s.log].slice(0, 12),
+        };
+      });
+    }
+    if (msg.type === "peer_left" || msg.type === "error") {
+      setPvpState((s) =>
+        s
+          ? {
+              ...s,
+              log: [msg.message, ...s.log].slice(0, 12),
+            }
+          : s,
+      );
+    }
+  };
+
+  const reconnectPvpBattle = async () => {
+    if (pvpReconnectBusyRef.current || pvpSettledRef.current) return;
+    if (screenRef.current !== "battle_pvp") return;
+    const code = pvpRoomCodeRef.current;
+    const token = getToken();
+    if (!code || !token) return;
+    pvpReconnectBusyRef.current = true;
+    setPvpState((s) =>
+      s
+        ? {
+            ...s,
+            log: ["Связь пропала — возвращаем в бой…", ...s.log].slice(0, 12),
+          }
+        : s,
+    );
+    try {
+      const sock = new PvpSocket();
+      await sock.connect(token, applyPvpServerMsg);
+      sock.setHandler(applyPvpServerMsg);
+      sock.setDropHandler(() => {
+        void reconnectPvpBattle();
+      });
+      sock.join({
+        mode: "join",
+        code,
+        token,
+        heroId: activeHeroId(ownedRef.current),
+        deck: battleDeck(ownedRef.current),
+        name:
+          userRef.current?.displayName ??
+          userRef.current?.login ??
+          "Игрок",
+        level: playerLevel(ownedRef.current),
+      });
+      pvpSocketRef.current = sock;
+    } catch (e) {
+      setPvpState((s) =>
+        s
+          ? {
+              ...s,
+              log: [
+                e instanceof Error
+                  ? e.message
+                  : "Не удалось переподключиться",
+                ...s.log,
+              ].slice(0, 12),
+            }
+          : s,
+      );
+    } finally {
+      pvpReconnectBusyRef.current = false;
+    }
+  };
+
+  useEffect(() => {
+    if (screen !== "battle_pvp") return;
+    const onVis = () => {
+      if (document.visibilityState !== "visible") return;
+      if (pvpSettledRef.current) return;
+      const sock = pvpSocketRef.current;
+      if (sock?.connected) return;
+      void reconnectPvpBattle();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onVis);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onVis);
+    };
+  }, [screen]);
+
   const leavePvp = () => {
     const fighting = Boolean(pvpStateRef.current && !pvpStateRef.current.winner);
     if (fighting) {
@@ -1121,6 +1260,7 @@ export default function App() {
       }
       pvpFledRef.current = true;
       pvpSettledRef.current = true;
+      pvpRoomCodeRef.current = "";
       const flee = recordPvpFlee();
       const t = token ?? getToken();
       if (t) {
@@ -1156,6 +1296,7 @@ export default function App() {
       /* ignore */
     }
     pvpSocketRef.current = null;
+    pvpRoomCodeRef.current = "";
     setPvpState(null);
     setPvpClock({
       turnEndsAt: null,
@@ -1482,7 +1623,7 @@ export default function App() {
     );
   }
 
-  if (screen === "battle_pvp" && pvpState && pvpSocketRef.current) {
+  if (screen === "battle_pvp" && pvpState) {
     const sock = pvpSocketRef.current;
     return (
       <Battle
@@ -1498,7 +1639,7 @@ export default function App() {
         network={{
           sendAction: (action) => {
             try {
-              sock.action(action);
+              sock?.action(action);
             } catch {
               /* ignore */
             }
@@ -1516,7 +1657,7 @@ export default function App() {
           ended: Boolean(pvpClock.endMessage),
           rollDice: () => {
             try {
-              sock.rollDice();
+              sock?.rollDice();
             } catch {
               /* ignore */
             }
@@ -1560,6 +1701,7 @@ export default function App() {
           socket,
           state,
           youAre,
+          code,
           turnEndsAt,
           yourTimeouts,
           foeTimeouts,
@@ -1573,6 +1715,8 @@ export default function App() {
         }) => {
           pvpFledRef.current = false;
           pvpSettledRef.current = false;
+          pvpReconnectBusyRef.current = false;
+          pvpRoomCodeRef.current = code;
           pvpSocketRef.current = socket;
           setPvpMatchKey((n) => n + 1);
           setPvpSeat(youAre);
@@ -1590,68 +1734,9 @@ export default function App() {
             youRolled: Boolean(youRolled),
             foeRolled: Boolean(foeRolled),
           });
-          socket.setHandler((msg: PvpServerMsg) => {
-            if (msg.type === "battle") {
-              const finished =
-                Boolean(msg.matchEnded) || Boolean(msg.state.winner);
-              if (pvpSettledRef.current && !finished) return;
-              if (finished) pvpSettledRef.current = true;
-              setPvpState(msg.state);
-              setPvpClock((c) => ({
-                ...c,
-                turnEndsAt: finished ? null : msg.turnEndsAt,
-                yourTimeouts: msg.yourTimeouts,
-                foeTimeouts: msg.foeTimeouts,
-                maxTimeouts: msg.maxTimeouts,
-                turnLimitSec: msg.turnLimitSec,
-                openingDice: msg.needRoll
-                  ? null
-                  : (msg.openingDice ??
-                    (msg.openingLocked ? c.openingDice : null)),
-                openingLocked: finished ? false : Boolean(msg.openingLocked),
-                needRoll: finished ? false : Boolean(msg.needRoll),
-                youRolled: Boolean(msg.youRolled),
-                foeRolled: Boolean(msg.foeRolled),
-                // Конец боя дублируем в battle — если `ended` не дошёл, не зависаем.
-                endMessage: finished
-                  ? (c.endMessage ??
-                    msg.endMessage ??
-                    (msg.youWon ? "Победа!" : "Поражение"))
-                  : c.endMessage,
-              }));
-            }
-            if (msg.type === "ended") {
-              pvpSettledRef.current = true;
-              setPvpClock((c) => ({
-                ...c,
-                turnEndsAt: null,
-                endMessage: msg.message,
-                openingLocked: false,
-                needRoll: false,
-              }));
-              setPvpState((s) => {
-                if (!s) return s;
-                if (s.winner) return s;
-                const won = msg.youWon;
-                return {
-                  ...s,
-                  winner: won ? "you" : "enemy",
-                  you: won ? s.you : { ...s.you, hp: 0 },
-                  enemy: won ? { ...s.enemy, hp: 0 } : s.enemy,
-                  log: [msg.message, ...s.log].slice(0, 12),
-                };
-              });
-            }
-            if (msg.type === "peer_left" || msg.type === "error") {
-              setPvpState((s) =>
-                s
-                  ? {
-                      ...s,
-                      log: [msg.message, ...s.log].slice(0, 12),
-                    }
-                  : s,
-              );
-            }
+          socket.setHandler(applyPvpServerMsg);
+          socket.setDropHandler(() => {
+            void reconnectPvpBattle();
           });
           unlockSfx();
           void startBattleMusic();

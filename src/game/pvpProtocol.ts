@@ -96,6 +96,8 @@ export type PvpClientMsg =
 /** Лимит хода PvP (сек) и сколько авто-пропусков до поражения. */
 export const PVP_TURN_SEC = 60;
 export const PVP_MAX_TIMEOUTS = 5;
+/** Пока сокет мёртв: столько пропусков хода — поражение (rage-quit / ушёл). */
+export const PVP_OFFLINE_TIMEOUTS = 2;
 /** После броска обоих — сколько держим результат на экране. */
 export const PVP_OPENING_MS = 2400;
 
