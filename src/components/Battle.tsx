@@ -1426,23 +1426,35 @@ export function Battle({
       playResultSfx(before, after);
       return after;
     };
-    // В сети ход сразу — анимация после. Оффлайн спеллы как раньше (сначала карта).
+    // В сети ход сразу — анимация после.
+    // Своя магия — коротко (карту уже видел в руке); вражеская — дольше, чтобы прочитать.
+    const ownSpell = isSpellCard && nextFx.side === "you";
+    const foeSpell = isSpellCard && nextFx.side === "enemy";
     if (online) {
       apply();
-      const hold = isSpellCard
-        ? Math.max(holdMs, 1400)
-        : instant
-          ? Math.max(holdMs, 900)
-          : nextFx.hitHero && nextFx.kind !== "heal"
-            ? Math.max(holdMs, 1400)
-            : holdMs;
+      const hold = ownSpell
+        ? Math.max(holdMs, 520)
+        : foeSpell
+          ? Math.max(holdMs, 1600)
+          : instant
+            ? Math.max(holdMs, 900)
+            : nextFx.hitHero && nextFx.kind !== "heal"
+              ? Math.max(holdMs, 1400)
+              : holdMs;
       await sleep(hold);
       setFx(null);
-      await sleep(200);
+      await sleep(ownSpell ? 80 : 200);
       return;
     }
     if (isSpellCard) {
-      // Сначала спокойно появляется карта, потом эффект на столе.
+      if (ownSpell) {
+        apply();
+        await sleep(Math.max(holdMs, 480));
+        setFx(null);
+        await sleep(80);
+        return;
+      }
+      // Враг: сначала карта, потом эффект — успеть глянуть.
       const hold = Math.max(holdMs, 3000);
       await sleep(1600);
       apply();
