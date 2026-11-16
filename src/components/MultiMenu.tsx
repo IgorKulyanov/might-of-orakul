@@ -219,9 +219,6 @@ export function MultiMenu({
       setMessage(null);
       return;
     }
-    if (msg.type === "hello") {
-      return;
-    }
     if (msg.type === "peer_left") {
       setMessage(msg.message);
       setLobby((prev) =>
