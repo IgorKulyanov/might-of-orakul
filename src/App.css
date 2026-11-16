@@ -6951,6 +6951,32 @@ html.is-hand-dragging .oracle-folio {
   height: var(--linger-card-h) !important;
 }
 
+/* На столе: только арт + стрелка просмотра (имя/стоимость — вблизи) */
+.linger-item .card.compact .card-stats,
+.linger-item .card.compact .card-footer,
+.linger-item .card.compact .card-name,
+.linger-item .card.compact .card-upgrade-badge {
+  display: none !important;
+}
+
+.linger-item .card.compact .card-art-wrap {
+  inset: 0;
+  height: 100%;
+}
+
+.linger-item .card.compact .card-art {
+  inset: 0;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+}
+
+.linger-item .card.compact .flip-btn {
+  display: grid !important;
+  opacity: 1;
+  z-index: 4;
+}
+
 .linger-item.is-active .card.compact {
   opacity: 1;
   filter: brightness(1.12) saturate(1.15);
