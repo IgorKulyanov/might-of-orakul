@@ -13,17 +13,6 @@ import type { BattleState } from "../game/types";
 
 const LOBBY_KEY = "orakul_pvp_lobby_code";
 
-function readSavedLobbyCode(): string | null {
-  try {
-    const c = String(sessionStorage.getItem(LOBBY_KEY) || "")
-      .trim()
-      .toUpperCase();
-    return c.length >= 3 ? c : null;
-  } catch {
-    return null;
-  }
-}
-
 function saveLobbyCode(code: string | null) {
   try {
     if (!code) sessionStorage.removeItem(LOBBY_KEY);
