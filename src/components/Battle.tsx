@@ -2959,28 +2959,37 @@ export function Battle({
   })();
   const heroSprite = impactToSprite(heroImpact);
 
-  const renderLinger = (
-    spells: typeof state.you.activeSpells,
-    side: "you" | "enemy",
-  ) => (
-    <div
-      className={`linger-side ${side}${spells.length > 1 ? " is-multi" : ""}`}
-      aria-label={side === "you" ? "Заклинания у тебя" : "Заклинания у врага"}
-    >
-      <div className="linger-cards">
-        {spells.length === 0 ? (
-          <span className="linger-empty" aria-hidden />
-        ) : (
-          spells.map((sp, i) => {
+  /** Одна полоса между рядами: моя магия зелёная, вражеская красная. */
+  const midSpells = [
+    ...state.you.activeSpells.map((sp) => ({
+      sp,
+      board: "you" as const,
+    })),
+    ...state.enemy.activeSpells.map((sp) => ({
+      sp,
+      board: "enemy" as const,
+    })),
+  ];
+  const renderMidSpellStrip = () => {
+    if (midSpells.length === 0) return null;
+    return (
+      <div className="spell-mid-strip" aria-label="Магия на поле">
+        <div className="spell-mid-track">
+          {midSpells.map(({ sp, board }, i) => {
+            const caster: "you" | "enemy" =
+              sp.casterSide === "you" || sp.casterSide === "enemy"
+                ? sp.casterSide
+                : board;
             const active = (sp.mode ?? "active") === "active";
             const card = getCard(sp.cardId);
             return (
               <div
                 key={sp.uid}
-                className={`linger-item ${active ? "is-active" : "is-echo"}`}
+                className={`linger-item ${active ? "is-active" : "is-echo"} is-cast-${caster}`}
                 style={{ ["--linger-i" as string]: i }}
                 data-linger-uid={sp.uid}
-                data-linger-side={side}
+                data-linger-side={board}
+                data-linger-caster={caster}
                 title={
                   active
                     ? `На поле: ${card.name}. ${card.text}`
@@ -2995,11 +3004,11 @@ export function Battle({
                 ) : null}
               </div>
             );
-          })
-        )}
+          })}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div
@@ -3388,11 +3397,11 @@ export function Battle({
                 })}
               </div>
             </div>
-            <div className="board-lane-side right">
-              {renderLinger(state.enemy.activeSpells, "enemy")}
-            </div>
+            <div className="board-lane-side right" aria-hidden />
           </div>
         </div>
+
+        {renderMidSpellStrip()}
 
         <div className="board-lane your-lane">
           <div className="row-label your-label">
@@ -3518,9 +3527,7 @@ export function Battle({
                 })}
                   </div>
                   </div>
-            <div className="board-lane-side right">
-              {renderLinger(state.you.activeSpells, "you")}
-            </div>
+            <div className="board-lane-side right" aria-hidden />
         </div>
       </div>
       </div>
