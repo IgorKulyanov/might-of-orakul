@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useRef,
   useState,
   type KeyboardEvent,
   type MouseEvent,
@@ -100,9 +101,34 @@ export function CardView({
 }: Props) {
   const c = card ?? (cardId ? getCard(cardId) : null);
   const [showDesc, setShowDesc] = useState(autoOpenDesc);
+  const [floatDmg, setFloatDmg] = useState<number | null>(null);
+  const prevHpRef = useRef<number | null>(null);
+  const trackedHp =
+    liveHealth ??
+    (c
+      ? (c.health ?? 0) +
+        (upgradeLevel != null && upgradeLevel >= 1
+          ? upgradeStatBonus(c.id, upgradeLevel).hp
+          : c.kind === "creature" && isUpgradeableCard(c.id)
+            ? upgradeStatBonus(c.id, defaultUpgradeLevel(c.id)).hp
+            : 0)
+      : 0);
   useEffect(() => {
     if (autoOpenDesc) setShowDesc(true);
   }, [autoOpenDesc, c?.id]);
+  useEffect(() => {
+    if (!board || !c) {
+      prevHpRef.current = trackedHp;
+      return;
+    }
+    const prev = prevHpRef.current;
+    prevHpRef.current = trackedHp;
+    if (prev == null || trackedHp >= prev) return;
+    const lost = prev - trackedHp;
+    setFloatDmg(lost);
+    const t = window.setTimeout(() => setFloatDmg(null), 1600);
+    return () => window.clearTimeout(t);
+  }, [board, trackedHp, c?.id]);
   if (!c) return null;
 
   const color = SCHOOL_COLOR[c.school];
@@ -131,7 +157,8 @@ export function CardView({
 
   const marks: EffectMark[] = [];
   const wound = Math.max(0, fullHp - hp);
-  if (wound > 0) {
+  /* На столе: без вечной плашки −N (закрывает арт). Всплывающий урон — ниже. */
+  if (wound > 0 && !board) {
     marks.push({
       key: "wound",
       icon: "💥",
@@ -271,6 +298,15 @@ export function CardView({
             title={`Прокачка: ур.${upgradeLevel}`}
           >
             Ур.{upgradeLevel}
+          </span>
+        ) : null}
+        {board && floatDmg != null && floatDmg > 0 ? (
+          <span
+            key={`fd-${floatDmg}-${hp}`}
+            className="card-float-dmg"
+            aria-hidden
+          >
+            −{floatDmg}
           </span>
         ) : null}
         <div className="card-inner">

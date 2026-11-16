@@ -1015,6 +1015,45 @@ button {
   font-weight: 900;
 }
 
+/* Краткий урон на юните в бою — 1.6с и гаснет, арт не закрывает навсегда */
+.card-float-dmg {
+  position: absolute;
+  z-index: 12;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(1.05rem, 3.2vw, 1.45rem);
+  line-height: 1;
+  color: #ffe0a8;
+  text-shadow:
+    0 0 2px #000,
+    0 2px 0 #4a1008,
+    0 0 12px rgba(255, 100, 20, 0.85);
+  animation: card-float-dmg-out 1.6s ease-out both;
+}
+
+@keyframes card-float-dmg-out {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -30%) scale(0.7);
+  }
+  12% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.12);
+  }
+  55% {
+    opacity: 1;
+    transform: translate(-50%, -62%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -88%) scale(0.92);
+  }
+}
+
 .card.board .effect-mark,
 .card.compact .effect-mark {
   font-size: 0.58rem;
