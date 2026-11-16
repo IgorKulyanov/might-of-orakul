@@ -89,6 +89,8 @@ export function MultiMenu({
     delta: number;
     waiting: number;
   } | null>(null);
+  const searchingRef = useRef(searching);
+  searchingRef.current = searching;
   const [lobby, setLobby] = useState<{
     code: string;
     youAre: PvpSeat;
