@@ -14,7 +14,7 @@ function gitShort(): string {
 export default defineConfig({
   plugins: [react()],
   define: {
-    __ORAKUL_BUILD__: JSON.stringify(gitShort()),
+    "import.meta.env.VITE_ORAKUL_BUILD": JSON.stringify(gitShort()),
   },
   // Не подхватывать postcss родителя (mesh-chat).
   css: {
