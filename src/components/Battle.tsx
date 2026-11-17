@@ -201,8 +201,6 @@ type Props = {
     rollDice?: () => void;
     /** Подтянуть стол с сервера, пока крутится кубик. */
     sync?: () => void;
-    /** Диагностика провода: endpoint / seq / чей ход. */
-    wireDiag?: string;
     exitLabel?: string;
   };
   /** Подмена стейта с сервера (каждый тик PvP). */
@@ -3008,15 +3006,6 @@ export function Battle({
           >
             {sfxOff ? "🔇" : "🔊"}
           </button>
-          {network?.wireDiag ? (
-            <div
-              className="pvp-timer-pill"
-              title="Диагностика PvP: хост сокета и номер снимка. # должен расти на каждый ход."
-              style={{ maxWidth: 220, fontSize: 11, opacity: 0.9 }}
-            >
-              {network.wireDiag}
-            </div>
-          ) : null}
           {network && turnLeftSec != null && !state.winner ? (
             <div
               className={`pvp-timer-pill ${

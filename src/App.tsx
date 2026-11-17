@@ -117,15 +117,6 @@ type PvpClock = {
   foeRolled: boolean;
 };
 
-/** Живой провод PvP — чтобы сразу видеть, где рвётся синхрон. */
-type PvpWire = {
-  endpoint: string;
-  seq: number;
-  active: string;
-  yourTurn: boolean;
-  at: number;
-};
-
 type Screen =
   | "menu"
   | "campaign"
@@ -593,7 +584,6 @@ export default function App() {
   const pvpSocketRef = useRef<PvpSocket | null>(null);
   const pvpSettledRef = useRef(false);
   const pvpBattleSeqRef = useRef(0);
-  const [pvpWire, setPvpWire] = useState<PvpWire | null>(null);
   /** Сбежал из PvP — без наград (даже утешительных). */
   const pvpFledRef = useRef(false);
   /** Вышел из тропы/арены до конца — поражение без наград боя. */
@@ -1566,21 +1556,6 @@ export default function App() {
             }
           },
           exitLabel: "Сдаться",
-          wireDiag: pvpWire
-            ? (() => {
-                let host = pvpWire.endpoint;
-                try {
-                  host = new URL(
-                    pvpWire.endpoint.replace(/^ws/, "http"),
-                  ).host;
-                } catch {
-                  /* keep raw */
-                }
-                // Если #N не растёт, когда враг ходит — пакеты не доходят.
-                // Если #N растёт, а доска мёртвая — баг UI.
-                return `${host} #${pvpWire.seq} ${pvpWire.yourTurn ? "МОЙ" : "ЖДУ"}`;
-              })()
-            : undefined,
         }}
         allowRematch={false}
         onExit={leavePvp}
@@ -1637,13 +1612,6 @@ export default function App() {
           setPvpMatchKey((n) => n + 1);
           setPvpSeat(youAre);
           setPvpState(state);
-          setPvpWire({
-            endpoint: socket.endpoint ?? "?",
-            seq: 0,
-            active: state.active,
-            yourTurn: state.active === "you",
-            at: Date.now(),
-          });
           setPvpClock({
             turnEndsAt,
             yourTimeouts,
@@ -1672,13 +1640,6 @@ export default function App() {
               if (seq > pvpBattleSeqRef.current) pvpBattleSeqRef.current = seq;
               // Новый объект — иначе React может не перерисовать чужие ходы.
               setPvpState({ ...msg.state });
-              setPvpWire({
-                endpoint: socket.endpoint ?? "?",
-                seq,
-                active: String(msg.state.active),
-                yourTurn: Boolean(msg.yourTurn),
-                at: Date.now(),
-              });
               setPvpClock((c) => ({
                 ...c,
                 turnEndsAt: finished ? null : msg.turnEndsAt,
