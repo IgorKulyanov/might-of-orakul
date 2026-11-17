@@ -96,27 +96,45 @@ def main() -> int:
 
     print("=== 1) /api/pvp-canary ===")
     t0 = time.time()
-    status, canary = http_json("/api/pvp-canary", timeout=20)
-    print(f"http={status} {json.dumps(canary, ensure_ascii=False)} ({(time.time()-t0)*1000:.0f}ms)")
+    try:
+        status, canary = http_json("/api/pvp-canary", timeout=25)
+    except Exception as e:
+        print("CANARY UNREACHABLE", e)
+        print("\n======== VERDICT ========")
+        print("ROOT: CANARY_UNREACHABLE — API/SSL до VPS не отвечает")
+        return 1
+    print(
+        f"http={status} {json.dumps(canary, ensure_ascii=False)} "
+        f"({(time.time()-t0)*1000:.0f}ms)"
+    )
 
     print("\n=== 2) /api/health.pvpCanary ===")
-    _, health = http_json("/api/health", timeout=15)
-    print(json.dumps(health.get("pvpCanary"), ensure_ascii=False))
+    health_canary = None
+    try:
+        _, health = http_json("/api/health", timeout=25)
+        health_canary = health.get("pvpCanary")
+        print(json.dumps(health_canary, ensure_ascii=False))
+    except Exception as e:
+        print("health skip:", e)
 
     print("\n=== 3) journal [pvp:FAIL|OK] ===")
+    journal = ""
     try:
         journal = pull_fail_journal()
         print(journal if journal.strip() else "(пусто)")
     except Exception as e:
-        print("journal fail:", e)
-        journal = ""
+        print("journal skip:", e)
 
     if not canary.get("ok"):
         print("\n======== VERDICT ========")
         print(
-            f"ROOT: PVP_LOGIC code={canary.get('code')} detail={canary.get('detail')}"
+            f"ROOT: PVP_LOGIC code={canary.get('code')} "
+            f"detail={canary.get('detail')}"
         )
-        print("Стол/ход/видимость карты сломаны на сервере — чинить applySeatAction/viewForSeat.")
+        print(
+            "Стол/ход/видимость карты сломаны на сервере — "
+            "чинить applySeatAction/viewForSeat."
+        )
         return 2
 
     fails = [ln for ln in journal.splitlines() if "[pvp:FAIL]" in ln]
@@ -125,7 +143,10 @@ def main() -> int:
         print("ROOT: LIVE_FAIL — canary логики OK, но в journal есть FAIL за 30м:")
         for ln in fails[-8:]:
             print(" ", ln)
-        print("Смотри code= в строках (ENDTURN_NOOP / PEER_WS_DEAD / ACTION_OUT_OF_TURN / WS_SEND).")
+        print(
+            "Смотри code= (ENDTURN_NOOP / PEER_WS_DEAD / "
+            "ACTION_OUT_OF_TURN / WS_SEND)."
+        )
         return 3
 
     if args.live:
@@ -140,7 +161,10 @@ def main() -> int:
             live = int(e.code) if isinstance(e.code, int) else 1
         if live != 0:
             print("\n======== VERDICT ========")
-            print(f"ROOT: LIVE_WS code={live} — доставка по WebSocket (см. diag_pvp_turn_sync).")
+            print(
+                f"ROOT: LIVE_WS code={live} — доставка по WebSocket "
+                "(см. diag_pvp_turn_sync)."
+            )
             return 4
 
     print("\n======== VERDICT ========")
