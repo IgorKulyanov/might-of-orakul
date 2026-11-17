@@ -439,8 +439,8 @@ function battlePayload(room: Room, seat: PvpSeat): PvpServerMsg {
     type: "battle",
     code: room.code,
     youAre: seat,
-    // Клон — чтобы JSON/клиент не делили ссылку с server room.battle.
-    state: structuredClone(viewForSeat(battle, seat)),
+    // JSON-клон: structuredClone иногда падает на столе и рвёт broadcast.
+    state: JSON.parse(JSON.stringify(viewForSeat(battle, seat))) as BattleState,
     yourTurn: isSeatTurn(battle, seat),
     battleSeq: room.battleSeq,
     turnEndsAt: matchEnded ? null : room.turnEndsAt,
@@ -1306,7 +1306,24 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
         try {
           const beforeActive = room.battle.active;
           const beforeTurn = room.battle.turn;
+          const kind =
+            action && typeof action === "object" && "kind" in action
+              ? String((action as { kind?: string }).kind)
+              : "?";
           room.battle = applySeatAction(room.battle, seat, action);
+          console.warn(
+            "[pvp] action",
+            room.code,
+            seat,
+            kind,
+            `${beforeActive}/${beforeTurn}`,
+            "->",
+            `${room.battle.active}/${room.battle.turn}`,
+            "hostOpen",
+            Boolean(room.host && isWsOpen(room.host.ws)),
+            "guestOpen",
+            Boolean(room.guest && isWsOpen(room.guest.ws)),
+          );
           if (winnerSeat(room.battle)) {
             room.endReason = "combat";
             clearTurnTimer(room);

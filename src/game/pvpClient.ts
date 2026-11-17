@@ -13,9 +13,10 @@ function wsCandidates(): string[] {
     typeof window !== "undefined"
       ? `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws/pvp`
       : "";
-  // pages.dev → same-origin первым (CF), sslip запасной; hello отсекает мёртвый 101.
+  // Прямой VPS первым: живой тест доказал, что sslip доставляет ходы обоим,
+  // а CF/pages proxy — частый источник «я не вижу его действий».
   const out: string[] = [];
-  for (const u of [primary, sameOrigin, direct]) {
+  for (const u of [direct, primary, sameOrigin]) {
     if (u && !out.includes(u)) out.push(u);
   }
   return out;
@@ -45,6 +46,8 @@ export class PvpSocket {
   private onDrop: (() => void) | null = null;
   private closedByUser = false;
   private token: string | null = null;
+  /** Какой URL реально открыт — для диагностики десинка. */
+  endpoint: string | null = null;
 
   setHandler(onMessage: (m: PvpServerMsg) => void) {
     this.onMsg = onMessage;
@@ -88,6 +91,7 @@ export class PvpSocket {
         return;
       }
       this.ws = ws;
+      this.endpoint = baseUrl;
       let settled = false;
       let opened = false;
       const timer = window.setTimeout(() => {
@@ -98,7 +102,10 @@ export class PvpSocket {
         } catch {
           /* ignore */
         }
-        if (this.ws === ws) this.ws = null;
+        if (this.ws === ws) {
+          this.ws = null;
+          this.endpoint = null;
+        }
         reject(
           new Error(
             opened
@@ -115,7 +122,10 @@ export class PvpSocket {
         if (settled) return;
         settled = true;
         window.clearTimeout(timer);
-        if (this.ws === ws) this.ws = null;
+        if (this.ws === ws) {
+          this.ws = null;
+          this.endpoint = null;
+        }
         reject(new Error("WebSocket: нет связи"));
       };
       ws.onmessage = (ev) => {
@@ -133,7 +143,10 @@ export class PvpSocket {
         }
       };
       ws.onclose = () => {
-        if (this.ws === ws) this.ws = null;
+        if (this.ws === ws) {
+          this.ws = null;
+          this.endpoint = null;
+        }
         if (!settled) {
           settled = true;
           window.clearTimeout(timer);

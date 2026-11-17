@@ -112,7 +112,7 @@ import {
   defaultUpgradeLevel,
   isUpgradeableCard,
 } from "../game/cardUpgrades";
-import { applyPvpAction, type PvpAction } from "../game/pvpProtocol";
+import { type PvpAction } from "../game/pvpProtocol";
 import type { BattleState, CreatureInstance } from "../game/types";
 
 function upgradeLvFor(
@@ -201,6 +201,8 @@ type Props = {
     rollDice?: () => void;
     /** Подтянуть стол с сервера, пока крутится кубик. */
     sync?: () => void;
+    /** Диагностика провода: endpoint / seq / чей ход. */
+    wireDiag?: string;
     exitLabel?: string;
   };
   /** Подмена стейта с сервера (каждый тик PvP). */
@@ -1316,38 +1318,23 @@ export function Battle({
           setFx(null);
           return stateRef.current;
         }
-        let after: BattleState;
-        try {
-          after = applyPvpAction(stateRef.current, action);
-          alog("pvp", "apply.ok", {
-            type: (action as { type?: string }).type,
-            turn: after.turn,
-            active: after.active,
-            log0: after.log[0],
-          });
-        } catch (e) {
-          console.error("[battle] PvP apply fail:", e);
-          alog("error", "pvp.apply.fail", {
-            err: e instanceof Error ? e.message : String(e),
-            action,
-          });
-          setFx(null);
-          return stateRef.current;
-        }
-        if (after.winner) after = { ...after, winner: null };
-        stateRef.current = after;
-        setState(after);
-        rememberDeaths(before, after);
-        playResultSfx(before, after);
+        // Только сервер двигает стол. Локальный apply давал «я вижу свои ходы,
+        // соперник — нет», если пакет/прокси потерялся.
         try {
           networkRef.current.sendAction(action);
+          setPvpAwaiting(true);
+          alog("pvp", "send.ok", {
+            kind: (action as { kind?: string }).kind,
+          });
         } catch (e) {
           console.error("[battle] net send fail:", e);
           alog("error", "pvp.send.fail", {
             err: e instanceof Error ? e.message : String(e),
           });
+          setFx(null);
+          return stateRef.current;
         }
-        return after;
+        return stateRef.current;
       }
       let after: BattleState;
       try {
@@ -2502,33 +2489,46 @@ export function Battle({
       unlockSfx();
       let s = state;
       for (let i = 0; i < 5; i++) {
+        s = stateRef.current;
         const target = forwardAttackTarget(s, i);
         if (target == null) continue;
         const preview = attackFxPreview(s, i, target);
         setFx(preview);
         playActionSfx(preview, s);
         await sleep(320);
-        const before = s;
         const action: PvpAction = {
           kind: "attack",
           fromSlot: i,
           target,
         };
-        const after = networkRef.current
-          ? applyPvpAction(s, action)
-          : attackWith(s, i, target);
+        if (networkRef.current) {
+          const stamp = stateRef.current.log[0];
+          try {
+            networkRef.current.sendAction(action);
+            setPvpAwaiting(true);
+          } catch {
+            setFx(null);
+            break;
+          }
+          // Ждём серверный снимок — без локального apply.
+          const deadline = Date.now() + 2500;
+          while (Date.now() < deadline) {
+            await sleep(80);
+            if (stateRef.current.log[0] !== stamp) break;
+            if (stateRef.current.winner) break;
+          }
+          setFx(null);
+          if (stateRef.current.winner || stateRef.current.enemy.hp <= 0) break;
+          continue;
+        }
+        const before = s;
+        const after = attackWith(s, i, target);
         const over = Boolean(after.winner) || after.enemy.hp <= 0;
-        s =
-          networkRef.current && after.winner
-            ? { ...after, winner: null }
-            : after;
+        s = after;
         stateRef.current = s;
         setState(s);
         rememberDeaths(before, s);
         playResultSfx(before, s);
-        if (networkRef.current) {
-          networkRef.current.sendAction(action);
-        }
         setFx(null);
         await sleep(180);
         if (over) break;
@@ -2546,18 +2546,12 @@ export function Battle({
 
       if (networkRef.current) {
         setPvpAwaiting(true);
-        setPhase("enemy");
-        setState((s) => {
-          const next = {
-            ...s,
-            active: "enemy" as const,
-            selectedHand: null,
-            selectedSlot: null,
-          };
-          stateRef.current = next;
-          return next;
-        });
-        networkRef.current.sendAction({ kind: "endTurn" });
+        try {
+          networkRef.current.sendAction({ kind: "endTurn" });
+        } catch (e) {
+          console.error("[battle] endTurn send fail:", e);
+          setPvpAwaiting(false);
+        }
         await sleep(400);
         return;
       }
@@ -3014,6 +3008,15 @@ export function Battle({
           >
             {sfxOff ? "🔇" : "🔊"}
           </button>
+          {network?.wireDiag ? (
+            <div
+              className="pvp-timer-pill"
+              title="Диагностика PvP: хост сокета и номер снимка. # должен расти на каждый ход."
+              style={{ maxWidth: 220, fontSize: 11, opacity: 0.9 }}
+            >
+              {network.wireDiag}
+            </div>
+          ) : null}
           {network && turnLeftSec != null && !state.winner ? (
             <div
               className={`pvp-timer-pill ${
