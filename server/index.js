@@ -528,7 +528,14 @@ app.use((req, res, next) => {
   next();
 });
 /** Health без rate-limit — иначе мониторинг/QA ловят 429 после шторма. */
-app.get("/api/health", (_req, res) => {
+app.get("/api/health", async (_req, res) => {
+  let pvpCanary = null;
+  try {
+    const { getLastPvpCanary } = await import("./pvpCanary.ts");
+    pvpCanary = getLastPvpCanary();
+  } catch {
+    pvpCanary = { ok: false, code: "CANARY_MODULE", detail: "import fail" };
+  }
   res.json({
     ok: true,
     uptime: Math.floor(process.uptime()),
@@ -536,7 +543,30 @@ app.get("/api/health", (_req, res) => {
     remoteDb: hasRemoteDb(),
     mail: mailConfigured(),
     mailDev: mailDevMode(),
+    pvpCanary,
   });
+});
+
+/**
+ * Жёсткий PvP-canary для агента: мгновенно говорит, жива ли синхронизация стола.
+ * Без UI. Коды FAIL = точная причина.
+ */
+app.get("/api/pvp-canary", async (_req, res) => {
+  try {
+    const { runPvpLogicCanary } = await import("./pvpCanary.ts");
+    const result = runPvpLogicCanary();
+    res.status(result.ok ? 200 : 503).json(result);
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    console.error(`[pvp:FAIL] code=CANARY_HTTP detail=${JSON.stringify(detail)}`);
+    res.status(503).json({
+      ok: false,
+      code: "CANARY_HTTP",
+      detail,
+      ms: 0,
+      at: Date.now(),
+    });
+  }
 });
 
 app.use(

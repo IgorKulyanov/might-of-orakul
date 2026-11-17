@@ -10,6 +10,7 @@ import {
   pruneEmptyShellAccounts,
 } from "./index.js";
 import { attachLobbyChat, pruneChatLog } from "./lobbyChat.ts";
+import { startPvpCanaryWatchdog } from "./pvpCanary.ts";
 import { attachPvp } from "./pvpRooms.ts";
 
 logAdminKeyHint();
@@ -111,6 +112,11 @@ function onListening() {
   console.log(`Orakul API http://127.0.0.1:${PORT} (и по Wi‑Fi на :${PORT})`);
   console.log(`Orakul PvP ws://127.0.0.1:${PORT}/ws/pvp`);
   console.log(`Orakul Chat ws://127.0.0.1:${PORT}/ws/chat`);
+  try {
+    startPvpCanaryWatchdog(45_000);
+  } catch (e) {
+    console.error("[pvp:FAIL] code=WATCHDOG_BOOT", e);
+  }
 }
 
 tryListen(5);

@@ -321,9 +321,18 @@ function send(ws: WebSocket, msg: PvpServerMsg): boolean {
   try {
     ws.send(JSON.stringify(msg));
     return true;
-  } catch {
+  } catch (e) {
+    console.error(
+      `[pvp:FAIL] code=WS_SEND detail=${JSON.stringify(
+        e instanceof Error ? e.message : String(e),
+      )}`,
+    );
     return false;
   }
+}
+
+function pvpFail(code: string, detail: Record<string, unknown>) {
+  console.error(`[pvp:FAIL] code=${code} ${JSON.stringify(detail)}`);
 }
 
 function clearTurnTimer(room: Room) {
@@ -509,6 +518,11 @@ function broadcastBattle(room: Room) {
   if (win) room.endedSent = true;
   // В бою мёртвый сокет = соперник не увидит ход. Не тянем вечный десинк.
   if (!win && dead.length === 1 && room.openingPhase === "done") {
+    pvpFail("PEER_WS_DEAD", {
+      room: room.code,
+      dead: dead[0],
+      seq: room.battleSeq,
+    });
     finishForfeit(room, dead[0]!, "disconnect");
   }
 }
@@ -1298,6 +1312,15 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           return;
         }
         if (!isSeatTurn(room.battle, seat)) {
+          pvpFail("ACTION_OUT_OF_TURN", {
+            room: room.code,
+            seat,
+            active: room.battle.active,
+            kind:
+              action && typeof action === "object" && "kind" in action
+                ? (action as { kind?: string }).kind
+                : "?",
+          });
           send(ws, { type: "error", message: "Сейчас ход соперника" });
           // Клиент мог успеть применить ход локально — вернём правду со стола.
           broadcastBattle(room);
@@ -1310,19 +1333,23 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
             action && typeof action === "object" && "kind" in action
               ? String((action as { kind?: string }).kind)
               : "?";
+          const before = room.battle;
           room.battle = applySeatAction(room.battle, seat, action);
+          const changed =
+            room.battle.active !== beforeActive ||
+            room.battle.turn !== beforeTurn ||
+            room.battle !== before;
+          if (kind === "endTurn" && room.battle.active === beforeActive) {
+            pvpFail("ENDTURN_NOOP", {
+              room: room.code,
+              seat,
+              active: beforeActive,
+              turn: beforeTurn,
+              pvpFirst: room.battle.pvpFirst,
+            });
+          }
           console.warn(
-            "[pvp] action",
-            room.code,
-            seat,
-            kind,
-            `${beforeActive}/${beforeTurn}`,
-            "->",
-            `${room.battle.active}/${room.battle.turn}`,
-            "hostOpen",
-            Boolean(room.host && isWsOpen(room.host.ws)),
-            "guestOpen",
-            Boolean(room.guest && isWsOpen(room.guest.ws)),
+            `[pvp:OK] code=ACTION room=${room.code} seat=${seat} kind=${kind} ${beforeActive}/${beforeTurn}->${room.battle.active}/${room.battle.turn} changed=${changed}`,
           );
           if (winnerSeat(room.battle)) {
             room.endReason = "combat";
