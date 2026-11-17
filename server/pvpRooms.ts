@@ -59,6 +59,8 @@ type Room = {
   openingLockedUntil: number | null;
   /** Повторная рассылка стола, пока крутится жеребьёвка (Telegram глотает пакеты). */
   openingPulse: ReturnType<typeof setInterval> | null;
+  /** Подряд пульсов с офлайном — чтобы разовый мигающий WS не рвал матч. */
+  openingOfflineStrikes: number;
 };
 
 const rooms = new Map<string, Room>();
@@ -336,15 +338,20 @@ function clearOpeningPulse(room: Room) {
 /** Пока кубик — долбим снимок обоим, чтобы один не застрял на «крутится». */
 function startOpeningPulse(room: Room) {
   clearOpeningPulse(room);
+  room.openingOfflineStrikes = 0;
   room.openingPulse = setInterval(() => {
     if (!room.battle || room.openingPhase === "done") {
       clearOpeningPulse(room);
       return;
     }
     if (!seatOnline(room.host) || !seatOnline(room.guest)) {
-      dissolveMatchRequeue(room, "Соперник не вошёл в бой — ищем снова");
+      room.openingOfflineStrikes += 1;
+      if (room.openingOfflineStrikes >= 3) {
+        dissolveMatchRequeue(room, "Соперник не вошёл в бой — ищем снова");
+      }
       return;
     }
+    room.openingOfflineStrikes = 0;
     broadcastBattle(room);
   }, 1200);
 }
@@ -650,7 +657,9 @@ function tryStart(room: Room) {
     });
     room.battle = started.state;
     room.openingDice = null;
-    room.diceRolls = { host: null, guest: null };
+    // Жребий сразу на сервере — без кнопки. Иначе Telegram/лимит WS
+    // оставляют одного с вечным «Бросить кубик».
+    room.diceRolls = { host: d6(), guest: d6() };
     room.openingPhase = "wait";
     room.endedSent = false;
     room.timeouts = { host: 0, guest: 0 };
@@ -664,16 +673,14 @@ function tryStart(room: Room) {
         ...(room.battle.log ?? []),
       ].slice(0, 14),
     };
+    // Короткий спин у обоих, потом reveal — без roll_dice с клиента.
     broadcastBattle(room);
     startOpeningPulse(room);
     clearTurnTimer(room);
-    // Если кто-то не нажмёт — бросаем за него, бой не зависает.
     room.turnTimer = setTimeout(() => {
       if (!room.battle || room.openingPhase !== "wait") return;
-      if (room.diceRolls.host == null) room.diceRolls.host = d6();
-      if (room.diceRolls.guest == null) room.diceRolls.guest = d6();
       finishOpeningDice(room);
-    }, 12_000);
+    }, 900);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Не удалось начать бой";
     dissolveMatchRequeue(room, message);
@@ -752,6 +759,7 @@ function getOrCreate(code: string): Room | null {
       endedSent: false,
       openingLockedUntil: null,
       openingPulse: null,
+      openingOfflineStrikes: 0,
     };
     rooms.set(code, room);
   }
@@ -914,11 +922,6 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
     };
 
     ws.on("message", (raw) => {
-      const rl = rateLimit(`ws:${connId}`, 40, 5_000);
-      if (!rl.ok) {
-        send(ws, { type: "error", message: "Слишком много сообщений" });
-        return;
-      }
       if (typeof raw !== "string" && !Buffer.isBuffer(raw)) {
         send(ws, { type: "error", message: "Битый пакет" });
         return;
@@ -935,6 +938,16 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
       } catch {
         send(ws, { type: "error", message: "Битый пакет" });
         return;
+      }
+
+      // sync/roll_dice не режем — иначе жеребьёвка навечно просит бросок.
+      const skipRl = msg.type === "sync" || msg.type === "roll_dice";
+      if (!skipRl) {
+        const rl = rateLimit(`ws:${connId}`, 40, 5_000);
+        if (!rl.ok) {
+          send(ws, { type: "error", message: "Слишком много сообщений" });
+          return;
+        }
       }
 
       if (msg.type === "cancel_queue") {

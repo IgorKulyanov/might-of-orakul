@@ -1087,7 +1087,13 @@ export function Battle({
   );
   const [diceUi, setDiceUi] = useState<"hidden" | "prompt" | "wait" | "result">(
     () =>
-      network?.needRoll || network?.openingLocked ? "prompt" : "hidden",
+      network?.needRoll
+        ? "prompt"
+        : network?.openingLocked
+          ? network.openingDice
+            ? "result"
+            : "wait"
+          : "hidden",
   );
   const diceDoneRef = useRef(false);
   const [spinFace, setSpinFace] = useState(1);
@@ -1133,27 +1139,22 @@ export function Battle({
     network?.openingDice,
   ]);
 
-  // Бросок ушёл в никуда — вернём кнопку, не крутить вечность.
-  useEffect(() => {
-    if (!network?.needRoll || diceUi !== "wait") return;
-    const id = window.setTimeout(() => setDiceUi("prompt"), 3500);
-    return () => window.clearTimeout(id);
-  }, [network?.needRoll, diceUi]);
-
-  // Пока оверлей кубика — тянем снимок, если Telegram проглотил reveal/done.
+  // Редкий догон: если оверлей висит, а пакеты reveal/done потерялись.
   useEffect(() => {
     if (!network || diceUi === "hidden") return;
-    const pull = () => {
+    const sync = network.sync;
+    if (!sync) return;
+    const id = window.setInterval(() => {
       try {
-        network.sync?.();
+        sync();
       } catch {
         /* ignore */
       }
-    };
-    pull();
-    const id = window.setInterval(pull, 1500);
+    }, 2500);
     return () => window.clearInterval(id);
-  }, [network, diceUi]);
+    // Только смена режима оверлея — не на каждый кадр крутилки.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [diceUi, Boolean(network)]);
 
   useEffect(() => {
     if (diceUi !== "wait") return;
@@ -4168,11 +4169,13 @@ export function Battle({
               </p>
             ) : diceUi === "wait" ? (
               <p className="pvp-dice-wait">
-                {network.foeRolled
-                  ? "Оба бросили — сейчас результат"
-                  : "Ждём, пока соперник бросит свой кубик"}
+                {network.youRolled && network.foeRolled
+                  ? "Жребий — сейчас результат"
+                  : network.foeRolled
+                    ? "Оба бросили — сейчас результат"
+                    : "Ждём, пока соперник бросит свой кубик"}
               </p>
-            ) : (
+            ) : network.needRoll ? (
               <button
                 type="button"
                 className="primary pvp-dice-throw"
@@ -4189,6 +4192,8 @@ export function Battle({
                   ? "Соперник бросил — брось свой"
                   : "Бросить кубик"}
               </button>
+            ) : (
+              <p className="pvp-dice-wait">Жребий…</p>
             )}
           </div>
         </div>
