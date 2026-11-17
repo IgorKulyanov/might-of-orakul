@@ -112,11 +112,7 @@ import {
   defaultUpgradeLevel,
   isUpgradeableCard,
 } from "../game/cardUpgrades";
-import {
-  applyPvpAction,
-  PVP_OPENING_MS,
-  type PvpAction,
-} from "../game/pvpProtocol";
+import { applyPvpAction, type PvpAction } from "../game/pvpProtocol";
 import type { BattleState, CreatureInstance } from "../game/types";
 
 function upgradeLvFor(
@@ -217,8 +213,6 @@ type Props = {
 };
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-
-const DIE_FACE = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
 
 type FxImpact =
   | "arrow"
@@ -1085,18 +1079,6 @@ export function Battle({
   const [tutorialStep, setTutorialStep] = useState<number | null>(() =>
     network || hasSeenBattleTutorial() ? null : 0,
   );
-  const [diceUi, setDiceUi] = useState<"hidden" | "prompt" | "wait" | "result">(
-    () =>
-      network?.needRoll
-        ? "prompt"
-        : network?.openingLocked
-          ? network.openingDice
-            ? "result"
-            : "wait"
-          : "hidden",
-  );
-  const diceDoneRef = useRef(false);
-  const [spinFace, setSpinFace] = useState(1);
   const [tutorialSpot, setTutorialSpot] = useState<{
     top: number;
     left: number;
@@ -1112,66 +1094,6 @@ export function Battle({
     const id = window.requestAnimationFrame(() => setEntered(true));
     return () => window.cancelAnimationFrame(id);
   }, []);
-
-  useEffect(() => {
-    if (!network) return;
-    // Кто ещё не бросил — всегда кнопка. Хост бросил ≠ гость тоже бросил.
-    if (network.needRoll) {
-      diceDoneRef.current = false;
-      setDiceUi((ui) => (ui === "wait" ? "wait" : "prompt"));
-      return;
-    }
-    if (network.openingLocked && network.openingDice) {
-      setDiceUi("result");
-      return;
-    }
-    if (network.openingLocked) {
-      setDiceUi("wait");
-      return;
-    }
-    // Сервер открыл ход — сразу снимаем оверлей, иначе карты «не ставятся».
-    diceDoneRef.current = true;
-    setDiceUi("hidden");
-  }, [
-    network?.needRoll,
-    network?.youRolled,
-    network?.openingLocked,
-    network?.openingDice,
-  ]);
-
-  // Редкий догон: если оверлей висит, а пакеты reveal/done потерялись.
-  useEffect(() => {
-    if (!network || diceUi === "hidden") return;
-    const sync = network.sync;
-    if (!sync) return;
-    const id = window.setInterval(() => {
-      try {
-        sync();
-      } catch {
-        /* ignore */
-      }
-    }, 2500);
-    return () => window.clearInterval(id);
-    // Только смена режима оверлея — не на каждый кадр крутилки.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [diceUi, Boolean(network)]);
-
-  useEffect(() => {
-    if (diceUi !== "wait") return;
-    const id = window.setInterval(() => {
-      setSpinFace((n) => (n % 6) + 1);
-    }, 70);
-    return () => window.clearInterval(id);
-  }, [diceUi]);
-
-  useEffect(() => {
-    if (diceUi !== "result") return;
-    const t = window.setTimeout(() => {
-      diceDoneRef.current = true;
-      setDiceUi("hidden");
-    }, PVP_OPENING_MS);
-    return () => window.clearTimeout(t);
-  }, [diceUi]);
 
   useEffect(() => {
     if (!externalState) return;
@@ -1264,15 +1186,10 @@ export function Battle({
     });
   }, [state.winner, network?.ended]);
 
-  // Блокировка только по серверу. diceUi сам по себе ход не держит —
-  // иначе после кубика рука навсегда «hand-locked» и карты не ставятся.
-  const pvpHold = Boolean(
-    network && (network.openingLocked || network.needRoll),
-  );
+  // Жребий больше не блокирует руку/ход — только лог на столе.
   const actionBlocked =
     busy ||
     pvpAwaiting ||
-    pvpHold ||
     !!state.winner ||
     state.active !== "you";
 
@@ -2848,7 +2765,6 @@ export function Battle({
   }, [state.selectedHand, busy, dropSeq]);
 
   const hint = (() => {
-    if (pvpHold) return "Кубик решает, кто ходит первым…";
     if (network && !state.winner && state.active !== "you") {
       return "Ход соперника — жди своей очереди";
     }
@@ -3091,7 +3007,7 @@ export function Battle({
           >
             {sfxOff ? "🔇" : "🔊"}
           </button>
-          {network && turnLeftSec != null && !state.winner && !pvpHold ? (
+          {network && turnLeftSec != null && !state.winner ? (
             <div
               className={`pvp-timer-pill ${
                 state.active === "you" && turnLeftSec <= 5 ? "is-urgent" : ""
@@ -4105,96 +4021,6 @@ export function Battle({
                 })()}
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {network && diceUi !== "hidden" && (
-        <div className="pvp-dice-overlay" role="dialog" aria-label="Бросок кубиков">
-          <div className="pvp-dice-card">
-            <p className="pvp-dice-title">Бросьте кубики</p>
-            <p className="pvp-dice-sub">чтобы решить, кто ходит первым</p>
-            <div className="pvp-dice-row">
-              <div className="pvp-dice-col">
-                <span className="pvp-dice-name">Ты</span>
-                <span
-                  className={`pvp-die ${diceUi === "wait" ? "is-spinning" : ""} ${diceUi === "result" ? "is-landed" : ""}`}
-                  aria-hidden
-                >
-                  {DIE_FACE[
-                    diceUi === "result"
-                      ? (network.openingDice?.you ?? 1)
-                      : diceUi === "wait"
-                        ? spinFace
-                        : 1
-                  ] ?? "⚀"}
-                </span>
-                {diceUi === "result" ? (
-                  <b>{network.openingDice?.you}</b>
-                ) : (
-                  <b className="pvp-dice-placeholder">
-                    {diceUi === "wait" ? "…" : "?"}
-                  </b>
-                )}
-              </div>
-              <div className="pvp-dice-vs">vs</div>
-              <div className="pvp-dice-col">
-                <span className="pvp-dice-name">Соперник</span>
-                <span
-                  className={`pvp-die ${network.foeRolled && diceUi !== "result" ? "is-spinning" : ""} ${diceUi === "result" ? "is-landed" : ""}`}
-                  aria-hidden
-                >
-                  {DIE_FACE[
-                    diceUi === "result"
-                      ? (network.openingDice?.foe ?? spinFace)
-                      : network.foeRolled
-                        ? spinFace
-                        : 1
-                  ] ?? "⚀"}
-                </span>
-                {diceUi === "result" ? (
-                  <b>{network.openingDice?.foe}</b>
-                ) : (
-                  <b className="pvp-dice-placeholder">
-                    {network.foeRolled ? "…" : "?"}
-                  </b>
-                )}
-              </div>
-            </div>
-            {diceUi === "result" && network.openingDice ? (
-              <p className="pvp-dice-result">
-                {network.openingDice.youFirst
-                  ? "Ты ходишь первым"
-                  : "Первым ходит соперник"}
-              </p>
-            ) : diceUi === "wait" ? (
-              <p className="pvp-dice-wait">
-                {network.youRolled && network.foeRolled
-                  ? "Жребий — сейчас результат"
-                  : network.foeRolled
-                    ? "Оба бросили — сейчас результат"
-                    : "Ждём, пока соперник бросит свой кубик"}
-              </p>
-            ) : network.needRoll ? (
-              <button
-                type="button"
-                className="primary pvp-dice-throw"
-                onClick={() => {
-                  setDiceUi("wait");
-                  try {
-                    network.rollDice?.();
-                  } catch {
-                    /* сервер ответит */
-                  }
-                }}
-              >
-                {network.foeRolled
-                  ? "Соперник бросил — брось свой"
-                  : "Бросить кубик"}
-              </button>
-            ) : (
-              <p className="pvp-dice-wait">Жребий…</p>
-            )}
           </div>
         </div>
       )}

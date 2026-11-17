@@ -656,16 +656,38 @@ function tryStart(room: Room) {
       waitForDice: true,
     });
     room.battle = started.state;
-    room.openingDice = null;
-    // Жребий сразу на сервере — без кнопки. Иначе Telegram/лимит WS
-    // оставляют одного с вечным «Бросить кубик».
-    room.diceRolls = { host: d6(), guest: d6() };
-    room.openingPhase = "wait";
+    // Жребий мгновенно и без оверлея: иначе один уже ходит, у второго
+    // навечно трясутся кубики (пакет reveal/done не дошёл).
+    let hostRoll = d6();
+    let guestRoll = d6();
+    for (let i = 0; i < 24 && hostRoll === guestRoll; i++) {
+      hostRoll = d6();
+      guestRoll = d6();
+    }
+    if (hostRoll === guestRoll) {
+      hostRoll = 6;
+      guestRoll = 1;
+    }
+    const dice: OpeningDice = {
+      host: hostRoll,
+      guest: guestRoll,
+      first: hostRoll > guestRoll ? "host" : "guest",
+    };
+    room.diceRolls = { host: hostRoll, guest: guestRoll };
+    room.openingDice = dice;
+    room.battle = applyOpeningDice(
+      room.battle,
+      dice,
+      room.host.name,
+      room.guest.name,
+    );
+    room.openingPhase = "done";
     room.endedSent = false;
     room.timeouts = { host: 0, guest: 0 };
     room.endReason = null;
-    room.openingLockedUntil = Date.now() + 120_000;
+    room.openingLockedUntil = null;
     room.turnEndsAt = null;
+    clearOpeningPulse(room);
     room.battle = {
       ...room.battle,
       log: [
@@ -673,14 +695,19 @@ function tryStart(room: Room) {
         ...(room.battle.log ?? []),
       ].slice(0, 14),
     };
-    // Короткий спин у обоих, потом reveal — без roll_dice с клиента.
     broadcastBattle(room);
-    startOpeningPulse(room);
-    clearTurnTimer(room);
-    room.turnTimer = setTimeout(() => {
-      if (!room.battle || room.openingPhase !== "wait") return;
-      finishOpeningDice(room);
-    }, 900);
+    // Повтор через 0.5с и 1.5с — если первый battle проглотили.
+    const code = room.code;
+    for (const ms of [500, 1500]) {
+      setTimeout(() => {
+        const r = rooms.get(code);
+        if (!r?.battle || r.openingPhase !== "done" || winnerSeat(r.battle)) {
+          return;
+        }
+        broadcastBattle(r);
+      }, ms);
+    }
+    scheduleTurnTimer(room);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Не удалось начать бой";
     dissolveMatchRequeue(room, message);

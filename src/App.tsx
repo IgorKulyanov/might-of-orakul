@@ -1572,11 +1572,11 @@ export default function App() {
           foeTimeouts,
           maxTimeouts,
           turnLimitSec,
-          openingDice,
-          openingLocked,
-          needRoll,
-          youRolled,
-          foeRolled,
+          openingDice: _openingDice,
+          openingLocked: _openingLocked,
+          needRoll: _needRoll,
+          youRolled: _youRolled,
+          foeRolled: _foeRolled,
         }) => {
           pvpFledRef.current = false;
           pvpSettledRef.current = false;
@@ -1591,11 +1591,12 @@ export default function App() {
             maxTimeouts,
             turnLimitSec,
             endMessage: null,
-            openingDice: openingDice ?? null,
-            openingLocked: Boolean(openingLocked),
-            needRoll: Boolean(needRoll),
-            youRolled: Boolean(youRolled),
-            foeRolled: Boolean(foeRolled),
+            openingDice: null,
+            // Оверлей жеребья отключён: иначе один в бою, у второго трясутся кубики.
+            openingLocked: false,
+            needRoll: false,
+            youRolled: true,
+            foeRolled: true,
           });
           socket.setHandler((msg: PvpServerMsg) => {
             if (msg.type === "battle") {
@@ -1611,14 +1612,11 @@ export default function App() {
                 foeTimeouts: msg.foeTimeouts,
                 maxTimeouts: msg.maxTimeouts,
                 turnLimitSec: msg.turnLimitSec,
-                openingDice: msg.needRoll
-                  ? null
-                  : (msg.openingDice ??
-                    (msg.openingLocked ? c.openingDice : null)),
-                openingLocked: finished ? false : Boolean(msg.openingLocked),
-                needRoll: finished ? false : Boolean(msg.needRoll),
-                youRolled: Boolean(msg.youRolled),
-                foeRolled: Boolean(msg.foeRolled),
+                openingDice: null,
+                openingLocked: false,
+                needRoll: false,
+                youRolled: true,
+                foeRolled: true,
                 // Конец боя дублируем в battle — если `ended` не дошёл, не зависаем.
                 endMessage: finished
                   ? (c.endMessage ??
