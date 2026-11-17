@@ -1097,21 +1097,28 @@ export function Battle({
 
   useEffect(() => {
     if (!externalState) return;
-    // Стол с сервера — winner больше не вычищаем (иначе при потере `ended`
-    // проигравший навечно «ждёт хода» без оверлея).
+    // Стол с сервера — всегда. Иначе чужие ходы «не видны», ход не передаётся.
     const next = externalState;
     const matchOver = Boolean(next.winner) || Boolean(network?.ended);
-    const keepBusy =
-      !matchOver && lock.current && next.active === "you";
     stateRef.current = next;
     setState(next);
     setPhase(next.active === "you" ? "you" : "enemy");
     setPvpAwaiting(false);
-    // Стол всегда с сервера. Busy не сбрасываем посреди своей анимации.
-    if (keepBusy) return;
+    // Свою анимацию не рвём только если сервер ещё оставил наш ход.
+    if (!matchOver && lock.current && next.active === "you") return;
     setBusy(false);
     lock.current = false;
-  }, [externalState, network, network?.ended]);
+  }, [
+    externalState,
+    externalState?.active,
+    externalState?.turn,
+    externalState?.log[0],
+    externalState?.you?.mana,
+    externalState?.enemy?.mana,
+    externalState?.you?.hp,
+    externalState?.enemy?.hp,
+    network?.ended,
+  ]);
 
   useLayoutEffect(() => {
     if (tutorialStep == null || state.winner) {

@@ -583,6 +583,7 @@ export default function App() {
   });
   const pvpSocketRef = useRef<PvpSocket | null>(null);
   const pvpSettledRef = useRef(false);
+  const pvpBattleSeqRef = useRef(0);
   /** Сбежал из PvP — без наград (даже утешительных). */
   const pvpFledRef = useRef(false);
   /** Вышел из тропы/арены до конца — поражение без наград боя. */
@@ -605,6 +606,24 @@ export default function App() {
   useEffect(() => {
     alog("nav", "screen", { screen });
   }, [screen]);
+
+  // Пока бой — сами тянем стол. Иначе один сходил, второй вечно ждёт.
+  useEffect(() => {
+    if (screen !== "battle_pvp") return;
+    const tick = () => {
+      if (pvpSettledRef.current) return;
+      const sock = pvpSocketRef.current;
+      if (!sock?.connected) return;
+      try {
+        sock.sync();
+      } catch {
+        /* ignore */
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [screen, pvpMatchKey]);
 
   // Пульс «онлайн» для админки (раз в ~30с + при смене экрана).
   useEffect(() => {
@@ -1499,6 +1518,14 @@ export default function App() {
           sendAction: (action) => {
             try {
               sock.action(action);
+              // Догоняем стол у обоих — мало ли пакет battle потерялся.
+              window.setTimeout(() => {
+                try {
+                  sock.sync();
+                } catch {
+                  /* ignore */
+                }
+              }, 400);
             } catch {
               /* ignore */
             }
@@ -1580,6 +1607,7 @@ export default function App() {
         }) => {
           pvpFledRef.current = false;
           pvpSettledRef.current = false;
+          pvpBattleSeqRef.current = 0;
           pvpSocketRef.current = socket;
           setPvpMatchKey((n) => n + 1);
           setPvpSeat(youAre);
@@ -1604,7 +1632,14 @@ export default function App() {
                 Boolean(msg.matchEnded) || Boolean(msg.state.winner);
               if (pvpSettledRef.current && !finished) return;
               if (finished) pvpSettledRef.current = true;
-              setPvpState(msg.state);
+              const seq = msg.battleSeq ?? 0;
+              // Не откатываемся на старый снимок, если догоняющий пакет пришёл поздно.
+              if (seq > 0 && seq < pvpBattleSeqRef.current && !finished) {
+                return;
+              }
+              if (seq > pvpBattleSeqRef.current) pvpBattleSeqRef.current = seq;
+              // Новый объект — иначе React может не перерисовать чужие ходы.
+              setPvpState({ ...msg.state });
               setPvpClock((c) => ({
                 ...c,
                 turnEndsAt: finished ? null : msg.turnEndsAt,

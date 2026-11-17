@@ -194,6 +194,8 @@ export type PvpServerMsg =
       /** Уже отзеркалено под «ты = you». */
       state: BattleState;
       yourTurn: boolean;
+      /** Монотонный номер снимка — клиент не проглотит устаревшее. */
+      battleSeq?: number;
       /** Epoch ms — когда истечёт ход (серверный таймер). */
       turnEndsAt: number | null;
       yourTimeouts: number;
@@ -295,9 +297,12 @@ export function applyPvpAction(
   switch (action.kind) {
     case "endTurn": {
       // Как vs бот: первый в раунде отдаёт ход без turn++, второй закрывает цикл.
+      if (viewedAsYou.active !== "you") return viewedAsYou;
       const first = viewedAsYou.pvpFirst ?? "you";
       if (first === "you") return endPlayerTurn(viewedAsYou);
       const asFirst = flipBattle(viewedAsYou);
+      // Защита от десинка active/pvpFirst — иначе endEnemyTurn no-op и ход «не передаётся».
+      if (asFirst.active !== "enemy") asFirst.active = "enemy";
       return flipBattle(endEnemyTurn(asFirst));
     }
     case "playCard":

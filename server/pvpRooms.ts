@@ -61,6 +61,8 @@ type Room = {
   openingPulse: ReturnType<typeof setInterval> | null;
   /** Подряд пульсов с офлайном — чтобы разовый мигающий WS не рвал матч. */
   openingOfflineStrikes: number;
+  /** Номер снимка стола — догоняем клиента, если пакет потерялся. */
+  battleSeq: number;
 };
 
 const rooms = new Map<string, Room>();
@@ -314,9 +316,13 @@ setInterval(() => {
   }
 }, 2000).unref?.();
 
-function send(ws: WebSocket, msg: PvpServerMsg) {
-  if (ws.readyState === ws.OPEN) {
+function send(ws: WebSocket, msg: PvpServerMsg): boolean {
+  if (ws.readyState !== ws.OPEN) return false;
+  try {
     ws.send(JSON.stringify(msg));
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -433,18 +439,20 @@ function battlePayload(room: Room, seat: PvpSeat): PvpServerMsg {
     type: "battle",
     code: room.code,
     youAre: seat,
-    state: viewForSeat(battle, seat),
+    // Клон — чтобы JSON/клиент не делили ссылку с server room.battle.
+    state: structuredClone(viewForSeat(battle, seat)),
     yourTurn: isSeatTurn(battle, seat),
+    battleSeq: room.battleSeq,
     turnEndsAt: matchEnded ? null : room.turnEndsAt,
     yourTimeouts,
     foeTimeouts,
     maxTimeouts: PVP_MAX_TIMEOUTS,
     turnLimitSec: PVP_TURN_SEC,
     openingDice: opening.openingDice ?? undefined,
-    openingLocked: opening.openingLocked,
-    needRoll: opening.needRoll,
-    youRolled: opening.youRolled,
-    foeRolled: opening.foeRolled,
+    openingLocked: false,
+    needRoll: false,
+    youRolled: true,
+    foeRolled: true,
     matchEnded: matchEnded || undefined,
     youWon: endMsg ? endMsg.youWon : undefined,
     endMessage: endMsg?.message,
@@ -482,17 +490,46 @@ function endMessage(
 
 function broadcastBattle(room: Room) {
   if (!room.battle) return;
+  room.battleSeq += 1;
   const win = winnerSeat(room.battle);
   const reason = room.endReason ?? "combat";
+  const dead: PvpSeat[] = [];
   for (const seat of ["host", "guest"] as const) {
     const p = seat === "host" ? room.host : room.guest;
     if (!p) continue;
+    if (!isWsOpen(p.ws)) {
+      dead.push(seat);
+      continue;
+    }
     if (win && !room.endedSent) {
       send(p.ws, endMessage(seat, win, reason));
     }
     send(p.ws, battlePayload(room, seat));
   }
   if (win) room.endedSent = true;
+  // В бою мёртвый сокет = соперник не увидит ход. Не тянем вечный десинк.
+  if (!win && dead.length === 1 && room.openingPhase === "done") {
+    finishForfeit(room, dead[0]!, "disconnect");
+  }
+}
+
+/** Повторная досылка — Telegram/прокси иногда глотают один пакет. */
+function broadcastBattleSoon(room: Room, delayMs = 350) {
+  const code = room.code;
+  const seq = room.battleSeq;
+  setTimeout(() => {
+    const r = rooms.get(code);
+    if (!r?.battle || r.battleSeq !== seq) return;
+    if (winnerSeat(r.battle)) return;
+    // не бампим seq повторно — шлём тот же снимок
+    const win = winnerSeat(r.battle);
+    for (const seat of ["host", "guest"] as const) {
+      const p = seat === "host" ? r.host : r.guest;
+      if (!p) continue;
+      if (win && !r.endedSent) send(p.ws, endMessage(seat, win, r.endReason ?? "combat"));
+      send(p.ws, battlePayload(r, seat));
+    }
+  }, delayMs);
 }
 
 function scheduleTurnTimer(room: Room) {
@@ -787,6 +824,7 @@ function getOrCreate(code: string): Room | null {
       openingLockedUntil: null,
       openingPulse: null,
       openingOfflineStrikes: 0,
+      battleSeq: 0,
     };
     rooms.set(code, room);
   }
@@ -1282,6 +1320,8 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
             scheduleTurnTimer(room);
           }
           broadcastBattle(room);
+          broadcastBattleSoon(room, 300);
+          broadcastBattleSoon(room, 900);
         } catch (e) {
           send(ws, {
             type: "error",
