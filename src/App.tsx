@@ -1521,6 +1521,13 @@ export default function App() {
               /* ignore */
             }
           },
+          sync: () => {
+            try {
+              sock.sync();
+            } catch {
+              /* ignore */
+            }
+          },
           exitLabel: "Сдаться",
         }}
         allowRematch={false}

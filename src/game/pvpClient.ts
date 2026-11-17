@@ -211,6 +211,11 @@ export class PvpSocket {
     this.send({ type: "roll_dice" });
   }
 
+  /** Запросить актуальный стол — если проглотили пакет жеребьёвки. */
+  sync() {
+    this.send({ type: "sync" });
+  }
+
   action(action: PvpAction) {
     this.send({ type: "action", action });
   }

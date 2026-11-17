@@ -57,6 +57,8 @@ type Room = {
   endedSent: boolean;
   /** До этого момента ходы с кубика не принимаем. */
   openingLockedUntil: number | null;
+  /** Повторная рассылка стола, пока крутится жеребьёвка (Telegram глотает пакеты). */
+  openingPulse: ReturnType<typeof setInterval> | null;
 };
 
 const rooms = new Map<string, Room>();
@@ -184,6 +186,7 @@ function requeuePlayer(p: SeatPlayer, queuedAt = Date.now()) {
 /** Сломать кривой матч: без победы, живых вернуть в поиск. */
 function dissolveMatchRequeue(room: Room, reason: string) {
   clearTurnTimer(room);
+  clearOpeningPulse(room);
   const host = room.host;
   const guest = room.guest;
   room.battle = null;
@@ -321,6 +324,29 @@ function clearTurnTimer(room: Room) {
     room.turnTimer = null;
   }
   room.turnEndsAt = null;
+}
+
+function clearOpeningPulse(room: Room) {
+  if (room.openingPulse) {
+    clearInterval(room.openingPulse);
+    room.openingPulse = null;
+  }
+}
+
+/** Пока кубик — долбим снимок обоим, чтобы один не застрял на «крутится». */
+function startOpeningPulse(room: Room) {
+  clearOpeningPulse(room);
+  room.openingPulse = setInterval(() => {
+    if (!room.battle || room.openingPhase === "done") {
+      clearOpeningPulse(room);
+      return;
+    }
+    if (!seatOnline(room.host) || !seatOnline(room.guest)) {
+      dissolveMatchRequeue(room, "Соперник не вошёл в бой — ищем снова");
+      return;
+    }
+    broadcastBattle(room);
+  }, 1200);
 }
 
 function lobbyPayload(room: Room, seat: PvpSeat): PvpServerMsg {
@@ -532,6 +558,7 @@ function finishForfeit(room: Room, loser: PvpSeat, reason: PvpEndReason) {
   room.endReason = reason;
   room.battle = forceWin(room.battle, winner, line);
   clearTurnTimer(room);
+  clearOpeningPulse(room);
   broadcastBattle(room);
 }
 
@@ -567,14 +594,23 @@ function finishOpeningDice(room: Room) {
   );
   room.openingPhase = "reveal";
   room.openingLockedUntil = Date.now() + PVP_OPENING_MS;
+  startOpeningPulse(room);
   broadcastBattle(room);
   clearTurnTimer(room);
   room.turnTimer = setTimeout(() => {
     if (!room.battle || winnerSeat(room.battle)) return;
     room.openingPhase = "done";
     room.openingLockedUntil = null;
+    clearOpeningPulse(room);
     scheduleTurnTimer(room);
     broadcastBattle(room);
+    // Ещё один снимок — у кого кубик «крутился», снимет оверлей.
+    const code = room.code;
+    setTimeout(() => {
+      const r = rooms.get(code);
+      if (!r?.battle || r.openingPhase !== "done") return;
+      broadcastBattle(r);
+    }, 500);
   }, PVP_OPENING_MS);
 }
 
@@ -629,17 +665,7 @@ function tryStart(room: Room) {
       ].slice(0, 14),
     };
     broadcastBattle(room);
-    // Повторный снимок через 1с — если у одного Telegram проглотил пакет.
-    const code = room.code;
-    setTimeout(() => {
-      const r = rooms.get(code);
-      if (!r?.battle || r.openingPhase === "done") return;
-      if (!seatOnline(r.host) || !seatOnline(r.guest)) {
-        dissolveMatchRequeue(r, "Соперник не вошёл в бой — ищем снова");
-        return;
-      }
-      broadcastBattle(r);
-    }, 1000);
+    startOpeningPulse(room);
     clearTurnTimer(room);
     // Если кто-то не нажмёт — бросаем за него, бой не зависает.
     room.turnTimer = setTimeout(() => {
@@ -701,6 +727,7 @@ function detach(
 
   if (!room.host && !room.guest) {
     clearTurnTimer(room);
+    clearOpeningPulse(room);
     rooms.delete(room.code);
   }
 }
@@ -724,6 +751,7 @@ function getOrCreate(code: string): Room | null {
       openingPhase: "done",
       endedSent: false,
       openingLockedUntil: null,
+      openingPulse: null,
     };
     rooms.set(code, room);
   }
@@ -773,11 +801,13 @@ function gcRooms() {
       (!room.battle && room.guest && !room.guest.online);
     if (!alive && !waitingReconnect && now - room.createdAt > 60_000) {
       clearTurnTimer(room);
+      clearOpeningPulse(room);
       rooms.delete(code);
       continue;
     }
     if (now - room.createdAt > ROOM_TTL_MS) {
       clearTurnTimer(room);
+      clearOpeningPulse(room);
       rooms.delete(code);
     }
   }
@@ -1160,6 +1190,15 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           return;
         }
         rollSeatDice(room, seat);
+        return;
+      }
+
+      if (msg.type === "sync") {
+        if (!room.battle) {
+          send(ws, lobbyPayload(room, seat));
+          return;
+        }
+        send(ws, battlePayload(room, seat));
         return;
       }
 

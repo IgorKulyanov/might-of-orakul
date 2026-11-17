@@ -203,6 +203,8 @@ type Props = {
     foeRolled?: boolean;
     ended?: boolean;
     rollDice?: () => void;
+    /** Подтянуть стол с сервера, пока крутится кубик. */
+    sync?: () => void;
     exitLabel?: string;
   };
   /** Подмена стейта с сервера (каждый тик PvP). */
@@ -1130,6 +1132,28 @@ export function Battle({
     network?.openingLocked,
     network?.openingDice,
   ]);
+
+  // Бросок ушёл в никуда — вернём кнопку, не крутить вечность.
+  useEffect(() => {
+    if (!network?.needRoll || diceUi !== "wait") return;
+    const id = window.setTimeout(() => setDiceUi("prompt"), 3500);
+    return () => window.clearTimeout(id);
+  }, [network?.needRoll, diceUi]);
+
+  // Пока оверлей кубика — тянем снимок, если Telegram проглотил reveal/done.
+  useEffect(() => {
+    if (!network || diceUi === "hidden") return;
+    const pull = () => {
+      try {
+        network.sync?.();
+      } catch {
+        /* ignore */
+      }
+    };
+    pull();
+    const id = window.setInterval(pull, 1500);
+    return () => window.clearInterval(id);
+  }, [network, diceUi]);
 
   useEffect(() => {
     if (diceUi !== "wait") return;

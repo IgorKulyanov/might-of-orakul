@@ -91,6 +91,8 @@ export type PvpClientMsg =
   | { type: "ready" }
   | { type: "leave" }
   | { type: "roll_dice" }
+  /** Клиент просит актуальный снимок стола (жеребьёвка / пропущенный пакет). */
+  | { type: "sync" }
   | { type: "action"; action: PvpAction };
 
 /** Лимит хода PvP (сек) и сколько авто-пропусков до поражения. */
