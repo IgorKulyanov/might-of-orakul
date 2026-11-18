@@ -29,8 +29,10 @@ export function manaSchoolOf(
 }
 
 /**
- * Старт боя: все школы с базы 1, своя чуть сильнее.
- * bonus — уровень / эпик / дар воды и т.п. (только на свою школу).
+ * Старт боя (голоднее, чтобы была кривая):
+ * — чужие школы с 0;
+ * — своя = 1 + bonus (уровень / эпик / дар воды).
+ * Раньше всем давали базу 1 и ещё +1 своей — маны хватало на всё сразу.
  */
 export function startingManaPool(
   own: Faction,
@@ -44,11 +46,7 @@ export function startingManaPool(
     life: 0,
     nature: 0,
   };
-  for (const f of FACTIONS) {
-    pool[f] = 1;
-  }
-  const ownExtra = 1 + Math.max(0, Math.floor(bonus));
-  pool[own] = Math.min(cap, (pool[own] ?? 0) + ownExtra);
+  pool[own] = Math.min(cap, 1 + Math.max(0, Math.floor(bonus)));
   return pool;
 }
 

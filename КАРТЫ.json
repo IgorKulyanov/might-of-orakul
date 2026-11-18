@@ -34,7 +34,7 @@
       "school": "life",
       "kind": "creature",
       "manaCost": {
-        "life": 2
+        "life": 3
       },
       "attack": 5,
       "health": 12,
@@ -54,7 +54,7 @@
       "school": "life",
       "kind": "creature",
       "manaCost": {
-        "life": 2
+        "life": 3
       },
       "attack": 3,
       "health": 14,
@@ -75,7 +75,7 @@
       "school": "life",
       "kind": "creature",
       "manaCost": {
-        "life": 2
+        "life": 3
       },
       "attack": 3,
       "health": 28,
@@ -245,7 +245,7 @@
       "school": "death",
       "kind": "creature",
       "manaCost": {
-        "death": 2
+        "death": 3
       },
       "attack": 6,
       "health": 16,
@@ -287,7 +287,7 @@
       "school": "death",
       "kind": "creature",
       "manaCost": {
-        "death": 2
+        "death": 3
       },
       "attack": 4,
       "health": 16,
@@ -308,7 +308,7 @@
       "school": "death",
       "kind": "creature",
       "manaCost": {
-        "death": 2
+        "death": 3
       },
       "attack": 3,
       "health": 15,
@@ -372,7 +372,7 @@
       "school": "water",
       "kind": "creature",
       "manaCost": {
-        "water": 2
+        "water": 3
       },
       "attack": 5,
       "health": 12,
@@ -503,7 +503,7 @@
       "school": "hell",
       "kind": "creature",
       "manaCost": {
-        "hell": 2
+        "hell": 3
       },
       "attack": 3,
       "health": 15,
@@ -524,7 +524,7 @@
       "school": "hell",
       "kind": "creature",
       "manaCost": {
-        "hell": 2
+        "hell": 3
       },
       "attack": 8,
       "health": 8,
@@ -609,7 +609,7 @@
       "school": "hell",
       "kind": "creature",
       "manaCost": {
-        "hell": 2
+        "hell": 3
       },
       "attack": 5,
       "health": 12,
@@ -656,7 +656,7 @@
       "school": "hell",
       "kind": "creature",
       "manaCost": {
-        "hell": 2
+        "hell": 3
       },
       "attack": 5,
       "health": 12,
@@ -677,7 +677,7 @@
       "school": "nature",
       "kind": "creature",
       "manaCost": {
-        "nature": 2
+        "nature": 3
       },
       "attack": 5,
       "health": 12,
@@ -740,7 +740,7 @@
       "school": "nature",
       "kind": "creature",
       "manaCost": {
-        "nature": 2
+        "nature": 3
       },
       "attack": 2,
       "health": 12,
@@ -944,7 +944,7 @@
       "school": "neutral",
       "kind": "creature",
       "manaCost": {
-        "life": 1,
+        "life": 2,
         "hell": 1
       },
       "attack": 5,
@@ -2160,7 +2160,7 @@
       "school": "neutral",
       "kind": "creature",
       "manaCost": {
-        "life": 1,
+        "life": 2,
         "nature": 1
       },
       "attack": 3,
@@ -2310,7 +2310,7 @@
       "school": "neutral",
       "kind": "creature",
       "manaCost": {
-        "nature": 1,
+        "nature": 2,
         "hell": 1
       },
       "attack": 6,

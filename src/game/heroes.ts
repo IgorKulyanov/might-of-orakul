@@ -19,7 +19,7 @@ export const EPIC_HERO_GOLD = 20000;
 export const EPIC_HERO_DIAMONDS = 2000;
 
 const MANA_LINE =
-  "Своя школа +1 маны каждый ход; чужие — через ход.\nНа старте у всех школ база 1, своя чуть сильнее.";
+  "Своя школа +1 маны каждый ход; чужие — через ход.\nСтарт: только своя школа (1 + бонусы), чужие с нуля.";
 
 /** Дары — только у эпиков (монетизация облика). Показ на регистрации как «позже». */
 export const EPIC_GIFT_BLURB: Record<Faction, string> = {
@@ -202,7 +202,9 @@ export function getHeroForLevel(id: string, level: number): HeroDef {
   const notes = [`HP оракула: ${hp} (ур. ${level}).`];
   if (epic) notes.push(oracleGiftCardText(base.faction, level));
   if (manaBonus > 0) {
-    notes.push(`Старт: у всех школ база 1, своей +${1 + manaBonus}.`);
+    notes.push(
+      `Старт маны своей школы: ${1 + manaBonus} (чужие с 0).`,
+    );
   }
   notes.push(
     `Умения школы: пул ${skillsForFaction(base.faction).length}, в бой до 4. Эпик чуть усиливает числа.`,

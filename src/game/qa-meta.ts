@@ -210,8 +210,9 @@ export function economyAll(fails: QaFail[], ok: string[]): void {
       if (getHero(b.you.heroId).tier !== "base") return `${f}: база не base`;
       if (getHero(e.you.heroId).tier !== "epic") return `${f}: эпик не epic`;
 
-      const wantBase = 2;
-      const wantEpic = f === "water" ? 4 : 3;
+      // Старт: только своя школа = 1 + bonus; чужие 0.
+      const wantBase = 1;
+      const wantEpic = f === "water" ? 3 : 2;
       if ((b.you.mana[f] ?? 0) !== wantBase) {
         return `${f} база мана ${b.you.mana[f]}, ждали ${wantBase}`;
       }
@@ -220,11 +221,11 @@ export function economyAll(fails: QaFail[], ok: string[]): void {
       }
       for (const sch of FACTIONS) {
         if (sch === f) continue;
-        if ((b.you.mana[sch] ?? 0) !== 1) {
-          return `${f} база ${sch}=${b.you.mana[sch]}`;
+        if ((b.you.mana[sch] ?? 0) !== 0) {
+          return `${f} база ${sch}=${b.you.mana[sch]}, ждали 0`;
         }
-        if ((e.you.mana[sch] ?? 0) !== 1) {
-          return `${f} эпик ${sch}=${e.you.mana[sch]}`;
+        if ((e.you.mana[sch] ?? 0) !== 0) {
+          return `${f} эпик ${sch}=${e.you.mana[sch]}, ждали 0`;
         }
       }
 
@@ -234,10 +235,11 @@ export function economyAll(fails: QaFail[], ok: string[]): void {
       const hpEpic = orakulBattleHp(f, 10, "epic");
       if (b10.you.maxHp !== hpBase) return `${f} база HP ${b10.you.maxHp}`;
       if (e10.you.maxHp !== hpEpic) return `${f} эпик HP ${e10.you.maxHp}`;
-      // Уровень больше не даёт стартовую ману
+      // С ур.5 startManaBonus=+1 → своя школа 2
       const b30 = createBattle(deck, deck, baseId, foe, "QA", 30, 30);
-      if ((b30.you.mana[f] ?? 0) !== wantBase) {
-        return `${f} ур.30 база мана ${b30.you.mana[f]}, ждали ${wantBase}`;
+      const wantBase30 = 2;
+      if ((b30.you.mana[f] ?? 0) !== wantBase30) {
+        return `${f} ур.30 база мана ${b30.you.mana[f]}, ждали ${wantBase30}`;
       }
       if (f === "nature") {
         if (hpEpic <= hpBase) return "дар рощи не дал HP эпику";

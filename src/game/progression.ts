@@ -48,7 +48,7 @@ export function orakulHpForLevel(level: number): number {
 }
 
 /**
- * Стартовая мана от искусств оракула (рубеж ур.5 → +1 своей школы).
+ * Стартовая мана своей школы от уровня (рубеж ур.5 → +1).
  * Раньше был отдельный бонус каждые 10 ур. — слишком жирно; теперь только рубеж.
  */
 export function startManaBonus(level: number): number {

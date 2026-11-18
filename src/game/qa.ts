@@ -382,7 +382,7 @@ function manaRules(fails: QaFail[], ok: string[]): void {
     }
   }
 
-  // Старт: все школы ≥1, своя ≥2
+  // Старт: чужие 0, своя = 1 (+bonus с ур.5 / эпик / дар)
   const start = createBattle(
     ["skeleton", "zombie", "hero_mana", "poison"],
     ["tank", "skeleton", "zombie", "hero_mana"],
@@ -394,20 +394,21 @@ function manaRules(fails: QaFail[], ok: string[]): void {
   );
   for (const f of FACTIONS) {
     const n = start.you.mana[f] ?? 0;
-    if (n < 1) {
-      fails.push({ area: "мана", detail: `старт ${f}=${n}, ждали ≥1` });
+    if (f === "life") {
+      if (n !== 1) {
+        fails.push({
+          area: "мана",
+          detail: `старт своей life=${n}, ждали 1`,
+        });
+      }
+    } else if (n !== 0) {
+      fails.push({ area: "мана", detail: `старт ${f}=${n}, ждали 0` });
     }
-  }
-  if ((start.you.mana.life ?? 0) < 2) {
-    fails.push({
-      area: "мана",
-      detail: `старт своей life=${start.you.mana.life}, ждали ≥2`,
-    });
   }
 
   if (!fails.some((f) => f.area === "мана")) {
     ok.push(
-      "мана: своя +1/ход, чужие через ход, старт 1+ у всех, своя сильнее, hero_mana +1",
+      "мана: своя +1/ход, чужие через ход, старт только своя=1, hero_mana +1",
     );
   }
 }
