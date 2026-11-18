@@ -48,12 +48,11 @@ export function orakulHpForLevel(level: number): number {
 }
 
 /**
- * Раньше: +1 своей маны на старте каждые 10 уровней.
- * Убрано — при толстых юнитах старт получался слишком жирным.
- * Функция оставлена (всегда 0), чтобы не ломать импорты.
+ * Стартовая мана от искусств оракула (рубеж ур.5 → +1 своей школы).
+ * Раньше был отдельный бонус каждые 10 ур. — слишком жирно; теперь только рубеж.
  */
-export function startManaBonus(_level: number): number {
-  return 0;
+export function startManaBonus(level: number): number {
+  return Math.max(1, Math.floor(level || 1)) >= 5 ? 1 : 0;
 }
 
 export type LevelUpReward = { gold: number; diamonds: number };
@@ -67,10 +66,11 @@ export function levelUpReward(_newLevel: number): LevelUpReward {
  * Золото за бой — как drip в HS/Snap: копит медленно.
  * ~5 побед/день ≈ 55–70 🪙; легенду (T5) не купить за вечер.
  */
+/** Мета-слой искусств: золото слегка растёт с уровнем (кампания/арена/бот). */
 export function battleGold(won: boolean, playerLevel: number): number {
   const lv = Math.max(1, playerLevel);
-  if (won) return 10 + Math.floor(lv / 5);
-  return 3;
+  if (won) return 10 + Math.floor(lv / 5) + Math.floor(lv / 15);
+  return 3 + Math.floor(lv / 20);
 }
 
 export type ProgressState = {

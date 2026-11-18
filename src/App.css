@@ -3695,6 +3695,147 @@ html.is-hand-dragging .oracle-folio {
   border-color: rgba(82, 183, 136, 0.55);
 }
 
+.battle .turn-actions .ghost.is-urgent {
+  border-color: rgba(232, 184, 92, 0.85);
+  box-shadow: 0 0 0 1px rgba(232, 184, 92, 0.35);
+  color: #f3e2b0;
+}
+
+.oracle-skill-tray {
+  display: grid;
+  grid-template-columns: repeat(2, 1.85rem);
+  grid-template-rows: repeat(2, 1.85rem);
+  gap: 0.28rem;
+  margin-left: 0.35rem;
+  padding: 0.28rem;
+  border-radius: 8px;
+  background: rgba(6, 8, 12, 0.72);
+  border: 1px solid rgba(120, 110, 90, 0.35);
+  flex-shrink: 0;
+}
+
+.oracle-skill-slot {
+  display: grid;
+  place-items: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid rgba(180, 160, 120, 0.35);
+  background: rgba(18, 16, 12, 0.9);
+  color: #e8dcc0;
+  cursor: pointer;
+}
+
+.oracle-skill-slot.is-empty {
+  border-style: dashed;
+  opacity: 0.35;
+  cursor: default;
+}
+
+.oracle-skill-slot.is-passive-skill {
+  cursor: help;
+  opacity: 0.85;
+}
+
+.oracle-skill-slot.is-used {
+  opacity: 0.35;
+  filter: grayscale(0.7);
+}
+
+.oracle-skill-slot.is-aiming {
+  border-color: rgba(232, 184, 92, 0.95);
+  box-shadow: 0 0 0 1px rgba(232, 184, 92, 0.45);
+}
+
+.oracle-skill-slot:disabled {
+  cursor: default;
+}
+
+.skill-ico {
+  display: inline-grid;
+  place-items: center;
+  line-height: 0;
+}
+
+.cabinet-oracle-skills {
+  margin-top: 1rem;
+}
+
+.cabinet-oracle-skills h3 {
+  margin: 0 0 0.35rem;
+}
+
+.cabinet-skill-loadout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.cabinet-skill-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.45rem;
+  border-radius: 8px;
+  border: 1px solid rgba(180, 160, 120, 0.4);
+  background: rgba(20, 16, 12, 0.75);
+  color: inherit;
+  font-size: 0.78rem;
+}
+
+.cabinet-skill-chip.is-empty {
+  opacity: 0.45;
+  border-style: dashed;
+}
+
+.cabinet-skill-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.cabinet-skill-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.45rem;
+  align-items: start;
+  padding: 0.4rem 0.45rem;
+  border-radius: 8px;
+  background: rgba(12, 10, 8, 0.45);
+  border: 1px solid rgba(120, 110, 90, 0.25);
+}
+
+.cabinet-skill-row.is-locked {
+  opacity: 0.45;
+}
+
+.cabinet-skill-meta {
+  display: grid;
+  gap: 0.15rem;
+  font-size: 0.82rem;
+}
+
+.cabinet-skill-meta .muted,
+.cabinet-skill-row .muted {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.cabinet-skill-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.cabinet-skill-actions .ghost {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.35rem;
+}
+
 .oracle-block.heal-target {
   animation: you-hero-heal-pulse 1.1s ease-in-out infinite;
 }
@@ -7925,8 +8066,97 @@ html.is-hand-dragging .oracle-folio {
   overflow: hidden;
   aspect-ratio: 3 / 4;
   border: 2px solid color-mix(in srgb, var(--gold) 65%, #8a6410);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+  padding: 0;
+  margin: 0;
   background: #0a0c12;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+  display: block;
+  width: 100%;
+}
+
+.cabinet-oracle-skills-hit {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: end center;
+  padding: 0 0 0.65rem;
+  margin: 0;
+  border: none;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cabinet-oracle-skills-hit:hover,
+.cabinet-oracle-skills-hit:focus-visible {
+  background: rgba(255, 220, 140, 0.12);
+}
+
+.cabinet-oracle-skills-hit:focus-visible {
+  outline: 2px solid #e8c878;
+  outline-offset: -2px;
+}
+
+.cabinet-oracle-skills-cta {
+  display: inline-block;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #1a140c;
+  background: linear-gradient(180deg, #f0d9a0, #d4a373);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+.cabinet-skills-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: end center;
+  padding: 0;
+}
+
+.cabinet-skills-backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: rgba(4, 6, 10, 0.72);
+  cursor: pointer;
+}
+
+.cabinet-skills-panel {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 34rem);
+  max-height: min(88vh, 40rem);
+  overflow: auto;
+  margin: 0;
+  padding: 0.9rem 1rem 1.25rem;
+  border-radius: 16px 16px 0 0;
+  background: #14110e;
+  border: 1px solid rgba(212, 163, 115, 0.45);
+  border-bottom: none;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.55);
+}
+
+.cabinet-skills-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.cabinet-skills-head h3 {
+  margin: 0;
+  font-size: 1.05rem;
 }
 
 .cabinet-oracle-art {
@@ -7938,9 +8168,17 @@ html.is-hand-dragging .oracle-folio {
 }
 
 .cabinet-oracle-art-wrap .orakul-level-badge.on-portrait {
-  left: 50%;
-  bottom: 0.35rem;
-  transform: translateX(-50%);
+  left: 0.45rem;
+  bottom: auto;
+  top: 0.45rem;
+  transform: none;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.cabinet-oracle-art-wrap .orakul-epic-badge {
+  z-index: 3;
+  pointer-events: none;
 }
 
 .cabinet-oracle-body {

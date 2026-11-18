@@ -359,6 +359,19 @@ export interface PlayerState {
    * (для энта ур.1–2).
    */
   natureSummonHpTotal?: number;
+  /** Экипированные умения оракула (до 4 id). */
+  oracleSkillLoadout?: string[];
+  /** Какие активки уже потрачены в этом бою (skillId → true). */
+  oracleSkillUsed?: Record<string, boolean>;
+  /** Уже кастанул активку на этом ходу. */
+  oracleActiveUsedThisTurn?: boolean;
+  oracleWetArmorUsed?: boolean;
+  oracleToughUsed?: boolean;
+  oracleSecondChanceUsed?: boolean;
+  oracleEmptySproutUsed?: boolean;
+  oracleCalmUsed?: boolean;
+  /** Скидка воде: следующая карта воды −1 (флаг). */
+  oracleWaterDiscount?: boolean;
 }
 
 export type AttackTarget = "hero" | number;
@@ -472,4 +485,10 @@ export interface OwnedState {
   cardShards?: Record<string, number>;
   /** 1 = старт прокачки с ур.1 (сброс бесплатного ур.2). */
   upgradeEpoch?: number;
+  /** Непотраченные очки умений (с левелапов). */
+  willPoints?: number;
+  /** Купленные умения текущей школы (id). */
+  oracleSkillsOwned?: string[];
+  /** 4 слота экипировки умений в бой. */
+  oracleSkillLoadout?: (string | null)[];
 }

@@ -50,8 +50,21 @@ import {
   orakulBattleHp,
   waterGiftStartMana,
 } from "../game/oracleGifts";
+import {
+  SKILL_RESET_DIAMONDS,
+  SKILL_UNLOCK_COST,
+  buyOracleSkill,
+  getSkill,
+  isSkillVisible,
+  normalizeOracleSkillState,
+  resetOracleSkill,
+  setOracleSkillLoadoutSlot,
+  skillUnlockLevel,
+  skillsForFaction,
+} from "../game/oracleSkills";
 import { startManaBonus, xpToNextLevel } from "../game/progression";
 import type { CardDef, OwnedState, School } from "../game/types";
+import { SkillIcon } from "./SkillIcon";
 import { XpBar } from "./XpBar";
 
 /** Порядок = закладки на ORAKUL.png слева направо. */
@@ -107,6 +120,8 @@ export function Cabinet({
   forcedTab,
 }: Props) {
   const [tab, setTab] = useState<Tab>("oracle");
+  /** Панель умений — по клику на портрет оракула. */
+  const [skillsOpen, setSkillsOpen] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
   const homeSchool = homeFactionOf(owned);
   const [bookSchool, setBookSchool] = useState<School>(homeSchool);
@@ -145,6 +160,19 @@ export function Cabinet({
   useEffect(() => {
     if (forcedTab) setTab(forcedTab);
   }, [forcedTab]);
+
+  useEffect(() => {
+    if (tab !== "oracle") setSkillsOpen(false);
+  }, [tab]);
+
+  useEffect(() => {
+    if (!skillsOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSkillsOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [skillsOpen]);
 
   useEffect(() => {
     if (!calibrating) saveBookLayout(bookLayout);
@@ -781,7 +809,7 @@ export function Cabinet({
       {tab === "oracle" && (
         <section className="cabinet-oracle-showcase" aria-label="Карта оракула">
           <div className={`cabinet-oracle-card ${epic ? "is-epic" : ""}`}>
-            <div className="cabinet-oracle-art-wrap">
+            <div className="cabinet-oracle-art-wrap is-skills-hit">
               <img
                 className="cabinet-oracle-art"
                 src={heroArt}
@@ -792,6 +820,14 @@ export function Cabinet({
                 ур. {level}
               </span>
               {epic && <span className="orakul-epic-badge">Эпик</span>}
+              <button
+                type="button"
+                className="cabinet-oracle-skills-hit"
+                onClick={() => setSkillsOpen(true)}
+                aria-label="Открыть умения оракула"
+              >
+                <span className="cabinet-oracle-skills-cta">Умения</span>
+              </button>
             </div>
             <div className="cabinet-oracle-body">
               <p className="cabinet-oracle-eyebrow inline-icos">
@@ -831,8 +867,11 @@ export function Cabinet({
                 <h3>Возможности</h3>
                 <ul>
                   <li>
-                    Своя школа +1 маны каждый ход; чужие — через ход. На старте
-                    у всех школ база 1, своя чуть сильнее.
+                    Нажми на портрет оракула — откроются умения школы.
+                  </li>
+                  <li>
+                    Чужие школы +1 маны через ход. Своя школа +1 за ход — если
+                    экипировано умение «Мана школы каждый ход».
                   </li>
                   {giftText ? (
                     <li>{giftText}</li>
@@ -843,10 +882,20 @@ export function Cabinet({
                     </li>
                   )}
                   {epic && (
-                    <li>Эпический облик: ещё +1 маны своей школы на старте.</li>
+                    <li>
+                      Эпик: +1 маны школы на старте и чуть сильнее умения.
+                    </li>
                   )}
                 </ul>
               </div>
+
+              <button
+                type="button"
+                className="primary large"
+                onClick={() => setSkillsOpen(true)}
+              >
+                Умения оракула
+              </button>
 
               {onChooseHero ? (
                 <button
@@ -865,6 +914,176 @@ export function Cabinet({
             </div>
           </div>
         </section>
+      )}
+
+      {skillsOpen && (
+        <div
+          className="cabinet-skills-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Умения оракула"
+        >
+          <button
+            type="button"
+            className="cabinet-skills-backdrop"
+            aria-label="Закрыть"
+            onClick={() => setSkillsOpen(false)}
+          />
+          <div className="cabinet-skills-panel">
+            <header className="cabinet-skills-head">
+              <h3>Умения · {hero.name}</h3>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => setSkillsOpen(false)}
+              >
+                Закрыть
+              </button>
+            </header>
+            <p className="hint">
+              Очки:{" "}
+              <strong>
+                {normalizeOracleSkillState(owned, hero.faction).willPoints}
+              </strong>
+              . В бой — до 4. Активки 1× за бой. Купить: {SKILL_UNLOCK_COST}{" "}
+              очков. Сброс: {SKILL_RESET_DIAMONDS}💎.
+            </p>
+            <div className="cabinet-skill-loadout" aria-label="Слоты в бой">
+              {Array.from({ length: 4 }, (_, i) => {
+                const st = normalizeOracleSkillState(owned, hero.faction);
+                const id = st.loadout[i];
+                const def = id ? getSkill(id) : null;
+                return (
+                  <button
+                    key={`load-${i}`}
+                    type="button"
+                    className={`cabinet-skill-chip ${def ? "" : "is-empty"}`}
+                    title={def ? `${def.name}: снять` : "Пустой слот"}
+                    onClick={() => {
+                      if (!def) return;
+                      const r = setOracleSkillLoadoutSlot(
+                        owned,
+                        hero.faction,
+                        i,
+                        null,
+                      );
+                      if (r.ok) onChange(r.owned);
+                    }}
+                  >
+                    {def ? (
+                      <>
+                        <SkillIcon icon={def.icon} size={16} />
+                        <span>{def.name}</span>
+                      </>
+                    ) : (
+                      <span>Слот {i + 1}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <ul className="cabinet-skill-list">
+              {skillsForFaction(hero.faction).map((def) => {
+                const st = normalizeOracleSkillState(owned, hero.faction);
+                const visible = isSkillVisible(hero.faction, def.id, level);
+                const bought = st.ownedSkills.includes(def.id);
+                const equipped = st.loadout.includes(def.id);
+                const unlockAt = skillUnlockLevel(hero.faction, def.id);
+                return (
+                  <li
+                    key={def.id}
+                    className={`cabinet-skill-row ${!visible ? "is-locked" : ""} ${bought ? "is-owned" : ""}`}
+                  >
+                    <SkillIcon icon={def.icon} size={18} />
+                    <div className="cabinet-skill-meta">
+                      <strong>
+                        {def.name}{" "}
+                        <span className="muted">
+                          {def.kind === "active" ? "актив 1×" : "пассив"}
+                        </span>
+                      </strong>
+                      <span>{def.text}</span>
+                      {!visible ? (
+                        <span className="muted">С ур. {unlockAt}</span>
+                      ) : null}
+                    </div>
+                    <div className="cabinet-skill-actions">
+                      {visible && !bought ? (
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={() => {
+                            const r = buyOracleSkill(
+                              owned,
+                              hero.faction,
+                              def.id,
+                            );
+                            if (!r.ok) {
+                              window.alert(r.reason ?? "Нельзя");
+                              return;
+                            }
+                            onChange(r.owned);
+                          }}
+                        >
+                          Купить {SKILL_UNLOCK_COST}
+                        </button>
+                      ) : null}
+                      {bought && !equipped ? (
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={() => {
+                            const empty = st.loadout.findIndex((x) => !x);
+                            if (empty < 0) {
+                              window.alert("Все 4 слота заняты");
+                              return;
+                            }
+                            const r = setOracleSkillLoadoutSlot(
+                              owned,
+                              hero.faction,
+                              empty,
+                              def.id,
+                            );
+                            if (r.ok) onChange(r.owned);
+                          }}
+                        >
+                          В бой
+                        </button>
+                      ) : null}
+                      {bought ? (
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={() => {
+                            if (
+                              !window.confirm(
+                                `Сброс «${def.name}» за ${SKILL_RESET_DIAMONDS} алмазов?`,
+                              )
+                            ) {
+                              return;
+                            }
+                            const r = resetOracleSkill(
+                              owned,
+                              hero.faction,
+                              def.id,
+                            );
+                            if (!r.ok) {
+                              window.alert(r.reason ?? "Нельзя");
+                              return;
+                            }
+                            onChange(r.owned);
+                          }}
+                        >
+                          Сброс {SKILL_RESET_DIAMONDS}💎
+                        </button>
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
       )}
 
       {tab === "deck" && (

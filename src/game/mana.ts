@@ -54,13 +54,22 @@ export function startingManaPool(
 
 /**
  * Рост маны в начале своего хода:
- * — своя школа всегда +1;
- * — чужие школы +1 через ход (чётные циклы), чтобы был голод по офф-цвету.
+ * — своя школа +1 только если экипировано умение «Мана школы каждый ход»;
+ * — чужие школы +1 через ход (чётные циклы).
  */
 export function growMana(p: PlayerState, turn: number, cap = 10): void {
   const foreignTick = turn > 0 && turn % 2 === 0;
+  const load = p.oracleSkillLoadout ?? [];
+  const hasSchoolMana =
+    load.length === 0 ||
+    load.includes(`${p.faction}_school_mana`) ||
+    load.includes("school_mana");
   for (const f of FACTIONS) {
-    if (f !== p.faction && !foreignTick) continue;
+    if (f === p.faction) {
+      if (!hasSchoolMana) continue;
+    } else if (!foreignTick) {
+      continue;
+    }
     const cur = Number(p.mana[f]) || 0;
     p.mana[f] = Math.min(cap, cur + 1);
   }

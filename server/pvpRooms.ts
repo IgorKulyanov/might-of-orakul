@@ -35,6 +35,7 @@ type SeatPlayer = {
   heroId: string;
   deck: string[];
   level: number;
+  skills?: (string | null)[];
   ready: boolean;
   /** false = сокет умер (свернул вкладку), место держим для reclaim. */
   online: boolean;
@@ -238,6 +239,7 @@ function pairIntoRoom(a: QueueEntry, b: QueueEntry): Room | null {
     heroId: a.heroId,
     deck: a.deck,
     level: a.level,
+    skills: a.skills,
     ready: true,
   });
   room.guest = makeSeat({
@@ -247,6 +249,7 @@ function pairIntoRoom(a: QueueEntry, b: QueueEntry): Room | null {
     heroId: b.heroId,
     deck: b.deck,
     level: b.level,
+    skills: b.skills,
     ready: true,
   });
   room.battle = null;
@@ -697,12 +700,14 @@ function tryStart(room: Room) {
         heroId: room.host.heroId,
         name: room.host.name,
         level: room.host.level,
+        skills: room.host.skills,
       },
       guest: {
         deck: room.guest.deck,
         heroId: room.guest.heroId,
         name: room.guest.name,
         level: room.guest.level,
+        skills: room.guest.skills,
       },
       waitForDice: true,
     });
@@ -861,6 +866,21 @@ function validateDeck(
     out.push(s);
   }
   return { ok: true, deck: out };
+}
+
+function sanitizeSkills(raw: unknown): (string | null)[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: (string | null)[] = [];
+  for (let i = 0; i < 4; i++) {
+    const v = raw[i];
+    if (v == null || v === "") {
+      out.push(null);
+      continue;
+    }
+    const s = String(v).slice(0, 64);
+    out.push(/^[a-z0-9_]+$/i.test(s) ? s : null);
+  }
+  return out;
 }
 
 function gcRooms() {
@@ -1075,6 +1095,7 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           1,
           Math.min(50, Math.floor(Number(msg.level) || 1)),
         );
+        const skills = sanitizeSkills((msg as { skills?: unknown }).skills);
         const entry: QueueEntry = {
           ws,
           userId: user.id,
@@ -1082,6 +1103,7 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           heroId,
           deck: deckCheck.deck,
           level,
+          skills,
           ready: false,
           queuedAt: Date.now(),
         };
@@ -1206,6 +1228,7 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           heroId,
           deck: deckCheck.deck,
           level: Math.max(1, Math.min(50, Math.floor(Number(msg.level) || 1))),
+          skills: sanitizeSkills((msg as { skills?: unknown }).skills),
           ready: false,
         });
 

@@ -100,6 +100,14 @@ import {
   zombieDeathTrick,
   type CardUpgradeLevel,
 } from "./cardUpgrades";
+import {
+  applyOracleSkillBattleStart,
+  castOracleSkill,
+  hurtOracle,
+  onUnitKilled,
+  tickOracleSkillPassivesEnd,
+  tickOracleSkillPassivesStart,
+} from "./oracleSkillCombat";
 import { startManaBonus } from "./progression";
 import {
   attackMotionForCard,
@@ -517,8 +525,8 @@ function applyHeroBurn(
 function tickHeroBurn(p: PlayerState, log: string[]): void {
   const b = p.heroBurn;
   if (!b) return;
-  const dmg = Math.max(1, b.amount);
-  p.hp -= dmg;
+  const raw = Math.max(1, b.amount);
+  const dmg = hurtOracle(p, raw, log);
   const left = Math.max(0, (b.turns ?? 1) - 1);
   if (left <= 0) {
     p.heroBurn = undefined;
@@ -581,20 +589,33 @@ function makePlayer(
   name: string,
   deckIds: string[],
   heroId: string,
-  opts?: { maxHp?: number; startManaBonus?: number; level?: number },
+  opts?: {
+    maxHp?: number;
+    startManaBonus?: number;
+    level?: number;
+    oracleSkillLoadout?: (string | null)[];
+  },
 ): PlayerState {
   const hero = getHero(heroId);
+  const level = Math.max(1, Math.min(50, opts?.level ?? 1));
   const deck = shuffle(deckIds);
   const hand = deck.splice(0, 4);
   const bonus = opts?.startManaBonus ?? 0;
   const mana = startingManaPool(hero.faction, bonus);
   const maxHp = opts?.maxHp ?? hero.maxHp;
+  let loadout = (opts?.oracleSkillLoadout ?? [])
+    .filter(Boolean)
+    .slice(0, 4) as string[];
+  // Без экипа — хотя бы мана школы, чтобы боты/старые бои не ломались.
+  if (!loadout.length) {
+    loadout = [`${hero.faction}_school_mana`];
+  }
   return {
     id,
     name,
     heroId: hero.id,
     faction: hero.faction,
-    level: Math.max(1, Math.min(50, opts?.level ?? 1)),
+    level,
     hp: maxHp,
     maxHp,
     mana,
@@ -609,6 +630,9 @@ function makePlayer(
     muteRangedTurns: 0,
     attackBanSchool: null,
     attackBanTurns: 0,
+    oracleSkillLoadout: loadout,
+    oracleSkillUsed: {},
+    oracleActiveUsedThisTurn: false,
   };
 }
 
@@ -820,6 +844,10 @@ export function createBattle(
   yourLevel = 1,
   enemyLevel = yourLevel,
   firstActive: "you" | "enemy" = "you",
+  opts?: {
+    youSkills?: (string | null)[];
+    enemySkills?: (string | null)[];
+  },
 ): BattleState {
   uidSeq = 1;
   const youHero = getHero(yourHeroId);
@@ -844,12 +872,14 @@ export function createBattle(
     maxHp: youHp,
     startManaBonus: startManaBonus(yourLevel) + youEpic + youWater,
     level: yourLevel,
+    oracleSkillLoadout: opts?.youSkills,
   });
   const enemy = makePlayer("enemy", "Соперник", enemyDeck, enemyHeroId, {
     maxHp: enemyHp,
     // Те же правила, что у игрока: уровень + эпик + дар воды. Без «+1 боту».
     startManaBonus: startManaBonus(enemyLevel) + enemyEpic + enemyWater,
     level: enemyLevel,
+    oracleSkillLoadout: opts?.enemySkills,
   });
   const youNatureNote =
     youEpic &&
@@ -863,6 +893,7 @@ export function createBattle(
     youEpic && youHero.faction === "death"
       ? `, дар косы (смерть юнита death → +1 мана death / ход)`
       : "";
+  const youArtNote = "";
   const battle: BattleState = {
     turn: 1,
     active: firstActive,
@@ -872,7 +903,7 @@ export function createBattle(
     bloodFrenzy: 0,
     aiLevel: enemyLevel,
     log: [
-      `Оракулы: ${yourName} (${youHero.name}, ур.${yourLevel}, ${youHp} HP${youNatureNote}${youWaterNote}${youDeathNote}) vs ${enemyHero.name} (ур.${enemyLevel}, ${enemyHp} HP).`,
+      `Оракулы: ${yourName} (${youHero.name}, ур.${yourLevel}, ${youHp} HP${youNatureNote}${youWaterNote}${youDeathNote}${youArtNote}) vs ${enemyHero.name} (ур.${enemyLevel}, ${enemyHp} HP).`,
       `🩸 Буйство крови после ${BLOOD_FRENZY_AFTER_TURNS} циклов или когда колоды иссякнут.`,
     ],
     winner: null,
@@ -888,6 +919,7 @@ export function createBattle(
     youCards: yourDeck.length,
     enemyCards: enemyDeck.length,
   });
+  applyOracleSkillBattleStart(battle);
   return battle;
 }
 
@@ -937,8 +969,8 @@ function armBloodFrenzy(state: BattleState, reason: string): void {
 function tickBloodFrenzy(state: BattleState): void {
   if (state.bloodFrenzy <= 0 || state.winner) return;
   const dmg = state.bloodFrenzy;
-  state.you.hp -= dmg;
-  state.enemy.hp -= dmg;
+  hurtOracle(state.you, dmg, state.log);
+  hurtOracle(state.enemy, dmg, state.log);
   state.log = [
     `🩸 Буйство крови: оракулы −${dmg} HP (далее −${dmg + 1})`,
     ...state.log,
@@ -1341,6 +1373,8 @@ function removeIfDead(
   if (state) {
     clearBondsForUnit(state, deadUid);
     tryDeathScytheGift(state, owner, deadCardId, log);
+    const deadSide = owner.id;
+    onUnitKilled(state, state.you, state.enemy, deadSide);
   } else {
     for (const u of owner.slots) {
       if (u?.guardedByUid === deadUid) u.guardedByUid = undefined;
@@ -1933,14 +1967,15 @@ function applySpellEffects(
 ): boolean {
   for (const eff of effects) {
     switch (eff.type) {
-      case "damage_hero":
-        foe.hp -= eff.amount;
-        log.unshift(`${caster.name}: ${eff.amount} урона герою`);
+      case "damage_hero": {
+        const hd = hurtOracle(foe, eff.amount, log);
+        log.unshift(`${caster.name}: ${hd} урона герою`);
         break;
+      }
       case "damage_enemy": {
         if (targetSlot == null) {
-          foe.hp -= eff.amount;
-          log.unshift(`${caster.name}: ${eff.amount} урона оракулу врага`);
+          const hd = hurtOracle(foe, eff.amount, log);
+          log.unshift(`${caster.name}: ${hd} урона оракулу врага`);
           break;
         }
         if (!foe.slots[targetSlot]) return false;
@@ -4208,8 +4243,11 @@ export function attackWith(
       next.log = ["Слот занят — бей существо", ...next.log].slice(0, 10);
       return next;
     }
-    const hd = outgoingDamage(me, strikePower(atk));
-    foe.hp -= hd;
+    const hd = hurtOracle(
+      foe,
+      outgoingDamage(me, strikePower(atk)),
+      next.log,
+    );
     atk.canAttack = false;
     next.log = [
       `${getCard(atk.cardId).name} бьёт героя на ${hd}`,
@@ -4602,6 +4640,10 @@ function beginTurn(
     tickRogueSteal(p, foe, log);
   }
   tickSchoolManaAura(p, log);
+  if (opts?.state) {
+    const foe = p.id === "you" ? opts.state.enemy : opts.state.you;
+    tickOracleSkillPassivesStart(p, foe, turn, log);
+  }
   draw(p, 1, opts?.state);
   if (p.bonusDrawTurns > 0) {
     draw(p, 1, opts?.state);
@@ -4769,6 +4811,7 @@ export function normalizeBattleFx(fx: BattleFx): BattleFx {
 export function endPlayerTurn(state: BattleState): BattleState {
   if (state.winner || state.active !== "you") return state;
   const next = structuredClone(state) as BattleState;
+  tickOracleSkillPassivesEnd(next, next.you, next.log);
   tickTraitorAfterCasterTurn(next, next.you, next.log);
   tickEndOwnerEffects(next.you, next.log);
   clearEchoSpells(next);
@@ -4811,6 +4854,7 @@ export function endPlayerTurn(state: BattleState): BattleState {
 export function endEnemyTurn(state: BattleState): BattleState {
   if (state.winner || state.active !== "enemy") return state;
   const next = structuredClone(state) as BattleState;
+  tickOracleSkillPassivesEnd(next, next.enemy, next.log);
   tickTraitorAfterCasterTurn(next, next.enemy, next.log);
   tickEndOwnerEffects(next.enemy, next.log);
   // Эхо врага НЕ снимаем здесь — игрок должен видеть серые карты весь свой ход
@@ -6930,3 +6974,6 @@ export function playGuardianBond(
   ].slice(0, 10);
   return next;
 }
+
+export { castOracleSkill, hurtOracle } from "./oracleSkillCombat";
+

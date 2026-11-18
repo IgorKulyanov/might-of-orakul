@@ -39,6 +39,7 @@ type Props = {
   heroId: string;
   displayName: string;
   deck: string[];
+  oracleSkills?: (string | null)[];
   /** Код из ссылки ?pvp= */
   initialCode?: string;
   onBack: () => void;
@@ -70,6 +71,7 @@ export function MultiMenu({
   heroId,
   displayName,
   deck,
+  oracleSkills,
   initialCode = "",
   onBack,
   onFightBot,
@@ -356,6 +358,7 @@ export function MultiMenu({
         deck: liveDeck,
         name: displayName,
         level: playerLevel,
+        skills: oracleSkills,
       });
       setBusy(false);
     } catch (err) {
@@ -430,6 +433,7 @@ export function MultiMenu({
         deck: liveDeck,
         name: displayName,
         level: playerLevel,
+        skills: oracleSkills,
       });
       lobbyWaitRef.current = window.setTimeout(() => {
         setBusy(false);

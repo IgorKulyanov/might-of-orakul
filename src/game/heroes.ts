@@ -3,6 +3,7 @@ import {
   orakulBattleHp,
   waterGiftStartMana,
 } from "./oracleGifts";
+import { skillsForFaction } from "./oracleSkills";
 import { orakulHpForLevel, startManaBonus } from "./progression";
 import type { Faction, HeroDef } from "./types";
 
@@ -203,6 +204,9 @@ export function getHeroForLevel(id: string, level: number): HeroDef {
   if (manaBonus > 0) {
     notes.push(`Старт: у всех школ база 1, своей +${1 + manaBonus}.`);
   }
+  notes.push(
+    `Умения школы: пул ${skillsForFaction(base.faction).length}, в бой до 4. Эпик чуть усиливает числа.`,
+  );
   return {
     ...base,
     maxHp: hp,

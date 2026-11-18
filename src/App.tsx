@@ -1248,6 +1248,7 @@ export default function App() {
         enemyLevel={resolved.enemyLevel}
         cardUpgrades={resolved.yourCardUpgrades}
         enemyCardUpgrades={resolved.enemyCardUpgrades}
+        oracleSkills={owned.oracleSkillLoadout}
         onExit={() => setScreen("dev")}
         onBattleEnd={onBattleEnd}
       />
@@ -1294,6 +1295,7 @@ export default function App() {
         yourLevel={level}
         enemyLevel={foeLv}
         cardUpgrades={owned.cardUpgrades}
+        oracleSkills={owned.oracleSkillLoadout}
         aiPersona={bot.persona}
         aiSeed={bot.seed}
         prepareBattle={
@@ -1571,6 +1573,7 @@ export default function App() {
         heroId={activeHeroId(owned)}
         displayName={displayName}
         deck={battleDeck(owned)}
+        oracleSkills={owned.oracleSkillLoadout}
         initialCode={pvpInviteCode}
         onBack={() => {
           setPvpInviteCode("");

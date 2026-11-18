@@ -112,8 +112,11 @@ import {
   defaultUpgradeLevel,
   isUpgradeableCard,
 } from "../game/cardUpgrades";
+import { castOracleSkill } from "../game/oracleSkillCombat";
+import { getSkill } from "../game/oracleSkills";
 import { type PvpAction } from "../game/pvpProtocol";
 import type { BattleState, CreatureInstance } from "../game/types";
+import { SkillIcon } from "./SkillIcon";
 
 function upgradeLvFor(
   state: BattleState,
@@ -161,6 +164,9 @@ type Props = {
   cardUpgrades?: Record<string, number>;
   /** Прокачка карт врага (песочница / тесты). */
   enemyCardUpgrades?: Record<string, number>;
+  /** Экип умений оракула (до 4). */
+  oracleSkills?: (string | null)[];
+  enemyOracleSkills?: (string | null)[];
   /** После createBattle — арена и др. модификаторы. */
   prepareBattle?: (state: BattleState) => BattleState;
   /** Скрыть «Ещё раз» (забеги с прогрессом). */
@@ -856,6 +862,8 @@ export function Battle({
   enemyLevel = yourLevel,
   cardUpgrades,
   enemyCardUpgrades,
+  oracleSkills,
+  enemyOracleSkills,
   prepareBattle,
   allowRematch = true,
   exitPolicy = "free",
@@ -880,6 +888,8 @@ export function Battle({
       yourName,
       yourLevel,
       enemyLevel,
+      "you",
+      { youSkills: oracleSkills, enemySkills: enemyOracleSkills },
     );
     if (aiPersona) raw.aiPersona = aiPersona;
     if (aiSeed != null) raw.aiSeed = aiSeed;
@@ -1085,6 +1095,11 @@ export function Battle({
     width: number;
     height: number;
   } | null>(null);
+  /** Прицеливание активного умения оракула. */
+  const [skillAim, setSkillAim] = useState<{
+    skillId: string;
+    mode: "enemy" | "ally" | "ally_empty" | "enemy_shift";
+  } | null>(null);
   const lock = useRef(false);
   const rewarded = useRef(false);
   const onBattleEndRef = useRef(onBattleEnd);
@@ -1199,6 +1214,10 @@ export function Battle({
     pvpAwaiting ||
     !!state.winner ||
     state.active !== "you";
+
+  useEffect(() => {
+    if (actionBlocked || state.active !== "you") setSkillAim(null);
+  }, [actionBlocked, state.active]);
 
   const spellMode = spellTargetMode(state);
   const marionettePuppetUnit =
@@ -1562,6 +1581,24 @@ export function Battle({
     state.selectedSlot != null && moveFlexReady(state, state.selectedSlot);
 
   const onYourSlot = (i: number) => {
+    if (skillAim?.mode === "ally") {
+      if (actionBlocked) return;
+      if (!state.you.slots[i]) {
+        pushHint("Нужно своё существо");
+        return;
+      }
+      fireOracleSkill(skillAim.skillId, i);
+      return;
+    }
+    if (skillAim?.mode === "ally_empty") {
+      if (actionBlocked) return;
+      if (state.you.slots[i]) {
+        pushHint("Нужна пустая клетка");
+        return;
+      }
+      fireOracleSkill(skillAim.skillId, i);
+      return;
+    }
     if (actionBlocked) return;
 
     const creature = state.you.slots[i];
@@ -2005,8 +2042,98 @@ export function Battle({
     });
   };
 
+  const fireOracleSkill = (
+    skillId: string,
+    targetSlot?: number | null,
+    extra?: { toSlot?: number | null; healAll?: boolean },
+  ) => {
+    setSkillAim(null);
+    try {
+      castOracleSkill(stateRef.current, {
+        skillId,
+        targetSlot,
+        toSlot: extra?.toSlot,
+        healAll: extra?.healAll,
+      });
+    } catch (e) {
+      pushHint(e instanceof Error ? e.message : "Умение недоступно");
+      return;
+    }
+    void runLocked(async () => {
+      await playFx(
+        { side: "you", kind: "spell", hitHero: targetSlot == null },
+        (s) =>
+          castOracleSkill(s, {
+            skillId,
+            targetSlot,
+            toSlot: extra?.toSlot,
+            healAll: extra?.healAll,
+          }),
+        1000,
+        {
+          kind: "oracleSkill",
+          skillId,
+          targetSlot: targetSlot ?? null,
+          toSlot: extra?.toSlot ?? null,
+          healAll: extra?.healAll,
+        },
+      );
+    });
+  };
+
+  const onOracleSkillClick = (skillId: string) => {
+    if (actionBlocked) return;
+    if (skillAim?.skillId === skillId) {
+      setSkillAim(null);
+      pushHint("Прицел снят");
+      return;
+    }
+    const def = getSkill(skillId);
+    if (!def || def.kind !== "active") return;
+    if (state.you.oracleSkillUsed?.[skillId]) {
+      pushHint("Умение уже использовано");
+      return;
+    }
+    if (state.you.oracleActiveUsedThisTurn) {
+      pushHint("За ход — одно активное умение");
+      return;
+    }
+    if (def.target === "none") {
+      fireOracleSkill(skillId, null);
+      return;
+    }
+    if (def.target === "enemy_unit" || def.target === "enemy_unit_or_hero") {
+      setSkillAim({ skillId, mode: "enemy" });
+      pushHint(
+        def.target === "enemy_unit_or_hero"
+          ? `«${def.name}»: юнит врага или его оракул`
+          : `«${def.name}»: кликни существо врага`,
+      );
+      return;
+    }
+    if (def.target === "empty_ally_slot") {
+      setSkillAim({ skillId, mode: "ally_empty" });
+      pushHint(`«${def.name}»: пустая своя клетка`);
+      return;
+    }
+    setSkillAim({ skillId, mode: "ally" });
+    pushHint(`«${def.name}»: кликни своё существо`);
+  };
+
   const onEnemySlot = (i: number) => {
     if (actionBlocked) return;
+
+    if (skillAim?.mode === "enemy") {
+      if (!state.enemy.slots[i]) {
+        pushHint("Нужно существо врага");
+        return;
+      }
+      fireOracleSkill(skillAim.skillId, i);
+      return;
+    }
+    if (skillAim?.mode === "enemy_shift") {
+      // phase 2 unused for now
+    }
 
     // Марионетка: 1) кукла 2) цель удара (сосед / любой для дальних)
     if (state.selectedHand != null && spellMode === "marionette") {
@@ -2344,6 +2471,16 @@ export function Battle({
 
   const onEnemyHero = () => {
     if (actionBlocked) return;
+
+    if (skillAim?.mode === "enemy") {
+      const def = getSkill(skillAim.skillId);
+      if (def?.target === "enemy_unit_or_hero" || def?.target === "none") {
+        fireOracleSkill(skillAim.skillId, null);
+        return;
+      }
+      pushHint("Нужно существо врага");
+      return;
+    }
 
     if (state.selectedHand != null && spellMode === "enemy_or_hero") {
       const hand = state.selectedHand;
@@ -3534,6 +3671,36 @@ export function Battle({
               </div>
             </div>
         </button>
+          <div className="oracle-skill-tray" aria-label="Умения оракула">
+            {Array.from({ length: 4 }, (_, i) => {
+              const id = (state.you.oracleSkillLoadout ?? [])[i] ?? null;
+              const def = id ? getSkill(id) : null;
+              if (!def) {
+                return <div key={`osk-empty-${i}`} className="oracle-skill-slot is-empty" />;
+              }
+              const used = Boolean(state.you.oracleSkillUsed?.[def.id]);
+              const isActive = def.kind === "active";
+              const aiming = skillAim?.skillId === def.id;
+              return (
+                <button
+                  key={def.id}
+                  type="button"
+                  className={`oracle-skill-slot ${isActive ? "is-active-skill" : "is-passive-skill"} ${used ? "is-used" : ""} ${aiming ? "is-aiming" : ""}`}
+                  disabled={actionBlocked || !isActive || used}
+                  title={`${def.name}: ${def.text}`}
+                  onClick={() => {
+                    if (!isActive) {
+                      pushHint(`${def.name} (пассив)`);
+                      return;
+                    }
+                    onOracleSkillClick(def.id);
+                  }}
+                >
+                  <SkillIcon icon={def.icon} size={20} />
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 

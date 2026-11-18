@@ -1,6 +1,7 @@
 import {
   attackWith,
   buffWithMage,
+  castOracleSkill,
   createBattle,
   endEnemyTurn,
   endPlayerTurn,
@@ -78,6 +79,7 @@ export type PvpClientMsg =
       deck: string[];
       name: string;
       level: number;
+      skills?: (string | null)[];
     }
   | {
       type: "queue";
@@ -86,6 +88,7 @@ export type PvpClientMsg =
       deck: string[];
       name: string;
       level: number;
+      skills?: (string | null)[];
     }
   | { type: "cancel_queue" }
   | { type: "ready" }
@@ -283,6 +286,14 @@ export type PvpAction =
       tankSlot: number;
       wardSlot: number;
     }
+  /** Активное умение оракула (1× за бой). */
+  | {
+      kind: "oracleSkill";
+      skillId: string;
+      targetSlot?: number | null;
+      toSlot?: number | null;
+      healAll?: boolean;
+    }
   /** Клиент посчитал ход локально (полный UI); сервер принимает снимок от активного. */
   | { kind: "commitState"; state: BattleState };
 
@@ -305,6 +316,13 @@ export function applyPvpAction(
       if (asFirst.active !== "enemy") asFirst.active = "enemy";
       return flipBattle(endEnemyTurn(asFirst));
     }
+    case "oracleSkill":
+      return castOracleSkill(viewedAsYou, {
+        skillId: action.skillId,
+        targetSlot: action.targetSlot,
+        toSlot: action.toSlot,
+        healAll: action.healAll,
+      });
     case "playCard":
       return playCard(viewedAsYou, action.handIndex, action.slotIndex);
     case "attack":
@@ -413,17 +431,23 @@ export function startPvpBattle(opts: {
     heroId: string;
     name: string;
     level: number;
+    skills?: (string | null)[];
   };
   guest: {
     deck: string[];
     heroId: string;
     name: string;
     level: number;
+    skills?: (string | null)[];
   };
   dice?: OpeningDice;
   /** Стол уже есть, кубик бросят кнопкой. */
   waitForDice?: boolean;
 }): { state: BattleState; dice: OpeningDice | null } {
+  const skillOpts = {
+    youSkills: opts.host.skills,
+    enemySkills: opts.guest.skills,
+  };
   if (opts.waitForDice) {
     const state = createBattle(
       opts.host.deck,
@@ -434,6 +458,7 @@ export function startPvpBattle(opts: {
       opts.host.level,
       opts.guest.level,
       "you",
+      skillOpts,
     );
     state.enemy.name = opts.guest.name;
     state.log = [
@@ -452,6 +477,7 @@ export function startPvpBattle(opts: {
     opts.host.level,
     opts.guest.level,
     dice.first === "host" ? "you" : "enemy",
+    skillOpts,
   );
   state.enemy.name = opts.guest.name;
   state.log = [

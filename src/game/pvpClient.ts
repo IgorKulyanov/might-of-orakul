@@ -30,6 +30,7 @@ export type PvpJoinPayload = {
   deck: string[];
   name: string;
   level: number;
+  skills?: (string | null)[];
 };
 
 export type PvpQueuePayload = {
@@ -38,6 +39,7 @@ export type PvpQueuePayload = {
   deck: string[];
   name: string;
   level: number;
+  skills?: (string | null)[];
 };
 
 export class PvpSocket {

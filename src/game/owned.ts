@@ -30,6 +30,11 @@ import {
 } from "./heroes";
 import { resolveBattleGift } from "./oracleGifts";
 import {
+  applySkillStateToOwned,
+  grantWillPointsForLevels,
+  skillsUnlockedOnLevel,
+} from "./oracleSkills";
+import {
   allStarterPoolIds,
   battleXp,
   battleGold,
@@ -266,7 +271,7 @@ function withDefaults(parsed: OwnedState): OwnedState {
     level: parsed.level,
     xp: parsed.xp,
   });
-  return migrateCardUpgrades({
+  const base = migrateCardUpgrades({
     unlocked: syncedUnlocked,
     collection,
     decks,
@@ -286,7 +291,11 @@ function withDefaults(parsed: OwnedState): OwnedState {
     cardUpgrades: parsed.cardUpgrades,
     cardShards: parsed.cardShards,
     upgradeEpoch: parsed.upgradeEpoch,
+    willPoints: parsed.willPoints,
+    oracleSkillsOwned: parsed.oracleSkillsOwned,
+    oracleSkillLoadout: parsed.oracleSkillLoadout,
   });
+  return applySkillStateToOwned(base, getHero(heroId).faction);
 }
 
 function starterDeckFor(heroId: string): string[] {
@@ -1049,14 +1058,29 @@ export function applyBattleResult(
         .join(" · ");
     }
   }
+  if (granted.gainedLevels > 0) {
+    next = grantWillPointsForLevels(next, granted.gainedLevels);
+  }
+  next = applySkillStateToOwned(
+    next,
+    getHero(activeHeroId(next)).faction,
+  );
   saveOwned(next);
+  const skillLines: string[] = [];
+  if (granted.gainedLevels > 0) {
+    const fromLv = granted.level - granted.gainedLevels + 1;
+    for (let lv = fromLv; lv <= granted.level; lv++) {
+      skillLines.push(...skillsUnlockedOnLevel(lv));
+    }
+  }
+  const giftParts = [gift.giftLine, ...skillLines].filter(Boolean) as string[];
   return {
     owned: next,
     xpGained,
     gainedLevels: granted.gainedLevels,
     goldReward,
     diamondReward,
-    giftLine: gift.giftLine,
+    giftLine: giftParts.length ? giftParts.join(" · ") : null,
     shardLine,
     shardGains,
   };
