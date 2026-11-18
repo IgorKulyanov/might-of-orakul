@@ -102,7 +102,6 @@ import {
 } from "./cardUpgrades";
 import {
   applyOracleSkillBattleStart,
-  castOracleSkill,
   hurtOracle,
   onUnitKilled,
   tickOracleSkillPassivesEnd,

@@ -3,7 +3,6 @@
  * Активки — 1× за бой. Эпик чуть усиливает числа.
  */
 import type {
-  BattleState,
   CreatureInstance,
   Faction,
   HeroTier,
