@@ -669,14 +669,19 @@ function dealToCreature(
   allySlots?: Slot[],
   opts?: { ignoreShield?: boolean; shieldPierce?: number },
 ): number {
-  // Страж: урон с подопечного уходит на того, кто «берёт удар»
+  // Страж: урон с подопечного уходит (доля) на того, кто «берёт удар»
   if (raw > 0 && def.guardedByUid && allySlots) {
     const tank = findTankByUid(allySlots, def.guardedByUid);
     if (tank && tank.uid !== def.uid && tank.health > 0) {
+      const share = Math.min(1, Math.max(0, tank.guardShare ?? def.guardShare ?? 1));
+      const toTank = Math.round(raw * share);
+      const toWard = raw - toTank;
       log.unshift(
-        `⛓ ${getCard(tank.cardId).name} принимает удар за ${getCard(def.cardId).name}`,
+        `⛓ ${getCard(tank.cardId).name} принимает ${Math.round(share * 100)}% удара за ${getCard(def.cardId).name}`,
       );
-      return dealToCreature(tank, raw, log, undefined, opts);
+      if (toTank > 0) dealToCreature(tank, toTank, log, undefined, opts);
+      if (toWard <= 0) return toTank;
+      raw = toWard;
     }
   }
   const mitigated = mitigatedDamage(raw, def);
@@ -1023,7 +1028,18 @@ function draw(p: PlayerState, n = 1, state?: BattleState): void {
       }
       continue;
     }
-    p.hand.push(p.deck.shift()!);
+    const drawn = p.deck.shift()!;
+    if ((p.handBanIds ?? []).includes(drawn)) {
+      p.graveyard.push(drawn);
+      if (state) {
+        state.log = [
+          `${p.name}: ${getCard(drawn).name} изгнан — сразу в грейв`,
+          ...state.log,
+        ].slice(0, 12);
+      }
+      continue;
+    }
+    p.hand.push(drawn);
   }
 }
 
@@ -2182,8 +2198,81 @@ function applySpellEffects(
             if (s) s.canAttack = false;
           }
         }
+        if (eff.denyEnemyMana) foe.skipManaGrowth = true;
+        if ((eff.muteEnemySkillsTurns ?? 0) > 0) {
+          foe.oracleSkillsMutedTurns = Math.max(
+            foe.oracleSkillsMutedTurns ?? 0,
+            eff.muteEnemySkillsTurns ?? 0,
+          );
+        }
         log.unshift(
-          `${caster.name}: затишье — оба войска бездействуют до конца хода соперника`,
+          `${caster.name}: затишье — оба войска бездействуют до конца хода соперника` +
+            (eff.denyEnemyMana ? "; враг без прироста маны" : "") +
+            ((eff.muteEnemySkillsTurns ?? 0) > 0
+              ? "; умения врага молчат 1 ход"
+              : ""),
+        );
+        break;
+      }
+      case "mute_oracle_skills": {
+        foe.oracleSkillsMutedTurns = Math.max(
+          foe.oracleSkillsMutedTurns ?? 0,
+          eff.turns,
+        );
+        log.unshift(
+          `${caster.name}: адские наручники — умения оракула врага молчат ${eff.turns} ход(а)`,
+        );
+        break;
+      }
+      case "schedule_enemy_sleep": {
+        caster.pendingEnemySleep = true;
+        log.unshift(
+          `${caster.name}: ураган — в начале следующего хода враги уснут`,
+        );
+        break;
+      }
+      case "sleep_all_enemies": {
+        const turns = Math.max(1, eff.turns ?? 1);
+        let n = 0;
+        for (const s of foe.slots) {
+          if (!s || s.health <= 0) continue;
+          if (hasAbility(s.cardId, "immune_spells", s)) continue;
+          s.canAttack = false;
+          s.statuses = s.statuses.filter((st) => st.type !== "sleep");
+          s.statuses.push({ type: "sleep", amount: turns });
+          n += 1;
+        }
+        log.unshift(
+          `${caster.name}: сон на врагов (${n}), ${turns} ход(а)`,
+        );
+        break;
+      }
+      case "shuffle_enemy_board": {
+        const idxs: number[] = [];
+        const units: CreatureInstance[] = [];
+        foe.slots.forEach((s, i) => {
+          if (!s) return;
+          idxs.push(i);
+          units.push(s);
+        });
+        if (units.length < 2) {
+          log.unshift(
+            `${caster.name}: ураган — у врага мало существ для перемешивания`,
+          );
+          break;
+        }
+        for (let i = units.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const t = units[i]!;
+          units[i] = units[j]!;
+          units[j] = t;
+        }
+        for (const i of idxs) foe.slots[i] = null;
+        idxs.forEach((slot, k) => {
+          foe.slots[slot] = units[k]!;
+        });
+        log.unshift(
+          `${caster.name}: ураган перемешал поле врага (${units.length})`,
         );
         break;
       }
@@ -2241,6 +2330,29 @@ function applySpellEffects(
         break;
       }
       case "banish_unit": {
+        const mode = eff.mode ?? "grave";
+        if (mode === "hand_ban") {
+          // Цель — карта с поля; убираем и баним id из руки на бой.
+          if (targetSlot == null || !foe.slots[targetSlot]) return false;
+          const u = foe.slots[targetSlot]!;
+          if (hasAbility(u.cardId, "immune_spells", u)) {
+            log.unshift(
+              `${caster.name}: ${getCard(u.cardId).name} невосприимчив к заклинаниям`,
+            );
+            break;
+          }
+          const id = u.cardId;
+          foe.slots[targetSlot] = null;
+          syncBoardAuras(foe, log);
+          clearBondsForUnit(state, u.uid);
+          foe.hand = foe.hand.filter((x) => x !== id);
+          foe.graveyard = foe.graveyard.filter((x) => x !== id);
+          foe.handBanIds = [...new Set([...(foe.handBanIds ?? []), id])];
+          log.unshift(
+            `${caster.name}: ${getCard(id).name} изгнан с поля и руки на весь бой`,
+          );
+          break;
+        }
         if (targetSlot == null || !foe.slots[targetSlot]) return false;
         const u = foe.slots[targetSlot]!;
         if (hasAbility(u.cardId, "immune_spells", u)) {
@@ -2258,12 +2370,19 @@ function applySpellEffects(
           );
           break;
         }
-        log.unshift(
-          `${caster.name}: ${getCard(u.cardId).name} убран с поля`,
-        );
-        foe.graveyard.push(u.cardId);
+        const id = u.cardId;
         foe.slots[targetSlot] = null;
         syncBoardAuras(foe, log);
+        clearBondsForUnit(state, u.uid);
+        if (mode === "purge") {
+          foe.graveyard = foe.graveyard.filter((x) => x !== id);
+          log.unshift(
+            `${caster.name}: ${getCard(id).name} убран с поля и из грейва`,
+          );
+        } else {
+          foe.graveyard.push(id);
+          log.unshift(`${caster.name}: ${getCard(id).name} убран с поля`);
+        }
         break;
       }
       case "cure_poison": {
@@ -2319,27 +2438,71 @@ function applySpellEffects(
         );
         break;
       }
+      case "heal_all_allies": {
+        let healed = 0;
+        for (const u of caster.slots) {
+          if (!u || u.health <= 0) continue;
+          const cap = effectiveBase(u).hp;
+          const before = u.health;
+          u.health = Math.min(cap, u.health + eff.amount);
+          if (u.health > before) healed += 1;
+        }
+        log.unshift(
+          `${caster.name}: лечение армии +${eff.amount} HP (${healed})`,
+        );
+        break;
+      }
       case "bounce_enemy_hand": {
-        if (targetSlot == null || !foe.slots[targetSlot]) return false;
-        const u = foe.slots[targetSlot]!;
-        if (hasAbility(u.cardId, "immune_spells", u)) {
+        const want = Math.max(1, eff.amount ?? 1);
+        const bounceOne = (slot: number): boolean => {
+          const u = foe.slots[slot];
+          if (!u) return false;
+          if (hasAbility(u.cardId, "immune_spells", u)) return false;
+          if (foe.hand.length >= MAX_HAND_SIZE) {
+            foe.graveyard.push(u.cardId);
+          } else {
+            foe.hand.push(u.cardId);
+          }
+          foe.slots[slot] = null;
+          clearBondsForUnit(state, u.uid);
+          return true;
+        };
+        if (want >= 99) {
+          let n = 0;
+          for (let i = 0; i < foe.slots.length; i++) {
+            if (bounceOne(i)) n += 1;
+          }
+          syncBoardAuras(foe, log);
           log.unshift(
-            `${caster.name}: ${getCard(u.cardId).name} невосприимчив к заклинаниям`,
+            `${caster.name}: вернуть в руку — всё поле врага (${n})`,
           );
           break;
         }
-        if (foe.hand.length >= MAX_HAND_SIZE) {
-          log.unshift(`${caster.name}: рука врага полна — карта в сброс`);
-          foe.graveyard.push(u.cardId);
-        } else {
-          foe.hand.push(u.cardId);
+        if (targetSlot == null || !foe.slots[targetSlot]) return false;
+        if (hasAbility(foe.slots[targetSlot]!.cardId, "immune_spells", foe.slots[targetSlot])) {
           log.unshift(
-            `${caster.name}: ${getCard(u.cardId).name} возвращён в руку врага`,
+            `${caster.name}: ${getCard(foe.slots[targetSlot]!.cardId).name} невосприимчив к заклинаниям`,
           );
+          break;
         }
-        foe.slots[targetSlot] = null;
+        const names: string[] = [getCard(foe.slots[targetSlot]!.cardId).name];
+        bounceOne(targetSlot);
+        let left = want - 1;
+        while (left > 0) {
+          const opts: number[] = [];
+          foe.slots.forEach((s, i) => {
+            if (s && !hasAbility(s.cardId, "immune_spells", s)) opts.push(i);
+          });
+          if (!opts.length) break;
+          const pick = opts[Math.floor(Math.random() * opts.length)]!;
+          names.push(getCard(foe.slots[pick]!.cardId).name);
+          bounceOne(pick);
+          left -= 1;
+        }
         syncBoardAuras(foe, log);
-        clearBondsForUnit(state, u.uid);
+        log.unshift(
+          `${caster.name}: вернуть в руку — ${names.join(", ")}`,
+        );
         break;
       }
       case "reveal_enemy_hand": {
@@ -2358,13 +2521,22 @@ function applySpellEffects(
         return false;
       }
       case "break_enemy_spell": {
-        const removed = breakOneEnemySpell(foe, state, log);
+        const want = Math.max(1, eff.amount ?? 1);
+        let removed = 0;
+        for (let i = 0; i < want; i++) {
+          if (!breakOneEnemySpell(foe, state, log)) break;
+          removed += 1;
+        }
         if (!removed) {
           const echoOnly = countEnemySpellEchoes(foe, state) > 0;
           log.unshift(
             echoOnly
               ? `${caster.name}: у врага только серые «следы» (камни маны и т.п.) — они уже сработали, снять нельзя`
               : `${caster.name}: у врага нет длящихся заклинаний (яд, щит, страх…)`,
+          );
+        } else if (want > 1) {
+          log.unshift(
+            `${caster.name}: разбито заклинаний: ${removed}`,
           );
         }
         break;
@@ -2394,11 +2566,18 @@ function applySpellEffects(
           );
           break;
         }
+        const turns = Math.max(1, eff.turns ?? 1);
+        const sleepBurn = Math.max(0, eff.sleepBurn ?? 0);
         u.canAttack = false;
         u.statuses = u.statuses.filter((st) => st.type !== "sleep");
-        u.statuses.push({ type: "sleep", amount: 1 });
+        u.statuses.push({
+          type: "sleep",
+          amount: turns,
+          ...(sleepBurn > 0 ? { sleepBurn } : {}),
+        });
         log.unshift(
-          `${caster.name}: ${getCard(u.cardId).name} заморожен на следующий ход`,
+          `${caster.name}: ${getCard(u.cardId).name} заморожен на ${turns} ход(а)` +
+            (sleepBurn > 0 ? `; −${sleepBurn} HP/ход во сне` : ""),
         );
         break;
       }
@@ -2430,9 +2609,10 @@ function applySpellEffects(
         for (const id of dumped) {
           caster.graveyard.push(id);
         }
-        draw(caster, n, state);
+        const drawN = Math.max(1, eff.draw ?? n);
+        draw(caster, drawN, state);
         log.unshift(
-          `${caster.name}: сменил руку — ${n} в грейв, добор ${caster.hand.length}`,
+          `${caster.name}: сменил руку — ${n} в грейв, добор ${drawN}`,
         );
         break;
       }
@@ -2445,8 +2625,9 @@ function applySpellEffects(
           );
           break;
         }
+        const ratio = Math.min(1, Math.max(0.1, eff.ratio ?? 1));
         u.statuses = u.statuses.filter((st) => st.type !== "traitor");
-        u.statuses.push({ type: "traitor", amount: 2 });
+        u.statuses.push({ type: "traitor", amount: 2, ratio });
         u.canAttack = false;
         if (lingerMeta) {
           pushBoardSpell(foe, {
@@ -2460,7 +2641,7 @@ function applySpellEffects(
           });
         }
         log.unshift(
-          `${caster.name}: изменник — ${getCard(u.cardId).name} ударит своих после конца хода`,
+          `${caster.name}: изменник — ${getCard(u.cardId).name} ударит своего на ${Math.round(ratio * 100)}% атаки`,
         );
         break;
       }
@@ -2490,9 +2671,17 @@ function applySpellEffects(
           break;
         }
         u.stripped = true;
-        log.unshift(
-          `${caster.name}: ничтожество — у ${getCard(u.cardId).name} снято супер-умение до конца боя`,
-        );
+        if (eff.turns == null) {
+          u.strippedTurns = undefined;
+          log.unshift(
+            `${caster.name}: ничтожество — у ${getCard(u.cardId).name} снято супер-умение до конца боя`,
+          );
+        } else {
+          u.strippedTurns = Math.max(1, eff.turns);
+          log.unshift(
+            `${caster.name}: ничтожество — у ${getCard(u.cardId).name} снято супер-умение на ${u.strippedTurns} ход(а)`,
+          );
+        }
         break;
       }
       case "gain_mana_all": {
@@ -2562,6 +2751,7 @@ function applySpellEffects(
       case "last_stand": {
         if (targetSlot == null || !caster.slots[targetSlot]) return false;
         const u = caster.slots[targetSlot]!;
+        const dieAfter = Math.max(1, eff.dieAfterTurns ?? 1);
         const addAtk = u.baseAttack;
         const addHp = u.baseHealth;
         u.baseAttack *= 2;
@@ -2570,9 +2760,9 @@ function applySpellEffects(
         u.health += addHp;
         u.noRestore = true;
         u.statuses = u.statuses.filter((st) => st.type !== "last_gasp");
-        u.statuses.push({ type: "last_gasp", amount: 1 });
+        u.statuses.push({ type: "last_gasp", amount: dieAfter });
         log.unshift(
-          `${caster.name}: из последних сил — ${getCard(u.cardId).name} ${u.attack}/${u.health}, без резета до конца боя`,
+          `${caster.name}: из последних сил — ${getCard(u.cardId).name} ${u.attack}/${u.health}; умрёт через ${dieAfter} ход(а)`,
         );
         break;
       }
@@ -2884,7 +3074,7 @@ function spellNeedsTarget(
       e.type === "damage_unit" ||
       e.type === "slow_enemy" ||
       e.type === "banish_unit" ||
-      e.type === "bounce_enemy_hand" ||
+      (e.type === "bounce_enemy_hand" && (e.amount ?? 1) < 99) ||
       e.type === "traitor" ||
       e.type === "freeze_enemy" ||
       e.type === "strip_ability" ||
@@ -2949,11 +3139,21 @@ function boardSideForSpellEffects(
       e.type === "shuffle_board" ||
       e.type === "extra_draw_turns" ||
       e.type === "guardian_bond" ||
-      e.type === "skip_combat"
+      e.type === "skip_combat" ||
+      e.type === "heal_all_allies" ||
+      e.type === "schedule_enemy_sleep" ||
+      e.type === "refresh_hand"
     ) {
       return casterId;
     }
-    if (e.type === "mute_ranged" || e.type === "weaken_foe_damage") {
+    if (
+      e.type === "mute_ranged" ||
+      e.type === "weaken_foe_damage" ||
+      e.type === "mute_oracle_skills" ||
+      e.type === "shuffle_enemy_board" ||
+      e.type === "sleep_all_enemies" ||
+      e.type === "fear_protect"
+    ) {
       return foeId;
     }
   }
@@ -4360,10 +4560,51 @@ function refreshCanAttack(p: PlayerState): void {
   });
 }
 
-function tickUnitStatuses(p: PlayerState, log: string[]): void {
+function tickUnitStatuses(
+  p: PlayerState,
+  log: string[],
+  state?: BattleState,
+): void {
   for (let i = 0; i < p.slots.length; i++) {
     const s = p.slots[i];
     if (!s) continue;
+    if (s.strippedTurns != null && s.strippedTurns > 0) {
+      s.strippedTurns -= 1;
+      if (s.strippedTurns <= 0) {
+        s.strippedTurns = undefined;
+        s.stripped = false;
+        log.unshift(
+          `${getCard(s.cardId).name}: ничтожество спало — умения вернулись`,
+        );
+      }
+    }
+    const lastGasp = s.statuses.find((st) => st.type === "last_gasp");
+    if (lastGasp) {
+      lastGasp.amount -= 1;
+      if (lastGasp.amount <= 0) {
+        log.unshift(
+          `${getCard(s.cardId).name}: из последних сил — пал`,
+        );
+        s.health = 0;
+        removeIfDead(p, i, log, state);
+        continue;
+      } else {
+        log.unshift(
+          `${getCard(s.cardId).name}: из последних сил — ещё ${lastGasp.amount} ход(а)`,
+        );
+      }
+    }
+    const sleep = s.statuses.find((st) => st.type === "sleep");
+    if (sleep?.sleepBurn && sleep.sleepBurn > 0 && s.health > 0) {
+      s.health -= sleep.sleepBurn;
+      log.unshift(
+        `${getCard(s.cardId).name}: мороз во сне −${sleep.sleepBurn} HP`,
+      );
+      if (s.health <= 0) {
+        removeIfDead(p, i, log, state);
+        continue;
+      }
+    }
     const bunker = s.statuses.find((st) => st.type === "bunker");
     if (bunker) {
       bunker.amount -= 1;
@@ -4452,9 +4693,12 @@ function resolveTraitorStrikes(
     }
     const toSlot = uniq[Math.floor(Math.random() * uniq.length)]!;
     const def = owner.slots[toSlot]!;
-    const dmg = dealToCreature(def, atk.attack, log, owner.slots);
+    const ratio =
+      atk.statuses.find((st) => st.type === "traitor")?.ratio ?? 1;
+    const raw = Math.max(1, Math.round(atk.attack * ratio));
+    const dmg = dealToCreature(def, raw, log, owner.slots);
     log.unshift(
-      `⚔ Изменник ${getCard(atk.cardId).name} бьёт своего ${getCard(def.cardId).name} на ${dmg}`,
+      `⚔ Изменник ${getCard(atk.cardId).name} бьёт своего ${getCard(def.cardId).name} на ${dmg} (${Math.round(ratio * 100)}%)`,
     );
     for (let i = 0; i < owner.slots.length; i++) {
       removeIfDead(owner, i, log, state);
@@ -4631,12 +4875,36 @@ function beginTurn(
       );
     }
   }
+  if ((p.oracleSkillsMutedTurns ?? 0) > 0) {
+    p.oracleSkillsMutedTurns = (p.oracleSkillsMutedTurns ?? 0) - 1;
+  }
+  if (p.pendingEnemySleep && opts?.state) {
+    p.pendingEnemySleep = false;
+    const foe = p.id === "you" ? opts.state.enemy : opts.state.you;
+    let n = 0;
+    for (const s of foe.slots) {
+      if (!s || s.health <= 0) continue;
+      if (hasAbility(s.cardId, "immune_spells", s)) continue;
+      s.canAttack = false;
+      s.statuses = s.statuses.filter((st) => st.type !== "sleep");
+      s.statuses.push({ type: "sleep", amount: 1 });
+      n += 1;
+    }
+    if (n > 0) {
+      log.unshift(`${p.name}: ураган — враги уснули (${n})`);
+    }
+  }
   if (!opts?.skipPoison) tickPoison(p, log, opts?.state);
   tickBurn(p, log, opts?.state);
   tickHeroBurn(p, log);
   tickBerserk(p, log, opts?.state);
-  tickUnitStatuses(p, log);
-  growMana(p, turn);
+  tickUnitStatuses(p, log, opts?.state);
+  if (p.skipManaGrowth) {
+    p.skipManaGrowth = false;
+    log.unshift(`${p.name}: затишье — без прироста маны`);
+  } else {
+    growMana(p, turn);
+  }
   tickLeprechaun(p, log);
   tickVelesAura(p, log);
   tickTrollRegen(p, log);
@@ -6921,7 +7189,29 @@ export function playMarionette(
     }
   }
 
-  putToSleep(puppet, next.log, me.name);
+  const selfDmg =
+    (
+      resolveSpellEffects(
+        cardId,
+        card.spellEffects ?? [],
+        battleUpgradeLevel(next, "you", cardId),
+      ).find((e) => e.type === "marionette") as
+        | { selfDamage?: number }
+        | undefined
+    )?.selfDamage ?? 0;
+  if (selfDmg > 0 && foe.slots[puppetSlot]) {
+    dealToCreature(foe.slots[puppetSlot]!, selfDmg, next.log, foe.slots);
+    next.log = [
+      `Марионетка: ${getCard(puppet.cardId).name} получает ${selfDmg} урона`,
+      ...next.log,
+    ].slice(0, 12);
+    for (let i = 0; i < foe.slots.length; i++) {
+      removeIfDead(foe, i, next.log, next);
+    }
+  }
+  if (foe.slots[puppetSlot]) {
+    putToSleep(foe.slots[puppetSlot]!, next.log, me.name);
+  }
   next.selectedHand = null;
   next.selectedSlot = null;
   next.log = next.log.slice(0, 12);
@@ -6965,7 +7255,17 @@ export function playGuardianBond(
   }
   payMana(me.mana, cost);
   me.hand.splice(handIndex, 1);
+  const bond = resolveSpellEffects(
+    cardId,
+    card.spellEffects ?? [],
+    battleUpgradeLevel(next, "you", cardId),
+  ).find((e) => e.type === "guardian_bond") as
+    | { share?: number; allowOracle?: boolean }
+    | undefined;
+  const share = bond?.share ?? 1;
   ward.guardedByUid = tank.uid;
+  ward.guardShare = share;
+  tank.guardShare = share;
   pushBoardSpell(me, {
     cardId,
     turnsLeft: null,
@@ -6979,7 +7279,7 @@ export function playGuardianBond(
   next.selectedHand = null;
   next.selectedSlot = null;
   next.log = [
-    `${me.name}: ${getCard(tank.cardId).name} берёт урон за ${getCard(ward.cardId).name}`,
+    `${me.name}: ${getCard(tank.cardId).name} берёт ${Math.round(share * 100)}% урона за ${getCard(ward.cardId).name}`,
     ...next.log,
   ].slice(0, 10);
   return next;

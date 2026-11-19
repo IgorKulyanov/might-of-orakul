@@ -77,6 +77,23 @@ export function hurtOracle(p: PlayerState, raw: number, log: string[]): number {
   let dmg = Math.max(0, Math.floor(raw));
   if (dmg <= 0) return 0;
 
+  if (p.heroGuardedByUid) {
+    const tank = p.slots.find((s) => s && s.uid === p.heroGuardedByUid);
+    if (tank && tank.health > 0) {
+      const share = Math.min(1, Math.max(0, p.heroGuardShare ?? 1));
+      const toTank = Math.round(dmg * share);
+      const toHero = dmg - toTank;
+      if (toTank > 0) {
+        tank.health -= toTank;
+        log.unshift(
+          `⛓ ${getCard(tank.cardId).name} принимает ${Math.round(share * 100)}% удара за оракула (−${toTank})`,
+        );
+      }
+      dmg = toHero;
+      if (dmg <= 0) return toTank;
+    }
+  }
+
   if (hasEquippedSkill(p, "wet_armor") && !p.oracleWetArmorUsed) {
     p.oracleWetArmorUsed = true;
     const next = Math.floor(dmg / 2);
@@ -145,6 +162,9 @@ export function castOracleSkill(
   }
   if (me0.oracleActiveUsedThisTurn) {
     throw new Error("За ход — только одно активное умение");
+  }
+  if ((me0.oracleSkillsMutedTurns ?? 0) > 0) {
+    throw new Error("Умения оракула заглушены");
   }
 
   const epic = getHero(me0.heroId).tier === "epic";

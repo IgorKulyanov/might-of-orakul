@@ -630,7 +630,6 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
   },
   hell_cuffs: {
     ...SPELL_STAT_ZERO,
-    spellNums: { amount: [1, 2, 3] },
   },
   fire_aura: {
     ...SPELL_STAT_ZERO,
@@ -669,11 +668,9 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
   },
   calm: {
     ...SPELL_STAT_ZERO,
-    spellExtraFrom: { 3: [{ type: "draw", amount: 1 }] },
   },
   hurricane: {
     ...SPELL_STAT_ZERO,
-    spellExtraFrom: { 3: [{ type: "damage_all_enemies", amount: 3 }] },
   },
   extra_card: {
     ...SPELL_STAT_ZERO,
@@ -685,27 +682,22 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
   },
   banish: {
     ...SPELL_STAT_ZERO,
-    spellExtraFrom: { 3: [{ type: "damage_hero", amount: 4 }] },
   },
   antidote: {
     ...SPELL_STAT_ZERO,
-    spellExtraFrom: { 3: [{ type: "heal_unit", amount: 6 }] },
   },
   mass_antidote: {
     ...SPELL_STAT_ZERO,
-    spellExtraFrom: { 3: [{ type: "heal_hero", amount: 6 }] },
   },
   return_hand: {
     ...SPELL_STAT_ZERO,
-    spellExtraFrom: { 3: [{ type: "damage_hero", amount: 3 }] },
   },
   reveal_hand: {
     ...SPELL_STAT_ZERO,
-    spellNums: { turns: [1, 1, 2] },
+    spellNums: { turns: [1, 2, 3] },
   },
   freeze: {
     ...SPELL_STAT_ZERO,
-    spellExtraFrom: { 3: [{ type: "damage_unit", amount: 4 }] },
   },
   discard_hand: {
     ...SPELL_STAT_ZERO,
@@ -713,11 +705,9 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
   },
   guardian_bond: {
     ...SPELL_STAT_ZERO,
-    spellExtraFrom: { 3: [{ type: "heal_hero", amount: 6 }] },
   },
   break_spell: {
     ...SPELL_STAT_ZERO,
-    spellExtraFrom: { 3: [{ type: "draw", amount: 1 }] },
   },
   break_all_spells: {
     ...SPELL_STAT_ZERO,
@@ -725,7 +715,6 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
   },
   traitor: {
     ...SPELL_STAT_ZERO,
-    spellExtraFrom: { 3: [{ type: "damage_hero", amount: 4 }] },
   },
   fear: {
     ...SPELL_STAT_ZERO,
@@ -733,11 +722,9 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
   },
   marionette: {
     ...SPELL_STAT_ZERO,
-    spellExtraFrom: { 3: [{ type: "damage_hero", amount: 3 }] },
   },
   nothingness: {
     ...SPELL_STAT_ZERO,
-    spellExtraFrom: { 3: [{ type: "damage_unit", amount: 3 }] },
   },
   mana_stones: {
     ...SPELL_STAT_ZERO,
@@ -753,7 +740,6 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
   },
   last_stand: {
     ...SPELL_STAT_ZERO,
-    spellExtraFrom: { 3: [{ type: "heal_hero", amount: 4 }] },
   },
   bunker: {
     ...SPELL_STAT_ZERO,
@@ -761,7 +747,7 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
   },
   clear_sky: {
     ...SPELL_STAT_ZERO,
-    spellNums: { turns: [1, 1, 2] },
+    spellNums: { turns: [1, 2, 3] },
   },
   dust_eyes: {
     ...SPELL_STAT_ZERO,
@@ -769,17 +755,13 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
   },
   sniper: {
     ...SPELL_STAT_ZERO,
-    spellNums: { attack: [1, 2, 3], turns: [1, 1, 2] },
+    spellNums: { attack: [1, 2, 3], turns: [99, 99, 99] },
   },
   change_hand: {
     ...SPELL_STAT_ZERO,
-    spellExtraFrom: { 3: [{ type: "draw", amount: 1 }] },
   },
   awakening: {
     ...SPELL_STAT_ZERO,
-    spellExtraFrom: {
-      3: [{ type: "buff_permanent", attack: 1, health: 1 }],
-    },
   },
   mass_reveille: {
     ...SPELL_STAT_ZERO,
@@ -805,6 +787,117 @@ function spellNumAt(
   return null;
 }
 
+/** Карты, у которых апгрейд меняет структуру эффектов, а не только числа. */
+function spellEffectsForLevel(
+  cardId: string,
+  lv: CardUpgradeLevel,
+): SpellEffect[] | null {
+  switch (cardId) {
+    case "antidote":
+      if (lv <= 1) return [{ type: "cure_poison" }];
+      return lv >= 3
+        ? [
+            { type: "cure_poison_all" },
+            { type: "heal_all_allies", amount: 5 },
+          ]
+        : [{ type: "cure_poison_all" }];
+    case "mass_antidote": {
+      const out: SpellEffect[] = [{ type: "cure_poison_all" }];
+      if (lv >= 2) out.push({ type: "heal_all_allies", amount: 3 });
+      if (lv >= 3) out.push({ type: "heal_hero", amount: 6 });
+      return out;
+    }
+    case "hell_cuffs":
+      return [{ type: "mute_oracle_skills", turns: lv }];
+    case "calm":
+      return [
+        {
+          type: "skip_combat",
+          denyEnemyMana: lv >= 2,
+          muteEnemySkillsTurns: lv >= 3 ? 1 : 0,
+        },
+      ];
+    case "break_spell":
+      if (lv >= 3) return [{ type: "break_all_enemy_spells" }];
+      return [{ type: "break_enemy_spell", amount: lv }];
+    case "hurricane": {
+      const out: SpellEffect[] = [{ type: "shuffle_enemy_board" }];
+      if (lv >= 2) out.push({ type: "damage_all_enemies", amount: 3 });
+      if (lv >= 3) out.push({ type: "schedule_enemy_sleep" });
+      return out;
+    }
+    case "return_hand":
+      return [
+        {
+          type: "bounce_enemy_hand",
+          amount: lv >= 3 ? 99 : lv,
+        },
+      ];
+    case "last_stand":
+      return [{ type: "last_stand", dieAfterTurns: lv }];
+    case "nothingness":
+      return [
+        {
+          type: "strip_ability",
+          turns: lv >= 3 ? null : lv,
+        },
+      ];
+    case "banish":
+      return [
+        {
+          type: "banish_unit",
+          mode: lv === 1 ? "grave" : lv === 2 ? "purge" : "hand_ban",
+        },
+      ];
+    case "traitor":
+      return [
+        {
+          type: "traitor",
+          ratio: lv === 1 ? 0.5 : lv === 2 ? 0.75 : 1,
+        },
+      ];
+    case "marionette":
+      return [
+        {
+          type: "marionette",
+          selfDamage: lv === 1 ? 5 : lv === 2 ? 7 : 10,
+        },
+      ];
+    case "guardian_bond":
+      return [
+        {
+          type: "guardian_bond",
+          share: lv === 1 ? 0.5 : 1,
+          allowOracle: lv >= 3,
+        },
+      ];
+    case "awakening": {
+      const out: SpellEffect[] = [{ type: "wake_ally" }];
+      if (lv === 2) out.push({ type: "buff_permanent", attack: 1, health: 1 });
+      if (lv >= 3) out.push({ type: "buff_permanent", attack: 3, health: 3 });
+      return out;
+    }
+    case "freeze":
+      return [
+        {
+          type: "freeze_enemy",
+          turns: lv,
+          sleepBurn: lv >= 3 ? 2 : 0,
+        },
+      ];
+    case "change_hand":
+      return [{ type: "refresh_hand", draw: lv + 2 }];
+    case "sniper":
+      return [{ type: "sniper_buff", attack: lv, turns: 99 }];
+    case "clear_sky":
+      return [{ type: "mute_ranged", turns: lv }];
+    case "reveal_hand":
+      return [{ type: "reveal_enemy_hand", turns: lv }];
+    default:
+      return null;
+  }
+}
+
 /** Базовые spellEffects из JSON → с учётом уровня прокачки. */
 export function resolveSpellEffects(
   cardId: string,
@@ -813,6 +906,9 @@ export function resolveSpellEffects(
 ): SpellEffect[] {
   const def = CARD_UPGRADE_DEFS[cardId];
   const lv = clampUpgradeLevel(level);
+  const shaped = spellEffectsForLevel(cardId, lv);
+  if (shaped) return shaped;
+
   const effects: SpellEffect[] = base.map((eff) => {
     const next = { ...eff } as SpellEffect & Record<string, unknown>;
     for (const field of ["amount", "turns", "attack", "health"] as const) {

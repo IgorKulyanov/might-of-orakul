@@ -45,46 +45,72 @@ export type SpellEffect =
   | { type: "slow_enemy"; amount: number; turns?: number }
   | { type: "shield_ally"; turns: number }
   /** Оба войска не атакуют до конца хода соперника. */
-  | { type: "skip_combat" }
+  | {
+      type: "skip_combat";
+      /** Враг не получает прирост маны на свой следующий ход. */
+      denyEnemyMana?: boolean;
+      /** Вражеский оракул без умений N ходов. */
+      muteEnemySkillsTurns?: number;
+    }
   /** Случайно перемешать свои карты на поле (статы/эффекты сохраняются). */
   | { type: "shuffle_board" }
+  /** Случайно перемешать вражеские карты на поле. */
+  | { type: "shuffle_enemy_board" }
   /** На N следующих своих ходов — доп. добор 1 карты. */
   | { type: "extra_draw_turns"; turns: number }
   /** +ATK всем своим существам до конца хода. */
   | { type: "buff_army_attack"; amount: number }
   /** Убрать вражескую карту с поля (в сброс). */
-  | { type: "banish_unit" }
+  | {
+      type: "banish_unit";
+      /** grave = в грейв; purge = с поля и из грейва; hand_ban = бан id из руки на бой. */
+      mode?: "grave" | "purge" | "hand_ban";
+    }
   /** Снять яд с одного союзника. */
   | { type: "cure_poison" }
   /** Снять яд со всех своих существ. */
   | { type: "cure_poison_all" }
+  /** Лечит всех своих существ на amount. */
+  | { type: "heal_all_allies"; amount: number }
   /** Вернуть вражескую карту с поля в руку. */
-  | { type: "bounce_enemy_hand" }
+  | { type: "bounce_enemy_hand"; amount?: number }
   /** Видеть руку врага N ходов. */
   | { type: "reveal_enemy_hand"; turns: number }
   /** Страж принимает урон за подопечного (два союзника, UI). */
-  | { type: "guardian_bond" }
-  /** Снять одно активное заклинание врага. */
-  | { type: "break_enemy_spell" }
+  | {
+      type: "guardian_bond";
+      /** Доля урона на стража (0.5 / 1). */
+      share?: number;
+      /** Можно ли защищать оракула. */
+      allowOracle?: boolean;
+    }
+  /** Снять одно (или amount) активных заклинаний врага. */
+  | { type: "break_enemy_spell"; amount?: number }
   /** Снять все активные заклинания врага. */
   | { type: "break_all_enemy_spells" }
   /** Изменник: враг бьёт своих после конца хода. */
-  | { type: "traitor" }
-  /** Заморозка: враг не атакует следующий ход (сон). */
-  | { type: "freeze_enemy" }
+  | { type: "traitor"; ratio?: number }
+  /** Заморозка: враг не атакует turns ходов (сон). */
+  | { type: "freeze_enemy"; turns?: number; sleepBurn?: number }
   /** Сброс случайных карт из руки врага. */
   | { type: "discard_enemy_hand"; amount: number }
-  /** Сбросить всю руку в грейв и добрать столько же из колоды. */
-  | { type: "refresh_hand" }
+  /** Сбросить всю руку в грейв и добрать draw карт (или столько же, если draw не задан). */
+  | { type: "refresh_hand"; draw?: number }
+  /** Вражеский оракул не может применять умения turns ходов. */
+  | { type: "mute_oracle_skills"; turns: number }
+  /** Усыпить всех вражеских существ (на turns ходов сна). */
+  | { type: "sleep_all_enemies"; turns?: number }
+  /** В начале следующего своего хода усыпить всех врагов. */
+  | { type: "schedule_enemy_sleep" }
   /**
    * Страх: враг не может атаковать существ школы твоего оракула turns ходов.
    * Школа берётся с кастера в момент каста.
    */
   | { type: "fear_protect"; turns: number }
-  /** Марионетка: выбрать врага-куклу, затем цель удара/помощи; кукла спит. */
-  | { type: "marionette" }
-  /** Снять супер-умение с существа до конца боя. */
-  | { type: "strip_ability" }
+  /** Марионетка: выбрать врага-куклу, затем цель удара/помощи; кукла получает selfDamage. */
+  | { type: "marionette"; selfDamage?: number }
+  /** Снять супер-умение; turns пусто = до конца боя. */
+  | { type: "strip_ability"; turns?: number | null }
   /** +amount маны каждой школе. */
   | { type: "gain_mana_all"; amount: number }
   /** Яд на всех вражеских существ (растущий). */
@@ -92,10 +118,9 @@ export type SpellEffect =
   /** Переманить врага в свою руку (на эту битву). */
   | { type: "recruit_to_hand" }
   /**
-   * Из последних сил: ×2 база ATK/HP; без резета в конце хода;
-   * запас HP = новая база до конца боя.
+   * Из последних сил: ×2 база ATK/HP; через dieAfterTurns ходов юнит умирает.
    */
-  | { type: "last_stand" }
+  | { type: "last_stand"; dieAfterTurns?: number }
   /** «В домике»: нельзя поразить и нельзя действовать turns ходов. */
   | { type: "bunker"; turns: number }
   /** Стрелки/маги врага не атакуют turns ходов. */
@@ -272,6 +297,10 @@ export type StatusEffect = {
   turns?: number;
   /** Скорпикора ур.3: яд растёт на +2 вместо +1. */
   fast?: boolean;
+  /** Изменник: доля атаки по союзнику. */
+  ratio?: number;
+  /** Заморозка ур.3: −N HP в начале хода, пока спит. */
+  sleepBurn?: number;
 };
 
 export interface CreatureInstance {
@@ -302,8 +331,12 @@ export interface CreatureInstance {
   guardedByUid?: string;
   /** Ничтожество: супер-умения выключены до конца боя. */
   stripped?: boolean;
+  /** Ничтожество на N ходов (если задано — не навсегда). */
+  strippedTurns?: number;
   /** Из последних сил: не сбрасывать ATK к базе в конце хода. */
   noRestore?: boolean;
+  /** Страж: доля чужого урона, которую принимает (0.5…1). */
+  guardShare?: number;
   /** Сколько маны заплатили при призыве (возврат стража ур.3). */
   paidMana?: ManaCost;
   /** Могильщик: сколько раз уже поднимал за этот бой. */
@@ -346,6 +379,18 @@ export interface PlayerState {
   weakenDamageTurns: number;
   /** Чистое небо: ranged/маги не атакуют столько своих ходов. */
   muteRangedTurns: number;
+  /** Адские наручники / затишье: умения оракула молчат столько своих ходов. */
+  oracleSkillsMutedTurns?: number;
+  /** Затишье ур.2+: этот игрок не получает прирост маны на следующий beginTurn. */
+  skipManaGrowth?: boolean;
+  /** Ураган ур.3: в начале своего следующего хода усыпить всех врагов. */
+  pendingEnemySleep?: boolean;
+  /** Бан карт (id) из руки на весь бой (убрать с поля ур.3). */
+  handBanIds?: string[];
+  /** Страж для оракула (uid юнита). */
+  heroGuardedByUid?: string;
+  /** Доля урона оракула на стража. */
+  heroGuardShare?: number;
   /**
    * Страх: этот игрок не может атаковать существ указанной школы столько своих ходов.
    * (Ставится на врага кастера.)
