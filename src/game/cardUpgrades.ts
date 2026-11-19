@@ -488,9 +488,9 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
     defaultLevel: 1,
   },
   ent: {
-    // JSON = L1 (2/10); L2/L3 лицо 4/32, HP всё равно пересчитывается формулой
+    // JSON = L1 (2/10); L2/L3 лицо 4/10, HP пересчитывается формулой призываве
     bonusAtk: [0, 2, 2],
-    bonusHp: [0, 22, 22],
+    bonusHp: [0, 0, 0],
     defaultLevel: 1,
   },
   basilisk: {
@@ -1347,6 +1347,11 @@ export function leprechaunAllyHeal(level: CardUpgradeLevel): number {
 /** Энт ур.3: HP от всех бойцов на поле. */
 export function entUsesBoardHp(level: CardUpgradeLevel): boolean {
   return level >= 3;
+}
+
+/** Энт ур.2: HP = сумма текущих жизней природы на поле (без себя). */
+export function entUsesNatureBoardHp(level: CardUpgradeLevel): boolean {
+  return level === 2;
 }
 
 /** Василиск: длительность окаменения. */

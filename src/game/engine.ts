@@ -63,6 +63,7 @@ import {
   clawfiendTideAlways,
   elfDoubleShot,
   entUsesBoardHp,
+  entUsesNatureBoardHp,
   fireGolemSplashBurn,
   goblinStealOnPlay,
   hornetTempPoison,
@@ -3294,6 +3295,14 @@ export function playCard(
           sum += Math.max(0, u.health);
         }
         hp = Math.max(1, sum || spawned.baseHealth);
+      } else if (entUsesNatureBoardHp(up)) {
+        let sum = 0;
+        for (const u of me.slots) {
+          if (!u || u.uid === spawned.uid) continue;
+          if (getCard(u.cardId).school !== "nature") continue;
+          sum += Math.max(0, u.health);
+        }
+        hp = Math.max(1, sum || spawned.baseHealth);
       } else {
         hp = Math.max(1, me.natureSummonHpTotal ?? spawned.baseHealth);
       }
@@ -6395,6 +6404,14 @@ export function takeAiStep(
         let sum = 0;
         for (const u of me.slots) {
           if (!u || u.uid === spawned.uid) continue;
+          sum += Math.max(0, u.health);
+        }
+        hp = Math.max(1, sum || spawned.baseHealth);
+      } else if (entUsesNatureBoardHp(up)) {
+        let sum = 0;
+        for (const u of me.slots) {
+          if (!u || u.uid === spawned.uid) continue;
+          if (getCard(u.cardId).school !== "nature") continue;
           sum += Math.max(0, u.health);
         }
         hp = Math.max(1, sum || spawned.baseHealth);

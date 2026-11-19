@@ -401,7 +401,7 @@ export interface PlayerState {
   heroBurn?: { amount: number; turns: number };
   /**
    * Сумма каталожных HP существ природы, выставленных этим героем в бою
-   * (для энта ур.1–2).
+   * (для энта ур.1).
    */
   natureSummonHpTotal?: number;
   /** Экипированные умения оракула (до 4 id). */
