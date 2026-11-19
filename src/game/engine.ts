@@ -47,7 +47,7 @@ import {
   paladinShieldsArmy,
   skeletonHasArrowWard,
   skeletonHasPack,
-  spearmanIgnoresShield,
+  spearmanShieldPierce,
   tankSelfShieldOnPlay,
   upgradeAttackPattern,
   upgradeStatBonus,
@@ -76,7 +76,7 @@ import {
   mercenaryRiposteSplash,
   mermaidSleepTurns,
   motardoHeroBonus,
-  orcKillStun,
+  orcKillExtraTurn,
   recruitDeathHeal,
   resolveSpellEffects,
   rogueStealEvery,
@@ -84,7 +84,7 @@ import {
   spiderPoisonAmount,
   spiderShieldOnPlay,
   succubusSleepTurns,
-  tritonAquiliteAura,
+  tritonAquiliteAuraAmount,
   trollRegen,
   unicornKeepAttackAfterBreak,
   unicornManaOnPlay,
@@ -337,15 +337,16 @@ function syncWaterTide(p: PlayerState, log: string[]): void {
   if (lost && !active) log.unshift(`Прилив спал`);
 }
 
-/** Тритон ур.3: всем акулитам +1/+1. */
+/** Тритон ур.3: всем акулитам +2/+2. */
 function syncAquiliteAura(p: PlayerState, log: string[]): void {
-  const boost = p.slots.some(
-    (s) =>
-      s &&
-      s.cardId === "triton" &&
-      tritonAquiliteAura(hostUpgradeLevel(s, s.cardId)),
-  );
-  const want = boost ? 1 : 0;
+  let want = 0;
+  for (const s of p.slots) {
+    if (!s || s.cardId !== "triton") continue;
+    want = Math.max(
+      want,
+      tritonAquiliteAuraAmount(hostUpgradeLevel(s, s.cardId)),
+    );
+  }
   let changed = false;
   for (const s of p.slots) {
     if (!s || s.cardId !== "aquilite") continue;
@@ -363,7 +364,7 @@ function syncAquiliteAura(p: PlayerState, log: string[]): void {
       changed = true;
     }
   }
-  if (changed && boost) log.unshift(`Тритон: акулиты +1/+1`);
+  if (changed && want > 0) log.unshift(`Тритон: акулиты +${want}/+${want}`);
 }
 
 function syncBoardAuras(p: PlayerState, log: string[]): void {
@@ -666,7 +667,7 @@ function dealToCreature(
   raw: number,
   log: string[],
   allySlots?: Slot[],
-  opts?: { ignoreShield?: boolean },
+  opts?: { ignoreShield?: boolean; shieldPierce?: number },
 ): number {
   // Страж: урон с подопечного уходит на того, кто «берёт удар»
   if (raw > 0 && def.guardedByUid && allySlots) {
@@ -678,15 +679,34 @@ function dealToCreature(
       return dealToCreature(tank, raw, log, undefined, opts);
     }
   }
-  const dealt = opts?.ignoreShield ? Math.max(0, raw) : mitigatedDamage(raw, def);
+  const mitigated = mitigatedDamage(raw, def);
+  const pierce = Math.max(
+    0,
+    Math.min(
+      1,
+      opts?.ignoreShield ? 1 : (opts?.shieldPierce ?? 0),
+    ),
+  );
+  const dealt =
+    pierce > 0 && mitigated < raw
+      ? Math.max(0, Math.round(mitigated + (raw - mitigated) * pierce))
+      : mitigated;
   def.health -= dealt;
   if (dealt !== raw) {
-    log.unshift(
-      opts?.ignoreShield
-        ? `⚔ Прокол: полный урон ${dealt} по ${getCard(def.cardId).name}`
-        : `🛡 Щит: ${raw} → ${dealt} урона по ${getCard(def.cardId).name}`,
-    );
-  } else if (opts?.ignoreShield && def.statuses.some((st) => st.type === "shield")) {
+    if (pierce >= 1) {
+      log.unshift(
+        `⚔ Прокол: полный урон ${dealt} по ${getCard(def.cardId).name}`,
+      );
+    } else if (pierce > 0) {
+      log.unshift(
+        `⚔ Прокол ${Math.round(pierce * 100)}%: ${raw} → ${dealt} по ${getCard(def.cardId).name}`,
+      );
+    } else {
+      log.unshift(
+        `🛡 Щит: ${raw} → ${dealt} урона по ${getCard(def.cardId).name}`,
+      );
+    }
+  } else if (pierce > 0 && def.statuses.some((st) => st.type === "shield")) {
     log.unshift(
       `⚔ Прокол щита: ${dealt} по ${getCard(def.cardId).name}`,
     );
@@ -1196,11 +1216,9 @@ function strikePower(atk: CreatureInstance): number {
   return atk.attack + rage;
 }
 
-function strikeIgnoreShield(atk: CreatureInstance): boolean {
-  return (
-    atk.cardId === "spearman" &&
-    spearmanIgnoresShield(hostUpgradeLevel(atk, atk.cardId))
-  );
+function strikeShieldPierce(atk: CreatureInstance): number {
+  if (atk.cardId !== "spearman") return 0;
+  return spearmanShieldPierce(hostUpgradeLevel(atk, atk.cardId));
 }
 
 function cleaveSlots(center: number): number[] {
@@ -1504,7 +1522,7 @@ function meleeStrike(
     outgoingDamage(attackerOwner, power),
     log,
     defenderOwner.slots,
-    { ignoreShield: strikeIgnoreShield(atk) },
+    { shieldPierce: strikeShieldPierce(atk) },
   );
   atk.canAttack = false;
 
@@ -1524,7 +1542,7 @@ function meleeStrike(
     (!after || after.uid !== def.uid || after.isCorpse === true);
   tryKillRewards(atk, attackerOwner, victimDead, log, state);
   if (victimDead) {
-    tryOrcKillStun(atk, defenderOwner, toSlot, log);
+    tryOrcKillExtraTurn(atk, defenderOwner, toSlot, log);
   }
   tryWaterOnHit(atk, attackerOwner, defenderOwner, toSlot, aDmg, log, state);
   tryHellOnHit(atk, defenderOwner, toSlot, log, state);
@@ -1577,27 +1595,18 @@ function tryWaterOnHit(
   }
 }
 
-/** Орк ур.3: при убийстве оглушает соседа цели. */
-function tryOrcKillStun(
+/** Орк ур.3: при убийстве сразу ещё один удар. */
+function tryOrcKillExtraTurn(
   atk: CreatureInstance,
-  defenderOwner: PlayerState,
-  deadSlot: number,
+  _defenderOwner: PlayerState,
+  _deadSlot: number,
   log: string[],
 ): void {
   if (atk.cardId !== "orc") return;
-  if (!orcKillStun(hostUpgradeLevel(atk, atk.cardId))) return;
-  for (const i of [deadSlot - 1, deadSlot + 1]) {
-    if (i < 0 || i > 4) continue;
-    const n = defenderOwner.slots[i];
-    if (!n || n.health <= 0) continue;
-    n.canAttack = false;
-    n.statuses = n.statuses.filter((st) => st.type !== "sleep");
-    n.statuses.push({ type: "sleep", amount: 1 });
-    log.unshift(
-      `${getCard(atk.cardId).name}: рёв оглушает ${getCard(n.cardId).name}`,
-    );
-    break;
-  }
+  if (!orcKillExtraTurn(hostUpgradeLevel(atk, atk.cardId))) return;
+  if (atk.health <= 0) return;
+  atk.canAttack = true;
+  log.unshift(`${getCard(atk.cardId).name}: ярость — ещё один удар!`);
 }
 
 /** Голем ада: сосед цели тоже чуть горит. */
@@ -1614,9 +1623,9 @@ function tryHellOnHit(
     if (i < 0 || i > 4) continue;
     const n = defenderOwner.slots[i];
     if (!n || n.health <= 0) continue;
-    applyBurnStatus(n, 2, 2);
+    applyBurnStatus(n, 5, 2);
     log.unshift(
-      `${getCard(atk.cardId).name}: жар − сосед ${getCard(n.cardId).name} горит`,
+      `${getCard(atk.cardId).name}: жар − сосед ${getCard(n.cardId).name} горит (−5/ход, 2 хода)`,
     );
   }
 }
@@ -1698,9 +1707,10 @@ function applyOnHitExtras(
     }
   }
   if (def && def.health > 0 && hasAbility(atk.cardId, "flame_burn", atk)) {
-    applyBurnStatus(def, 3, 3);
+    const burnAmt = atk.cardId === "flamethrower" ? 5 : 3;
+    applyBurnStatus(def, burnAmt, 3);
     log.unshift(
-      `${getCard(def.cardId).name}: горит! −3 HP/ход, 3 хода`,
+      `${getCard(def.cardId).name}: горит! −${burnAmt} HP/ход, 3 хода`,
     );
   }
   if (def && def.health > 0 && hasAbility(atk.cardId, "basilisk_gaze", atk)) {
@@ -1741,7 +1751,8 @@ function applyOnHitExtras(
     }
   }
   if (!def && hasAbility(atk.cardId, "flame_burn", atk)) {
-    applyHeroBurn(defenderOwner, 3, 3, log);
+    const burnAmt = atk.cardId === "flamethrower" ? 5 : 3;
+    applyHeroBurn(defenderOwner, burnAmt, 3, log);
   }
   if (def && hasAbility(atk.cardId, "lich_drain", atk)) {
     const lv = hostUpgradeLevel(atk, atk.cardId);
@@ -1796,7 +1807,7 @@ function rangedHit(
     raw,
     log,
     defenderOwner.slots,
-    { ignoreShield: strikeIgnoreShield(atk) },
+    { shieldPierce: strikeShieldPierce(atk) },
   );
   atk.canAttack = false;
   log.unshift(
@@ -1814,7 +1825,7 @@ function rangedHit(
     (!after || after.uid !== def.uid || after.isCorpse === true);
   tryKillRewards(atk, attackerOwner, victimDead, log, state);
   if (victimDead) {
-    tryOrcKillStun(atk, defenderOwner, toSlot, log);
+    tryOrcKillExtraTurn(atk, defenderOwner, toSlot, log);
   }
   if (victim && victim.health > 0) {
     tryRiposte(defenderOwner, attackerOwner, fromSlot, victim, log, state);
@@ -1912,7 +1923,7 @@ function cleaveHit(
       outgoingDamage(attackerOwner, raw),
       log,
       defenderOwner.slots,
-      { ignoreShield: strikeIgnoreShield(atk) },
+      { shieldPierce: strikeShieldPierce(atk) },
     );
     names.push(getCard(def.cardId).name);
     const victim = resolveHitVictim(

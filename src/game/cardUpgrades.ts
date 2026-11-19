@@ -287,7 +287,8 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
     defaultLevel: 1,
   },
   water_elemental: {
-    bonusAtk: [-2, 0, 1],
+    // JSON = L3 (8/22)
+    bonusAtk: [-3, -1, 0],
     bonusHp: [-2, 0, 0],
     defaultLevel: 1,
   },
@@ -404,8 +405,9 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
     defaultLevel: 1,
   },
   fire_golem: {
+    // JSON = L3 (7/24)
     bonusAtk: [-2, 0, 0],
-    bonusHp: [-6, 0, 2],
+    bonusHp: [-8, -2, 0],
     defaultLevel: 1,
   },
   fire_dragon: {
@@ -486,8 +488,9 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
     defaultLevel: 1,
   },
   ent: {
-    bonusAtk: [-2, 0, 0],
-    bonusHp: [0, 0, 0],
+    // JSON = L1 (2/10); L2/L3 лицо 4/32, HP всё равно пересчитывается формулой
+    bonusAtk: [0, 2, 2],
+    bonusHp: [0, 22, 22],
     defaultLevel: 1,
   },
   basilisk: {
@@ -534,7 +537,8 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
     defaultLevel: 1,
   },
   orc: {
-    bonusAtk: [-2, 0, 1],
+    // JSON = L3 (8/14)
+    bonusAtk: [-3, -1, 0],
     bonusHp: [-2, 0, 0],
     defaultLevel: 1,
   },
@@ -591,6 +595,7 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
     defaultLevel: 1,
   },
   archer: {
+    // JSON = L2/L3 (4/10)
     bonusAtk: [-1, 0, 0],
     bonusHp: [-2, 0, 0],
     abilityFrom: { riposte: 3 },
@@ -971,9 +976,14 @@ export function upgradeAttackPattern(
   return CARD_UPGRADE_DEFS[cardId]?.patternByLevel?.[level] ?? fallback;
 }
 
-/** Копейщик ур.3: прокол щита. */
+/** Копейщик ур.3: игнорирует щит на 50% (половина снижения щита не работает). */
 export function spearmanIgnoresShield(level: CardUpgradeLevel): boolean {
   return level >= 3;
+}
+
+/** Доля прокола щита (0…1). Копейщик L3 = 0.5. */
+export function spearmanShieldPierce(level: CardUpgradeLevel): number {
+  return spearmanIgnoresShield(level) ? 0.5 : 0;
 }
 
 /** Берсерк: урон тика самоурона. */
@@ -1084,7 +1094,7 @@ export function hellRiderKillMana(level: CardUpgradeLevel): "death" | "school" {
 }
 
 export function hellRiderRangedWardChance(level: CardUpgradeLevel): number {
-  return level >= 2 ? 0.3 : 0;
+  return level >= 2 ? 0.5 : 0;
 }
 
 /** Банши: длительность оглушения. */
@@ -1131,6 +1141,11 @@ export function waterElementalSplash(level: CardUpgradeLevel): boolean {
 /** Тритон ур.3: аура акулитам. */
 export function tritonAquiliteAura(level: CardUpgradeLevel): boolean {
   return level >= 3;
+}
+
+/** Сила ауры тритона на акулитов (+ATK/+HP). */
+export function tritonAquiliteAuraAmount(level: CardUpgradeLevel): number {
+  return tritonAquiliteAura(level) ? 2 : 0;
 }
 
 /** Акулит ур.3: бесплатный свап. */
@@ -1269,9 +1284,14 @@ export function unicornManaOnPlay(level: CardUpgradeLevel): boolean {
   return level <= 1;
 }
 
-/** Орк ур.3: оглушение соседа при убийстве. */
-export function orcKillStun(level: CardUpgradeLevel): boolean {
+/** Орк ур.3: при убийстве сразу ещё один удар. */
+export function orcKillExtraTurn(level: CardUpgradeLevel): boolean {
   return level >= 3;
+}
+
+/** @deprecated используй orcKillExtraTurn */
+export function orcKillStun(level: CardUpgradeLevel): boolean {
+  return orcKillExtraTurn(level);
 }
 
 /** Тролль ур.3: реген. */
