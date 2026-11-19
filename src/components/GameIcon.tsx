@@ -8,14 +8,23 @@ export type GameIconName =
   | "diamond";
 
 /** Версия ассетов — сброс кэша браузера после правок эмблем. */
-const UI_VER = "8";
+const UI_VER = "9";
 
-/**
- * В UI (мана, карта, чипы) — плоские SVG: читаются на 12–16px.
- * Тяжёлые PNG/JPG-эмблемы на чёрном фоне в мелком размере —
- * чёрные кляксы, цифры рядом тоже «пропадают».
- */
-const SRC: Record<string, string> = {
+const SCHOOLS = new Set(["water", "hell", "death", "life", "nature"]);
+
+/** Мобилка — PNG как было. Десктоп (мышь) — SVG. */
+const SRC_MOBILE: Record<string, string> = {
+  water: `/ui/water.png?v=${UI_VER}`,
+  hell: `/ui/hell.png?v=${UI_VER}`,
+  death: `/ui/death.png?v=${UI_VER}`,
+  life: `/ui/life.png?v=${UI_VER}`,
+  nature: `/ui/nature.png?v=${UI_VER}`,
+  neutral: `/ui/neutral.svg?v=${UI_VER}`,
+  gold: `/ui/gold.svg?v=${UI_VER}`,
+  diamond: `/ui/diamond.svg?v=${UI_VER}`,
+};
+
+const SRC_DESKTOP: Record<string, string> = {
   water: `/ui/water.svg?v=${UI_VER}`,
   hell: `/ui/hell.svg?v=${UI_VER}`,
   death: `/ui/death.svg?v=${UI_VER}`,
@@ -45,6 +54,8 @@ const MANA_ORDER: Faction[] = [
   "nature",
 ];
 
+const DESKTOP_MQ = "(hover: hover) and (pointer: fine)";
+
 type Props = {
   name: GameIconName;
   className?: string;
@@ -55,15 +66,38 @@ type Props = {
 
 /** Свои иконки вместо эмодзи — одинаково на всех устройствах. */
 export function GameIcon({ name, className = "", size = 16, title }: Props) {
-  const src = SRC[name] ?? SRC.neutral;
+  const mobileSrc = SRC_MOBILE[name] ?? SRC_MOBILE.neutral;
+  const desktopSrc = SRC_DESKTOP[name] ?? SRC_DESKTOP.neutral;
+  const alt = title ?? ALT[name] ?? "";
+  const cls = `game-ico ${className}`.trim();
+  const isSchool = SCHOOLS.has(name);
+
+  if (isSchool) {
+    return (
+      <picture className={cls} style={{ width: size, height: size, display: "inline-block", lineHeight: 0 }}>
+        <source media={DESKTOP_MQ} srcSet={desktopSrc} />
+        <img
+          src={mobileSrc}
+          alt={alt}
+          title={alt}
+          width={size}
+          height={size}
+          className="game-ico"
+          draggable={false}
+          style={{ width: size, height: size, verticalAlign: "-0.2em" }}
+        />
+      </picture>
+    );
+  }
+
   return (
     <img
-      src={src}
-      alt={title ?? ALT[name] ?? ""}
-      title={title ?? ALT[name]}
+      src={mobileSrc}
+      alt={alt}
+      title={alt}
       width={size}
       height={size}
-      className={`game-ico ${className}`.trim()}
+      className={cls}
       draggable={false}
     />
   );

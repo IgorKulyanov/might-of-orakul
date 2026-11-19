@@ -3141,8 +3141,7 @@ function boardSideForSpellEffects(
       e.type === "guardian_bond" ||
       e.type === "skip_combat" ||
       e.type === "heal_all_allies" ||
-      e.type === "schedule_enemy_sleep" ||
-      e.type === "refresh_hand"
+      e.type === "schedule_enemy_sleep"
     ) {
       return casterId;
     }

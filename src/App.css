@@ -763,7 +763,7 @@ button {
   font-weight: 800;
 }
 
-/* Мобилка: компактно, как было. Крупные чипы — только десктоп ниже. */
+/* База = мобилка как до фикса читаемости. Крупное — только мышь/трекпад. */
 .cost-mini {
   font-weight: 800;
   font-size: 0.65rem;
@@ -782,10 +782,6 @@ button {
   font-variant-numeric: tabular-nums;
   font-weight: 800;
   line-height: 1;
-  color: #fff6d6;
-  text-shadow:
-    0 0 2px #000,
-    0 1px 2px #000;
 }
 
 .mana-cost-part {
@@ -796,18 +792,9 @@ button {
 
 .mana-cost-n {
   font-size: 0.72em;
-  font-weight: 800;
-  color: #fff8e0;
-  min-width: 0.65em;
-  text-align: center;
 }
 
-.card.board .mana-cost-n,
-.card.compact .mana-cost-n {
-  font-size: 0.68em;
-}
-
-@media (min-width: 721px) {
+@media (hover: hover) and (pointer: fine) {
   .cost-mini {
     font-weight: 900;
     font-size: inherit;
@@ -820,6 +807,10 @@ button {
   .mana-cost-row {
     gap: 0.2rem;
     font-weight: 900;
+    color: #fff6d6;
+    text-shadow:
+      0 0 2px #000,
+      0 1px 2px #000;
   }
 
   .mana-cost-part {
@@ -834,7 +825,9 @@ button {
   .mana-cost-n {
     font-size: 0.95rem;
     font-weight: 900;
+    color: #fff8e0;
     min-width: 0.7em;
+    text-align: center;
     letter-spacing: 0.02em;
   }
 
@@ -6489,11 +6482,6 @@ html.is-hand-dragging .oracle-folio {
   border: 1px solid color-mix(in srgb, var(--faction, #666) 55%, transparent);
   font-variant-numeric: tabular-nums;
   font-size: 0.8rem;
-  font-weight: 700;
-  color: #fff8e0;
-  text-shadow:
-    0 0 2px #000,
-    0 1px 2px #000;
 }
 
 .mana-chip.own {
@@ -6505,7 +6493,7 @@ html.is-hand-dragging .oracle-folio {
   line-height: 1;
 }
 
-@media (min-width: 721px) {
+@media (hover: hover) and (pointer: fine) {
   .mana-chip {
     gap: 0.22rem;
     padding: 0.22rem 0.42rem;
@@ -6513,6 +6501,10 @@ html.is-hand-dragging .oracle-folio {
     border: 1px solid color-mix(in srgb, var(--faction, #666) 70%, #fff 15%);
     font-size: 0.95rem;
     font-weight: 800;
+    color: #fff8e0;
+    text-shadow:
+      0 0 2px #000,
+      0 1px 2px #000;
   }
 
   .mana-chip.own {
@@ -6558,14 +6550,14 @@ html.is-hand-dragging .oracle-folio {
 .mana-n {
   min-width: 0.7em;
   text-align: center;
-  color: #fff8e0;
 }
 
-@media (min-width: 721px) {
+@media (hover: hover) and (pointer: fine) {
   .mana-n {
     min-width: 0.85em;
     font-size: 1.05em;
     font-weight: 900;
+    color: #fff8e0;
   }
 }
 
