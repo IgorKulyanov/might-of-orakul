@@ -1,4 +1,4 @@
-﻿import { SCHOOL_LABEL } from "../game/cards";
+import { SCHOOL_LABEL } from "../game/cards";
 import type { Faction, ManaCost, School } from "../game/types";
 
 export type GameIconName =
@@ -8,14 +8,19 @@ export type GameIconName =
   | "diamond";
 
 /** Версия ассетов — сброс кэша браузера после правок эмблем. */
-const UI_VER = "7";
+const UI_VER = "8";
 
+/**
+ * В UI (мана, карта, чипы) — плоские SVG: читаются на 12–16px.
+ * Тяжёлые PNG/JPG-эмблемы на чёрном фоне в мелком размере —
+ * чёрные кляксы, цифры рядом тоже «пропадают».
+ */
 const SRC: Record<string, string> = {
-  water: `/ui/water.png?v=${UI_VER}`,
-  hell: `/ui/hell.png?v=${UI_VER}`,
-  death: `/ui/death.png?v=${UI_VER}`,
-  life: `/ui/life.png?v=${UI_VER}`,
-  nature: `/ui/nature.png?v=${UI_VER}`,
+  water: `/ui/water.svg?v=${UI_VER}`,
+  hell: `/ui/hell.svg?v=${UI_VER}`,
+  death: `/ui/death.svg?v=${UI_VER}`,
+  life: `/ui/life.svg?v=${UI_VER}`,
+  nature: `/ui/nature.svg?v=${UI_VER}`,
   neutral: `/ui/neutral.svg?v=${UI_VER}`,
   gold: `/ui/gold.svg?v=${UI_VER}`,
   diamond: `/ui/diamond.svg?v=${UI_VER}`,
