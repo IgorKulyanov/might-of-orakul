@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { AdminPanel } from "./AdminPanel";
 import { CommunityPanel } from "./CommunityPanel";
+import { MailboxPanel } from "./MailboxPanel";
 import { OwnerBoostPanel } from "./OwnerBoostPanel";
+import { apiMailList, type ApiUser } from "../game/api";
+import { getToken } from "../game/session";
 import {
   getMusicVolume,
   getSfxVolume,
@@ -54,6 +57,9 @@ type Props = {
   diamonds?: number;
   owned: OwnedState;
   onOwnedChange: (next: OwnedState) => void;
+  /** После забора вложения из почты. */
+  onMailUser?: (user: ApiUser) => void;
+  initialMailUnread?: number;
 };
 
 export function SplashMenu({
@@ -73,12 +79,16 @@ export function SplashMenu({
   diamonds = 0,
   owned,
   onOwnedChange,
+  onMailUser,
+  initialMailUnread = 0,
 }: Props) {
   const [index, setIndex] = useState(0);
   const [panel, setPanel] = useState<Panel>("root");
   const brandClicks = useRef(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [communityOpen, setCommunityOpen] = useState(false);
+  const [mailboxOpen, setMailboxOpen] = useState(false);
+  const [mailUnread, setMailUnread] = useState(initialMailUnread);
   const [adminOpen, setAdminOpen] = useState(false);
   const [boostOpen, setBoostOpen] = useState(false);
   const [musicOff, setMusicOff] = useState(() => isMusicMuted());
@@ -114,6 +124,36 @@ export function SplashMenu({
     return () => document.removeEventListener("pointerdown", onDoc);
   }, [settingsOpen]);
 
+  useEffect(() => {
+    setMailUnread(initialMailUnread);
+  }, [initialMailUnread]);
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    let cancelled = false;
+    const beat = () => {
+      void apiMailList(token)
+        .then((r) => {
+          if (!cancelled) setMailUnread(r.unread);
+        })
+        .catch(() => {
+          /* сеть */
+        });
+    };
+    beat();
+    const id = window.setInterval(beat, 45_000);
+    const onVis = () => {
+      if (document.visibilityState === "visible") beat();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, []);
+
   return (
     <div className="splash">
       <div className="splash-stage" aria-hidden>
@@ -137,6 +177,24 @@ export function SplashMenu({
             <GameIcon name="diamond" size={16} /> {diamonds}
           </span>
         </div>
+        <button
+          type="button"
+          className={`splash-logout ghost splash-mail-btn ${
+            mailUnread > 0 ? "is-blink" : ""
+          }`}
+          title={
+            mailUnread > 0
+              ? `Почта · непрочитанных: ${mailUnread}`
+              : "Почта"
+          }
+          aria-label="Почта"
+          onClick={() => setMailboxOpen(true)}
+        >
+          ✉
+          {mailUnread > 0 ? (
+            <span className="splash-mail-badge">{mailUnread}</span>
+          ) : null}
+        </button>
         <button
           type="button"
           className="splash-logout ghost"
@@ -341,6 +399,12 @@ export function SplashMenu({
         </div>
       </div>
 
+      <MailboxPanel
+        open={mailboxOpen}
+        onClose={() => setMailboxOpen(false)}
+        onUnreadChange={setMailUnread}
+        onClaimedUser={onMailUser}
+      />
       <CommunityPanel
         open={communityOpen}
         onClose={() => setCommunityOpen(false)}

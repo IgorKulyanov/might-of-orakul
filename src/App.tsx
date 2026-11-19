@@ -1865,6 +1865,11 @@ export default function App() {
         onLogout={logout}
         owned={owned}
         onOwnedChange={updateOwned}
+        initialMailUnread={user?.mailUnread ?? 0}
+        onMailUser={(u) => {
+          setUser(u);
+          if (u.owned) setOwned(mergeOwnedFromServer(u));
+        }}
       />
       {hubTutStep != null && (
         <HubTutorial

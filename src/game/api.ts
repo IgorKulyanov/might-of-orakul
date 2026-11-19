@@ -86,6 +86,21 @@ export type ApiUser = {
     fleeCount: number;
     bannedUntil: number;
   } | null;
+  /** Непрочитанные / незабранные письма игровой почты. */
+  mailUnread?: number;
+};
+
+export type MailItem = {
+  id: string;
+  at: string;
+  from: string;
+  subject: string;
+  body: string;
+  gold: number;
+  diamonds: number;
+  read: boolean;
+  claimed: boolean;
+  needsAttention: boolean;
 };
 
 export type AuthResponse = {
@@ -405,6 +420,60 @@ export function apiAdminGrant(
     method: "POST",
     adminKey,
     body: JSON.stringify(body),
+  });
+}
+
+export function apiAdminSendMail(
+  adminKey: string,
+  body: {
+    login?: string;
+    all?: boolean;
+    subject: string;
+    body?: string;
+    gold?: number;
+    diamonds?: number;
+  },
+) {
+  return adminRequest<{ ok: boolean; message: string; sent?: number }>(
+    "/api/admin/mail",
+    {
+      method: "POST",
+      adminKey,
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export function apiMailList(token: string) {
+  return request<{ mails: MailItem[]; unread: number }>("/api/mail", {
+    token,
+  });
+}
+
+export function apiMailRead(token: string, id: string) {
+  return request<{ ok: boolean; mails: MailItem[]; unread: number }>(
+    "/api/mail/read",
+    {
+      method: "POST",
+      token,
+      body: JSON.stringify({ id }),
+    },
+  );
+}
+
+export function apiMailClaim(token: string, id: string) {
+  return request<{
+    ok: boolean;
+    message: string;
+    gold: number;
+    diamonds: number;
+    mails: MailItem[];
+    unread: number;
+    user: ApiUser;
+  }>("/api/mail/claim", {
+    method: "POST",
+    token,
+    body: JSON.stringify({ id }),
   });
 }
 

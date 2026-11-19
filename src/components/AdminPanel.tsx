@@ -8,6 +8,7 @@ import {
   apiAdminResetCampaign,
   apiAdminWipeOwned,
   apiAdminRestoreOwned,
+  apiAdminSendMail,
   apiAdminStats,
   apiAdminUnmute,
   apiAdminUsers,
@@ -47,6 +48,12 @@ export function AdminPanel({ open, onClose }: Props) {
   const [grantGold, setGrantGold] = useState("100");
   const [grantDia, setGrantDia] = useState("0");
   const [grantNote, setGrantNote] = useState("поощрение");
+  const [mailLogin, setMailLogin] = useState("");
+  const [mailAll, setMailAll] = useState(false);
+  const [mailSubject, setMailSubject] = useState("Подарок от Оракула");
+  const [mailBody, setMailBody] = useState("");
+  const [mailGold, setMailGold] = useState("0");
+  const [mailDia, setMailDia] = useState("0");
   const [muteLogin, setMuteLogin] = useState("");
   const [muteMin, setMuteMin] = useState("60");
   const [actionLogin, setActionLogin] = useState("");
@@ -127,6 +134,26 @@ export function AdminPanel({ open, onClose }: Props) {
       await refresh(key);
     } catch (e) {
       setStatus(e instanceof Error ? e.message : "Ошибка начисления");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doSendMail = async () => {
+    if (!key) return;
+    setBusy(true);
+    try {
+      const res = await apiAdminSendMail(key, {
+        login: mailAll ? undefined : mailLogin.trim(),
+        all: mailAll,
+        subject: mailSubject.trim() || "Письмо от Оракула",
+        body: mailBody.trim(),
+        gold: Number(mailGold) || 0,
+        diamonds: Number(mailDia) || 0,
+      });
+      setStatus(res.message);
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "Ошибка отправки письма");
     } finally {
       setBusy(false);
     }
@@ -501,9 +528,66 @@ export function AdminPanel({ open, onClose }: Props) {
             </section>
 
             <p className="community-hint">
-              Награды золотом/алмазами и заглушка чата — ниже. Письма игроков —
-              вверху, сразу под статистикой. Валюта у игрока после сейва/входа.
+              Игровая почта (конвертик у игрока) — ниже. Жалобы игроков — вверху.
+              Тихое начисление без письма — блок «Начислить».
             </p>
+
+            <section className="admin-section">
+              <h3>Письмо игроку</h3>
+              <p className="community-hint">
+                Появится в конвертике. Можно вложить золото/алмазы — игрок
+                заберёт кнопкой «Забрать».
+              </p>
+              <label className="admin-check">
+                <input
+                  type="checkbox"
+                  checked={mailAll}
+                  onChange={(e) => setMailAll(e.target.checked)}
+                />
+                Всем игрокам
+              </label>
+              {!mailAll ? (
+                <input
+                  value={mailLogin}
+                  placeholder="логин игрока"
+                  onChange={(e) => setMailLogin(e.target.value)}
+                />
+              ) : null}
+              <input
+                value={mailSubject}
+                placeholder="тема"
+                onChange={(e) => setMailSubject(e.target.value)}
+              />
+              <textarea
+                className="admin-mail-body"
+                value={mailBody}
+                placeholder="текст письма"
+                rows={3}
+                onChange={(e) => setMailBody(e.target.value)}
+              />
+              <div className="admin-grid admin-grid-2">
+                <input
+                  value={mailGold}
+                  placeholder="золото во вложении"
+                  inputMode="numeric"
+                  onChange={(e) => setMailGold(e.target.value)}
+                />
+                <input
+                  value={mailDia}
+                  placeholder="алмазы во вложении"
+                  inputMode="numeric"
+                  onChange={(e) => setMailDia(e.target.value)}
+                />
+              </div>
+              <button
+                type="button"
+                className="primary"
+                disabled={busy || (!mailAll && !mailLogin.trim())}
+                onClick={() => void doSendMail()}
+              >
+                Отправить письмо
+              </button>
+            </section>
 
             <section className="admin-section">
               <h3>Начислить</h3>
@@ -630,6 +714,8 @@ export function AdminPanel({ open, onClose }: Props) {
                       setGrantLogin(u.login);
                       setMuteLogin(u.login);
                       setActionLogin(u.login);
+                      setMailLogin(u.login);
+                      setMailAll(false);
                     }}
                   >
                     <strong>

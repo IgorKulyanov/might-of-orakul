@@ -21,6 +21,12 @@ import {
   sendVerifyEmail,
 } from "./mail.js";
 import {
+  claimMailRewards,
+  countAttentionMail,
+  markMailRead,
+  publicMailbox,
+} from "./mailbox.js";
+import {
   checkLoginThrottle,
   clientIp,
   noteLoginFail,
@@ -424,6 +430,7 @@ function publicUser(u) {
           ),
         }
       : null,
+    mailUnread: countAttentionMail(u),
   };
 }
 
@@ -959,6 +966,130 @@ app.post(
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: "Не удалось отправить" });
+    }
+  },
+);
+
+app.get("/api/mail", auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const payload = await withDb((db) => {
+      const u = db.users.find((x) => x.id === userId);
+      if (!u) return null;
+      return {
+        mails: publicMailbox(u),
+        unread: countAttentionMail(u),
+      };
+    });
+    if (!payload) {
+      res.status(401).json({ error: "Нужен вход" });
+      return;
+    }
+    res.json(payload);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Не удалось открыть почту" });
+  }
+});
+
+app.post(
+  "/api/mail/read",
+  auth,
+  rateLimitMiddleware({
+    name: "mail-read",
+    maxN: 60,
+    windowMs: 60_000,
+    keyFn: (req) => `mail-read:${req.user?.id || clientIp(req)}`,
+  }),
+  async (req, res) => {
+    try {
+      const mailId = String(req.body?.id || "").trim();
+      if (!mailId) {
+        res.status(400).json({ error: "Нет id письма" });
+        return;
+      }
+      const result = await withDb((db) => {
+        const u = db.users.find((x) => x.id === req.user.id);
+        if (!u) return { missing: true };
+        const item = markMailRead(u, mailId);
+        if (!item) return { missingMail: true };
+        persistLiveDb();
+        return {
+          mails: publicMailbox(u),
+          unread: countAttentionMail(u),
+        };
+      });
+      if (result.missing) {
+        res.status(401).json({ error: "Нужен вход" });
+        return;
+      }
+      if (result.missingMail) {
+        res.status(404).json({ error: "Письмо не найдено" });
+        return;
+      }
+      res.json({ ok: true, ...result });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Не удалось отметить письмо" });
+    }
+  },
+);
+
+app.post(
+  "/api/mail/claim",
+  auth,
+  rateLimitMiddleware({
+    name: "mail-claim",
+    maxN: 30,
+    windowMs: 60_000,
+    keyFn: (req) => `mail-claim:${req.user?.id || clientIp(req)}`,
+  }),
+  async (req, res) => {
+    try {
+      const mailId = String(req.body?.id || "").trim();
+      if (!mailId) {
+        res.status(400).json({ error: "Нет id письма" });
+        return;
+      }
+      const result = await withDb((db) => {
+        const u = db.users.find((x) => x.id === req.user.id);
+        if (!u) return { missing: true };
+        const claimed = claimMailRewards(u, mailId);
+        if (!claimed) return { missingMail: true };
+        if (claimed.gold > 0 || claimed.diamonds > 0) {
+          const pending = u.pendingGrants || { gold: 0, diamonds: 0, cards: [] };
+          pending.gold = (Number(pending.gold) || 0) + claimed.gold;
+          pending.diamonds =
+            (Number(pending.diamonds) || 0) + claimed.diamonds;
+          u.pendingGrants = pending;
+          flushPendingGrants(u);
+        }
+        persistLiveDb();
+        return {
+          ok: true,
+          message:
+            claimed.gold > 0 || claimed.diamonds > 0
+              ? `Получено: +${claimed.gold} золота, +${claimed.diamonds} алмазов`
+              : "Уже получено",
+          gold: claimed.gold,
+          diamonds: claimed.diamonds,
+          mails: publicMailbox(u),
+          unread: countAttentionMail(u),
+          user: publicUser(u),
+        };
+      });
+      if (result.missing) {
+        res.status(401).json({ error: "Нужен вход" });
+        return;
+      }
+      if (result.missingMail) {
+        res.status(404).json({ error: "Письмо не найдено" });
+        return;
+      }
+      res.json(result);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: "Не удалось забрать награду" });
     }
   },
 );

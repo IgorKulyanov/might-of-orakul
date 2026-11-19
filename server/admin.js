@@ -17,6 +17,7 @@ import {
   restoreOwnedFromSnapshot,
   snapshotMeta,
 } from "./ownedSnapshots.js";
+import { pushMail } from "./mailbox.js";
 
 function safeEqualStr(a, b) {
   // Сравниваем хеши — длина секрета не светится по early-return.
@@ -603,6 +604,71 @@ export function mountAdminRoutes(app, deps) {
       res.status(500).json({ error: "Не удалось снять мут" });
     }
   });
+
+  /** Письмо в игровую почту (с опциональными золотом/алмазами). */
+  app.post(
+    "/api/admin/mail",
+    adminAuth,
+    rateLimitMiddleware({ name: "admin-mail", maxN: 40, windowMs: 60_000 }),
+    async (req, res) => {
+      try {
+        const login = String(req.body?.login || "").trim();
+        const toAll = Boolean(req.body?.all);
+        const subject = String(req.body?.subject || "").trim();
+        const body = String(req.body?.body || "").trim();
+        const goldAdd = Math.floor(Number(req.body?.gold) || 0);
+        const diaAdd = Math.floor(Number(req.body?.diamonds) || 0);
+        if (!toAll && !login) {
+          res.status(400).json({ error: "Укажи логин или all=true" });
+          return;
+        }
+        if (!subject && !body && goldAdd <= 0 && diaAdd <= 0) {
+          res.status(400).json({ error: "Пустое письмо" });
+          return;
+        }
+        if (goldAdd > 500_000 || diaAdd > 50_000) {
+          res.status(400).json({ error: "Слишком жирный вложение" });
+          return;
+        }
+        const result = await withDb((db) => {
+          const targets = toAll
+            ? db.users
+            : (() => {
+                const u = findUser(db, login);
+                return u ? [u] : [];
+              })();
+          if (!targets.length) return { missing: true, sent: 0 };
+          let sent = 0;
+          for (const user of targets) {
+            const item = pushMail(user, {
+              subject,
+              body,
+              gold: goldAdd,
+              diamonds: diaAdd,
+              from: "Оракул",
+            });
+            if (item) sent += 1;
+          }
+          persistLiveDb();
+          return { sent, total: targets.length };
+        });
+        if (result.missing) {
+          res.status(404).json({ error: "Игрок не найден" });
+          return;
+        }
+        res.json({
+          ok: true,
+          message: toAll
+            ? `Письмо ушло ${result.sent} игрокам`
+            : `Письмо отправлено (${result.sent})`,
+          sent: result.sent,
+        });
+      } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: "Не удалось отправить письмо" });
+      }
+    },
+  );
 
   /** Поощрение: золото и/или алмазы на аккаунт. */
   app.post(
