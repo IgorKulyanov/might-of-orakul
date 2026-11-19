@@ -596,6 +596,8 @@ export default function App() {
   const pvpSocketRef = useRef<PvpSocket | null>(null);
   const pvpSettledRef = useRef(false);
   const pvpBattleSeqRef = useRef(0);
+  /** Не перезапускать FX на догон-пакетах с тем же fxSeq (300/900ms / sync). */
+  const pvpRemoteFxSeqRef = useRef(0);
   /** Сбежал из PvP — без наград (даже утешительных). */
   const pvpFledRef = useRef(false);
   /** Вышел из тропы/арены до конца — поражение без наград боя. */
@@ -1632,6 +1634,7 @@ export default function App() {
           pvpFledRef.current = false;
           pvpSettledRef.current = false;
           pvpBattleSeqRef.current = 0;
+          pvpRemoteFxSeqRef.current = 0;
           pvpSocketRef.current = socket;
           setPvpMatchKey((n) => n + 1);
           setPvpSeat(youAre);
@@ -1665,7 +1668,14 @@ export default function App() {
               if (seq > pvpBattleSeqRef.current) pvpBattleSeqRef.current = seq;
               // Новый объект — иначе React может не перерисовать чужие ходы.
               setPvpState({ ...msg.state });
-              if (msg.fx && msg.fxSeq != null) {
+              // Тот же fxSeq на rebroadcast/sync — новый объект ломал анимацию
+              // (выстрел духа воды обрывался, карта магии висела до следующего хода).
+              if (
+                msg.fx &&
+                msg.fxSeq != null &&
+                msg.fxSeq > pvpRemoteFxSeqRef.current
+              ) {
+                pvpRemoteFxSeqRef.current = msg.fxSeq;
                 setPvpRemoteFx({ fx: msg.fx, seq: msg.fxSeq });
               }
               setPvpClock((c) => ({

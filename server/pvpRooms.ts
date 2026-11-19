@@ -430,7 +430,11 @@ function unlockOpeningIfDue(room: Room) {
   }
 }
 
-function battlePayload(room: Room, seat: PvpSeat): PvpServerMsg {
+function battlePayload(
+  room: Room,
+  seat: PvpSeat,
+  opts?: { includeFx?: boolean },
+): PvpServerMsg {
   unlockOpeningIfDue(room);
   const battle = room.battle!;
   const yourTimeouts =
@@ -452,8 +456,11 @@ function battlePayload(room: Room, seat: PvpSeat): PvpServerMsg {
         { type: "ended" }
       >)
     : null;
+  const wantFx = opts?.includeFx !== false;
   const fxPack =
-    room.lastFx && room.lastFx.seq === room.battleSeq ? room.lastFx : null;
+    wantFx && room.lastFx && room.lastFx.seq === room.battleSeq
+      ? room.lastFx
+      : null;
   const seatFx = fxPack
     ? seat === "host"
       ? fxPack.host
@@ -552,13 +559,14 @@ function broadcastBattleSoon(room: Room, delayMs = 350) {
     const r = rooms.get(code);
     if (!r?.battle || r.battleSeq !== seq) return;
     if (winnerSeat(r.battle)) return;
-    // не бампим seq повторно — шлём тот же снимок
+    // не бампим seq повторно — шлём тот же снимок, без fx:
+    // повторный fxSeq на клиенте срывал выстрелы/магию.
     const win = winnerSeat(r.battle);
     for (const seat of ["host", "guest"] as const) {
       const p = seat === "host" ? r.host : r.guest;
       if (!p) continue;
       if (win && !r.endedSent) send(p.ws, endMessage(seat, win, r.endReason ?? "combat"));
-      send(p.ws, battlePayload(r, seat));
+      send(p.ws, battlePayload(r, seat, { includeFx: false }));
     }
   }, delayMs);
 }

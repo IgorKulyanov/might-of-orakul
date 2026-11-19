@@ -2930,6 +2930,8 @@ button {
   background: rgba(40, 12, 18, 0.92);
   border: 2px solid #e63946;
   box-shadow: 0 16px 48px rgba(230, 57, 70, 0.35);
+  /* чужая магия — тот же короткий блик, что и своя (не плакат на 3с) */
+  animation: spell-pop-fast 0.5s cubic-bezier(0.22, 0.82, 0.28, 1) both;
 }
 
 .spell-reveal.from-you {

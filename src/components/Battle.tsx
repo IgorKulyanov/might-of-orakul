@@ -580,7 +580,8 @@ function BattleMissile({
       return () => anim.cancel();
     }
 
-    const duration = reduce ? 180 : kind === "poison" ? 620 : 520;
+    const duration =
+      reduce ? 180 : kind === "poison" ? 620 : kind === "water" ? 560 : 520;
     const anim = el.animate(
       [
         {
@@ -1260,19 +1261,19 @@ export function Battle({
         commitExternalState(pending);
         pendingExternalRef.current = null;
       }
-      // Чужие спеллы — как свои по ощущению (~1.4с), без «висящей» карты.
+      // Чужие спеллы коротко (~1с) — иначе «висят» над столом.
       const foeSpell = nextFx.kind === "spell";
       const totalHold = foeSpell
-        ? 1400
+        ? 1000
         : nextFx.hitHero && nextFx.kind !== "heal"
-          ? 1400
+          ? 1200
           : flying
-            ? Math.max(1100, windup + 450)
+            ? Math.max(1000, windup + 420)
             : nextFx.kind === "lunge"
-              ? 900
+              ? 850
               : nextFx.kind === "play"
-                ? 800
-                : 900;
+                ? 750
+                : 850;
       await sleep(Math.max(120, totalHold - windup));
       if (cancelled) return;
       setFx(null);
@@ -1285,10 +1286,12 @@ export function Battle({
     void run();
     return () => {
       cancelled = true;
+      // Не гасим fx здесь: при новом seq эффект сам сменит; при ложном
+      // рестарте (тот же seq) иначе карта/выстрел обрывались.
       remoteFxPlayingRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remoteFx, network]);
+  }, [remoteFx?.seq, network]);
 
   useLayoutEffect(() => {
     if (tutorialStep == null || state.winner) {
