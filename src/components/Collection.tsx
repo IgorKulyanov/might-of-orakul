@@ -17,7 +17,7 @@ import {
 import { analyzeDeck } from "../game/deckStats";
 import { getHero } from "../game/heroes";
 import {
-  UNIT_TIER_LABEL,
+  UNIT_TIER_NAME,
   isCardAvailableInShop,
   minPlayerLevelForShopCard,
   starterDeckForFaction,
@@ -535,8 +535,15 @@ export function Collection({
                 .slice(0, idx)
                 .some((x) => canBuyShardsForCard(owned, x.id));
             const needLv = minPlayerLevelForShopCard(c);
+            const tier =
+              c.unitLevel && c.unitLevel >= 1 && c.unitLevel <= 5
+                ? (c.unitLevel as 1 | 2 | 3 | 4 | 5)
+                : null;
             return (
-              <div key={c.id} className="grid-item">
+              <div
+                key={c.id}
+                className={`grid-item${inOracle ? " in-oracle" : ""}`}
+              >
                 <CardView
                   card={c}
                   locked={locked}
@@ -551,18 +558,16 @@ export function Collection({
                   }
                 />
                 <div className="grid-meta">
-                  <div className="card-live-tag inline-icos">
-                    <SchoolBadge school={c.school} size={15} />
-                    {" · "}
-                    {c.kind === "spell" ? "Заклинание" : "Существо"}
-                    {c.unitLevel
-                      ? ` · ${UNIT_TIER_LABEL[c.unitLevel]}`
-                      : ""}
-                    {locked
-                      ? ` · с ${needLv} ур.`
-                      : inOracle
-                        ? " · в оракуле"
-                        : " · копим на ур.1"}
+                  <div className="card-live-tag">
+                    <span className="card-live-kind">
+                      {c.kind === "spell" ? "Заклинание" : "Существо"}
+                      {tier != null ? ` · ${tier} ур.` : ""}
+                    </span>
+                    {tier != null ? (
+                      <span className="card-live-tier">
+                        {UNIT_TIER_NAME[tier]}
+                      </span>
+                    ) : null}
                   </div>
                   <div className="shop-meta shop-meta-shards">
                     {isUpgradeableCard(c.id) ? (

@@ -3016,6 +3016,15 @@ button {
     0 8px 18px rgba(0, 0, 0, 0.38);
 }
 
+/* Магазин: уже в оракуле — лёгкая тёплая обводка */
+.collection .grid-item.in-oracle .card {
+  box-shadow:
+    0 0 0 1.5px rgba(255, 214, 120, 0.55),
+    0 0 12px rgba(232, 180, 60, 0.28),
+    0 6px 14px rgba(0, 0, 0, 0.32);
+  filter: brightness(1.04) saturate(1.06);
+}
+
 /* —— Battle —— */
 .battle {
   --board-card-w: 112px;
@@ -6254,12 +6263,15 @@ html.is-hand-dragging .oracle-folio {
   margin-bottom: 0.25rem;
 }
 
-/* Магазин на столе: подписи «Природа · новичок» читаемые, иконки школы ярче */
+/* Магазин: «Существо · N ур.» + тир снизу */
 .collection .card-live-tag {
+  display: grid;
+  gap: 0.12rem;
+  justify-items: center;
   color: #f3e6c8;
   font-weight: 650;
   letter-spacing: 0.01em;
-  line-height: 1.35;
+  line-height: 1.25;
   padding: 0.22rem 0.4rem;
   border-radius: 7px;
   background: rgba(8, 5, 3, 0.72);
@@ -6268,15 +6280,16 @@ html.is-hand-dragging .oracle-folio {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
 }
 
-.collection .card-live-tag .game-ico,
-.collection .card-live-tag .school-badge .game-ico {
-  filter:
-    drop-shadow(0 0 1px rgba(0, 0, 0, 0.95))
-    drop-shadow(0 1px 2px rgba(0, 0, 0, 0.75))
-    saturate(1.25)
-    brightness(1.15);
-  transform: scale(1.15);
-  transform-origin: center;
+.collection .card-live-kind {
+  font-size: inherit;
+}
+
+.collection .card-live-tier {
+  font-size: 0.92em;
+  font-weight: 600;
+  color: #e8d4a8;
+  opacity: 0.92;
+  text-transform: lowercase;
 }
 
 .deck-edit {
