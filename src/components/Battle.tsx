@@ -1113,8 +1113,43 @@ export function Battle({
   useEffect(() => {
     if (!externalState) return;
     // Стол с сервера — всегда. Иначе чужие ходы «не видны», ход не передаётся.
-    const next = externalState;
-    const matchOver = Boolean(next.winner) || Boolean(network?.ended);
+    const matchOver =
+      Boolean(externalState.winner) || Boolean(network?.ended);
+    const prev = stateRef.current;
+    let next = externalState;
+    // Выбор руки/атакующего — чисто локальный UI. Снимки PvP всегда с
+    // selected*=null (+ delayed broadcast 300/900ms), из‑за этого красная
+    // подсветка целей гасла сразу. Держим прицеливание, пока ход ваш и
+    // выбранная карта/юнит на месте.
+    if (
+      !matchOver &&
+      next.active === "you" &&
+      prev.active === "you" &&
+      next.turn === prev.turn
+    ) {
+      const keepHand =
+        prev.selectedHand != null &&
+        prev.selectedHand >= 0 &&
+        prev.selectedHand < next.you.hand.length &&
+        prev.you.hand[prev.selectedHand] ===
+          next.you.hand[prev.selectedHand]
+          ? prev.selectedHand
+          : null;
+      const keepSlot =
+        prev.selectedSlot != null &&
+        prev.you.slots[prev.selectedSlot]?.uid != null &&
+        prev.you.slots[prev.selectedSlot]?.uid ===
+          next.you.slots[prev.selectedSlot]?.uid
+          ? prev.selectedSlot
+          : null;
+      if (keepHand != null || keepSlot != null) {
+        next = {
+          ...next,
+          selectedHand: keepHand,
+          selectedSlot: keepSlot,
+        };
+      }
+    }
     stateRef.current = next;
     setState(next);
     setPhase(next.active === "you" ? "you" : "enemy");
