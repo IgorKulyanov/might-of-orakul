@@ -80,6 +80,8 @@ import {
   orcKillExtraTurn,
   recruitDeathHeal,
   resolveSpellEffects,
+  resourceSpellMaxUses,
+  isResourceLimitedSpell,
   rogueStealEvery,
   scorpicoraFastPoison,
   spiderPoisonAmount,
@@ -634,7 +636,45 @@ function makePlayer(
     oracleSkillLoadout: loadout,
     oracleSkillUsed: {},
     oracleActiveUsedThisTurn: false,
+    resourceSpellUses: {},
   };
+}
+
+function resourceSpellUsesOf(p: PlayerState, cardId: string): number {
+  return Math.max(0, Math.floor(p.resourceSpellUses?.[cardId] ?? 0));
+}
+
+function resourceSpellExhausted(
+  state: BattleState,
+  p: PlayerState,
+  cardId: string,
+): boolean {
+  const max = resourceSpellMaxUses(
+    cardId,
+    battleUpgradeLevel(state, p.id, cardId),
+  );
+  if (max == null) return false;
+  return resourceSpellUsesOf(p, cardId) >= max;
+}
+
+function noteResourceSpellPlay(
+  state: BattleState,
+  p: PlayerState,
+  cardId: string,
+): void {
+  if (!isResourceLimitedSpell(cardId)) return;
+  const cur = resourceSpellUsesOf(p, cardId);
+  p.resourceSpellUses = { ...(p.resourceSpellUses ?? {}), [cardId]: cur + 1 };
+  const max = resourceSpellMaxUses(
+    cardId,
+    battleUpgradeLevel(state, p.id, cardId),
+  );
+  if (max != null && cur + 1 >= max) {
+    state.log = [
+      `${getCard(cardId).name}: лимит на бой исчерпан (${max})`,
+      ...state.log,
+    ].slice(0, 12);
+  }
 }
 
 /** 50% щит: нечётный урон вниз (3→1, 5→2). */
@@ -1011,25 +1051,41 @@ function draw(p: PlayerState, n = 1, state?: BattleState): void {
       // Буйство крови стартует в end*Turn через shouldStartBloodFrenzy
       // (с учётом руки — короткая стартовая колода не считается «иссякшей»).
       if (p.graveyard.length > 0) {
-        p.deck = shuffle(p.graveyard);
+        const recycled = state
+          ? p.graveyard.filter((id) => !resourceSpellExhausted(state, p, id))
+          : p.graveyard.slice();
+        p.deck = shuffle(recycled);
         p.graveyard = [];
       } else {
-      continue;
-    }
+        continue;
+      }
     }
     // Рука полна → карта с колоды сгорает в грейв, в руке не появляется
     if (p.hand.length >= MAX_HAND_SIZE) {
       const burned = p.deck.shift()!;
-      p.graveyard.push(burned);
-      if (state) {
-        state.log = [
-          `${p.name}: рука полна — ${getCard(burned).name} сразу в грейв`,
-          ...state.log,
-        ].slice(0, 12);
+      if (state && resourceSpellExhausted(state, p, burned)) {
+        if (state) {
+          state.log = [
+            `${p.name}: рука полна — ${getCard(burned).name} уже исчерпана`,
+            ...state.log,
+          ].slice(0, 12);
+        }
+      } else {
+        p.graveyard.push(burned);
+        if (state) {
+          state.log = [
+            `${p.name}: рука полна — ${getCard(burned).name} сразу в грейв`,
+            ...state.log,
+          ].slice(0, 12);
+        }
       }
       continue;
     }
     const drawn = p.deck.shift()!;
+    if (state && resourceSpellExhausted(state, p, drawn)) {
+      // Исчерпанный рамп не возвращаем в круг.
+      continue;
+    }
     if ((p.handBanIds ?? []).includes(drawn)) {
       p.graveyard.push(drawn);
       if (state) {
@@ -3189,9 +3245,11 @@ function clearEchoSpells(state: BattleState): void {
       if (sp.mode === "echo" || sp.kind === "echo") {
         const caster =
           sp.casterSide === "enemy" ? state.enemy : state.you;
-        // В т.ч. рамп («Доп. мана» / «Камни») — раньше сжигали из боя,
-        // и в стартовой колоде из 4 карт она вылезала в руку один раз.
-        caster.graveyard.push(sp.cardId);
+        // Рамп с оставшимися применениями — в грейв (вернётся в круг).
+        // Исчерпанный лимит — вон из боя (не тасуем обратно).
+        if (!resourceSpellExhausted(state, caster, sp.cardId)) {
+          caster.graveyard.push(sp.cardId);
+        }
         continue;
       }
       keep.push(sp);
@@ -3471,6 +3529,13 @@ export function playCard(
       ].slice(0, 10);
       return next;
     }
+    if (resourceSpellExhausted(next, me, cardId)) {
+      next.log = [
+        `${card.name}: лимит применений на этот бой исчерпан`,
+        ...next.log,
+      ].slice(0, 10);
+      return next;
+    }
     payMana(me.mana, cost);
     me.hand.splice(handIndex, 1);
     const linger = isLingeringSpell(cardId);
@@ -3508,6 +3573,7 @@ export function playCard(
         ...next.log,
       ].slice(0, 10);
     }
+    noteResourceSpellPlay(next, me, cardId);
     if (!linger) {
       // разовое: эхо на рейке; рамп маны — сразу в грейв (см. addSpellEcho)
       addSpellEcho(next, me, foe, cardId, effects);

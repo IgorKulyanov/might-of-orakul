@@ -387,6 +387,11 @@ export interface PlayerState {
   pendingEnemySleep?: boolean;
   /** Бан карт (id) из руки на весь бой (убрать с поля ур.3). */
   handBanIds?: string[];
+  /**
+   * Сколько раз за бой уже сыграли ресурсные спеллы (доп. мана / доп. карта).
+   * Лимит = уровень прокачки карты (1…3).
+   */
+  resourceSpellUses?: Record<string, number>;
   /** Страж для оракула (uid юнита). */
   heroGuardedByUid?: string;
   /** Доля урона оракула на стража. */

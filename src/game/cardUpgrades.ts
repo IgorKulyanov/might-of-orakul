@@ -626,7 +626,6 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
   hero_mana: {
     ...SPELL_STAT_ZERO,
     spellNums: { amount: [1, 1, 1] },
-    spellExtraFrom: { 3: [{ type: "draw", amount: 1 }] },
   },
   hell_cuffs: {
     ...SPELL_STAT_ZERO,
@@ -674,7 +673,8 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
   },
   extra_card: {
     ...SPELL_STAT_ZERO,
-    spellNums: { turns: [1, 2, 3] },
+    // Эффект один; апгрейд даёт число применений за бой (см. resourceSpellMaxUses).
+    spellNums: { turns: [2, 2, 2] },
   },
   to_attack: {
     ...SPELL_STAT_ZERO,
@@ -1342,6 +1342,21 @@ export function leprechaunHeroHeal(level: CardUpgradeLevel): number {
 
 export function leprechaunAllyHeal(level: CardUpgradeLevel): number {
   return level >= 3 ? 1 : 0;
+}
+
+/** Доп. мана / доп. карта: сколько раз можно сыграть за бой (= уровень). */
+export function resourceSpellMaxUses(
+  cardId: string,
+  level: CardUpgradeLevel,
+): number | null {
+  if (cardId === "hero_mana" || cardId === "extra_card") {
+    return level;
+  }
+  return null;
+}
+
+export function isResourceLimitedSpell(cardId: string): boolean {
+  return cardId === "hero_mana" || cardId === "extra_card";
 }
 
 /** Энт ур.3: HP от всех бойцов на поле. */
