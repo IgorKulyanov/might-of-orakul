@@ -213,8 +213,12 @@ type Props = {
   };
   /** Подмена стейта с сервера (каждый тик PvP). */
   externalState?: BattleState | null;
-  /** Чужой/серверный FX (звук + анимация ударов/заклинаний). */
-  remoteFx?: { fx: BattleFx; seq: number } | null;
+  /** Чужой/серверный FX (звук + анимация). atState — стол сразу после этого хода. */
+  remoteFx?: {
+    fx: BattleFx;
+    seq: number;
+    atState?: BattleState;
+  } | null;
   onExit: () => void;
   /** Верни награды — покажем в окне результата. */
   onBattleEnd?: (won: boolean) => BattleEndInfo | void;
@@ -1116,14 +1120,23 @@ export function Battle({
   /** Чужой ход: стейт ждёт, пока FX «долетит», иначе −N раньше анимации. */
   const pendingExternalRef = useRef<BattleState | null>(null);
   const remoteFxPlayingRef = useRef(false);
+  const remoteFxQueueRef = useRef<
+    { fx: BattleFx; seq: number; atState: BattleState }[]
+  >([]);
+  const remoteFxPumpingRef = useRef(false);
+  const battleMountedRef = useRef(true);
   const remoteFxRef = useRef(remoteFx);
   remoteFxRef.current = remoteFx;
   const onBattleEndRef = useRef(onBattleEnd);
   onBattleEndRef.current = onBattleEnd;
 
   useEffect(() => {
+    battleMountedRef.current = true;
     const id = window.requestAnimationFrame(() => setEntered(true));
-    return () => window.cancelAnimationFrame(id);
+    return () => {
+      battleMountedRef.current = false;
+      window.cancelAnimationFrame(id);
+    };
   }, []);
 
   const commitExternalState = (raw: BattleState) => {
@@ -1174,16 +1187,108 @@ export function Battle({
     lock.current = false;
   };
 
+  const pumpRemoteFxQueue = async () => {
+    if (remoteFxPumpingRef.current) return;
+    remoteFxPumpingRef.current = true;
+    remoteFxPlayingRef.current = true;
+    while (
+      battleMountedRef.current &&
+      remoteFxQueueRef.current.length > 0
+    ) {
+      // Peek: снимаем только после полного проигрыша (Strict Mode / remount).
+      const item = remoteFxQueueRef.current[0]!;
+      const before = stateRef.current;
+      const nextFx =
+        item.fx.kind === "spell"
+          ? enrichSpellFx(item.fx, before)
+          : normalizeBattleFx(item.fx);
+      unlockSfx();
+      const flying =
+        (nextFx.kind === "lunge" &&
+          (nextFx.motion === "ranged" || nextFx.motion === "bolt")) ||
+        (nextFx.kind === "spell" &&
+          !!nextFx.vfx &&
+          (!!nextFx.hitHero ||
+            nextFx.toSlot != null ||
+            (Array.isArray(nextFx.hitSlots) && nextFx.hitSlots.length > 0)) &&
+          shouldFlyMissile(nextFx));
+      if (impactGateTimer.current != null) {
+        window.clearTimeout(impactGateTimer.current);
+        impactGateTimer.current = null;
+      }
+      if (!battleMountedRef.current) break;
+      setImpactReady(false);
+      const windup = flying
+        ? missileFlightMs(nextFx)
+        : nextFx.kind === "spell"
+          ? 280
+          : nextFx.kind === "lunge"
+            ? nextFx.motion === "melee" || !nextFx.motion
+              ? 220
+              : 180
+            : nextFx.kind === "play"
+              ? 160
+              : 140;
+      setFx(nextFx);
+      playActionSfx(nextFx, before);
+      await sleep(windup);
+      if (!battleMountedRef.current) break;
+      setImpactReady(true);
+      // Стол этого удара — не «последний пакет», иначе очередь разъезжается.
+      commitExternalState(item.atState);
+      if (pendingExternalRef.current === item.atState) {
+        pendingExternalRef.current = null;
+      }
+      const arrow = flying && nextFx.motion === "ranged";
+      const foeSpell = nextFx.kind === "spell";
+      const totalHold = foeSpell
+        ? 900
+        : arrow
+          ? Math.max(1200, windup + 780)
+          : nextFx.hitHero && nextFx.kind !== "heal"
+            ? 1100
+            : flying
+              ? Math.max(1000, windup + 480)
+              : nextFx.kind === "lunge"
+                ? 800
+                : nextFx.kind === "play"
+                  ? 700
+                  : 800;
+      await sleep(Math.max(100, totalHold - windup));
+      if (!battleMountedRef.current) break;
+      setFx(null);
+      remoteFxQueueRef.current.shift();
+      await sleep(40);
+    }
+    remoteFxPlayingRef.current = false;
+    remoteFxPumpingRef.current = false;
+    if (!battleMountedRef.current) return;
+    if (remoteFxQueueRef.current.length > 0) {
+      void pumpRemoteFxQueue();
+      return;
+    }
+    if (pendingExternalRef.current) {
+      commitExternalState(pendingExternalRef.current);
+      pendingExternalRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    if (remoteFxQueueRef.current.length > 0) void pumpRemoteFxQueue();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (!externalState) return;
     const rfx = remoteFxRef.current;
     const deferFoeFx =
       Boolean(network) &&
-      !!rfx &&
-      rfx.seq > playedRemoteFxSeqRef.current &&
-      !skipNextRemoteFxRef.current &&
-      rfx.fx.side === "enemy";
-    // Пока крутится чужой FX — копим последний снимок, не рисуем −N раньше удара.
+      ((!!rfx &&
+        rfx.seq > playedRemoteFxSeqRef.current &&
+        !skipNextRemoteFxRef.current &&
+        rfx.fx.side === "enemy") ||
+        remoteFxQueueRef.current.length > 0);
+    // Пока очередь/FX чужого хода — не рисуем −N раньше удара.
     if (deferFoeFx || remoteFxPlayingRef.current) {
       pendingExternalRef.current = externalState;
       setPhase(externalState.active === "you" ? "you" : "enemy");
@@ -1205,91 +1310,44 @@ export function Battle({
     remoteFx?.seq,
   ]);
 
-  // PvP: анимация + звук чужих ходов; стейт применяем в момент удара.
+  // PvP: очередь FX — доигрываем каждый кадр, пакеты сеть/React не рвут стрелы.
   useEffect(() => {
     if (!remoteFx || !network) return;
     if (remoteFx.seq <= playedRemoteFxSeqRef.current) return;
     playedRemoteFxSeqRef.current = remoteFx.seq;
     if (skipNextRemoteFxRef.current) {
       skipNextRemoteFxRef.current = false;
-      // Свой ход: стейт уже/сразу без задержки.
       if (pendingExternalRef.current) {
+        commitExternalState(pendingExternalRef.current);
+        pendingExternalRef.current = null;
+      } else if (remoteFx.atState) {
+        commitExternalState(remoteFx.atState);
+      }
+      return;
+    }
+    // Свои ходы уже с анимацией; в очередь только то, что надо показать зрителю.
+    if (remoteFx.fx.side === "you") {
+      if (remoteFx.atState) commitExternalState(remoteFx.atState);
+      else if (pendingExternalRef.current) {
         commitExternalState(pendingExternalRef.current);
         pendingExternalRef.current = null;
       }
       return;
     }
-    let cancelled = false;
-    remoteFxPlayingRef.current = true;
-    const run = async () => {
-      const before = stateRef.current;
-      const nextFx =
-        remoteFx.fx.kind === "spell"
-          ? enrichSpellFx(remoteFx.fx, before)
-          : normalizeBattleFx(remoteFx.fx);
-      unlockSfx();
-      const flying =
-        (nextFx.kind === "lunge" &&
-          (nextFx.motion === "ranged" || nextFx.motion === "bolt")) ||
-        (nextFx.kind === "spell" &&
-          !!nextFx.vfx &&
-          (!!nextFx.hitHero ||
-            nextFx.toSlot != null ||
-            (Array.isArray(nextFx.hitSlots) && nextFx.hitSlots.length > 0)) &&
-          shouldFlyMissile(nextFx));
-      if (impactGateTimer.current != null) {
-        window.clearTimeout(impactGateTimer.current);
-        impactGateTimer.current = null;
-      }
-      setImpactReady(false);
-      const windup = flying
-        ? missileFlightMs(nextFx)
-        : nextFx.kind === "spell"
-          ? 320
-          : nextFx.kind === "lunge"
-            ? 240
-            : nextFx.kind === "play"
-              ? 180
-              : 160;
-      setFx(nextFx);
-      playActionSfx(nextFx, before);
-      await sleep(windup);
-      if (cancelled) return;
-      setImpactReady(true);
-      const pending = pendingExternalRef.current;
-      if (pending) {
-        commitExternalState(pending);
-        pendingExternalRef.current = null;
-      }
-      // Чужие спеллы коротко (~1с) — иначе «висят» над столом.
-      const foeSpell = nextFx.kind === "spell";
-      const totalHold = foeSpell
-        ? 1000
-        : nextFx.hitHero && nextFx.kind !== "heal"
-          ? 1200
-          : flying
-            ? Math.max(1000, windup + 420)
-            : nextFx.kind === "lunge"
-              ? 850
-              : nextFx.kind === "play"
-                ? 750
-                : 850;
-      await sleep(Math.max(120, totalHold - windup));
-      if (cancelled) return;
-      setFx(null);
-      remoteFxPlayingRef.current = false;
-      if (pendingExternalRef.current) {
-        commitExternalState(pendingExternalRef.current);
-        pendingExternalRef.current = null;
-      }
-    };
-    void run();
-    return () => {
-      cancelled = true;
-      // Не гасим fx здесь: при новом seq эффект сам сменит; при ложном
-      // рестарте (тот же seq) иначе карта/выстрел обрывались.
-      remoteFxPlayingRef.current = false;
-    };
+    const atState =
+      remoteFx.atState ??
+      pendingExternalRef.current ??
+      externalState ??
+      stateRef.current;
+    remoteFxQueueRef.current.push({
+      fx: remoteFx.fx,
+      seq: remoteFx.seq,
+      atState,
+    });
+    if (pendingExternalRef.current === atState) {
+      pendingExternalRef.current = null;
+    }
+    void pumpRemoteFxQueue();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remoteFx?.seq, network]);
 

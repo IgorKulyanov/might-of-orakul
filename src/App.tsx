@@ -577,6 +577,7 @@ export default function App() {
   const [pvpRemoteFx, setPvpRemoteFx] = useState<{
     fx: import("./game/engine").BattleFx;
     seq: number;
+    atState?: BattleState;
   } | null>(null);
   const [pvpSeat, setPvpSeat] = useState<PvpSeat>("host");
   const [pvpMatchKey, setPvpMatchKey] = useState(0);
@@ -1676,7 +1677,11 @@ export default function App() {
                 msg.fxSeq > pvpRemoteFxSeqRef.current
               ) {
                 pvpRemoteFxSeqRef.current = msg.fxSeq;
-                setPvpRemoteFx({ fx: msg.fx, seq: msg.fxSeq });
+                setPvpRemoteFx({
+                  fx: msg.fx,
+                  seq: msg.fxSeq,
+                  atState: msg.state,
+                });
               }
               setPvpClock((c) => ({
                 ...c,
