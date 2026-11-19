@@ -1112,6 +1112,11 @@ export function Battle({
   /** Свой ход уже анимирован локально — серверный fx с тем же seq пропускаем. */
   const skipNextRemoteFxRef = useRef(false);
   const playedRemoteFxSeqRef = useRef(0);
+  /** Чужой ход: стейт ждёт, пока FX «долетит», иначе −N раньше анимации. */
+  const pendingExternalRef = useRef<BattleState | null>(null);
+  const remoteFxPlayingRef = useRef(false);
+  const remoteFxRef = useRef(remoteFx);
+  remoteFxRef.current = remoteFx;
   const onBattleEndRef = useRef(onBattleEnd);
   onBattleEndRef.current = onBattleEnd;
 
@@ -1120,13 +1125,10 @@ export function Battle({
     return () => window.cancelAnimationFrame(id);
   }, []);
 
-  useEffect(() => {
-    if (!externalState) return;
-    // Стол с сервера — всегда. Иначе чужие ходы «не видны», ход не передаётся.
-    const matchOver =
-      Boolean(externalState.winner) || Boolean(network?.ended);
+  const commitExternalState = (raw: BattleState) => {
+    const matchOver = Boolean(raw.winner) || Boolean(network?.ended);
     const prev = stateRef.current;
-    let next = externalState;
+    let next = raw;
     // Выбор руки/атакующего — чисто локальный UI. Снимки PvP всегда с
     // selected*=null (+ delayed broadcast 300/900ms), из‑за этого красная
     // подсветка целей гасла сразу. Держим прицеливание, пока ход ваш и
@@ -1160,14 +1162,35 @@ export function Battle({
         };
       }
     }
+    const before = stateRef.current;
     stateRef.current = next;
     setState(next);
+    rememberDeaths(before, next);
     setPhase(next.active === "you" ? "you" : "enemy");
     setPvpAwaiting(false);
-    // Свою анимацию не рвём только если сервер ещё оставил наш ход.
     if (!matchOver && lock.current && next.active === "you") return;
     setBusy(false);
     lock.current = false;
+  };
+
+  useEffect(() => {
+    if (!externalState) return;
+    const rfx = remoteFxRef.current;
+    const deferFoeFx =
+      Boolean(network) &&
+      !!rfx &&
+      rfx.seq > playedRemoteFxSeqRef.current &&
+      !skipNextRemoteFxRef.current &&
+      rfx.fx.side === "enemy";
+    // Пока крутится чужой FX — копим последний снимок, не рисуем −N раньше удара.
+    if (deferFoeFx || remoteFxPlayingRef.current) {
+      pendingExternalRef.current = externalState;
+      setPhase(externalState.active === "you" ? "you" : "enemy");
+      setPvpAwaiting(false);
+      return;
+    }
+    commitExternalState(externalState);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     externalState,
     externalState?.active,
@@ -1178,18 +1201,25 @@ export function Battle({
     externalState?.you?.hp,
     externalState?.enemy?.hp,
     network?.ended,
+    remoteFx?.seq,
   ]);
 
-  // PvP: анимация + звук чужих (и серверных) ходов.
+  // PvP: анимация + звук чужих ходов; стейт применяем в момент удара.
   useEffect(() => {
     if (!remoteFx || !network) return;
     if (remoteFx.seq <= playedRemoteFxSeqRef.current) return;
     playedRemoteFxSeqRef.current = remoteFx.seq;
     if (skipNextRemoteFxRef.current) {
       skipNextRemoteFxRef.current = false;
+      // Свой ход: стейт уже/сразу без задержки.
+      if (pendingExternalRef.current) {
+        commitExternalState(pendingExternalRef.current);
+        pendingExternalRef.current = null;
+      }
       return;
     }
     let cancelled = false;
+    remoteFxPlayingRef.current = true;
     const run = async () => {
       const before = stateRef.current;
       const nextFx =
@@ -1210,39 +1240,54 @@ export function Battle({
         window.clearTimeout(impactGateTimer.current);
         impactGateTimer.current = null;
       }
-      if (flying) {
-        setImpactReady(false);
-        const flight = missileFlightMs(nextFx);
-        impactGateTimer.current = window.setTimeout(() => {
-          setImpactReady(true);
-          impactGateTimer.current = null;
-        }, flight);
-      } else {
-        setImpactReady(true);
-      }
+      setImpactReady(false);
+      const windup = flying
+        ? missileFlightMs(nextFx)
+        : nextFx.kind === "spell"
+          ? 320
+          : nextFx.kind === "lunge"
+            ? 240
+            : nextFx.kind === "play"
+              ? 180
+              : 160;
       setFx(nextFx);
       playActionSfx(nextFx, before);
-      const foeSpell = nextFx.kind === "spell" && nextFx.side === "enemy";
-      const hold =
-        foeSpell
-          ? 1600
-          : nextFx.hitHero && nextFx.kind !== "heal"
-            ? 1400
-            : flying
-              ? 1100
-              : nextFx.kind === "lunge"
-                ? 950
-                : nextFx.kind === "play"
-                  ? 850
-                  : 900;
-      await sleep(hold);
+      await sleep(windup);
+      if (cancelled) return;
+      setImpactReady(true);
+      const pending = pendingExternalRef.current;
+      if (pending) {
+        commitExternalState(pending);
+        pendingExternalRef.current = null;
+      }
+      // Чужие спеллы — как свои по ощущению (~1.4с), без «висящей» карты.
+      const foeSpell = nextFx.kind === "spell";
+      const totalHold = foeSpell
+        ? 1400
+        : nextFx.hitHero && nextFx.kind !== "heal"
+          ? 1400
+          : flying
+            ? Math.max(1100, windup + 450)
+            : nextFx.kind === "lunge"
+              ? 900
+              : nextFx.kind === "play"
+                ? 800
+                : 900;
+      await sleep(Math.max(120, totalHold - windup));
       if (cancelled) return;
       setFx(null);
+      remoteFxPlayingRef.current = false;
+      if (pendingExternalRef.current) {
+        commitExternalState(pendingExternalRef.current);
+        pendingExternalRef.current = null;
+      }
     };
     void run();
     return () => {
       cancelled = true;
+      remoteFxPlayingRef.current = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remoteFx, network]);
 
   useLayoutEffect(() => {
@@ -1503,20 +1548,17 @@ export function Battle({
       return after;
     };
     // В сети ход сразу — анимация после.
-    // Своя магия — коротко (карту уже видел в руке); вражеская — дольше, чтобы прочитать.
+    // Своя магия коротко; чужая на клиенте зрителя идёт через remoteFx (~1.4с).
     const ownSpell = isSpellCard && nextFx.side === "you";
-    const foeSpell = isSpellCard && nextFx.side === "enemy";
     if (online) {
       apply();
       const hold = ownSpell
         ? Math.max(holdMs, 520)
-        : foeSpell
-          ? Math.max(holdMs, 1600)
-          : instant
-            ? Math.max(holdMs, 900)
-            : nextFx.hitHero && nextFx.kind !== "heal"
-              ? Math.max(holdMs, 1400)
-              : holdMs;
+        : instant
+          ? Math.max(holdMs, 900)
+          : nextFx.hitHero && nextFx.kind !== "heal"
+            ? Math.max(holdMs, 1400)
+            : holdMs;
       await sleep(hold);
       setFx(null);
       await sleep(ownSpell ? 80 : 200);
