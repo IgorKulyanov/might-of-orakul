@@ -23,6 +23,11 @@ import {
   starterDeckForFaction,
 } from "../game/progression";
 import { apiCreatePayment, apiShopBuy, apiShopUnlock } from "../game/api";
+import { trackShopBuyForDailies } from "../game/dailies";
+import {
+  syncLifetimeFromOwned,
+  trackLifetimeShopBuy,
+} from "../game/lifetimeQuests";
 import {
   getCardShards,
   getCardUpgradeLevel,
@@ -196,6 +201,7 @@ export function Collection({
         };
         saveOwned(next);
         onChange(next);
+        syncLifetimeFromOwned(next);
         showUnlockReveal(id, cardName);
         say(`«${cardName}» открыта в оракуле`);
         return;
@@ -207,6 +213,7 @@ export function Collection({
       }
       saveOwned(res.owned);
       onChange(res.owned);
+      syncLifetimeFromOwned(res.owned);
       showUnlockReveal(id, cardName);
       say(`«${cardName}» открыта в оракуле`);
     } catch (e) {
@@ -355,6 +362,9 @@ export function Collection({
       if (!authToken) {
         const next = localBuy();
         onChange(next);
+        trackShopBuyForDailies(1);
+        trackLifetimeShopBuy(1);
+        syncLifetimeFromOwned(next);
         flashAfter(next);
         return;
       }
@@ -373,6 +383,9 @@ export function Collection({
         homeFaction: before.homeFaction ?? user.owned.homeFaction,
       };
       onChange(next);
+      trackShopBuyForDailies(1);
+      trackLifetimeShopBuy(1);
+      syncLifetimeFromOwned(next);
       flashAfter(next);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Покупка не прошла");

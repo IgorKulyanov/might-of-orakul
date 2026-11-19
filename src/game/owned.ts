@@ -23,6 +23,12 @@ import {
   type DailyQuestId,
 } from "./dailies";
 import {
+  claimLifetimeQuest,
+  syncLifetimeFromOwned,
+  trackLifetimeBattle,
+  type LifetimeQuestId,
+} from "./lifetimeQuests";
+import {
   EPIC_HERO_DIAMONDS,
   EPIC_HERO_GOLD,
   getHero,
@@ -1010,6 +1016,7 @@ export function applyBattleResult(
   const mode =
     opts?.mode ?? (opts?.pvp ? "pvp" : "bot");
   trackBattleForDailies(won, mode);
+  trackLifetimeBattle(won, mode);
   const progress = normalizeProgress(owned);
   const hero = getHero(activeHeroId(owned));
   const gift = resolveBattleGift(
@@ -1066,6 +1073,7 @@ export function applyBattleResult(
     getHero(activeHeroId(next)).faction,
   );
   saveOwned(next);
+  syncLifetimeFromOwned(next);
   const skillLines: string[] = [];
   if (granted.gainedLevels > 0) {
     const fromLv = granted.level - granted.gainedLevels + 1;
@@ -1119,6 +1127,51 @@ export function claimDailyQuest(
     diamonds: (withGold.diamonds ?? 0) + granted.totalDiamonds,
   };
   saveOwned(next);
+  syncLifetimeFromOwned(next);
+  return {
+    owned: next,
+    ok: true,
+    xp: claim.xp,
+    gold: claim.gold + granted.totalGold,
+    diamonds: claim.diamonds + granted.totalDiamonds,
+  };
+}
+
+/** Забрать награду одноразового задания. */
+export function claimLifetimeQuestReward(
+  owned: OwnedState,
+  questId: LifetimeQuestId,
+): {
+  owned: OwnedState;
+  ok: boolean;
+  xp: number;
+  gold: number;
+  diamonds: number;
+  reason?: string;
+} {
+  syncLifetimeFromOwned(owned);
+  const { owned: withGold, claim } = claimLifetimeQuest(owned, questId);
+  if (!claim.ok) {
+    return {
+      owned,
+      ok: false,
+      xp: 0,
+      gold: 0,
+      diamonds: 0,
+      reason: claim.reason,
+    };
+  }
+  const progress = normalizeProgress(withGold);
+  const granted = grantXp(progress, claim.xp);
+  const next: OwnedState = {
+    ...withGold,
+    level: granted.level,
+    xp: granted.xp,
+    gold: (withGold.gold ?? 0) + granted.totalGold,
+    diamonds: (withGold.diamonds ?? 0) + granted.totalDiamonds,
+  };
+  saveOwned(next);
+  syncLifetimeFromOwned(next);
   return {
     owned: next,
     ok: true,

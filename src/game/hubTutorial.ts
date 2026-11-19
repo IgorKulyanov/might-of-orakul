@@ -79,7 +79,7 @@ export const HUB_TUTORIAL_TIPS: HubTutorialTip[] = [
     id: "dailies-btn",
     screen: "menu",
     target: "hub-dailies",
-    title: "Ежедневные задания",
+    title: "Задания дня и путь оракула",
     body: "Каждый день — новые цели. За них дают золото, опыт и алмазы. Не забывай забирать награду.",
   },
   {

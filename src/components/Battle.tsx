@@ -114,6 +114,8 @@ import {
 } from "../game/cardUpgrades";
 import { castOracleSkill } from "../game/oracleSkillCombat";
 import { getSkill } from "../game/oracleSkills";
+import { trackSpellCastsForDailies } from "../game/dailies";
+import { trackLifetimeSpellCasts } from "../game/lifetimeQuests";
 import { type PvpAction } from "../game/pvpProtocol";
 import type { BattleState, CreatureInstance } from "../game/types";
 import { SkillIcon } from "./SkillIcon";
@@ -1102,6 +1104,8 @@ export function Battle({
   } | null>(null);
   const lock = useRef(false);
   const rewarded = useRef(false);
+  /** Сколько своих заклинаний сыграли в этом бою (дейлики / одноразовые). */
+  const spellsCastRef = useRef(0);
   const onBattleEndRef = useRef(onBattleEnd);
   onBattleEndRef.current = onBattleEnd;
 
@@ -1223,6 +1227,11 @@ export function Battle({
     rewarded.current = true;
     const won = state.winner === "you";
     try {
+      const spells = spellsCastRef.current;
+      if (spells > 0) {
+        trackSpellCastsForDailies(spells);
+        trackLifetimeSpellCasts(spells);
+      }
       const info = onBattleEndRef.current?.(won);
       if (info) setReward(info);
     } catch {
@@ -1356,6 +1365,12 @@ export function Battle({
     }
     setFx(nextFx);
     playActionSfx(nextFx, before);
+    if (
+      isSpellCard &&
+      (nextFx.side === "you" || nextFx.side == null)
+    ) {
+      spellsCastRef.current += 1;
+    }
     const apply = () => {
       // PvP: тот же applyPvpAction, что на сервере. Без «подождать 1.6с» —
       // иначе handIndex устаревает, доп. мана не списывается и откатывается.

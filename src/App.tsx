@@ -7,6 +7,13 @@ import { Cabinet } from "./components/Cabinet";
 import { CampaignMap } from "./components/CampaignMap";
 import { Collection } from "./components/Collection";
 import { DailyPanel } from "./components/DailyPanel";
+import {
+  trackCampaignClearedForDailies,
+} from "./game/dailies";
+import {
+  syncLifetimeFromOwned,
+  trackLifetimeTrailCleared,
+} from "./game/lifetimeQuests";
 import { DevSandbox } from "./components/DevSandbox";
 import { HeroSelect } from "./components/HeroSelect";
 import { MultiMenu } from "./components/MultiMenu";
@@ -73,6 +80,7 @@ import {
   applyBattleResult,
   backupOwnedForLogin,
   claimDailyQuest,
+  claimLifetimeQuestReward,
   clearActiveOwned,
   clearOwnedBackup,
   hasOwnedProgress,
@@ -1060,6 +1068,8 @@ export default function App() {
         res = { ...res, owned: camp.owned };
         goldReward += camp.milestoneGold;
         diamondReward += camp.milestoneDiamonds;
+        trackCampaignClearedForDailies(camp.campaign.cleared);
+        trackLifetimeTrailCleared(camp.campaign.cleared);
       } else {
         setCampaign(applyCampaignLoss(campaignRef.current));
       }
@@ -1487,6 +1497,12 @@ export default function App() {
             owned={owned}
             onClaim={(id) => {
               const res = claimDailyQuest(ownedRef.current, id);
+              if (res.ok) void persistOwned(res.owned);
+              return res;
+            }}
+            onClaimLifetime={(id) => {
+              syncLifetimeFromOwned(ownedRef.current);
+              const res = claimLifetimeQuestReward(ownedRef.current, id);
               if (res.ok) void persistOwned(res.owned);
               return res;
             }}

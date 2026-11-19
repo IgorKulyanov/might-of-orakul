@@ -1,25 +1,56 @@
 import { hashSeed } from "./arena";
 import type { OwnedState } from "./types";
 
-const KEY = "orakul-dailies-v2";
-const QUESTS_PER_DAY = 3;
+const KEY = "orakul-dailies-v3";
+const QUESTS_PER_DAY = 4;
 
 export type DailyQuestId =
   | "win_1"
+  | "win_2"
   | "win_3"
+  | "win_4"
+  | "win_5"
+  | "win_10"
   | "play_2"
   | "play_3"
-  | "win_2"
+  | "play_5"
+  | "bot_win"
+  | "bot_win_2"
+  | "any_win_2"
+  | "any_win_4"
   | "arena_play"
   | "arena_win"
-  | "campaign_play"
+  | "arena_win_2"
   | "campaign_win"
+  | "campaign_win_2"
+  | "campaign_reach_3"
+  | "campaign_reach_5"
+  | "campaign_reach_8"
   | "pvp_play"
   | "pvp_win"
-  | "bot_win"
-  | "any_win_2";
+  | "pvp_win_2"
+  | "shop_buy_1"
+  | "shop_buy_2"
+  | "shop_buy_3"
+  | "spell_3"
+  | "spell_5"
+  | "spell_8";
 
 export type DailyBattleMode = "bot" | "campaign" | "arena" | "pvp" | "dev";
+
+export type DailyTrack =
+  | "battle"
+  | "shop_buy"
+  | "spell_cast"
+  | "campaign_cleared";
+
+export type DailyCategory =
+  | "wins"
+  | "play"
+  | "mode"
+  | "shop"
+  | "spell"
+  | "trail";
 
 export type DailyQuest = {
   id: DailyQuestId;
@@ -28,13 +59,15 @@ export type DailyQuest = {
   xp: number;
   gold: number;
   diamonds: number;
-  /** Какие бои засчитывают прогресс. */
+  track: DailyTrack;
+  category: DailyCategory;
+  /** Какие бои засчитывают прогресс (только track=battle). */
   modes?: DailyBattleMode[];
-  /** Нужна победа. */
+  /** Нужна победа (battle). */
   needWin?: boolean;
 };
 
-/** Полный пул — на день выбираются 3 разных. */
+/** Полный пул — на день выбираются 4 из разных категорий. */
 export const DAILY_QUEST_POOL: DailyQuest[] = [
   {
     id: "win_1",
@@ -43,6 +76,8 @@ export const DAILY_QUEST_POOL: DailyQuest[] = [
     xp: 160,
     gold: 55,
     diamonds: 1,
+    track: "battle",
+    category: "wins",
     needWin: true,
   },
   {
@@ -52,6 +87,8 @@ export const DAILY_QUEST_POOL: DailyQuest[] = [
     xp: 280,
     gold: 90,
     diamonds: 1,
+    track: "battle",
+    category: "wins",
     needWin: true,
   },
   {
@@ -61,6 +98,41 @@ export const DAILY_QUEST_POOL: DailyQuest[] = [
     xp: 400,
     gold: 140,
     diamonds: 2,
+    track: "battle",
+    category: "wins",
+    needWin: true,
+  },
+  {
+    id: "win_4",
+    title: "Четыре трофея",
+    target: 4,
+    xp: 520,
+    gold: 180,
+    diamonds: 2,
+    track: "battle",
+    category: "wins",
+    needWin: true,
+  },
+  {
+    id: "win_5",
+    title: "Пять ударов судьбы",
+    target: 5,
+    xp: 650,
+    gold: 220,
+    diamonds: 3,
+    track: "battle",
+    category: "wins",
+    needWin: true,
+  },
+  {
+    id: "win_10",
+    title: "Десять побед за сутки",
+    target: 10,
+    xp: 1100,
+    gold: 400,
+    diamonds: 5,
+    track: "battle",
+    category: "wins",
     needWin: true,
   },
   {
@@ -70,6 +142,8 @@ export const DAILY_QUEST_POOL: DailyQuest[] = [
     xp: 120,
     gold: 40,
     diamonds: 0,
+    track: "battle",
+    category: "play",
   },
   {
     id: "play_3",
@@ -78,6 +152,18 @@ export const DAILY_QUEST_POOL: DailyQuest[] = [
     xp: 180,
     gold: 60,
     diamonds: 0,
+    track: "battle",
+    category: "play",
+  },
+  {
+    id: "play_5",
+    title: "Пять боёв без отдыха",
+    target: 5,
+    xp: 280,
+    gold: 100,
+    diamonds: 1,
+    track: "battle",
+    category: "play",
   },
   {
     id: "bot_win",
@@ -86,6 +172,20 @@ export const DAILY_QUEST_POOL: DailyQuest[] = [
     xp: 170,
     gold: 60,
     diamonds: 1,
+    track: "battle",
+    category: "mode",
+    modes: ["bot"],
+    needWin: true,
+  },
+  {
+    id: "bot_win_2",
+    title: "Две победы над ботом",
+    target: 2,
+    xp: 300,
+    gold: 110,
+    diamonds: 1,
+    track: "battle",
+    category: "mode",
     modes: ["bot"],
     needWin: true,
   },
@@ -96,6 +196,20 @@ export const DAILY_QUEST_POOL: DailyQuest[] = [
     xp: 300,
     gold: 100,
     diamonds: 1,
+    track: "battle",
+    category: "wins",
+    modes: ["bot", "campaign", "arena"],
+    needWin: true,
+  },
+  {
+    id: "any_win_4",
+    title: "Четыре одиночных триумфа",
+    target: 4,
+    xp: 500,
+    gold: 170,
+    diamonds: 2,
+    track: "battle",
+    category: "wins",
     modes: ["bot", "campaign", "arena"],
     needWin: true,
   },
@@ -106,6 +220,8 @@ export const DAILY_QUEST_POOL: DailyQuest[] = [
     xp: 150,
     gold: 50,
     diamonds: 0,
+    track: "battle",
+    category: "mode",
     modes: ["arena"],
   },
   {
@@ -115,17 +231,22 @@ export const DAILY_QUEST_POOL: DailyQuest[] = [
     xp: 220,
     gold: 80,
     diamonds: 2,
+    track: "battle",
+    category: "mode",
     modes: ["arena"],
     needWin: true,
   },
   {
-    id: "campaign_play",
-    title: "Пройди узел Тропы",
-    target: 1,
-    xp: 150,
-    gold: 50,
-    diamonds: 0,
-    modes: ["campaign"],
+    id: "arena_win_2",
+    title: "Два круга арены",
+    target: 2,
+    xp: 380,
+    gold: 140,
+    diamonds: 2,
+    track: "battle",
+    category: "mode",
+    modes: ["arena"],
+    needWin: true,
   },
   {
     id: "campaign_win",
@@ -134,8 +255,52 @@ export const DAILY_QUEST_POOL: DailyQuest[] = [
     xp: 220,
     gold: 75,
     diamonds: 1,
+    track: "battle",
+    category: "trail",
     modes: ["campaign"],
     needWin: true,
+  },
+  {
+    id: "campaign_win_2",
+    title: "Два узла Тропы",
+    target: 2,
+    xp: 360,
+    gold: 120,
+    diamonds: 2,
+    track: "battle",
+    category: "trail",
+    modes: ["campaign"],
+    needWin: true,
+  },
+  {
+    id: "campaign_reach_3",
+    title: "Доберись до 3-го узла Тропы",
+    target: 3,
+    xp: 320,
+    gold: 110,
+    diamonds: 1,
+    track: "campaign_cleared",
+    category: "trail",
+  },
+  {
+    id: "campaign_reach_5",
+    title: "Доберись до 5-го узла Тропы",
+    target: 5,
+    xp: 480,
+    gold: 160,
+    diamonds: 2,
+    track: "campaign_cleared",
+    category: "trail",
+  },
+  {
+    id: "campaign_reach_8",
+    title: "Доберись до 8-го узла Тропы",
+    target: 8,
+    xp: 700,
+    gold: 240,
+    diamonds: 3,
+    track: "campaign_cleared",
+    category: "trail",
   },
   {
     id: "pvp_play",
@@ -144,6 +309,8 @@ export const DAILY_QUEST_POOL: DailyQuest[] = [
     xp: 180,
     gold: 45,
     diamonds: 0,
+    track: "battle",
+    category: "mode",
     modes: ["pvp"],
   },
   {
@@ -153,8 +320,82 @@ export const DAILY_QUEST_POOL: DailyQuest[] = [
     xp: 260,
     gold: 90,
     diamonds: 2,
+    track: "battle",
+    category: "mode",
     modes: ["pvp"],
     needWin: true,
+  },
+  {
+    id: "pvp_win_2",
+    title: "Две дуэли — две победы",
+    target: 2,
+    xp: 450,
+    gold: 160,
+    diamonds: 3,
+    track: "battle",
+    category: "mode",
+    modes: ["pvp"],
+    needWin: true,
+  },
+  {
+    id: "shop_buy_1",
+    title: "Купи осколок в магазине",
+    target: 1,
+    xp: 140,
+    gold: 40,
+    diamonds: 0,
+    track: "shop_buy",
+    category: "shop",
+  },
+  {
+    id: "shop_buy_2",
+    title: "Две покупки в магазине",
+    target: 2,
+    xp: 220,
+    gold: 70,
+    diamonds: 1,
+    track: "shop_buy",
+    category: "shop",
+  },
+  {
+    id: "shop_buy_3",
+    title: "Три покупки в магазине",
+    target: 3,
+    xp: 320,
+    gold: 100,
+    diamonds: 1,
+    track: "shop_buy",
+    category: "shop",
+  },
+  {
+    id: "spell_3",
+    title: "Три заклинания за день",
+    target: 3,
+    xp: 160,
+    gold: 55,
+    diamonds: 0,
+    track: "spell_cast",
+    category: "spell",
+  },
+  {
+    id: "spell_5",
+    title: "Пять заклинаний за день",
+    target: 5,
+    xp: 240,
+    gold: 85,
+    diamonds: 1,
+    track: "spell_cast",
+    category: "spell",
+  },
+  {
+    id: "spell_8",
+    title: "Восемь заклинаний за день",
+    target: 8,
+    xp: 360,
+    gold: 120,
+    diamonds: 2,
+    track: "spell_cast",
+    category: "spell",
   },
 ];
 
@@ -163,7 +404,7 @@ export const DAILY_QUESTS = DAILY_QUEST_POOL;
 
 export type DailyState = {
   day: string;
-  /** Три задания сегодня. */
+  /** Задания сегодня. */
   questIds: DailyQuestId[];
   progress: Partial<Record<DailyQuestId, number>>;
   claimed: DailyQuestId[];
@@ -188,16 +429,52 @@ function mulberry32(seed: number): () => number {
   };
 }
 
+/** Берём по одной из разных категорий, пока не наберём QUESTS_PER_DAY. */
 export function pickDailyQuestIds(day = todayKey()): DailyQuestId[] {
-  const rnd = mulberry32(hashSeed(`dailies-v2:${day}`));
-  const pool = [...DAILY_QUEST_POOL];
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(rnd() * (i + 1));
-    const t = pool[i]!;
-    pool[i] = pool[j]!;
-    pool[j] = t;
+  const rnd = mulberry32(hashSeed(`dailies-v3:${day}`));
+  const byCat = new Map<DailyCategory, DailyQuest[]>();
+  for (const q of DAILY_QUEST_POOL) {
+    const list = byCat.get(q.category) ?? [];
+    list.push(q);
+    byCat.set(q.category, list);
   }
-  return pool.slice(0, QUESTS_PER_DAY).map((q) => q.id);
+  for (const list of byCat.values()) {
+    for (let i = list.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      const t = list[i]!;
+      list[i] = list[j]!;
+      list[j] = t;
+    }
+  }
+  const cats = [...byCat.keys()];
+  for (let i = cats.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    const t = cats[i]!;
+    cats[i] = cats[j]!;
+    cats[j] = t;
+  }
+  const picked: DailyQuestId[] = [];
+  const used = new Set<DailyQuestId>();
+  for (const cat of cats) {
+    if (picked.length >= QUESTS_PER_DAY) break;
+    const q = byCat.get(cat)?.[0];
+    if (!q || used.has(q.id)) continue;
+    picked.push(q.id);
+    used.add(q.id);
+  }
+  // Добор, если категорий меньше четырёх.
+  const rest = [...DAILY_QUEST_POOL].filter((q) => !used.has(q.id));
+  for (let i = rest.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    const t = rest[i]!;
+    rest[i] = rest[j]!;
+    rest[j] = t;
+  }
+  for (const q of rest) {
+    if (picked.length >= QUESTS_PER_DAY) break;
+    picked.push(q.id);
+  }
+  return picked;
 }
 
 export function questById(id: DailyQuestId): DailyQuest | undefined {
@@ -264,6 +541,16 @@ function bump(
   st.progress[id] = Math.min(target, cur + amount);
 }
 
+function setAtLeast(
+  st: DailyState,
+  id: DailyQuestId,
+  value: number,
+  target: number,
+): void {
+  const cur = st.progress[id] ?? 0;
+  st.progress[id] = Math.min(target, Math.max(cur, value));
+}
+
 /** Учёт боя для дейликов. */
 export function trackBattleForDailies(
   won: boolean,
@@ -272,10 +559,50 @@ export function trackBattleForDailies(
   const st = loadDailies();
   for (const id of st.questIds) {
     const q = questById(id);
-    if (!q) continue;
+    if (!q || q.track !== "battle") continue;
     if (q.modes && !q.modes.includes(mode)) continue;
     if (q.needWin && !won) continue;
     bump(st, id, 1, q.target);
+  }
+  saveDailies(st);
+  return st;
+}
+
+/** Покупка осколка/карты в магазине. */
+export function trackShopBuyForDailies(amount = 1): DailyState {
+  const st = loadDailies();
+  const n = Math.max(1, Math.floor(amount));
+  for (const id of st.questIds) {
+    const q = questById(id);
+    if (!q || q.track !== "shop_buy") continue;
+    bump(st, id, n, q.target);
+  }
+  saveDailies(st);
+  return st;
+}
+
+/** Сыгранные заклинания (сумма за бой). */
+export function trackSpellCastsForDailies(amount: number): DailyState {
+  const st = loadDailies();
+  const n = Math.max(0, Math.floor(amount));
+  if (n <= 0) return st;
+  for (const id of st.questIds) {
+    const q = questById(id);
+    if (!q || q.track !== "spell_cast") continue;
+    bump(st, id, n, q.target);
+  }
+  saveDailies(st);
+  return st;
+}
+
+/** Прогресс Тропы сегодня (cleared). */
+export function trackCampaignClearedForDailies(cleared: number): DailyState {
+  const st = loadDailies();
+  const v = Math.max(0, Math.floor(cleared));
+  for (const id of st.questIds) {
+    const q = questById(id);
+    if (!q || q.track !== "campaign_cleared") continue;
+    setAtLeast(st, id, v, q.target);
   }
   saveDailies(st);
   return st;
