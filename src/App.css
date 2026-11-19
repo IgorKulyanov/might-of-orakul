@@ -7886,9 +7886,17 @@ html.is-hand-dragging .oracle-folio {
   max-height: 140px;
 }
 
+.admin-inbox-section {
+  order: -1;
+  border: 1px solid rgba(214, 184, 140, 0.35);
+  border-radius: 10px;
+  padding: 0.55rem 0.6rem 0.65rem;
+  background: rgba(60, 36, 12, 0.35);
+}
+
 .admin-inbox {
-  max-height: min(220px, 32dvh);
-  min-height: 72px;
+  max-height: min(240px, 36dvh);
+  min-height: 88px;
   flex: 0 0 auto;
 }
 

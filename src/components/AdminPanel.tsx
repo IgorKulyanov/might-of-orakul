@@ -144,7 +144,7 @@ export function AdminPanel({ open, onClose }: Props) {
       setStatus(res.message);
       await refresh(key);
     } catch (e) {
-      setStatus(e instanceof Error ? e.message : "Ошибка мута");
+      setStatus(e instanceof Error ? e.message : "Не удалось заглушить чат");
     } finally {
       setBusy(false);
     }
@@ -406,8 +406,11 @@ export function AdminPanel({ open, onClose }: Props) {
               </button>
             </section>
 
-            <section className="admin-section">
-              <h3>Входящие · письма и жалобы</h3>
+            <section className="admin-section admin-inbox-section">
+              <h3>Письма игроков и жалобы</h3>
+              <p className="community-hint">
+                Сюда приходит «Написать разработчику» из чата сообщества.
+              </p>
               <div className="community-log admin-log admin-inbox">
                 {(
                   inbox?.feedback as
@@ -416,7 +419,7 @@ export function AdminPanel({ open, onClose }: Props) {
                 )?.map((f, i) => (
                   <div key={`f-${i}`} className="community-msg">
                     <strong>
-                      ✉ {f.login}
+                      Письмо · {f.login}
                       {f.at
                         ? ` · ${new Date(f.at).toLocaleString()}`
                         : ""}
@@ -430,13 +433,13 @@ export function AdminPanel({ open, onClose }: Props) {
                     | undefined
                 )?.map((r, i) => (
                   <div key={`r-${i}`} className="community-msg">
-                    <strong>⚠ жалоба от {r.byLogin}</strong>
+                    <strong>Жалоба от {r.byLogin}</strong>
                     <span>{r.reason}</span>
                   </div>
                 ))}
                 {(inbox?.mutes || []).map((m) => (
                   <div key={m.userId} className="community-msg">
-                    <strong>🔇 {m.login}</strong>
+                    <strong>Заглушка чата · {m.login}</strong>
                     <span>
                       до {new Date(m.until).toLocaleString()} · {m.reason}
                     </span>
@@ -498,8 +501,8 @@ export function AdminPanel({ open, onClose }: Props) {
             </section>
 
             <p className="community-hint">
-              Поощряй золотом/алмазами, глуши чат, смотри жалобы и письма.
-              Игрок увидит валюту после следующего сейва/входа.
+              Награды золотом/алмазами и заглушка чата — ниже. Письма игроков —
+              вверху, сразу под статистикой. Валюта у игрока после сейва/входа.
             </p>
 
             <section className="admin-section">
@@ -539,7 +542,10 @@ export function AdminPanel({ open, onClose }: Props) {
             </section>
 
             <section className="admin-section">
-              <h3>Мут чата</h3>
+              <h3>Заглушить чат</h3>
+              <p className="community-hint">
+                Игрок не сможет писать в общий чат указанное число минут.
+              </p>
               <div className="admin-grid admin-grid-2">
                 <input
                   value={muteLogin}
@@ -560,7 +566,7 @@ export function AdminPanel({ open, onClose }: Props) {
                   disabled={busy || !muteLogin.trim()}
                   onClick={() => void doMute()}
                 >
-                  Замутить
+                  Заглушить
                 </button>
                 <button
                   type="button"
@@ -576,13 +582,15 @@ export function AdminPanel({ open, onClose }: Props) {
                       })
                       .catch((e) =>
                         setStatus(
-                          e instanceof Error ? e.message : "Ошибка unmute",
+                          e instanceof Error
+                            ? e.message
+                            : "Не удалось снять заглушку",
                         ),
                       )
                       .finally(() => setBusy(false));
                   }}
                 >
-                  Снять мут
+                  Вернуть чат
                 </button>
               </div>
             </section>
@@ -628,7 +636,7 @@ export function AdminPanel({ open, onClose }: Props) {
                       {u.login}
                       {u.dormant ? " · сон" : ""}
                       {u.chatMutedUntil && u.chatMutedUntil > Date.now()
-                        ? " · мут"
+                        ? " · чат заглушен"
                         : ""}
                       {u.pvpBanned ? " · бан PvP" : ""}
                       {u.pendingResetCampaign ? " · сброс тропы" : ""}
