@@ -329,14 +329,15 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
     defaultLevel: 1,
   },
   crossbowman: {
-    bonusAtk: [0, 0, 0],
+    // +1 ATK — жизнь давит мягко (5 ATK ломало природу)
+    bonusAtk: [1, 1, 1],
     bonusHp: [0, 0, 0],
     abilityFrom: { riposte: 2 },
     defaultLevel: 1,
   },
   tank: {
-    // L1 меньше мяса, L3 чуть толще + щит призывом
-    bonusAtk: [0, 0, 0],
+    // +1 ATK на всех уровнях — жизнь не только стена на старте
+    bonusAtk: [1, 1, 1],
     bonusHp: [-4, 0, 4],
     defaultLevel: 1,
   },
@@ -398,8 +399,8 @@ export const CARD_UPGRADE_DEFS: Record<string, CardUpgradeDef> = {
     defaultLevel: 1,
   },
   fire_gopnik: {
-    // JSON = L1 (8/8). Раньше JSON≈L2, а L1 резали до 5/6.
-    bonusAtk: [0, 2, 3],
+    // JSON = 8/8 как L2-база. L1 режем до 6/8 — иначе ад ломает стартовые колоды.
+    bonusAtk: [-2, 2, 3],
     bonusHp: [0, 2, 3],
     abilityFrom: { flame_burn: 3 },
     defaultLevel: 1,
