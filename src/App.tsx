@@ -574,6 +574,10 @@ export default function App() {
     hasSeenHubTutorial() ? null : 0,
   );
   const [pvpState, setPvpState] = useState<BattleState | null>(null);
+  const [pvpRemoteFx, setPvpRemoteFx] = useState<{
+    fx: import("./game/engine").BattleFx;
+    seq: number;
+  } | null>(null);
   const [pvpSeat, setPvpSeat] = useState<PvpSeat>("host");
   const [pvpMatchKey, setPvpMatchKey] = useState(0);
   const [pvpClock, setPvpClock] = useState<PvpClock>({
@@ -1532,6 +1536,7 @@ export default function App() {
         yourLevel={pvpState.you.level ?? level}
         enemyLevel={pvpState.enemy.level ?? 1}
         externalState={pvpState}
+        remoteFx={pvpRemoteFx}
         network={{
           sendAction: (action) => {
             try {
@@ -1631,6 +1636,7 @@ export default function App() {
           setPvpMatchKey((n) => n + 1);
           setPvpSeat(youAre);
           setPvpState(state);
+          setPvpRemoteFx(null);
           setPvpClock({
             turnEndsAt,
             yourTimeouts,
@@ -1659,6 +1665,9 @@ export default function App() {
               if (seq > pvpBattleSeqRef.current) pvpBattleSeqRef.current = seq;
               // Новый объект — иначе React может не перерисовать чужие ходы.
               setPvpState({ ...msg.state });
+              if (msg.fx && msg.fxSeq != null) {
+                setPvpRemoteFx({ fx: msg.fx, seq: msg.fxSeq });
+              }
               setPvpClock((c) => ({
                 ...c,
                 turnEndsAt: finished ? null : msg.turnEndsAt,

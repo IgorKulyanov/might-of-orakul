@@ -213,6 +213,8 @@ type Props = {
   };
   /** Подмена стейта с сервера (каждый тик PvP). */
   externalState?: BattleState | null;
+  /** Чужой/серверный FX (звук + анимация ударов/заклинаний). */
+  remoteFx?: { fx: BattleFx; seq: number } | null;
   onExit: () => void;
   /** Верни награды — покажем в окне результата. */
   onBattleEnd?: (won: boolean) => BattleEndInfo | void;
@@ -876,6 +878,7 @@ export function Battle({
   onRematch,
   network,
   externalState = null,
+  remoteFx = null,
   onExit,
   onBattleEnd,
   onForfeitExit,
@@ -1106,6 +1109,9 @@ export function Battle({
   const rewarded = useRef(false);
   /** Сколько своих заклинаний сыграли в этом бою (дейлики / одноразовые). */
   const spellsCastRef = useRef(0);
+  /** Свой ход уже анимирован локально — серверный fx с тем же seq пропускаем. */
+  const skipNextRemoteFxRef = useRef(false);
+  const playedRemoteFxSeqRef = useRef(0);
   const onBattleEndRef = useRef(onBattleEnd);
   onBattleEndRef.current = onBattleEnd;
 
@@ -1173,6 +1179,71 @@ export function Battle({
     externalState?.enemy?.hp,
     network?.ended,
   ]);
+
+  // PvP: анимация + звук чужих (и серверных) ходов.
+  useEffect(() => {
+    if (!remoteFx || !network) return;
+    if (remoteFx.seq <= playedRemoteFxSeqRef.current) return;
+    playedRemoteFxSeqRef.current = remoteFx.seq;
+    if (skipNextRemoteFxRef.current) {
+      skipNextRemoteFxRef.current = false;
+      return;
+    }
+    let cancelled = false;
+    const run = async () => {
+      const before = stateRef.current;
+      const nextFx =
+        remoteFx.fx.kind === "spell"
+          ? enrichSpellFx(remoteFx.fx, before)
+          : normalizeBattleFx(remoteFx.fx);
+      unlockSfx();
+      const flying =
+        (nextFx.kind === "lunge" &&
+          (nextFx.motion === "ranged" || nextFx.motion === "bolt")) ||
+        (nextFx.kind === "spell" &&
+          !!nextFx.vfx &&
+          (!!nextFx.hitHero ||
+            nextFx.toSlot != null ||
+            (Array.isArray(nextFx.hitSlots) && nextFx.hitSlots.length > 0)) &&
+          shouldFlyMissile(nextFx));
+      if (impactGateTimer.current != null) {
+        window.clearTimeout(impactGateTimer.current);
+        impactGateTimer.current = null;
+      }
+      if (flying) {
+        setImpactReady(false);
+        const flight = missileFlightMs(nextFx);
+        impactGateTimer.current = window.setTimeout(() => {
+          setImpactReady(true);
+          impactGateTimer.current = null;
+        }, flight);
+      } else {
+        setImpactReady(true);
+      }
+      setFx(nextFx);
+      playActionSfx(nextFx, before);
+      const foeSpell = nextFx.kind === "spell" && nextFx.side === "enemy";
+      const hold =
+        foeSpell
+          ? 1600
+          : nextFx.hitHero && nextFx.kind !== "heal"
+            ? 1400
+            : flying
+              ? 1100
+              : nextFx.kind === "lunge"
+                ? 950
+                : nextFx.kind === "play"
+                  ? 850
+                  : 900;
+      await sleep(hold);
+      if (cancelled) return;
+      setFx(null);
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [remoteFx, network]);
 
   useLayoutEffect(() => {
     if (tutorialStep == null || state.winner) {
@@ -1388,6 +1459,7 @@ export function Battle({
         // Только сервер двигает стол. Локальный apply давал «я вижу свои ходы,
         // соперник — нет», если пакет/прокси потерялся.
         try {
+          skipNextRemoteFxRef.current = true;
           networkRef.current.sendAction(action);
           setPvpAwaiting(true);
           alog("pvp", "send.ok", {
@@ -1395,6 +1467,7 @@ export function Battle({
           });
         } catch (e) {
           console.error("[battle] net send fail:", e);
+          skipNextRemoteFxRef.current = false;
           alog("error", "pvp.send.fail", {
             err: e instanceof Error ? e.message : String(e),
           });
@@ -2689,9 +2762,11 @@ export function Battle({
         if (networkRef.current) {
           const stamp = stateRef.current.log[0];
           try {
+            skipNextRemoteFxRef.current = true;
             networkRef.current.sendAction(action);
             setPvpAwaiting(true);
           } catch {
+            skipNextRemoteFxRef.current = false;
             setFx(null);
             break;
           }
@@ -2732,9 +2807,11 @@ export function Battle({
       if (networkRef.current) {
         setPvpAwaiting(true);
         try {
+          skipNextRemoteFxRef.current = true;
           networkRef.current.sendAction({ kind: "endTurn" });
         } catch (e) {
           console.error("[battle] endTurn send fail:", e);
+          skipNextRemoteFxRef.current = false;
           setPvpAwaiting(false);
         }
         await sleep(400);

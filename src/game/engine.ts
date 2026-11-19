@@ -657,6 +657,11 @@ function resourceSpellExhausted(
   return resourceSpellUsesOf(p, cardId) >= max;
 }
 
+function purgeResourceFromPiles(p: PlayerState, cardId: string): void {
+  p.deck = p.deck.filter((id) => id !== cardId);
+  p.graveyard = p.graveyard.filter((id) => id !== cardId);
+}
+
 function noteResourceSpellPlay(
   state: BattleState,
   p: PlayerState,
@@ -670,6 +675,7 @@ function noteResourceSpellPlay(
     battleUpgradeLevel(state, p.id, cardId),
   );
   if (max != null && cur + 1 >= max) {
+    purgeResourceFromPiles(p, cardId);
     state.log = [
       `${getCard(cardId).name}: лимит на бой исчерпан (${max})`,
       ...state.log,

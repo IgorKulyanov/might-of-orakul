@@ -1,12 +1,16 @@
+import { getCard } from "./cards";
 import {
+  attackFxPreview,
   attackWith,
   buffWithMage,
   castOracleSkill,
   createBattle,
   endEnemyTurn,
   endPlayerTurn,
+  enrichSpellFx,
   healWithAngel,
   moveUnitToEmptySlot,
+  normalizeBattleFx,
   playCard,
   playGuardianBond,
   playMarionette,
@@ -23,6 +27,7 @@ import {
   breakSpellWithUnicorn,
   cleaveBreathWithInferno,
   verdictWithArbiter,
+  type BattleFx,
   type MarionetteTarget,
 } from "./engine";
 import type { AttackTarget, BattleState } from "./types";
@@ -216,6 +221,12 @@ export type PvpServerMsg =
       matchEnded?: boolean;
       youWon?: boolean;
       endMessage?: string;
+      /**
+       * FX последнего действия уже в координатах зрителя (ты = you).
+       * Повторы sync/delayed без нового хода — без fx / тот же fxSeq.
+       */
+      fx?: BattleFx;
+      fxSeq?: number;
     }
   | { type: "error"; message: string }
   | { type: "peer_left"; message: string }
@@ -296,6 +307,130 @@ export type PvpAction =
     }
   /** Клиент посчитал ход локально (полный UI); сервер принимает снимок от активного. */
   | { kind: "commitState"; state: BattleState };
+
+/** FX действия в координатах «я = you» (до применения хода). */
+export function fxForPvpAction(
+  viewedAsYou: BattleState,
+  action: PvpAction,
+): BattleFx | null {
+  switch (action.kind) {
+    case "attack":
+      return attackFxPreview(viewedAsYou, action.fromSlot, action.target);
+    case "playCard": {
+      const id = viewedAsYou.you.hand[action.handIndex];
+      if (!id) return null;
+      const card = getCard(id);
+      if (card.kind === "creature") {
+        return normalizeBattleFx({
+          side: "you",
+          kind: "play",
+          cardId: id,
+          toSlot: action.slotIndex ?? undefined,
+        });
+      }
+      return enrichSpellFx(
+        {
+          side: "you",
+          kind: "spell",
+          cardId: id,
+          toSlot: action.slotIndex ?? undefined,
+          hitHero: action.slotIndex == null ? true : undefined,
+        },
+        viewedAsYou,
+      );
+    }
+    case "healAngel":
+      return normalizeBattleFx({
+        side: "you",
+        kind: "heal",
+        fromSlot: action.fromSlot,
+        toSlot: action.toSlot,
+        hitSlots: [action.toSlot],
+      });
+    case "buffMage":
+      return normalizeBattleFx({
+        side: "you",
+        kind: "heal",
+        fromSlot: action.fromSlot,
+        toSlot: action.toSlot === "hero" ? undefined : action.toSlot,
+        hitHero: action.toSlot === "hero",
+        hitSlots: action.toSlot === "hero" ? undefined : [action.toSlot],
+      });
+    case "shieldPaladin":
+      return normalizeBattleFx({
+        side: "you",
+        kind: "heal",
+        fromSlot: action.fromSlot,
+        toSlot: action.toSlot,
+        hitSlots: [action.toSlot],
+      });
+    case "sleepMermaid":
+    case "sleepSuccubus":
+    case "stunBanshee":
+      return normalizeBattleFx({
+        side: "you",
+        kind: "lunge",
+        fromSlot: action.fromSlot,
+        hitSlots: [action.toSlot],
+        motion: "bolt",
+        vfx: "magic",
+      });
+    case "cleaveInferno":
+      return normalizeBattleFx({
+        side: "you",
+        kind: "lunge",
+        fromSlot: action.fromSlot,
+        hitSlots: [action.toSlot],
+        motion: "bolt",
+        vfx: "burn",
+      });
+    case "summonAquilite":
+    case "summonSkeleton":
+    case "summonHornet":
+    case "reviveGravedigger":
+      return normalizeBattleFx({
+        side: "you",
+        kind: "play",
+        fromSlot: action.fromSlot,
+        toSlot: action.toSlot,
+      });
+    case "marionette":
+      return enrichSpellFx(
+        {
+          side: "you",
+          kind: "spell",
+          cardId: viewedAsYou.you.hand[action.handIndex],
+        },
+        viewedAsYou,
+      );
+    case "guardianBond":
+      return enrichSpellFx(
+        {
+          side: "you",
+          kind: "spell",
+          cardId: viewedAsYou.you.hand[action.handIndex],
+        },
+        viewedAsYou,
+      );
+    case "oracleSkill":
+      return normalizeBattleFx({
+        side: "you",
+        kind: "spell",
+        cardId: action.skillId,
+        toSlot: action.targetSlot ?? action.toSlot ?? undefined,
+        hitHero: action.targetSlot == null && action.toSlot == null,
+      });
+    default:
+      return null;
+  }
+}
+
+/** Перевернуть FX для соперника (ты ↔ враг). */
+export function flipBattleFx(fx: BattleFx): BattleFx {
+  const side =
+    fx.side === "you" ? "enemy" : fx.side === "enemy" ? "you" : fx.side;
+  return normalizeBattleFx({ ...fx, side });
+}
 
 /** Применить действие от сидящего: в его системе координат (он = you). */
 export function applyPvpAction(

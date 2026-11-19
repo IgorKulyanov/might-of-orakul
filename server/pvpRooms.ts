@@ -1,11 +1,14 @@
 import type { IncomingMessage } from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
 import { CARD_MAP } from "../src/game/cards.ts";
+import type { BattleFx } from "../src/game/engine.ts";
 import {
   activeSeat,
   applyOpeningDice,
   applySeatAction,
+  flipBattleFx,
   forceWin,
+  fxForPvpAction,
   isSeatTurn,
   PVP_MAX_TIMEOUTS,
   PVP_OPENING_MS,
@@ -64,6 +67,8 @@ type Room = {
   openingOfflineStrikes: number;
   /** Номер снимка стола — догоняем клиента, если пакет потерялся. */
   battleSeq: number;
+  /** FX последнего хода в координатах seat (для анимации/звука у зрителя). */
+  lastFx: { host: BattleFx | null; guest: BattleFx | null; seq: number } | null;
 };
 
 const rooms = new Map<string, Room>();
@@ -447,6 +452,13 @@ function battlePayload(room: Room, seat: PvpSeat): PvpServerMsg {
         { type: "ended" }
       >)
     : null;
+  const fxPack =
+    room.lastFx && room.lastFx.seq === room.battleSeq ? room.lastFx : null;
+  const seatFx = fxPack
+    ? seat === "host"
+      ? fxPack.host
+      : fxPack.guest
+    : null;
   return {
     type: "battle",
     code: room.code,
@@ -468,6 +480,8 @@ function battlePayload(room: Room, seat: PvpSeat): PvpServerMsg {
     matchEnded: matchEnded || undefined,
     youWon: endMsg ? endMsg.youWon : undefined,
     endMessage: endMsg?.message,
+    fx: seatFx ?? undefined,
+    fxSeq: seatFx && fxPack ? fxPack.seq : undefined,
   };
 }
 
@@ -844,6 +858,7 @@ function getOrCreate(code: string): Room | null {
       openingPulse: null,
       openingOfflineStrikes: 0,
       battleSeq: 0,
+      lastFx: null,
     };
     rooms.set(code, room);
   }
@@ -1357,7 +1372,22 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
               ? String((action as { kind?: string }).kind)
               : "?";
           const before = room.battle;
+          const actorView = viewForSeat(before, seat);
+          let actorFx: BattleFx | null = null;
+          try {
+            actorFx = fxForPvpAction(actorView, action);
+          } catch {
+            actorFx = null;
+          }
           room.battle = applySeatAction(room.battle, seat, action);
+          // seq ещё не ++ — broadcastBattle поднимет; пишем provisional seq+1
+          const nextSeq = room.battleSeq + 1;
+          room.lastFx = {
+            seq: nextSeq,
+            host: seat === "host" ? actorFx : actorFx ? flipBattleFx(actorFx) : null,
+            guest:
+              seat === "guest" ? actorFx : actorFx ? flipBattleFx(actorFx) : null,
+          };
           const changed =
             room.battle.active !== beforeActive ||
             room.battle.turn !== beforeTurn ||
