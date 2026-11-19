@@ -259,7 +259,11 @@ export function AdminPanel({ open, onClose }: Props) {
   };
 
   return (
-    <div className="community-overlay" role="dialog" aria-label="Админка">
+    <div
+      className="community-overlay admin-overlay"
+      role="dialog"
+      aria-label="Админка"
+    >
       <div className="community-panel admin-panel">
         <header className="community-bar">
           <strong>Админка</strong>
@@ -400,6 +404,50 @@ export function AdminPanel({ open, onClose }: Props) {
               >
                 Обновить сейчас
               </button>
+            </section>
+
+            <section className="admin-section">
+              <h3>Входящие · письма и жалобы</h3>
+              <div className="community-log admin-log admin-inbox">
+                {(
+                  inbox?.feedback as
+                    | Array<{ login?: string; text?: string; at?: string }>
+                    | undefined
+                )?.map((f, i) => (
+                  <div key={`f-${i}`} className="community-msg">
+                    <strong>
+                      ✉ {f.login}
+                      {f.at
+                        ? ` · ${new Date(f.at).toLocaleString()}`
+                        : ""}
+                    </strong>
+                    <span>{f.text}</span>
+                  </div>
+                ))}
+                {(
+                  inbox?.reports as
+                    | Array<{ byLogin?: string; reason?: string }>
+                    | undefined
+                )?.map((r, i) => (
+                  <div key={`r-${i}`} className="community-msg">
+                    <strong>⚠ жалоба от {r.byLogin}</strong>
+                    <span>{r.reason}</span>
+                  </div>
+                ))}
+                {(inbox?.mutes || []).map((m) => (
+                  <div key={m.userId} className="community-msg">
+                    <strong>🔇 {m.login}</strong>
+                    <span>
+                      до {new Date(m.until).toLocaleString()} · {m.reason}
+                    </span>
+                  </div>
+                ))}
+                {!inbox?.feedback?.length &&
+                !inbox?.reports?.length &&
+                !(inbox?.mutes || []).length ? (
+                  <p className="hint">Пока пусто — писем и жалоб нет.</p>
+                ) : null}
+              </div>
             </section>
 
             <section className="admin-section">
@@ -596,40 +644,6 @@ export function AdminPanel({ open, onClose }: Props) {
                         : ""}
                     </span>
                   </button>
-                ))}
-              </div>
-            </section>
-
-            <section className="admin-section">
-              <h3>Входящие</h3>
-              <div className="community-log admin-log">
-                {(
-                  inbox?.feedback as
-                    | Array<{ login?: string; text?: string; at?: string }>
-                    | undefined
-                )?.map((f, i) => (
-                  <div key={`f-${i}`} className="community-msg">
-                    <strong>✉ {f.login}</strong>
-                    <span>{f.text}</span>
-                  </div>
-                ))}
-                {(
-                  inbox?.reports as
-                    | Array<{ byLogin?: string; reason?: string }>
-                    | undefined
-                )?.map((r, i) => (
-                  <div key={`r-${i}`} className="community-msg">
-                    <strong>⚠ жалоба от {r.byLogin}</strong>
-                    <span>{r.reason}</span>
-                  </div>
-                ))}
-                {(inbox?.mutes || []).map((m) => (
-                  <div key={m.userId} className="community-msg">
-                    <strong>🔇 {m.login}</strong>
-                    <span>
-                      до {new Date(m.until).toLocaleString()} · {m.reason}
-                    </span>
-                  </div>
                 ))}
               </div>
             </section>

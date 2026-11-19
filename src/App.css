@@ -7747,9 +7747,20 @@ html.is-hand-dragging .oracle-folio {
   color: #d4b483;
 }
 
+.community-overlay.admin-overlay {
+  place-items: center;
+  align-items: center;
+}
+
 .admin-panel {
-  max-height: min(85dvh, 640px);
-  width: min(460px, 100%);
+  max-height: min(90dvh, 780px);
+  width: min(480px, 100%);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  /* иначе flex-дети раздувают панель и низ (письма) не достать */
+  min-height: 0;
 }
 
 .admin-section {
@@ -7873,6 +7884,12 @@ html.is-hand-dragging .oracle-folio {
 
 .admin-log {
   max-height: 140px;
+}
+
+.admin-inbox {
+  max-height: min(220px, 32dvh);
+  min-height: 72px;
+  flex: 0 0 auto;
 }
 
 .admin-user {
