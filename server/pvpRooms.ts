@@ -69,6 +69,8 @@ type Room = {
   battleSeq: number;
   /** FX последнего хода в координатах seat (для анимации/звука у зрителя). */
   lastFx: { host: BattleFx | null; guest: BattleFx | null; seq: number } | null;
+  /** Ход на паузе: игрок свернул игру (звонок) — ждём reconnect. */
+  turnPausedForReconnect: boolean;
 };
 
 const rooms = new Map<string, Room>();
@@ -78,6 +80,8 @@ const MAX_MSG_BYTES = 120_000;
 const ROOM_TTL_MS = 2 * 60 * 60 * 1000;
 /** Сколько держим место в лобби после обрыва (Telegram / сворачивание). */
 const LOBBY_RECONNECT_MS = 5 * 60 * 1000;
+/** В бою: звонок/сворачивание — не сдаём сразу, ждём возврата. */
+const BATTLE_RECONNECT_MS = 90_000;
 const TURN_MS = PVP_TURN_SEC * 1000;
 
 function makeSeat(
@@ -406,14 +410,29 @@ function seatOnline(p: SeatPlayer | null): boolean {
   return Boolean(p && p.online && isWsOpen(p.ws));
 }
 
-/** Обрыв в лобби: место и код комнаты сохраняем — игрок часто уходит в Telegram. */
-function softDisconnectLobby(room: Room, seat: PvpSeat, ws: WebSocket) {
+/** Обрыв сети: место сохраняем (лобби или бой) — звонок / сворачивание. */
+function softDisconnectSeat(room: Room, seat: PvpSeat, ws: WebSocket) {
   const me = seat === "host" ? room.host : room.guest;
   if (!me || me.ws !== ws) return;
   me.online = false;
   me.ready = false;
   me.disconnectedAt = Date.now();
   bindSocketRoom(ws, null);
+  if (room.battle && !winnerSeat(room.battle)) {
+    // Если ход ушедшего — не крутим таймер, пока не вернётся.
+    if (isSeatTurn(room.battle, seat)) {
+      clearTurnTimer(room);
+      room.turnPausedForReconnect = true;
+    }
+    const peer = seat === "host" ? room.guest : room.host;
+    if (peer && isWsOpen(peer.ws)) {
+      send(peer.ws, {
+        type: "error",
+        message: "Соперник без связи — ждём до ~1.5 мин (звонок/свёртка)",
+      });
+    }
+    return;
+  }
   broadcastLobby(room);
 }
 
@@ -540,14 +559,23 @@ function broadcastBattle(room: Room) {
     send(p.ws, battlePayload(room, seat));
   }
   if (win) room.endedSent = true;
-  // В бою мёртвый сокет = соперник не увидит ход. Не тянем вечный десинк.
+  // Мёртвый сокет больше не = мгновенный forfeit: ждём soft-reconnect (gcRooms).
   if (!win && dead.length === 1 && room.openingPhase === "done") {
-    pvpFail("PEER_WS_DEAD", {
-      room: room.code,
-      dead: dead[0],
-      seq: room.battleSeq,
-    });
-    finishForfeit(room, dead[0]!, "disconnect");
+    const gone = dead[0]!;
+    const p = gone === "host" ? room.host : room.guest;
+    if (p && p.online) {
+      p.online = false;
+      p.disconnectedAt = Date.now();
+      if (room.battle && isSeatTurn(room.battle, gone)) {
+        clearTurnTimer(room);
+        room.turnPausedForReconnect = true;
+      }
+      pvpFail("PEER_WS_SOFT", {
+        room: room.code,
+        dead: gone,
+        seq: room.battleSeq,
+      });
+    }
   }
 }
 
@@ -867,6 +895,7 @@ function getOrCreate(code: string): Room | null {
       openingOfflineStrikes: 0,
       battleSeq: 0,
       lastFx: null,
+      turnPausedForReconnect: false,
     };
     rooms.set(code, room);
   }
@@ -923,12 +952,31 @@ function gcRooms() {
         }
       }
       if (!rooms.has(code)) continue;
+    } else if (!winnerSeat(room.battle)) {
+      // Бой: слишком долго без связи после звонка/свёртки → поражение.
+      for (const seat of ["host", "guest"] as const) {
+        const p = seat === "host" ? room.host : room.guest;
+        if (
+          p &&
+          !p.online &&
+          p.disconnectedAt != null &&
+          now - p.disconnectedAt > BATTLE_RECONNECT_MS
+        ) {
+          pvpFail("BATTLE_RECONNECT_TIMEOUT", {
+            room: code,
+            seat,
+            ms: now - p.disconnectedAt,
+          });
+          finishForfeit(room, seat, "disconnect");
+          break;
+        }
+      }
+      if (!rooms.has(code)) continue;
     }
 
     const alive = seatOnline(room.host) || seatOnline(room.guest);
     const waitingReconnect =
-      (!room.battle && room.host && !room.host.online) ||
-      (!room.battle && room.guest && !room.guest.online);
+      (room.host && !room.host.online) || (room.guest && !room.guest.online);
     if (!alive && !waitingReconnect && now - room.createdAt > 60_000) {
       clearTurnTimer(room);
       clearOpeningPulse(room);
@@ -1034,9 +1082,12 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
         bindSocketRoom(ws, null);
         return;
       }
-      // В лобби при обрыве сети — не сносим комнату (код другу ещё нужен).
-      if (reason === "disconnect" && !room.battle) {
-        softDisconnectLobby(room, seat, ws);
+      // Обрыв сети (звонок/свёртка) — не сдаём сразу ни в лобби, ни в бою.
+      if (
+        reason === "disconnect" &&
+        (!room.battle || !winnerSeat(room.battle))
+      ) {
+        softDisconnectSeat(room, seat, ws);
         return;
       }
       bindSocketRoom(ws, null);
@@ -1230,8 +1281,42 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           }
         }
 
+        // Возврат в свой бой после звонка/свёртки.
         if (room.battle && !winnerSeat(room.battle)) {
-          send(ws, { type: "error", message: "Бой в этой комнате уже идёт" });
+          const reclaimSeat: PvpSeat | null =
+            room.host?.userId === user.id
+              ? "host"
+              : room.guest?.userId === user.id
+                ? "guest"
+                : null;
+          if (!reclaimSeat) {
+            send(ws, { type: "error", message: "Бой в этой комнате уже идёт" });
+            return;
+          }
+          const old = reclaimSeat === "host" ? room.host! : room.guest!;
+          if (seatOnline(old) && old.ws !== ws) {
+            send(ws, {
+              type: "error",
+              message: "Ты уже в этом бою с другого окна",
+            });
+            return;
+          }
+          old.ws = ws;
+          old.online = true;
+          old.disconnectedAt = null;
+          bindSocketRoom(ws, code);
+          if (room.turnPausedForReconnect) {
+            room.turnPausedForReconnect = false;
+            if (!winnerSeat(room.battle)) scheduleTurnTimer(room);
+          }
+          send(ws, battlePayload(room, reclaimSeat));
+          const peer = reclaimSeat === "host" ? room.guest : room.host;
+          if (peer && isWsOpen(peer.ws)) {
+            send(peer.ws, {
+              type: "error",
+              message: "Соперник вернулся в бой",
+            });
+          }
           return;
         }
         // После оконченного боя — чистая комната
@@ -1242,6 +1327,7 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           room.guest = null;
           room.timeouts = { host: 0, guest: 0 };
           room.endReason = null;
+          room.turnPausedForReconnect = false;
         }
 
         const player = makeSeat({
