@@ -588,8 +588,8 @@ export function Cabinet({
     const hp = (card.health ?? 0) + bonus.hp;
     const mana = card.manaCost ?? {};
     const mobileHero = mobileBook && !calibrating;
-    const ico = mobileHero ? 18 : 16;
-    const manaIco = mobileHero ? 16 : 15;
+    const ico = mobileHero ? 15 : 13;
+    const manaIco = mobileHero ? 13 : 11;
     return (
       <div
         key={`slot-${slotIndex}-${card.id}`}

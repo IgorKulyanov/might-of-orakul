@@ -326,8 +326,8 @@ export function CardView({
           <div className="card-face card-front">
             <div className="card-stats" aria-label="Характеристики">
               <span className="stats-school" title={SCHOOL_LABEL[c.school]}>
-                <GameIcon name={c.school} size={16} />
-                <ManaCostIcons cost={manaCost} size={15} className="cost-mini" />
+                <GameIcon name={c.school} size={14} />
+                <ManaCostIcons cost={manaCost} size={11} className="cost-mini" />
               </span>
               {c.kind === "creature" ? (
                 <span

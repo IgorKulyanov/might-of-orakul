@@ -22,7 +22,7 @@ export function ManaBar({ mana, highlight, compact }: Props) {
           <GameIcon
             name={f}
             className="mana-ico"
-            size={compact ? 16 : 18}
+            size={compact ? 14 : 16}
             title={SCHOOL_LABEL[f]}
           />
           <span className="mana-n">{mana[f] ?? 0}</span>

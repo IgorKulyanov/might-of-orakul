@@ -763,20 +763,24 @@ button {
   font-weight: 800;
 }
 
+/* Мобилка: компактно, как было. Крупные чипы — только десктоп ниже. */
 .cost-mini {
-  font-weight: 900;
-  min-width: 0;
+  font-weight: 800;
+  font-size: 0.65rem;
+  min-width: 0.9rem;
   text-align: center;
+  max-width: 5.5rem;
   white-space: nowrap;
-  overflow: visible;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .mana-cost-row {
   display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
+  gap: 0.12rem;
   font-variant-numeric: tabular-nums;
-  font-weight: 900;
+  font-weight: 800;
   line-height: 1;
   color: #fff6d6;
   text-shadow:
@@ -787,32 +791,73 @@ button {
 .mana-cost-part {
   display: inline-flex;
   align-items: center;
-  gap: 0.14rem;
-  padding: 0.08rem 0.28rem 0.08rem 0.12rem;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.72);
-  border: 1px solid rgba(255, 236, 180, 0.45);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  gap: 0.05rem;
 }
 
 .mana-cost-n {
-  font-size: 0.95rem;
-  font-weight: 900;
+  font-size: 0.72em;
+  font-weight: 800;
   color: #fff8e0;
-  min-width: 0.7em;
+  min-width: 0.65em;
   text-align: center;
-  letter-spacing: 0.02em;
 }
 
 .card.board .mana-cost-n,
 .card.compact .mana-cost-n {
-  font-size: 0.82rem;
+  font-size: 0.68em;
 }
 
-.card.board .mana-cost-part,
-.card.compact .mana-cost-part {
-  padding: 0.05rem 0.2rem 0.05rem 0.08rem;
-  gap: 0.1rem;
+@media (min-width: 721px) {
+  .cost-mini {
+    font-weight: 900;
+    font-size: inherit;
+    min-width: 0;
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .mana-cost-row {
+    gap: 0.2rem;
+    font-weight: 900;
+  }
+
+  .mana-cost-part {
+    gap: 0.14rem;
+    padding: 0.08rem 0.28rem 0.08rem 0.12rem;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.72);
+    border: 1px solid rgba(255, 236, 180, 0.45);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  }
+
+  .mana-cost-n {
+    font-size: 0.95rem;
+    font-weight: 900;
+    min-width: 0.7em;
+    letter-spacing: 0.02em;
+  }
+
+  .card.board .mana-cost-n,
+  .card.compact .mana-cost-n {
+    font-size: 0.82rem;
+  }
+
+  .card.board .mana-cost-part,
+  .card.compact .mana-cost-part {
+    padding: 0.05rem 0.2rem 0.05rem 0.08rem;
+    gap: 0.1rem;
+  }
+
+  .mana-cost-part .game-ico {
+    width: 15px !important;
+    height: 15px !important;
+  }
+
+  .stats-school > .game-ico {
+    width: 16px !important;
+    height: 16px !important;
+  }
 }
 
 .combat-nums {
@@ -6437,14 +6482,14 @@ html.is-hand-dragging .oracle-folio {
 .mana-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.22rem;
-  padding: 0.22rem 0.42rem;
+  gap: 0.15rem;
+  padding: 0.15rem 0.35rem;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--faction, #666) 28%, #0a0c12 72%);
-  border: 1px solid color-mix(in srgb, var(--faction, #666) 70%, #fff 15%);
+  background: color-mix(in srgb, var(--faction, #666) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--faction, #666) 55%, transparent);
   font-variant-numeric: tabular-nums;
-  font-size: 0.95rem;
-  font-weight: 800;
+  font-size: 0.8rem;
+  font-weight: 700;
   color: #fff8e0;
   text-shadow:
     0 0 2px #000,
@@ -6453,12 +6498,40 @@ html.is-hand-dragging .oracle-folio {
 
 .mana-chip.own {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--faction, #666) 80%, white);
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .mana-ico {
   line-height: 1;
-  filter: drop-shadow(0 0 1px #000);
+}
+
+@media (min-width: 721px) {
+  .mana-chip {
+    gap: 0.22rem;
+    padding: 0.22rem 0.42rem;
+    background: color-mix(in srgb, var(--faction, #666) 28%, #0a0c12 72%);
+    border: 1px solid color-mix(in srgb, var(--faction, #666) 70%, #fff 15%);
+    font-size: 0.95rem;
+    font-weight: 800;
+  }
+
+  .mana-chip.own {
+    font-weight: 900;
+  }
+
+  .mana-ico {
+    filter: drop-shadow(0 0 1px #000);
+  }
+
+  .mana-chip .game-ico {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  .mana-bar.compact .mana-chip .game-ico {
+    width: 16px !important;
+    height: 16px !important;
+  }
 }
 
 .game-ico {
@@ -6483,11 +6556,17 @@ html.is-hand-dragging .oracle-folio {
 }
 
 .mana-n {
-  min-width: 0.85em;
+  min-width: 0.7em;
   text-align: center;
-  font-size: 1.05em;
-  font-weight: 900;
   color: #fff8e0;
+}
+
+@media (min-width: 721px) {
+  .mana-n {
+    min-width: 0.85em;
+    font-size: 1.05em;
+    font-weight: 900;
+  }
 }
 
 .hero-pick {
