@@ -564,13 +564,20 @@ export function Collection({
                         ? " · в оракуле"
                         : " · копим на ур.1"}
                   </div>
-                  {isUpgradeableCard(c.id) ? (
-                    <div className="shop-meta shop-meta-shards">
-                      {(() => {
+                  <div className="shop-meta shop-meta-shards">
+                    {isUpgradeableCard(c.id) ? (
+                      (() => {
                         const haveSh = getCardShards(owned, c.id);
                         if (!inOracle) {
                           const need = shardsNeededForUnlock(c.id);
-                          if (need == null) return null;
+                          if (need == null) {
+                            return (
+                              <span
+                                className="shard-upgrade-btn shard-slot-spacer"
+                                aria-hidden
+                              />
+                            );
+                          }
                           const ready =
                             !locked && need > 0 && haveSh >= need;
                           return (
@@ -627,9 +634,14 @@ export function Collection({
                             {haveSh}/{need}
                           </button>
                         );
-                      })()}
-                    </div>
-                  ) : null}
+                      })()
+                    ) : (
+                      <span
+                        className="shard-upgrade-btn shard-slot-spacer"
+                        aria-hidden
+                      />
+                    )}
+                  </div>
                   <div
                     className={`shop-meta${showPrice ? "" : " is-price-locked"}`}
                     data-tut={firstBuy ? "hub-shop-buy" : undefined}
@@ -667,7 +679,7 @@ export function Collection({
                             : "Максимум"
                       }
                     >
-                      <GameIcon name="diamond" size={14} />{" "}
+                      <GameIcon name="diamond" size={17} />{" "}
                       {c.priceDiamonds ?? 0}
                     </button>
                   </div>
