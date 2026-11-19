@@ -1218,10 +1218,12 @@ export function Battle({
       }
       if (!battleMountedRef.current) break;
       setImpactReady(false);
-      const windup = flying
-        ? missileFlightMs(nextFx)
-        : nextFx.kind === "spell"
-          ? 280
+      const foeSpell = nextFx.kind === "spell" && !!nextFx.cardId;
+      // Заклинание: сначала крупно в лицо, стол (ряд магии) — после.
+      const windup = foeSpell
+        ? 1100
+        : flying
+          ? missileFlightMs(nextFx)
           : nextFx.kind === "lunge"
             ? nextFx.motion === "melee" || !nextFx.motion
               ? 220
@@ -1240,9 +1242,8 @@ export function Battle({
         pendingExternalRef.current = null;
       }
       const arrow = flying && nextFx.motion === "ranged";
-      const foeSpell = nextFx.kind === "spell";
       const totalHold = foeSpell
-        ? 900
+        ? 1400
         : arrow
           ? Math.max(1200, windup + 780)
           : nextFx.hitHero && nextFx.kind !== "heal"
@@ -1325,15 +1326,7 @@ export function Battle({
       }
       return;
     }
-    // Свои ходы уже с анимацией; в очередь только то, что надо показать зрителю.
-    if (remoteFx.fx.side === "you") {
-      if (remoteFx.atState) commitExternalState(remoteFx.atState);
-      else if (pendingExternalRef.current) {
-        commitExternalState(pendingExternalRef.current);
-        pendingExternalRef.current = null;
-      }
-      return;
-    }
+    // Не режем по side==="you": при сбое flip зритель всё равно должен увидеть крупную магию.
     const atState =
       remoteFx.atState ??
       pendingExternalRef.current ??
@@ -1613,8 +1606,9 @@ export function Battle({
     const ownSpell = isSpellCard && nextFx.side === "you";
     if (online) {
       apply();
+      // Своя магия крупно ~1.2с — как у зрителя соперника.
       const hold = ownSpell
-        ? Math.max(holdMs, 520)
+        ? Math.max(holdMs, 1200)
         : instant
           ? Math.max(holdMs, 900)
           : nextFx.hitHero && nextFx.kind !== "heal"

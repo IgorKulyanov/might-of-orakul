@@ -5993,6 +5993,7 @@ export function takeAiStep(
         const id = me.hand[hi]!;
         const card = getCard(id);
         if (card.kind !== "spell") continue;
+        if (resourceSpellExhausted(next, me, id)) continue;
         const cost = costOf(id);
         if (!canPay(me.mana, cost)) continue;
         const effects = card.spellEffects ?? [];
@@ -6067,6 +6068,7 @@ export function takeAiStep(
       const id = me.hand[hi]!;
       const card = getCard(id);
       if (card.kind !== "spell") continue;
+      if (resourceSpellExhausted(next, me, id)) continue;
       if (!canPay(me.mana, costOf(id))) continue;
       if (isManaRampSpell(card.spellEffects ?? [])) continue;
       const ev = aiScoreSpell(id, me, foe);
@@ -6434,15 +6436,27 @@ export function takeAiStep(
   // ===== Исполнение =====
   if (best.kind === "ramp") {
     const id = me.hand[best.hi]!;
+    if (resourceSpellExhausted(next, me, id)) return null;
     const card = getCard(id);
+    const baseEffects =
+      card.spellEffects && card.spellEffects.length > 0
+        ? card.spellEffects
+        : id === "hero_mana"
+          ? [{ type: "gain_mana" as const, amount: 1 }]
+          : [];
     const effects = resolveSpellEffects(
       id,
-      card.spellEffects ?? [],
+      baseEffects,
       battleUpgradeLevel(next, "enemy", id),
     );
     payMana(me.mana, costOf(id));
     me.hand.splice(best.hi, 1);
+    const ownBefore = me.mana[me.faction] ?? 0;
     applySpellEffects(next, me, foe, effects, null, next.log);
+    if (id === "hero_mana" && (me.mana[me.faction] ?? 0) <= ownBefore) {
+      addMana(me.mana, manaSchoolOf(me), 1);
+    }
+    noteResourceSpellPlay(next, me, id);
     addSpellEcho(next, me, foe, id, effects);
     next.log.unshift(`Соперник: ${card.name}`);
     next.log = next.log.slice(0, 10);
@@ -6547,14 +6561,24 @@ export function takeAiStep(
   if (best.kind === "spell") {
     const id = me.hand[best.hi]!;
     const card = getCard(id);
+    if (resourceSpellExhausted(next, me, id)) {
+      // Не крутим рамп бесконечно — тот же лимит, что у игрока (ур. карты).
+      return null;
+    }
     const need = spellNeedsTarget(card.spellEffects ?? []);
     const target = best.target;
     payMana(me.mana, costOf(id));
     me.hand.splice(best.hi, 1);
     const linger = isLingeringSpell(id);
+    const baseEffects =
+      card.spellEffects && card.spellEffects.length > 0
+        ? card.spellEffects
+        : id === "hero_mana"
+          ? [{ type: "gain_mana" as const, amount: 1 }]
+          : [];
     const effects = resolveSpellEffects(
       id,
-      card.spellEffects ?? [],
+      baseEffects,
       battleUpgradeLevel(next, "enemy", id),
     );
     const massHits = effects.some(
@@ -6562,6 +6586,7 @@ export function takeAiStep(
     )
       ? occupiedSlots(foe)
       : undefined;
+    const ownBefore = me.mana[me.faction] ?? 0;
     applySpellEffects(
       next,
       me,
@@ -6571,6 +6596,13 @@ export function takeAiStep(
       next.log,
       linger ? { cardId: id } : undefined,
     );
+    if (id === "hero_mana" && (me.mana[me.faction] ?? 0) <= ownBefore) {
+      addMana(me.mana, manaSchoolOf(me), 1);
+      next.log.unshift(
+        `Соперник: +1 маны своей школы (${me.faction})`,
+      );
+    }
+    noteResourceSpellPlay(next, me, id);
     if (!linger) addSpellEcho(next, me, foe, id, effects);
     next.log.unshift(`Соперник: ${card.name}`);
     next.log = next.log.slice(0, 10);

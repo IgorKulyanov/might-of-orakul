@@ -2930,16 +2930,15 @@ button {
   background: rgba(40, 12, 18, 0.92);
   border: 2px solid #e63946;
   box-shadow: 0 16px 48px rgba(230, 57, 70, 0.35);
-  /* чужая магия — тот же короткий блик, что и своя (не плакат на 3с) */
-  animation: spell-pop-fast 0.5s cubic-bezier(0.22, 0.82, 0.28, 1) both;
+  /* чужая магия — читаемый показ ~1с, не мгновенный блик */
+  animation: spell-pop 1.05s cubic-bezier(0.22, 0.82, 0.28, 1) both;
 }
 
 .spell-reveal.from-you {
   background: rgba(12, 28, 22, 0.92);
   border: 2px solid #52b788;
   box-shadow: 0 16px 48px rgba(82, 183, 136, 0.3);
-  /* своя каста — короткий блик, не висит 2–3 сек */
-  animation: spell-pop-fast 0.42s cubic-bezier(0.22, 0.82, 0.28, 1) both;
+  animation: spell-pop 0.95s cubic-bezier(0.22, 0.82, 0.28, 1) both;
 }
 
 .spell-reveal-label {
