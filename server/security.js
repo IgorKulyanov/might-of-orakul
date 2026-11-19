@@ -230,6 +230,47 @@ export function sanitizeOwned(raw, prev) {
     next.cardShards = sh;
   }
 
+  // Умения оракула: union — ПК со старым сейвом не затирает покупки с телефона.
+  {
+    const prevSk = Array.isArray(base.oracleSkillsOwned)
+      ? base.oracleSkillsOwned.map((c) => String(c).slice(0, 64))
+      : [];
+    const nextSk = Array.isArray(next.oracleSkillsOwned)
+      ? next.oracleSkillsOwned.map((c) => String(c).slice(0, 64))
+      : [];
+    const union = [...new Set([...prevSk, ...nextSk])].slice(0, 40);
+    next.oracleSkillsOwned = union;
+    const ownedSet = new Set(union);
+    const filled = (lo) =>
+      Array.isArray(lo)
+        ? lo.filter((id) => typeof id === "string" && ownedSet.has(id)).length
+        : 0;
+    const prevLo = base.oracleSkillLoadout;
+    const nextLo = next.oracleSkillLoadout;
+    const pick =
+      filled(nextLo) >= filled(prevLo) ? nextLo : (prevLo ?? nextLo);
+    if (Array.isArray(pick)) {
+      next.oracleSkillLoadout = pick
+        .slice(0, 4)
+        .map((id) =>
+          id && ownedSet.has(String(id)) ? String(id).slice(0, 64) : null,
+        );
+      while (next.oracleSkillLoadout.length < 4) {
+        next.oracleSkillLoadout.push(null);
+      }
+    }
+    const prevPts = Math.max(0, Math.floor(Number(base.willPoints) || 0));
+    const nextPts = Math.max(0, Math.floor(Number(next.willPoints) || 0));
+    if (nextSk.length < union.length) {
+      // Клиент без части умений — не возвращаем очки чужих покупок.
+      next.willPoints = Math.min(prevPts, nextPts || prevPts);
+    } else if (Number.isFinite(Number(next.willPoints))) {
+      next.willPoints = Math.min(1000, nextPts);
+    } else if (Number.isFinite(Number(base.willPoints))) {
+      next.willPoints = Math.min(1000, prevPts);
+    }
+  }
+
   // Клиент после ложного онбординга шлёт «чистый лист» — не затирать прогресс.
   const prevHome = base.homeFaction;
   const nextHome = next.homeFaction;

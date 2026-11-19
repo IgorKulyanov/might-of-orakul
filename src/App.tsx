@@ -90,6 +90,7 @@ import {
   saveOwned,
   setHero,
 } from "./game/owned";
+import { applySkillStateToOwned } from "./game/oracleSkills";
 import {
   clearSession,
   getCachedUser,
@@ -444,6 +445,54 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
     : serverOwned?.level && serverOwned.level > (local.level ?? 1)
       ? (serverOwned.xp ?? local.xp)
       : (local.xp ?? serverOwned?.xp);
+  // Умения оракула: union — иначе ПК со старым сейвом прячет покупки с телефона
+  // и потом PUT затирает сервер.
+  const localSkills = Array.isArray(local.oracleSkillsOwned)
+    ? local.oracleSkillsOwned.map(String)
+    : [];
+  const serverSkills = Array.isArray(serverOwned?.oracleSkillsOwned)
+    ? serverOwned.oracleSkillsOwned.map(String)
+    : [];
+  const oracleSkillsOwned = serverLeads
+    ? [...new Set(serverSkills)]
+    : [...new Set([...localSkills, ...serverSkills])];
+  const ownedSkillSet = new Set(oracleSkillsOwned);
+  const loadoutFilled = (lo: unknown): number =>
+    Array.isArray(lo)
+      ? lo.filter((id) => typeof id === "string" && ownedSkillSet.has(id))
+          .length
+      : 0;
+  const localLoadout = local.oracleSkillLoadout;
+  const serverLoadout = serverOwned?.oracleSkillLoadout;
+  const oracleSkillLoadout = serverLeads
+    ? serverLoadout
+    : loadoutFilled(serverLoadout) >= loadoutFilled(localLoadout)
+      ? (serverLoadout ?? localLoadout)
+      : (localLoadout ?? serverLoadout);
+  let willPoints: number | undefined;
+  if (serverLeads) {
+    willPoints =
+      serverOwned?.willPoints != null
+        ? Math.max(0, Math.floor(Number(serverOwned.willPoints) || 0))
+        : undefined;
+  } else if (serverOwned?.willPoints != null && local.willPoints != null) {
+    // У кого больше купленных умений — его остаток очков (уже потратил).
+    if (serverSkills.length > localSkills.length) {
+      willPoints = Math.max(0, Math.floor(Number(serverOwned.willPoints) || 0));
+    } else if (localSkills.length > serverSkills.length) {
+      willPoints = Math.max(0, Math.floor(Number(local.willPoints) || 0));
+    } else {
+      willPoints = Math.min(
+        Math.max(0, Math.floor(Number(local.willPoints) || 0)),
+        Math.max(0, Math.floor(Number(serverOwned.willPoints) || 0)),
+      );
+    }
+  } else if (serverOwned?.willPoints != null) {
+    willPoints = Math.max(0, Math.floor(Number(serverOwned.willPoints) || 0));
+  } else if (local.willPoints != null) {
+    willPoints = Math.max(0, Math.floor(Number(local.willPoints) || 0));
+  }
+
   const merged: OwnedState = {
     ...local,
     // Валюта: сервер главнее (покупки/штрафы). Награды боя уходят PUT-ом до релогина.
@@ -476,8 +525,13 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
     activeDeckId: serverLeads
       ? (serverOwned?.activeDeckId ?? "starter")
       : (local.activeDeckId ?? serverOwned?.activeDeckId ?? "starter"),
+    oracleSkillsOwned,
+    oracleSkillLoadout: Array.isArray(oracleSkillLoadout)
+      ? oracleSkillLoadout
+      : undefined,
+    willPoints,
   };
-  const next = setHero(merged, heroId);
+  const next = applySkillStateToOwned(setHero(merged, heroId), homeFaction);
   saveOwned(next);
   if (user.login) backupOwnedForLogin(user.login, next);
   return next;
