@@ -10,7 +10,11 @@ import {
   TIER_SHARD_NEED,
 } from "./cardEconomy";
 import { CARD_TIER_RANK, getCard } from "./cards";
-import { isCardAvailableInShop } from "./progression";
+import {
+  currentShopUnlockGate,
+  isCardAvailableInShop,
+  minPlayerLevelForShopCard,
+} from "./progression";
 import type {
   AttackPattern,
   CreatureAbility,
@@ -1621,15 +1625,18 @@ function homeFactionOfOwned(owned: OwnedState): string | null {
 
 function shardDropCandidates(owned: OwnedState, pool: string[]): ShardDropCand[] {
   const home = homeFactionOfOwned(owned);
+  const playerLv = Math.max(1, Math.floor(Number(owned.level) || 1));
+  const gate = currentShopUnlockGate(playerLv);
   const out: ShardDropCand[] = [];
   for (const id of pool) {
     if (!isUpgradeableCard(id)) continue;
-    let school: string | null = null;
+    let card;
     try {
-      school = getCard(id).school;
+      card = getCard(id);
     } catch {
       continue;
     }
+    const school = card.school;
     const homeBoost = home && school === home ? 1.35 : 1;
     if (!playerHasCard(owned, id)) {
       const need = shardsNeededForUnlock(id);
@@ -1641,6 +1648,11 @@ function shardDropCandidates(owned: OwnedState, pool: string[]): ShardDropCand[]
       if (have > 0) w += 1.8; // добить начатый прогресс
       const missingRatio = (need - have) / need;
       w += missingRatio * 0.6;
+      // Только что открытый тир магазина (напр. III с ур.15) — иначе тонет
+      // в куче старых некупленных T1/T2 и осколки «как будто не падают».
+      const cardGate = minPlayerLevelForShopCard(card);
+      if (cardGate === gate) w *= 3.4;
+      else if (cardGate < gate) w *= 0.45;
       out.push({ id, w, kind: "unlock" });
       continue;
     }
@@ -1652,6 +1664,9 @@ function shardDropCandidates(owned: OwnedState, pool: string[]): ShardDropCand[]
     const missing = Math.max(0, need - have);
     w += (missing / need) * 1.7;
     if (have > 0 && have >= need * 0.55) w += 0.9; // почти кач
+    // Чуть приглушить кач старых, пока новый тир ещё не открыт осколками.
+    const cardGate = minPlayerLevelForShopCard(card);
+    if (cardGate < gate) w *= 0.72;
     out.push({ id, w, kind: "upgrade" });
   }
   return out;
@@ -1670,6 +1685,72 @@ function pickWeightedId(
     if (r <= 0) return c;
   }
   return cands[cands.length - 1] ?? null;
+}
+
+const SHOP_TIER_GATES = [10, 15, 25, 30] as const;
+/** Сколько осколков на карту при апе через рубеж магазина. */
+const SHARDS_ON_NEW_SHOP_TIER = 4;
+/** Сколько карт своей школы подсветить при апе рубежа. */
+const CARDS_ON_NEW_SHOP_TIER = 3;
+
+/**
+ * При апе через 10/15/25/30 — пачка осколков на новые карты рубежа (своя школа).
+ * Иначе игрок видит тир в магазине, а дроп ещё месяцами качает старые.
+ */
+export function grantShardsForNewShopTier(
+  owned: OwnedState,
+  fromLevel: number,
+  toLevel: number,
+): {
+  owned: OwnedState;
+  gains: Array<{ cardId: string; amount: number; name: string }>;
+} {
+  const from = Math.max(1, Math.floor(fromLevel));
+  const to = Math.max(from, Math.floor(toLevel));
+  const home = homeFactionOfOwned(owned);
+  const gains: Array<{ cardId: string; amount: number; name: string }> = [];
+  let next = owned;
+  for (const gate of SHOP_TIER_GATES) {
+    if (!(from < gate && to >= gate)) continue;
+    const pool = Object.keys(CARD_UPGRADE_DEFS)
+      .map((id) => {
+        try {
+          const c = getCard(id);
+          if (minPlayerLevelForShopCard(c) !== gate) return null;
+          if (home && c.school !== home && c.school !== "neutral") return null;
+          if (playerHasCard(next, id)) return null;
+          const need = shardsNeededForUnlock(id);
+          if (need == null || need <= 0) return null;
+          return { id, name: c.name, school: c.school };
+        } catch {
+          return null;
+        }
+      })
+      .filter((x): x is { id: string; name: string; school: string } => !!x)
+      .sort((a, b) => {
+        const ah = home && a.school === home ? 0 : 1;
+        const bh = home && b.school === home ? 0 : 1;
+        let ak = 1;
+        let bk = 1;
+        try {
+          ak = getCard(a.id).kind === "creature" ? 0 : 1;
+          bk = getCard(b.id).kind === "creature" ? 0 : 1;
+        } catch {
+          /* */
+        }
+        return ah - bh || ak - bk || a.name.localeCompare(b.name, "ru");
+      });
+    const pick = pool.slice(0, CARDS_ON_NEW_SHOP_TIER);
+    for (const p of pick) {
+      next = grantCardShards(next, p.id, SHARDS_ON_NEW_SHOP_TIER);
+      gains.push({
+        cardId: p.id,
+        amount: SHARDS_ON_NEW_SHOP_TIER,
+        name: p.name,
+      });
+    }
+  }
+  return { owned: next, gains };
 }
 
 /**

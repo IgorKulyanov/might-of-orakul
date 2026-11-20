@@ -11,6 +11,7 @@ import {
   grantCardShards,
   isUpgradeableCard,
   migrateCardUpgrades,
+  grantShardsForNewShopTier,
   rollBattleWinShards,
   shardsNeededForNext,
   shardsPerShopBuy,
@@ -1059,14 +1060,21 @@ export function applyBattleResult(
     );
     next = drop.owned;
     shardGains = drop.gains;
-    if (drop.gains.length) {
-      shardLine = drop.gains
-        .map((g) => `+${g.amount} оскол. «${g.name}»`)
-        .join(" · ");
-    }
   }
+  // Ап через рубеж магазина (10/15/25/30) — стартовые осколки на новый тир.
   if (granted.gainedLevels > 0) {
+    const fromLv = granted.level - granted.gainedLevels;
+    const tierDrop = grantShardsForNewShopTier(next, fromLv, granted.level);
+    next = tierDrop.owned;
+    if (tierDrop.gains.length) {
+      shardGains = [...shardGains, ...tierDrop.gains];
+    }
     next = grantWillPointsForLevels(next, granted.gainedLevels);
+  }
+  if (shardGains.length) {
+    shardLine = shardGains
+      .map((g) => `+${g.amount} оскол. «${g.name}»`)
+      .join(" · ");
   }
   next = applySkillStateToOwned(
     next,

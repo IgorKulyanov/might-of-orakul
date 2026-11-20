@@ -241,6 +241,19 @@ export function isCardAvailableInShop(
 }
 
 /**
+ * Текущий «рубеж» магазина по уровню игрока (I→1, II→10, III→15, IV→25, V→30).
+ * Для дропа осколков: карты этого рубежа качаем в приоритете.
+ */
+export function currentShopUnlockGate(playerLevel: number): number {
+  const lv = Math.max(1, Math.floor(playerLevel || 1));
+  if (lv >= 30) return 30;
+  if (lv >= 25) return 25;
+  if (lv >= 15) return 15;
+  if (lv >= 10) return 10;
+  return 1;
+}
+
+/**
  * Старт: 4 карты ×1 (см. starterDecks.ts).
  * Ниже — совместимость со старыми миграциями.
  */
