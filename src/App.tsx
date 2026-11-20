@@ -90,6 +90,7 @@ import {
   saveOwned,
   setHero,
 } from "./game/owned";
+import { catchUpShopTierShardsIfNeeded } from "./game/cardUpgrades";
 import { applySkillStateToOwned } from "./game/oracleSkills";
 import {
   clearSession,
@@ -530,8 +531,14 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
       ? oracleSkillLoadout
       : undefined,
     willPoints,
+    shopTierShardCatchUp: Math.max(
+      Math.floor(Number(local.shopTierShardCatchUp) || 0),
+      Math.floor(Number(serverOwned?.shopTierShardCatchUp) || 0),
+    ),
   };
-  const next = applySkillStateToOwned(setHero(merged, heroId), homeFaction);
+  let next = applySkillStateToOwned(setHero(merged, heroId), homeFaction);
+  // Уже на 15+ без осколков нового тира — разовый догон (старый дроп их топил).
+  next = catchUpShopTierShardsIfNeeded(next).owned;
   saveOwned(next);
   if (user.login) backupOwnedForLogin(user.login, next);
   return next;

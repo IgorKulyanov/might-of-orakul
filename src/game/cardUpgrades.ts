@@ -1694,6 +1694,48 @@ const SHARDS_ON_NEW_SHOP_TIER = 4;
 const CARDS_ON_NEW_SHOP_TIER = 3;
 
 /**
+ * Разовый догон: уже на рубеже магазина, но по новым картам 0 осколков
+ * (старый дроп всё лил в прокачку старых). Не повторяется.
+ */
+export function catchUpShopTierShardsIfNeeded(owned: OwnedState): {
+  owned: OwnedState;
+  gains: Array<{ cardId: string; amount: number; name: string }>;
+} {
+  const lv = Math.max(1, Math.floor(Number(owned.level) || 1));
+  const gate = currentShopUnlockGate(lv);
+  if (gate <= 1) return { owned, gains: [] };
+  const done = Math.max(0, Math.floor(Number(owned.shopTierShardCatchUp) || 0));
+  if (done >= gate) return { owned, gains: [] };
+
+  const home = homeFactionOfOwned(owned);
+  let anyProgress = false;
+  for (const id of Object.keys(CARD_UPGRADE_DEFS)) {
+    try {
+      const c = getCard(id);
+      if (minPlayerLevelForShopCard(c) !== gate) continue;
+      if (home && c.school !== home && c.school !== "neutral") continue;
+      if (getCardShards(owned, id) > 0) {
+        anyProgress = true;
+        break;
+      }
+    } catch {
+      /* */
+    }
+  }
+  if (anyProgress) {
+    return {
+      owned: { ...owned, shopTierShardCatchUp: gate },
+      gains: [],
+    };
+  }
+  const boosted = grantShardsForNewShopTier(owned, gate - 1, gate);
+  return {
+    owned: { ...boosted.owned, shopTierShardCatchUp: gate },
+    gains: boosted.gains,
+  };
+}
+
+/**
  * При апе через 10/15/25/30 — пачка осколков на новые карты рубежа (своя школа).
  * Иначе игрок видит тир в магазине, а дроп ещё месяцами качает старые.
  */

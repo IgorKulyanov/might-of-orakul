@@ -546,4 +546,6 @@ export interface OwnedState {
   oracleSkillsOwned?: string[];
   /** 4 слота экипировки умений в бой. */
   oracleSkillLoadout?: (string | null)[];
+  /** Высший рубеж магазина (10/15/25/30), по которому уже выдан догон осколков. */
+  shopTierShardCatchUp?: number;
 }

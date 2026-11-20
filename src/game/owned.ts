@@ -11,6 +11,7 @@ import {
   grantCardShards,
   isUpgradeableCard,
   migrateCardUpgrades,
+  catchUpShopTierShardsIfNeeded,
   grantShardsForNewShopTier,
   rollBattleWinShards,
   shardsNeededForNext,
@@ -301,6 +302,7 @@ function withDefaults(parsed: OwnedState): OwnedState {
     willPoints: parsed.willPoints,
     oracleSkillsOwned: parsed.oracleSkillsOwned,
     oracleSkillLoadout: parsed.oracleSkillLoadout,
+    shopTierShardCatchUp: parsed.shopTierShardCatchUp,
   });
   return applySkillStateToOwned(base, getHero(heroId).faction);
 }
@@ -1068,6 +1070,11 @@ export function applyBattleResult(
     next = tierDrop.owned;
     if (tierDrop.gains.length) {
       shardGains = [...shardGains, ...tierDrop.gains];
+      const gate = Math.max(
+        next.shopTierShardCatchUp ?? 0,
+        ...[10, 15, 25, 30].filter((g) => fromLv < g && granted.level >= g),
+      );
+      if (gate > 0) next = { ...next, shopTierShardCatchUp: gate };
     }
     next = grantWillPointsForLevels(next, granted.gainedLevels);
   }
