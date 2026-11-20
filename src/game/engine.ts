@@ -5673,7 +5673,7 @@ function aiScoreSpell(
         else score += 12 + bows.length * 8;
         break;
       }
-      case "weaken": {
+      case "weaken_foe_damage": {
         const armed = foeUnits.filter(({ s }) => s.attack > 0 && canHit(s));
         if (!armed.length) score -= 45;
         else {

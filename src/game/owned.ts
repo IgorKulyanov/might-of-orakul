@@ -11,7 +11,6 @@ import {
   grantCardShards,
   isUpgradeableCard,
   migrateCardUpgrades,
-  catchUpShopTierShardsIfNeeded,
   grantShardsForNewShopTier,
   rollBattleWinShards,
   shardsNeededForNext,

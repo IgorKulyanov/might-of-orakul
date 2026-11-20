@@ -20,6 +20,7 @@ import type {
   CreatureAbility,
   ManaCost,
   OwnedState,
+  School,
   SpellEffect,
 } from "./types";
 import { upgradePlanLine } from "./cardUpgradePlan";
@@ -1768,7 +1769,9 @@ export function grantShardsForNewShopTier(
           return null;
         }
       })
-      .filter((x): x is { id: string; name: string; school: string } => !!x)
+      .filter(
+        (x): x is { id: string; name: string; school: School } => x != null,
+      )
       .sort((a, b) => {
         const ah = home && a.school === home ? 0 : 1;
         const bh = home && b.school === home ? 0 : 1;
