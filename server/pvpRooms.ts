@@ -1422,7 +1422,9 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           send(ws, lobbyPayload(room, seat));
           return;
         }
-        send(ws, battlePayload(room, seat));
+        // Без FX: иначе догон-sync через 400ms заново тычет тот же выстрел
+        // и клиент срывает летящую стрелу.
+        send(ws, battlePayload(room, seat, { includeFx: false }));
         return;
       }
 

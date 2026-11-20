@@ -5159,10 +5159,18 @@ export function normalizeBattleFx(fx: BattleFx): BattleFx {
   }
   if (fx.kind === "lunge" && fx.cardId && !next.vfx) {
     const shot = rangedShotStyle(fx.cardId);
-    if (shot === "fire") next.vfx = "burn";
+    if (shot === "arrow") next.vfx = "arrow";
+    else if (shot === "fire") next.vfx = "burn";
     else if (shot === "water") next.vfx = "water";
     else if (shot === "poison") next.vfx = "poison";
     else if (shot === "magic") next.vfx = "magic";
+  }
+  if (
+    fx.kind === "lunge" &&
+    (next.motion === "ranged" || rangedShotStyle(fx.cardId) === "arrow") &&
+    !next.vfx
+  ) {
+    next.vfx = "arrow";
   }
   if (fx.cardId && (!next.school || fx.kind === "spell")) {
     try {

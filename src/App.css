@@ -1777,7 +1777,8 @@ button {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 60;
+  /* Выше карт/кивков (z≈8) и оверлеев слотов — иначе стрела «невидима». */
+  z-index: 120;
   overflow: visible;
 }
 

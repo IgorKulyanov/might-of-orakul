@@ -414,206 +414,235 @@ function BattleMissile({
 
   useLayoutEffect(() => {
     const el = elRef.current;
-    const board = boardRef.current;
-    if (!el || !board) return;
+    if (!el) return;
+    let cancelled = false;
+    let fly: Animation | null = null;
+    let stick: Animation | null = null;
+    let other: Animation | null = null;
+    let raf = 0;
 
-    const boardRect = board.getBoundingClientRect();
-    const mid = (node: Element | null) => {
-      if (!node) return null;
-      const r = node.getBoundingClientRect();
-      return {
-        x: r.left + r.width / 2 - boardRect.left,
-        y: r.top + r.height / 2 - boardRect.top,
-      };
-    };
+    const run = (attempt: number) => {
+      if (cancelled) return;
+      const board = boardRef.current;
+      if (!board) {
+        if (attempt < 8) raf = window.requestAnimationFrame(() => run(attempt + 1));
+        return;
+      }
 
-    // Заклинание без fromSlot — из оракула кастера, не из случайного слота 2.
-    const fromEl =
-      fromSlot != null
-        ? board.querySelector(`[data-board-drop="${fromSide}:${fromSlot}"]`)
-        : board.querySelector(
-            fromSide === "you"
-              ? ".you-oracle-bar .oracle-block"
-              : ".enemy-oracle-bar .oracle-block",
-          );
-    const toSide = fromSide === "you" ? "enemy" : "you";
-    const targetSlot = hitSlots?.[0] ?? toSlot;
-    const toEl = hitHero
-      ? board.querySelector(
-          fromSide === "you"
-            ? ".enemy-oracle-bar .oracle-block"
-            : ".you-oracle-bar .oracle-block",
-        )
-      : targetSlot != null
-        ? board.querySelector(`[data-board-drop="${toSide}:${targetSlot}"]`)
-        : null;
-
-    const toGuess = mid(toEl);
-    const from = fromSky
-      ? {
-          x:
-            (toGuess?.x ??
-              boardRect.width * (0.12 + (targetSlot ?? 2) * 0.19)) +
-            (Math.random() * 28 - 14),
-          y: -12 - Math.random() * 36,
-        }
-      : mid(fromEl) ?? {
-          x: boardRect.width * (fromSlot != null ? 0.12 + fromSlot * 0.19 : 0.5),
-          y:
-            fromSide === "you"
-              ? boardRect.height * 0.92
-              : boardRect.height * 0.08,
+      const boardRect = board.getBoundingClientRect();
+      const mid = (node: Element | null) => {
+        if (!node) return null;
+        const r = node.getBoundingClientRect();
+        return {
+          x: r.left + r.width / 2 - boardRect.left,
+          y: r.top + r.height / 2 - boardRect.top,
         };
-    const to = mid(toEl) ?? {
-      x: boardRect.width * (0.12 + (targetSlot ?? 2) * 0.19),
-      y: hitHero
-        ? fromSide === "you"
-          ? boardRect.height * 0.06
-          : boardRect.height * 0.94
-        : fromSide === "you"
-          ? boardRect.height * 0.22
-          : boardRect.height * 0.78,
-    };
-
-    const angle =
-      (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI;
-    // Стрела «торчит» чуть глубже в карту
-    const embed = kind === "arrow" ? 10 : 0;
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const len = Math.hypot(dx, dy) || 1;
-    const stickX = to.x + (dx / len) * embed;
-    const stickY = to.y + (dy / len) * embed;
-
-    el.style.left = "0";
-    el.style.top = "0";
-    const reduce =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    if (kind === "arrow") {
-      const flyMs = reduce ? 160 : 420;
-      const stickMs = reduce ? 200 : 780;
-      const fly = el.animate(
-        [
-          {
-            transform: `translate(${from.x}px, ${from.y}px) rotate(${angle}deg) scale(0.75)`,
-            opacity: 0.4,
-          },
-          {
-            transform: `translate(${from.x}px, ${from.y}px) rotate(${angle}deg) scale(1)`,
-            opacity: 1,
-            offset: 0.08,
-          },
-          {
-            transform: `translate(${stickX}px, ${stickY}px) rotate(${angle}deg) scale(1)`,
-            opacity: 1,
-          },
-        ],
-        {
-          duration: flyMs,
-          easing: "cubic-bezier(0.15, 0.7, 0.2, 1)",
-          fill: "forwards",
-        },
-      );
-      let stick: Animation | null = null;
-      fly.finished
-        .then(() => {
-          stick = el.animate(
-            [
-              {
-                transform: `translate(${stickX}px, ${stickY}px) rotate(${angle}deg)`,
-                opacity: 1,
-              },
-              {
-                transform: `translate(${stickX}px, ${stickY}px) rotate(${angle + 3}deg)`,
-                opacity: 1,
-                offset: 0.55,
-              },
-              {
-                transform: `translate(${stickX}px, ${stickY}px) rotate(${angle}deg)`,
-                opacity: 0,
-              },
-            ],
-            { duration: stickMs, easing: "ease-out", fill: "forwards" },
-          );
-        })
-        .catch(() => {});
-      return () => {
-        fly.cancel();
-        stick?.cancel();
       };
-    }
 
-    if (kind === "fire") {
-      const duration = reduce ? 180 : 700;
-      const midX = from.x + (to.x - from.x) * 0.55;
-      const midY = from.y + (to.y - from.y) * 0.55 - 22;
-      const anim = el.animate(
+      // Заклинание без fromSlot — из оракула кастера, не из случайного слота 2.
+      const fromEl =
+        fromSlot != null
+          ? board.querySelector(`[data-board-drop="${fromSide}:${fromSlot}"]`)
+          : board.querySelector(
+              fromSide === "you"
+                ? ".you-oracle-bar .oracle-block"
+                : ".enemy-oracle-bar .oracle-block",
+            );
+      const toSide = fromSide === "you" ? "enemy" : "you";
+      const targetSlot = hitSlots?.[0] ?? toSlot;
+      const toEl = hitHero
+        ? board.querySelector(
+            fromSide === "you"
+              ? ".enemy-oracle-bar .oracle-block"
+              : ".you-oracle-bar .oracle-block",
+          )
+        : targetSlot != null
+          ? board.querySelector(`[data-board-drop="${toSide}:${targetSlot}"]`)
+          : null;
+
+      // В PvP стол может приехать на кадр позже — подождём якоря, иначе стрела «из ниоткуда».
+      if (!fromSky && (!mid(fromEl) || (!hitHero && targetSlot != null && !mid(toEl)))) {
+        if (attempt < 10) {
+          raf = window.requestAnimationFrame(() => run(attempt + 1));
+          return;
+        }
+      }
+
+      const toGuess = mid(toEl);
+      const from = fromSky
+        ? {
+            x:
+              (toGuess?.x ??
+                boardRect.width * (0.12 + (targetSlot ?? 2) * 0.19)) +
+              (Math.random() * 28 - 14),
+            y: -12 - Math.random() * 36,
+          }
+        : mid(fromEl) ?? {
+            x:
+              boardRect.width *
+              (fromSlot != null ? 0.12 + fromSlot * 0.19 : 0.5),
+            y:
+              fromSide === "you"
+                ? boardRect.height * 0.72
+                : boardRect.height * 0.28,
+          };
+      const to = mid(toEl) ?? {
+        x: boardRect.width * (0.12 + (targetSlot ?? 2) * 0.19),
+        y: hitHero
+          ? fromSide === "you"
+            ? boardRect.height * 0.06
+            : boardRect.height * 0.94
+          : fromSide === "you"
+            ? boardRect.height * 0.28
+            : boardRect.height * 0.72,
+      };
+
+      const angle =
+        (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI;
+      const embed = kind === "arrow" ? 10 : 0;
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const stickX = to.x + (dx / len) * embed;
+      const stickY = to.y + (dy / len) * embed;
+
+      el.style.left = "0";
+      el.style.top = "0";
+      el.style.opacity = "1";
+      el.style.visibility = "visible";
+      const reduce =
+        typeof window !== "undefined" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      if (kind === "arrow") {
+        const flyMs = reduce ? 160 : 420;
+        const stickMs = reduce ? 200 : 780;
+        fly = el.animate(
+          [
+            {
+              transform: `translate(${from.x}px, ${from.y}px) rotate(${angle}deg) scale(0.75)`,
+              opacity: 0.55,
+            },
+            {
+              transform: `translate(${from.x}px, ${from.y}px) rotate(${angle}deg) scale(1)`,
+              opacity: 1,
+              offset: 0.08,
+            },
+            {
+              transform: `translate(${stickX}px, ${stickY}px) rotate(${angle}deg) scale(1)`,
+              opacity: 1,
+            },
+          ],
+          {
+            duration: flyMs,
+            easing: "cubic-bezier(0.15, 0.7, 0.2, 1)",
+            fill: "forwards",
+          },
+        );
+        fly.finished
+          .then(() => {
+            if (cancelled) return;
+            stick = el.animate(
+              [
+                {
+                  transform: `translate(${stickX}px, ${stickY}px) rotate(${angle}deg)`,
+                  opacity: 1,
+                },
+                {
+                  transform: `translate(${stickX}px, ${stickY}px) rotate(${angle + 3}deg)`,
+                  opacity: 1,
+                  offset: 0.55,
+                },
+                {
+                  transform: `translate(${stickX}px, ${stickY}px) rotate(${angle}deg)`,
+                  opacity: 0,
+                },
+              ],
+              { duration: stickMs, easing: "ease-out", fill: "forwards" },
+            );
+          })
+          .catch(() => {});
+        return;
+      }
+
+      if (kind === "fire") {
+        const duration = reduce ? 180 : 700;
+        const midX = from.x + (to.x - from.x) * 0.55;
+        const midY = from.y + (to.y - from.y) * 0.55 - 22;
+        other = el.animate(
+          [
+            {
+              transform: `translate(${from.x}px, ${from.y}px) scale(0.7) rotate(-8deg)`,
+              opacity: 0.3,
+            },
+            {
+              transform: `translate(${from.x}px, ${from.y}px) scale(1) rotate(0deg)`,
+              opacity: 1,
+              offset: 0.1,
+            },
+            {
+              transform: `translate(${midX}px, ${midY}px) scale(1.08) rotate(6deg)`,
+              opacity: 1,
+              offset: 0.5,
+            },
+            {
+              transform: `translate(${to.x}px, ${to.y}px) scale(1.12) rotate(10deg)`,
+              opacity: 1,
+              offset: 0.84,
+            },
+            {
+              transform: `translate(${to.x}px, ${to.y}px) scale(1.45) rotate(14deg)`,
+              opacity: 0,
+            },
+          ],
+          {
+            duration,
+            easing: "cubic-bezier(0.18, 0.7, 0.22, 1)",
+            fill: "forwards",
+          },
+        );
+        return;
+      }
+
+      const duration =
+        reduce ? 180 : kind === "poison" ? 620 : kind === "water" ? 560 : 520;
+      other = el.animate(
         [
           {
-            transform: `translate(${from.x}px, ${from.y}px) scale(0.7) rotate(-8deg)`,
-            opacity: 0.3,
+            transform: `translate(${from.x}px, ${from.y}px) scale(0.4)`,
+            opacity: 0.35,
           },
           {
-            transform: `translate(${from.x}px, ${from.y}px) scale(1) rotate(0deg)`,
+            transform: `translate(${from.x}px, ${from.y}px) scale(1.05)`,
             opacity: 1,
             offset: 0.1,
           },
           {
-            transform: `translate(${midX}px, ${midY}px) scale(1.08) rotate(6deg)`,
-            opacity: 1,
-            offset: 0.5,
+            transform: `translate(${to.x}px, ${to.y}px) scale(1.4)`,
+            opacity: 0.85,
+            offset: 0.82,
           },
           {
-            transform: `translate(${to.x}px, ${to.y}px) scale(1.12) rotate(10deg)`,
-            opacity: 1,
-            offset: 0.84,
-          },
-          {
-            transform: `translate(${to.x}px, ${to.y}px) scale(1.45) rotate(14deg)`,
+            transform: `translate(${to.x}px, ${to.y}px) scale(0.3)`,
             opacity: 0,
           },
         ],
         {
           duration,
-          easing: "cubic-bezier(0.18, 0.7, 0.22, 1)",
+          easing: "cubic-bezier(0.2, 0.75, 0.25, 1)",
           fill: "forwards",
         },
       );
-      return () => anim.cancel();
-    }
+    };
 
-    const duration =
-      reduce ? 180 : kind === "poison" ? 620 : kind === "water" ? 560 : 520;
-    const anim = el.animate(
-      [
-        {
-          transform: `translate(${from.x}px, ${from.y}px) scale(0.4)`,
-          opacity: 0.35,
-        },
-        {
-          transform: `translate(${from.x}px, ${from.y}px) scale(1.05)`,
-          opacity: 1,
-          offset: 0.1,
-        },
-        {
-          transform: `translate(${to.x}px, ${to.y}px) scale(1.4)`,
-          opacity: 0.85,
-          offset: 0.82,
-        },
-        {
-          transform: `translate(${to.x}px, ${to.y}px) scale(0.3)`,
-          opacity: 0,
-        },
-      ],
-      {
-        duration,
-        easing: "cubic-bezier(0.2, 0.75, 0.25, 1)",
-        fill: "forwards",
-      },
-    );
-    return () => anim.cancel();
+    raf = window.requestAnimationFrame(() => run(0));
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(raf);
+      fly?.cancel();
+      stick?.cancel();
+      other?.cancel();
+    };
   }, [
     boardRef,
     className,
@@ -1286,11 +1315,11 @@ export function Battle({
       Boolean(network) &&
       ((!!rfx &&
         rfx.seq > playedRemoteFxSeqRef.current &&
-        !skipNextRemoteFxRef.current &&
-        rfx.fx.side === "enemy") ||
-        remoteFxQueueRef.current.length > 0);
-    // Пока очередь/FX чужого хода — не рисуем −N раньше удара.
-    if (deferFoeFx || remoteFxPlayingRef.current) {
+        !skipNextRemoteFxRef.current) ||
+        remoteFxQueueRef.current.length > 0 ||
+        remoteFxPlayingRef.current);
+    // Пока очередь/FX хода — не двигаем стол (иначе стрела теряет якоря).
+    if (deferFoeFx) {
       pendingExternalRef.current = externalState;
       setPhase(externalState.active === "you" ? "you" : "enemy");
       setPvpAwaiting(false);
@@ -1605,16 +1634,39 @@ export function Battle({
     // Своя магия коротко; чужая на клиенте зрителя идёт через remoteFx (~1.4с).
     const ownSpell = isSpellCard && nextFx.side === "you";
     if (online) {
+      // Стрела/болт: сначала полёт, потом commit на сервер — иначе снимок
+      // стола рвёт якоря и снаряд «пропадает» у обоих.
+      if (flying && nextFx.kind === "lunge") {
+        await sleep(missileFlightMs(nextFx));
+      }
       apply();
-      // Своя магия крупно ~1.2с — как у зрителя соперника.
+      const arrowStick = flying && nextFx.motion === "ranged";
+      const fireBolt =
+        flying &&
+        (missileVisual(nextFx) === "fire" || nextFx.vfx === "burn");
       const hold = ownSpell
         ? Math.max(holdMs, 1200)
         : instant
           ? Math.max(holdMs, 900)
-          : nextFx.hitHero && nextFx.kind !== "heal"
-            ? Math.max(holdMs, 1400)
-            : holdMs;
-      await sleep(hold);
+          : flying
+            ? Math.max(
+                holdMs,
+                nextFx.hitHero && nextFx.kind !== "heal"
+                  ? 1600
+                  : fireBolt
+                    ? 1100
+                    : arrowStick
+                      ? 1400
+                      : 1200,
+              )
+            : nextFx.hitHero && nextFx.kind !== "heal"
+              ? Math.max(holdMs, 1400)
+              : holdMs;
+      await sleep(
+        flying && nextFx.kind === "lunge"
+          ? Math.max(280, hold - missileFlightMs(nextFx))
+          : hold,
+      );
       setFx(null);
       await sleep(ownSpell ? 80 : 200);
       return;
@@ -2848,9 +2900,15 @@ export function Battle({
         const target = forwardAttackTarget(s, i);
         if (target == null) continue;
         const preview = attackFxPreview(s, i, target);
-        setFx(preview);
-        playActionSfx(preview, s);
-        await sleep(320);
+        const nextFx = normalizeBattleFx(preview);
+        setFx(nextFx);
+        playActionSfx(nextFx, s);
+        const fly =
+          nextFx.motion === "ranged" || nextFx.motion === "bolt"
+            ? missileFlightMs(nextFx)
+            : 0;
+        if (fly) await sleep(fly);
+        else await sleep(280);
         const action: PvpAction = {
           kind: "attack",
           fromSlot: i,
@@ -2874,6 +2932,7 @@ export function Battle({
             if (stateRef.current.log[0] !== stamp) break;
             if (stateRef.current.winner) break;
           }
+          await sleep(nextFx.motion === "ranged" ? 700 : 220);
           setFx(null);
           if (stateRef.current.winner || stateRef.current.enemy.hp <= 0) break;
           continue;
@@ -3471,41 +3530,6 @@ export function Battle({
       </div>
 
       <div className="board-shell" ref={boardRef}>
-        {missileClass && missileKind && fx ? (
-          <div className="battle-fx-layer" aria-hidden>
-            {fx.kind === "spell" &&
-            fx.vfx === "arrow" &&
-            Array.isArray(fx.hitSlots) &&
-            fx.hitSlots.length > 1
-              ? fx.hitSlots.map((slot, n) => (
-                  <BattleMissile
-                    key={`rain-${fx.side}-${slot}-${n}-${fx.cardId ?? ""}`}
-                    className={`${missileClass} is-sky-rain`}
-                    kind="arrow"
-                    boardRef={boardRef}
-                    fromSide={fx.side}
-                    fromSlot={undefined}
-                    toSlot={slot}
-                    hitHero={false}
-                    hitSlots={[slot]}
-                    fromSky
-                  />
-                ))
-              : (
-                  <BattleMissile
-                    key={`${fx.side}-${fx.kind}-${fx.fromSlot}-${fx.toSlot}-${fx.hitSlots?.join(".") ?? ""}-${fx.vfx ?? ""}-${missileKind}`}
-                    className={missileClass}
-                    kind={missileKind}
-                    boardRef={boardRef}
-                    fromSide={fx.side}
-                    fromSlot={fx.fromSlot}
-                    toSlot={fx.toSlot}
-                    hitHero={fx.hitHero}
-                    hitSlots={fx.hitSlots}
-                  />
-                )}
-          </div>
-        ) : null}
         <div className="oracle-bar enemy-oracle-bar" data-tut="enemy-oracle">
             <button
               type="button"
@@ -4248,6 +4272,42 @@ export function Battle({
             }}
           />
         </div>
+        {/* Слой снарядов в конце shell — иначе карты/оверлеи перекрывают стрелу. */}
+        {missileClass && missileKind && fx ? (
+          <div className="battle-fx-layer" aria-hidden>
+            {fx.kind === "spell" &&
+            fx.vfx === "arrow" &&
+            Array.isArray(fx.hitSlots) &&
+            fx.hitSlots.length > 1
+              ? fx.hitSlots.map((slot, n) => (
+                  <BattleMissile
+                    key={`rain-${fx.side}-${slot}-${n}-${fx.cardId ?? ""}`}
+                    className={`${missileClass} is-sky-rain`}
+                    kind="arrow"
+                    boardRef={boardRef}
+                    fromSide={fx.side}
+                    fromSlot={undefined}
+                    toSlot={slot}
+                    hitHero={false}
+                    hitSlots={[slot]}
+                    fromSky
+                  />
+                ))
+              : (
+                  <BattleMissile
+                    key={`${fx.side}-${fx.kind}-${fx.fromSlot ?? "x"}-${fx.toSlot ?? "t"}-${fx.hitSlots?.join(".") ?? ""}-${fx.hitHero ? "H" : ""}-${fx.vfx ?? ""}-${missileKind}-${fx.cardId ?? ""}`}
+                    className={missileClass}
+                    kind={missileKind}
+                    boardRef={boardRef}
+                    fromSide={fx.side}
+                    fromSlot={fx.fromSlot}
+                    toSlot={fx.toSlot}
+                    hitHero={fx.hitHero}
+                    hitSlots={fx.hitSlots}
+                  />
+                )}
+          </div>
+        ) : null}
       </div>
 
       {handDrag ? (
