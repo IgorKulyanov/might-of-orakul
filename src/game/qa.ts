@@ -789,7 +789,26 @@ function spellsAll(fails: QaFail[], ok: string[]): void {
         }
         case "last_stand": {
           const u = s.you.slots[0]!;
-          if (!u.noRestore || u.baseAttack < 2) bad = `last_stand atk=${u.baseAttack} noRestore=${u.noRestore}`;
+          if (!u.noRestore || u.baseAttack < 2) {
+            bad = `last_stand atk=${u.baseAttack} noRestore=${u.noRestore}`;
+            break;
+          }
+          const gasp = u.statuses.find((st) => st.type === "last_gasp");
+          if (!gasp?.skipOnce) {
+            bad = "last_stand без skipOnce — умрёт без удара";
+            break;
+          }
+          // Ход врага → наш beginTurn: skipOnce сгорает, юнит жив
+          s = endPlayerTurn(s);
+          s = endEnemyTurn(s);
+          const u2 = s.you.slots[0];
+          if (!u2 || u2.health <= 0) {
+            bad = "пал на первом beginTurn после каста";
+            break;
+          }
+          if (u2.statuses.find((st) => st.type === "last_gasp")?.skipOnce) {
+            bad = "skipOnce не снялся";
+          }
           break;
         }
         case "sniper":

@@ -301,6 +301,11 @@ export type StatusEffect = {
   ratio?: number;
   /** Заморозка ур.3: −N HP в начале хода, пока спит. */
   sleepBurn?: number;
+  /**
+   * Из последних сил: не тикать на первом beginTurn владельца после каста,
+   * иначе при N=1 юнит гибнет, так и не ударив с баффом (ИИ часто кастует после атаки).
+   */
+  skipOnce?: boolean;
 };
 
 export interface CreatureInstance {

@@ -2823,9 +2823,15 @@ function applySpellEffects(
         u.health += addHp;
         u.noRestore = true;
         u.statuses = u.statuses.filter((st) => st.type !== "last_gasp");
-        u.statuses.push({ type: "last_gasp", amount: dieAfter });
+        // skipOnce: первый beginTurn владельца не съедает N — иначе L1
+        // умирает на старте следующего хода, так и не ударив с ×2.
+        u.statuses.push({
+          type: "last_gasp",
+          amount: dieAfter,
+          skipOnce: true,
+        });
         log.unshift(
-          `${caster.name}: из последних сил — ${getCard(u.cardId).name} ${u.attack}/${u.health}; умрёт через ${dieAfter} ход(а)`,
+          `${caster.name}: из последних сил — ${getCard(u.cardId).name} ${u.attack}/${u.health}; умрёт через ${dieAfter} ход(а) (после удара)`,
         );
         break;
       }
@@ -4660,15 +4666,21 @@ function tickUnitStatuses(
     }
     const lastGasp = s.statuses.find((st) => st.type === "last_gasp");
     if (lastGasp) {
-      lastGasp.amount -= 1;
-      if (lastGasp.amount <= 0) {
+      if (lastGasp.skipOnce) {
+        lastGasp.skipOnce = false;
         log.unshift(
-          `${getCard(s.cardId).name}: из последних сил — пал`,
+          `${getCard(s.cardId).name}: из последних сил — ещё ${lastGasp.amount} ход(а) на удар`,
         );
-        s.health = 0;
-        removeIfDead(p, i, log, state);
-        continue;
       } else {
+        lastGasp.amount -= 1;
+        if (lastGasp.amount <= 0) {
+          log.unshift(
+            `${getCard(s.cardId).name}: из последних сил — пал`,
+          );
+          s.health = 0;
+          removeIfDead(p, i, log, state);
+          continue;
+        }
         log.unshift(
           `${getCard(s.cardId).name}: из последних сил — ещё ${lastGasp.amount} ход(а)`,
         );
@@ -5577,6 +5589,34 @@ function aiScoreSpell(
         const nSpent = myUnits.filter(({ s }) => !s.canAttack).length;
         if (nSleep + nSpent === 0) score -= 25;
         else score += 12 + nSleep * 10 + nSpent * 4;
+        break;
+      }
+      case "last_stand": {
+        // Бафать того, кто ещё может ударить; иначе ×2 впустую.
+        const cands = myUnits
+          .filter(
+            ({ s }) =>
+              !s.statuses.some((st) => st.type === "last_gasp") &&
+              !s.statuses.some((st) => st.type === "bunker"),
+          )
+          .map(({ s, i }) => ({
+            i,
+            s,
+            ready: s.canAttack ? 1 : 0,
+            threat: s.attack * 3 + s.health,
+          }))
+          .sort(
+            (a, b) =>
+              b.ready - a.ready || b.threat - a.threat,
+          );
+        const best = cands[0];
+        if (!best) score -= 40;
+        else {
+          target = best.i;
+          score += best.ready
+            ? 28 + best.s.attack * 4
+            : 6 + best.s.attack;
+        }
         break;
       }
       default:
