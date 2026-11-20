@@ -142,20 +142,23 @@ export function grantXp(
   };
 }
 
-/** XP за соло-бой (победа заметно жирнее; лёгкий анти-афк за поражение). */
+/**
+ * XP за соло-бой. Подрезано: раньше 95+6·lv — ап слишком быстрый.
+ * Ориентир: ~10–14 побед бота на ранний уровень, не 5–6.
+ */
 export function battleXp(won: boolean, playerLevel: number): number {
   const lv = Math.max(1, playerLevel);
-  if (won) return 95 + lv * 6;
-  return 28 + lv * 2;
+  if (won) return 50 + Math.floor(lv * 3.2);
+  return 14 + Math.floor(lv * 1.1);
 }
 
 /**
  * Множители сетевой дуэли vs бот.
- * Победа в PvP заметно жирнее; поражение чуть лучше бота — чтобы не боялись играть с людьми.
+ * Победа в PvP жирнее бота, но без ×2 к и так большому XP.
  */
 export const PVP_REWARD = {
-  winXpMult: 2,
-  lossXpMult: 1.35,
+  winXpMult: 1.55,
+  lossXpMult: 1.2,
   winGoldMult: 2.5,
   lossGoldMult: 2,
 } as const;

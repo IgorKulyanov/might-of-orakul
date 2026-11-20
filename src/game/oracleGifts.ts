@@ -24,11 +24,11 @@ export function lifeGiftGold(won: boolean, level: number): number {
   return lv + Math.floor(lv / 10);
 }
 
-/** Дар ада: за победу +2 XP за уровень (+ ещё +1 XP / 5 ур.). */
+/** Дар ада: за победу +1 XP / ур. (+ ещё +1 / 5 ур.). Раньше ×2 — слишком жирно к бою. */
 export function hellGiftXp(won: boolean, level: number): number {
   if (!won) return 0;
   const lv = Math.max(1, Math.floor(level));
-  return lv * 2 + Math.floor(lv / 5);
+  return lv + Math.floor(lv / 5);
 }
 
 /** Эпик смерти с даром косы (мана в бою, не мета-награда). */
@@ -41,20 +41,20 @@ export function hasDeathScytheGift(
 
 /**
  * Дар воды: доп. стартовая мана воды.
- * +1 сразу, ещё +1 каждые 12 уровней → ур.1 = +1, ур.13 = +2, ур.25 = +3.
+ * +1 сразу, ещё +1 каждые 15 уровней → ур.1 = +1, ур.16 = +2, ур.31 = +3.
  */
 export function waterGiftStartMana(level: number): number {
   const lv = Math.max(1, Math.floor(level));
-  return 1 + Math.floor((lv - 1) / 12);
+  return 1 + Math.floor((lv - 1) / 15);
 }
 
 /**
- * Дар природы: +1 HP базы +1 за каждые 5 уровней.
- * ур.1 = +1, ур.10 = +3, ур.25 = +6.
+ * Дар природы: +1 HP оракула за каждые 5 уровней.
+ * ур.10 = +2, ур.25 = +5.
  */
 export function natureGiftHp(level: number): number {
   const lv = Math.max(1, Math.floor(level));
-  return 1 + Math.floor(lv / 5);
+  return Math.floor(lv / 5);
 }
 
 export function oracleGiftTitle(faction: Faction): string {
@@ -79,7 +79,7 @@ export function oracleGiftCardText(faction: Faction, level: number): string {
     case "life":
       return `Дар света: за победу +${lifeGiftGold(true, lv)} зол. (+1/ур., ещё +1/10 ур.).`;
     case "hell":
-      return `Дар ада: за победу +${hellGiftXp(true, lv)} XP (+2/ур., ещё +1/5 ур.).`;
+      return `Дар ада: за победу +${hellGiftXp(true, lv)} XP (+1/ур., ещё +1/5 ур.).`;
     case "death":
       return `Дар косы: если за ход гибнет хотя бы один твой юнит смерти — +1 мана смерти.`;
     case "water":
