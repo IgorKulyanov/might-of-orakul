@@ -3903,18 +3903,27 @@ export function Battle({
                 return <div key={`osk-empty-${i}`} className="oracle-skill-slot is-empty" />;
               }
               const used = Boolean(state.you.oracleSkillUsed?.[def.id]);
+              const muted = (state.you.oracleSkillsMutedTurns ?? 0) > 0;
               const isActive = def.kind === "active";
               const aiming = skillAim?.skillId === def.id;
               return (
                 <button
                   key={def.id}
                   type="button"
-                  className={`oracle-skill-slot ${isActive ? "is-active-skill" : "is-passive-skill"} ${used ? "is-used" : ""} ${aiming ? "is-aiming" : ""}`}
-                  disabled={actionBlocked || !isActive || used}
-                  title={`${def.name}: ${def.text}`}
+                  className={`oracle-skill-slot ${isActive ? "is-active-skill" : "is-passive-skill"} ${used ? "is-used" : ""} ${muted ? "is-used" : ""} ${aiming ? "is-aiming" : ""}`}
+                  disabled={actionBlocked || !isActive || used || muted}
+                  title={
+                    muted
+                      ? `${def.name}: умения заглушены (адские наручники)`
+                      : `${def.name}: ${def.text}`
+                  }
                   onClick={() => {
                     if (!isActive) {
                       pushHint(`${def.name} (пассив)`);
+                      return;
+                    }
+                    if (muted) {
+                      pushHint("Умения оракула заглушены");
                       return;
                     }
                     onOracleSkillClick(def.id);

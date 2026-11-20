@@ -1547,6 +1547,7 @@ export default function App() {
         enemyLevel={foeLv}
         cardUpgrades={owned.cardUpgrades}
         oracleSkills={owned.oracleSkillLoadout}
+        enemyOracleSkills={bot.skills}
         aiPersona={bot.persona}
         aiSeed={bot.seed}
         prepareBattle={

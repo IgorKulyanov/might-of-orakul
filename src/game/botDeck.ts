@@ -6,6 +6,11 @@ import {
   maxCopiesForCard,
 } from "./cards";
 import { BASE_HEROES, FACTIONS, getHero } from "./heroes";
+import {
+  SKILLS_BY_FACTION,
+  SKILL_LOADOUT_SIZE,
+  SKILL_POOL_UNLOCK_LEVELS,
+} from "./oracleSkills";
 import { starterDeckForFaction } from "./starterDecks";
 import type { Faction, School } from "./types";
 
@@ -40,7 +45,58 @@ export type BotMatch = {
   heroId: string;
   deck: string[];
   level: number;
+  /** Умения оракула бота (до 4 слотов). */
+  skills: (string | null)[];
 };
+
+/** Подбор умений бота по уровню — как у игрока, без покупки. */
+export function botSkillsFor(
+  faction: Faction,
+  level: number,
+  rng: () => number,
+): (string | null)[] {
+  const pool = SKILLS_BY_FACTION[faction] ?? [];
+  const unlocked = pool.filter(
+    (_, i) => level >= (SKILL_POOL_UNLOCK_LEVELS[i] ?? 99),
+  );
+  const passives = unlocked.filter((s) => s.kind === "passive");
+  const actives = unlocked.filter((s) => s.kind === "active");
+  const out: (string | null)[] = Array.from(
+    { length: SKILL_LOADOUT_SIZE },
+    () => null,
+  );
+  let slot = 0;
+  const schoolMana = passives.find((s) => s.id.endsWith("_school_mana"));
+  if (schoolMana) out[slot++] = schoolMana.id;
+  // Давление / хил / контроль — не только пассивы
+  const prefer = [
+    "fire_strike",
+    "mana_strike",
+    "burn_hero",
+    "mana_heal_self",
+    "mana_heal",
+    "sleep",
+    "buff",
+    "execute",
+    "plague",
+    "bounce",
+  ];
+  const ranked = [...actives].sort((a, b) => {
+    const ia = prefer.findIndex((p) => a.id.endsWith(`_${p}`));
+    const ib = prefer.findIndex((p) => b.id.endsWith(`_${p}`));
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
+  for (const s of ranked) {
+    if (slot >= SKILL_LOADOUT_SIZE) break;
+    if (rng() < 0.85) out[slot++] = s.id;
+  }
+  for (const s of passives) {
+    if (slot >= SKILL_LOADOUT_SIZE) break;
+    if (s.id === schoolMana?.id) continue;
+    if (rng() < 0.55) out[slot++] = s.id;
+  }
+  return out;
+}
 
 /** LCG: стабильный рандом от seed (один бой = одна колода). */
 export function makeBotRng(seed: number): () => number {
@@ -675,5 +731,6 @@ export function rollBotOpponent(
   const heroId = botHeroIdFor(playerHeroId, botLevel, seed);
   const school = getHero(heroId).faction;
   const deck = botDeckForLevel(botLevel, school, { seed, persona });
-  return { seed, persona, heroId, deck, level: botLevel };
+  const skills = botSkillsFor(school, botLevel, rng);
+  return { seed, persona, heroId, deck, level: botLevel, skills };
 }

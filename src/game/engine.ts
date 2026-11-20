@@ -105,11 +105,14 @@ import {
 } from "./cardUpgrades";
 import {
   applyOracleSkillBattleStart,
+  castOracleSkill,
   hurtOracle,
   onUnitKilled,
   tickOracleSkillPassivesEnd,
   tickOracleSkillPassivesStart,
 } from "./oracleSkillCombat";
+import { getSkill } from "./oracleSkills";
+import { flipBattle } from "./pvpFlip";
 import { startManaBonus } from "./progression";
 import {
   attackMotionForCard,
@@ -890,6 +893,12 @@ function tickEndOwnerEffects(p: PlayerState, log: string[]): void {
     p.weakenDamageTurns -= 1;
     if (p.weakenDamageTurns <= 0) {
       log.unshift(`${p.name}: пыль в глаза спала — урон полный`);
+    }
+  }
+  if ((p.oracleSkillsMutedTurns ?? 0) > 0) {
+    p.oracleSkillsMutedTurns = (p.oracleSkillsMutedTurns ?? 0) - 1;
+    if ((p.oracleSkillsMutedTurns ?? 0) <= 0) {
+      log.unshift(`${p.name}: адские наручники спали — умения снова доступны`);
     }
   }
 }
@@ -4967,9 +4976,8 @@ function beginTurn(
       );
     }
   }
-  if ((p.oracleSkillsMutedTurns ?? 0) > 0) {
-    p.oracleSkillsMutedTurns = (p.oracleSkillsMutedTurns ?? 0) - 1;
-  }
+  // oracleSkillsMutedTurns тикаем в конце хода жертвы (tickEndOwnerEffects),
+  // иначе «1 ход» спадает в beginTurn и наручники не работают.
   if (p.pendingEnemySleep && opts?.state) {
     p.pendingEnemySleep = false;
     const foe = p.id === "you" ? opts.state.enemy : opts.state.you;
@@ -5619,8 +5627,68 @@ function aiScoreSpell(
         }
         break;
       }
+      case "sniper_buff": {
+        const aim = myUnits.filter(({ s }) => {
+          const pat = patternOf(s.cardId);
+          return (
+            pat === "ranged" ||
+            hasAbility(s.cardId, "mage_flex", s) ||
+            hasAbility(s.cardId, "arbiter_flex", s)
+          );
+        });
+        if (!aim.length) score -= 55;
+        else {
+          score +=
+            14 +
+            aim.length * 7 +
+            (eff.attack ?? 1) * 5;
+        }
+        break;
+      }
+      case "mute_oracle_skills": {
+        const load = (foe.oracleSkillLoadout ?? []).filter(Boolean).length;
+        if (load <= 0) score -= 35;
+        else if ((foe.oracleSkillsMutedTurns ?? 0) > 0) score -= 20;
+        else score += 16 + load * 5;
+        break;
+      }
+      case "mute_ranged": {
+        const bows = foeUnits.filter(({ s }) => {
+          const pat = patternOf(s.cardId);
+          return (
+            pat === "ranged" ||
+            hasAbility(s.cardId, "mage_flex", s) ||
+            hasAbility(s.cardId, "arbiter_flex", s)
+          );
+        });
+        if (!bows.length) score -= 50;
+        else score += 12 + bows.length * 8;
+        break;
+      }
+      case "weaken": {
+        const armed = foeUnits.filter(({ s }) => s.attack > 0 && canHit(s));
+        if (!armed.length) score -= 45;
+        else {
+          const threat = armed.reduce((n, u) => n + u.s.attack, 0);
+          score += 8 + Math.min(18, threat);
+        }
+        break;
+      }
+      case "bunker": {
+        if (myUnits.length === 0) score -= 40;
+        else {
+          const best = [...myUnits].sort(
+            (a, b) => b.s.health - a.s.health,
+          )[0]!;
+          target = best.i;
+          // Укрытие слабо без давления — редкий ход
+          score += 5 + Math.min(8, best.s.health / 4);
+        }
+        break;
+      }
       default:
-        score += 1;
+        // Неизвестное/бесполезное — не кидать «в молоко»
+        score -= 5;
         break;
     }
   }
@@ -5698,9 +5766,9 @@ function aiSkill(
      * Узкий разброс: разнообразие без тупых ходов.
      * Раньше slack 14–22 делал бота «безопасным».
      */
-    choiceSlack: lv <= 3 ? 8 : lv <= 8 ? 5 : lv <= 16 ? 3 : 2,
+    choiceSlack: lv <= 3 ? 6 : lv <= 8 ? 4 : lv <= 16 ? 2 : 1,
     /** Softmax-температура: ниже = чаще лучший ход. */
-    choiceTemp: lv <= 3 ? 5 : lv <= 10 ? 3.2 : 2.2,
+    choiceTemp: lv <= 3 ? 4.2 : lv <= 10 ? 2.6 : 1.8,
   };
 }
 
@@ -6016,7 +6084,13 @@ export function takeAiStep(
     | { kind: "creature"; hi: number; slot: number; score: number }
     | { kind: "spell"; hi: number; target: number | null; score: number }
     | { kind: "combat"; slot: number; score: number }
-    | { kind: "flex"; slot: number; score: number; flex: AiFlex };
+    | { kind: "flex"; slot: number; score: number; flex: AiFlex }
+    | {
+        kind: "oracle_skill";
+        skillId: string;
+        target: number | null;
+        score: number;
+      };
 
   const choices: AiChoice[] = [];
 
@@ -6112,6 +6186,8 @@ export function takeAiStep(
       if (!canPay(me.mana, costOf(id))) continue;
       if (isManaRampSpell(card.spellEffects ?? [])) continue;
       const ev = aiScoreSpell(id, me, foe);
+      // Бесполезный каст (снайпер без стрелков, пустое поле и т.п.)
+      if (ev.score <= 0) continue;
       const need = spellNeedsTarget(card.spellEffects ?? []);
       if (need === "enemy" && (ev.target == null || !foe.slots[ev.target])) {
         continue;
@@ -6169,6 +6245,120 @@ export function takeAiStep(
           score: sc,
         });
       }
+    }
+  }
+
+  // --- Умения оракула (активки) ---
+  if (
+    (me.oracleSkillsMutedTurns ?? 0) <= 0 &&
+    !me.oracleActiveUsedThisTurn
+  ) {
+    const schoolMana = me.mana[me.faction] ?? 0;
+    for (const sid of me.oracleSkillLoadout ?? []) {
+      if (!sid) continue;
+      if (me.oracleSkillUsed?.[sid]) continue;
+      const def = getSkill(sid);
+      if (!def || def.kind !== "active") continue;
+      const cost = def.manaCost ?? 0;
+      if (schoolMana < cost) continue;
+      const suffix = def.id.slice(def.faction.length + 1);
+      let sc = 0;
+      let target: number | null = null;
+      if (suffix === "fire_strike" || suffix === "burn_hero") {
+        sc =
+          (mission.canLethal || foe.hp <= 10 ? 36 : 14) +
+          skill.faceBias * 0.4 +
+          (foe.hp <= 6 ? 20 : 0);
+      } else if (suffix === "mana_strike") {
+        const cands = foe.slots
+          .map((s, i) => (s ? { s, i } : null))
+          .filter((x): x is { s: CreatureInstance; i: number } => !!x)
+          .filter(({ s }) => !hasAbility(s.cardId, "immune_spells", s))
+          .sort(
+            (a, b) =>
+              Number(a.s.health <= 3) - Number(b.s.health <= 3) ||
+              b.s.attack - a.s.attack,
+          );
+        if (cands[0] && cands[0].s.health <= 3) {
+          target = cands[0].i;
+          sc = 24 + cands[0].s.attack * 2;
+        } else {
+          target = null;
+          sc = mission.canLethal || foe.hp <= 8 ? 30 : 10;
+        }
+      } else if (
+        suffix === "mana_heal_self" ||
+        suffix === "mana_heal" ||
+        (suffix === "cleanse" && def.target === "none")
+      ) {
+        const miss = me.maxHp - me.hp;
+        if (miss <= 0) sc = -20;
+        else sc = Math.min(miss, 5) * 3 + (mission.mustDefend ? 12 : 0);
+      } else if (suffix === "sleep") {
+        const cands = foe.slots
+          .map((s, i) => (s && s.canAttack ? { s, i } : null))
+          .filter((x): x is { s: CreatureInstance; i: number } => !!x)
+          .sort((a, b) => b.s.attack - a.s.attack);
+        if (!cands.length) sc = -25;
+        else {
+          target = cands[0]!.i;
+          sc = 16 + cands[0]!.s.attack * 2;
+        }
+      } else if (suffix === "buff") {
+        const cands = me.slots
+          .map((s, i) => (s ? { s, i } : null))
+          .filter((x): x is { s: CreatureInstance; i: number } => !!x)
+          .sort((a, b) => b.s.attack - a.s.attack);
+        if (!cands.length) sc = -30;
+        else {
+          target = cands[0]!.i;
+          sc = 12 + cands[0]!.s.attack;
+        }
+      } else if (suffix === "execute") {
+        const cands = foe.slots
+          .map((s, i) => (s && s.health <= 4 ? { s, i } : null))
+          .filter((x): x is { s: CreatureInstance; i: number } => !!x)
+          .sort((a, b) => b.s.attack - a.s.attack);
+        if (!cands.length) sc = -30;
+        else {
+          target = cands[0]!.i;
+          sc = 28 + cands[0]!.s.attack * 2;
+        }
+      } else if (suffix === "burn_unit" || suffix === "plague") {
+        const cands = foe.slots
+          .map((s, i) => (s ? { s, i } : null))
+          .filter((x): x is { s: CreatureInstance; i: number } => !!x)
+          .filter(({ s }) => !hasAbility(s.cardId, "immune_spells", s))
+          .sort((a, b) => b.s.health + b.s.attack - (a.s.health + a.s.attack));
+        if (!cands.length) sc = -25;
+        else {
+          target = cands[0]!.i;
+          sc = 14 + Math.min(10, cands[0]!.s.health);
+        }
+      } else if (suffix === "bounce") {
+        const cands = foe.slots
+          .map((s, i) => (s && s.attack <= 2 ? { s, i } : null))
+          .filter((x): x is { s: CreatureInstance; i: number } => !!x)
+          .sort((a, b) => b.s.attack + b.s.health - (a.s.attack + a.s.health));
+        if (!cands.length) sc = -25;
+        else {
+          target = cands[0]!.i;
+          sc = 15 + cands[0]!.s.attack * 2;
+        }
+      } else if (suffix === "line_burn") {
+        const n = foe.slots.filter(Boolean).length;
+        sc = n <= 0 ? -30 : 10 + n * 6;
+      } else {
+        // Незнакомое умение — редко, без тупого спама
+        sc = 2;
+      }
+      if (sc <= 0) continue;
+      choices.push({
+        kind: "oracle_skill",
+        skillId: sid,
+        target,
+        score: sc + 4,
+      });
     }
   }
 
@@ -6441,6 +6631,15 @@ export function takeAiStep(
   if (mission.canLethal) {
     forced = choices.find((c) => {
       if (c.kind === "combat") return true;
+      if (c.kind === "oracle_skill") {
+        const def = getSkill(c.skillId);
+        const suf = def ? def.id.slice(def.faction.length + 1) : "";
+        return (
+          suf === "fire_strike" ||
+          suf === "mana_strike" ||
+          suf === "burn_hero"
+        );
+      }
       if (c.kind !== "spell") return false;
       const id = me.hand[c.hi];
       if (!id) return false;
@@ -6474,6 +6673,28 @@ export function takeAiStep(
   }
 
   // ===== Исполнение =====
+  if (best.kind === "oracle_skill") {
+    try {
+      const flipped = flipBattle(next);
+      const after = castOracleSkill(flipped, {
+        skillId: best.skillId,
+        targetSlot: best.target,
+      });
+      const back = flipBattle(after);
+      const def = getSkill(best.skillId);
+      back.log = back.log.slice(0, 10);
+      return {
+        state: back,
+        fx: normalizeBattleFx({
+          side: "enemy",
+          kind: "spell",
+          cardId: def?.id,
+        }),
+      };
+    } catch {
+      return null;
+    }
+  }
   if (best.kind === "ramp") {
     const id = me.hand[best.hi]!;
     if (resourceSpellExhausted(next, me, id)) return null;
