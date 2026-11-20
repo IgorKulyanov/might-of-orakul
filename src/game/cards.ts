@@ -57,6 +57,12 @@ export function getCard(id: string): CardDef {
   return c;
 }
 
+/** Безопасный lookup: умения оракула / мусорные id не кидают. */
+export function tryGetCard(id: string | null | undefined): CardDef | null {
+  if (!id || !CARD_MAP[id]) return null;
+  return getCard(id);
+}
+
 export function creatureGender(cardId: string): CreatureGender {
   return getCard(cardId).gender ?? "male";
 }

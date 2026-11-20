@@ -17,6 +17,7 @@ import {
   formatManaCost,
   getCard,
   isFemaleWarrior,
+  tryGetCard,
 } from "../game/cards";
 import { canPay } from "../game/mana";
 import {
@@ -2974,82 +2975,110 @@ export function Battle({
         return;
       }
 
-      let before = stateRef.current;
-      let s = endPlayerTurn(stateRef.current);
-      stateRef.current = s;
-      setState(s);
-      playResultSfx(before, s);
-      await sleep(450);
-
-      // шаги соперника — по одному, чуть бодрее (раньше было очень томно)
-      for (let n = 0; n < 20; n++) {
-        const step = takeAiStep(s);
-        if (!step) break;
-        const stepFx = normalizeBattleFx(step.fx);
-        const isSpellCard = stepFx.kind === "spell" && !!stepFx.cardId;
-        const hitFace =
-          !!stepFx.hitHero &&
-          stepFx.kind !== "heal" &&
-          stepFx.side === "enemy";
-        const flying =
-          (stepFx.kind === "lunge" &&
-            (stepFx.motion === "ranged" || stepFx.motion === "bolt")) ||
-          (stepFx.kind === "spell" &&
-            !!stepFx.vfx &&
-            stepFx.vfx !== "burn" &&
-            (!!stepFx.hitHero ||
-              stepFx.toSlot != null ||
-              (Array.isArray(stepFx.hitSlots) && stepFx.hitSlots.length > 0)));
-        // Удар в оракула / спелл чуть дольше — чтобы было ясно, отчего урон.
-        const hold = isSpellCard
-          ? 2200
-          : hitFace
-            ? 1400
-            : flying
-              ? 1100
-              : stepFx.kind === "lunge"
-                ? 950
-                : stepFx.kind === "play"
-                  ? 850
-                  : stepFx.kind === "spell"
-                    ? 1100
-                    : 650;
-        setFx(stepFx);
-        playActionSfx(stepFx, s);
-        if (isSpellCard) {
-          // Карта сначала появляется, эффект — после анимации.
-          await sleep(900);
-          before = s;
-          s = step.state;
-          stateRef.current = s;
-          setState(s);
-          rememberDeaths(before, s);
-          playResultSfx(before, s);
-          await sleep(Math.max(550, hold - 900));
-        } else {
-          await sleep(Math.floor(hold * 0.35));
-          before = s;
-          s = step.state;
-          stateRef.current = s;
-          setState(s);
-          rememberDeaths(before, s);
-          playResultSfx(before, s);
-          await sleep(Math.floor(hold * 0.55));
-        }
-        setFx(null);
-        await sleep(hitFace || isSpellCard ? 280 : 160);
-        if (s.winner) break;
-      }
-
-      if (!s.winner) {
-        before = s;
-        s = endEnemyTurn(s);
+      try {
+        let before = stateRef.current;
+        let s = endPlayerTurn(stateRef.current);
         stateRef.current = s;
         setState(s);
         playResultSfx(before, s);
-        sfxTurn();
+        await sleep(450);
+
+        // шаги соперника — по одному, чуть бодрее (раньше было очень томно)
+        for (let n = 0; n < 20; n++) {
+          let step: ReturnType<typeof takeAiStep>;
+          try {
+            step = takeAiStep(s);
+          } catch (e) {
+            console.error("[battle] takeAiStep failed:", e);
+            break;
+          }
+          if (!step) break;
+          const stepFx = normalizeBattleFx(step.fx);
+          const isSpellCard = stepFx.kind === "spell" && !!stepFx.cardId;
+          const hitFace =
+            !!stepFx.hitHero &&
+            stepFx.kind !== "heal" &&
+            stepFx.side === "enemy";
+          const flying =
+            (stepFx.kind === "lunge" &&
+              (stepFx.motion === "ranged" || stepFx.motion === "bolt")) ||
+            (stepFx.kind === "spell" &&
+              !!stepFx.vfx &&
+              stepFx.vfx !== "burn" &&
+              (!!stepFx.hitHero ||
+                stepFx.toSlot != null ||
+                (Array.isArray(stepFx.hitSlots) &&
+                  stepFx.hitSlots.length > 0)));
+          // Удар в оракула / спелл чуть дольше — чтобы было ясно, отчего урон.
+          const hold = isSpellCard
+            ? 2200
+            : hitFace
+              ? 1400
+              : flying
+                ? 1100
+                : stepFx.kind === "lunge"
+                  ? 950
+                  : stepFx.kind === "play"
+                    ? 850
+                    : stepFx.kind === "spell"
+                      ? 1100
+                      : 650;
+          setFx(stepFx);
+          try {
+            playActionSfx(stepFx, s);
+          } catch (e) {
+            console.error("[battle] enemy sfx failed:", e);
+          }
+          if (isSpellCard) {
+            // Карта сначала появляется, эффект — после анимации.
+            await sleep(900);
+            before = s;
+            s = step.state;
+            stateRef.current = s;
+            setState(s);
+            rememberDeaths(before, s);
+            playResultSfx(before, s);
+            await sleep(Math.max(550, hold - 900));
+          } else {
+            await sleep(Math.floor(hold * 0.35));
+            before = s;
+            s = step.state;
+            stateRef.current = s;
+            setState(s);
+            rememberDeaths(before, s);
+            playResultSfx(before, s);
+            await sleep(Math.floor(hold * 0.55));
+          }
+          setFx(null);
+          await sleep(hitFace || isSpellCard ? 280 : 160);
+          if (s.winner) break;
+        }
+
+        if (!s.winner) {
+          before = s;
+          s = endEnemyTurn(s);
+          stateRef.current = s;
+          setState(s);
+          playResultSfx(before, s);
+          sfxTurn();
+        }
+      } catch (e) {
+        console.error("[battle] enemy turn failed:", e);
+        try {
+          const cur = stateRef.current;
+          if (!cur.winner && cur.active === "enemy") {
+            const recovered = endEnemyTurn(cur);
+            stateRef.current = recovered;
+            setState(recovered);
+          }
+        } catch (e2) {
+          console.error("[battle] enemy turn recovery failed:", e2);
+        }
+      } finally {
+        setFx(null);
+        if (!stateRef.current.winner) setPhase("you");
+        else setPhase(stateRef.current.active === "you" ? "you" : "enemy");
       }
-      setPhase("you");
       await sleep(250);
     });
   };
@@ -4324,7 +4353,7 @@ export function Battle({
         </div>
       ) : null}
 
-      {fx?.cardId && fx.kind === "spell" && (
+      {fx?.cardId && fx.kind === "spell" && tryGetCard(fx.cardId) && (
         <div
           className={`spell-reveal ${fx.side === "enemy" ? "from-enemy" : "from-you"}`}
         >
@@ -4332,7 +4361,7 @@ export function Battle({
             {fx.side === "enemy" ? "Враг колдует" : "Ты колдуешь"}
           </div>
           <CardView cardId={fx.cardId} compact flippable={false} />
-          <p className="spell-reveal-text">{getCard(fx.cardId).text}</p>
+          <p className="spell-reveal-text">{tryGetCard(fx.cardId)!.text}</p>
         </div>
       )}
 

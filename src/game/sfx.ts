@@ -849,9 +849,13 @@ export function sfxOffensiveSpell(): void {
 }
 
 export function isOffensiveSpellCard(cardId: string | undefined): boolean {
-  if (!cardId) return false;
-  const effects = getCard(cardId).spellEffects ?? [];
-  return effects.some((e) => OFFENSIVE_SPELL_EFFECTS.has(e.type));
+  try {
+    if (!cardId) return false;
+    const effects = getCard(cardId).spellEffects ?? [];
+    return effects.some((e) => OFFENSIVE_SPELL_EFFECTS.has(e.type));
+  } catch {
+    return false;
+  }
 }
 
 /** Положительная магия: public/sfx/spell-positive.mp3 */
@@ -862,9 +866,13 @@ export function sfxPositiveSpell(): void {
 }
 
 export function isPositiveSpellCard(cardId: string | undefined): boolean {
-  if (!cardId) return false;
-  const effects = getCard(cardId).spellEffects ?? [];
-  return effects.some((e) => POSITIVE_SPELL_EFFECTS.has(e.type));
+  try {
+    if (!cardId) return false;
+    const effects = getCard(cardId).spellEffects ?? [];
+    return effects.some((e) => POSITIVE_SPELL_EFFECTS.has(e.type));
+  } catch {
+    return false;
+  }
 }
 
 /** Крик банши: public/sfx/банши.mp3 */
@@ -873,11 +881,12 @@ export function sfxBanshee(): void {
 }
 
 export function isBansheeScreamFx(fx: BattleFx): boolean {
-  return (
-    fx.kind === "spell" &&
-    !!fx.cardId &&
-    getCard(fx.cardId).ability === "banshee_flex"
-  );
+  if (fx.kind !== "spell" || !fx.cardId) return false;
+  try {
+    return getCard(fx.cardId).ability === "banshee_flex";
+  } catch {
+    return false;
+  }
 }
 
 export function sfxMelee(): void {
@@ -1246,8 +1255,17 @@ export function playActionSfx(fx: BattleFx, _before?: BattleState): void {
       sfxPositiveSpell();
       return;
     }
-    if (fx.cardId) spellBySchool(getCard(fx.cardId).school, fx.cardId);
-    else sfxSpellGeneric();
+    if (fx.cardId) {
+      try {
+        spellBySchool(getCard(fx.cardId).school, fx.cardId);
+      } catch {
+        sfxSpellGeneric();
+      }
+    } else if (fx.school) {
+      spellBySchool(fx.school);
+    } else {
+      sfxSpellGeneric();
+    }
     return;
   }
   if (fx.kind === "lunge") {

@@ -6356,9 +6356,51 @@ export function takeAiStep(
       } else if (suffix === "line_burn") {
         const n = foe.slots.filter(Boolean).length;
         sc = n <= 0 ? -30 : 10 + n * 6;
+      } else if (suffix === "heal_all") {
+        const hurt = me.slots.filter(
+          (u) => u && u.health < effectiveBase(u).hp,
+        ).length;
+        sc = hurt <= 0 ? -20 : 10 + hurt * 4;
+      } else if (suffix === "mana_heal_unit" || suffix === "shield") {
+        const cands = me.slots
+          .map((u, i) => (u ? { u, i } : null))
+          .filter((x): x is { u: CreatureInstance; i: number } => !!x)
+          .sort((a, b) => b.u.attack - a.u.attack);
+        if (!cands.length) sc = -30;
+        else {
+          target = cands[0]!.i;
+          sc = suffix === "shield" ? 12 + cands[0]!.u.attack : 14;
+        }
+      } else if (suffix === "sacrifice") {
+        const cands = me.slots
+          .map((u, i) => (u ? { u, i } : null))
+          .filter((x): x is { u: CreatureInstance; i: number } => !!x)
+          .sort((a, b) => a.u.attack - b.u.attack || b.u.health - a.u.health);
+        if (!cands.length || me.hp >= me.maxHp - 1) sc = -40;
+        else {
+          target = cands[0]!.i;
+          sc =
+            Math.min(18, cands[0]!.u.health) +
+            (mission.mustDefend ? 10 : 0) -
+            cands[0]!.u.attack * 2;
+        }
+      } else if (suffix === "corpse_drain") {
+        sc = me.graveyard.length
+          ? 14 + (mission.mustDefend ? 8 : 0)
+          : -40;
+      } else if (suffix === "sprout") {
+        const empty = me.slots.findIndex((u) => !u);
+        if (empty < 0) sc = -40;
+        else {
+          target = empty;
+          sc = boardCount < skill.developUntil ? 16 : 8;
+        }
+      } else if (suffix === "shift") {
+        // Нужны две клетки — без toSlot ИИ пока не кастует
+        sc = -50;
       } else {
-        // Незнакомое умение — редко, без тупого спама
-        sc = 2;
+        // Не подключённое / неизвестное — не трогаем (иначе cast кидает)
+        sc = -50;
       }
       if (sc <= 0) continue;
       choices.push({
@@ -6691,12 +6733,16 @@ export function takeAiStep(
       const back = flipBattle(after);
       const def = getSkill(best.skillId);
       back.log = back.log.slice(0, 10);
+      // Не ставим skillId в cardId: getCard/SFX/UI ждут карту и падают →
+      // ход врага зависает (busy сброшен, phase остаётся enemy).
       return {
         state: back,
         fx: normalizeBattleFx({
           side: "enemy",
           kind: "spell",
-          cardId: def?.id,
+          school: def?.faction,
+          hitHero: best.target == null,
+          toSlot: best.target ?? undefined,
         }),
       };
     } catch {
