@@ -1511,7 +1511,13 @@ export default function App() {
           : level;
     const yourHero = activeHeroId(owned);
     // Генератор: другой герой / персона / колода на каждый nonce
-    const bot = rollBotOpponent(yourHero, foeLv, botSeed);
+    // Тропа 1–3: без случайного «агро» — разминка, не лотерея на локаут дня
+    const bot = rollBotOpponent(
+      yourHero,
+      foeLv,
+      botSeed,
+      vsCamp && campaignNode <= 3 ? { persona: "midrange" } : undefined,
+    );
     const foeHero = bot.heroId;
     // Раунд из прогресса хаба (не из стейта кнопки — иначе гонка setState).
     const fightRound = vsArena ? arena.cleared + 1 : arenaRound;

@@ -152,19 +152,21 @@ export function canFightNode(state: CampaignState, node: number): boolean {
 }
 
 /**
- * Уровень бота на узле: учимся → ровный бой → чуть выше к финалу.
- * Раньше к середине тропы бот улетал на +10…20 — непроходимо.
+ * Уровень бота на узле: разминка → ровный бой → чуть выше к финалу.
+ * Узлы 1–3 жёстко на тире I (ур.≤5): иначе при игроке 8+ бот уже на II
+ * и «агро»-колода рвёт первую клетку дня (поражение = локаут на сутки).
  */
 export function campaignFoeLevel(playerLevel: number, node: number): number {
   const lv = Math.max(1, Math.min(MAX_PLAYER_LEVEL, playerLevel));
   const n = Math.max(1, Math.min(CAMPAIGN_NODES, node));
-  /** Смещение к уровню игрока (без «стены» на 6–10 узле) */
   const offset = [
-    -2, -1, -1, 0, 0, 1, 1, 2, 2, 3, 3, 4, 5, 6, 7,
+    -5, -4, -3, -2, -1, 0, 1, 1, 2, 2, 3, 4, 5, 6, 7,
   ][n - 1]!;
-  /** Лёгкий шип только на вехах */
   const spike = n === 5 ? 0 : n === 10 ? 1 : n === 15 ? 2 : 0;
-  return Math.max(1, Math.min(MAX_PLAYER_LEVEL, lv + offset + spike));
+  let foe = Math.max(1, Math.min(MAX_PLAYER_LEVEL, lv + offset + spike));
+  if (n <= 3) foe = Math.min(foe, 5);
+  else if (n <= 5) foe = Math.min(foe, Math.max(1, lv - 1), 8);
+  return Math.max(1, foe);
 }
 
 /** Имена стражей тропы. */

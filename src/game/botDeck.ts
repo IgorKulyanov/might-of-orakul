@@ -668,9 +668,10 @@ export function rollBotOpponent(
   playerHeroId: string,
   botLevel: number,
   seed = freshBotSeed(),
+  opts?: { persona?: BotPersona },
 ): BotMatch {
   const rng = makeBotRng(seed);
-  const persona = pickBotPersona(rng);
+  const persona = opts?.persona ?? pickBotPersona(rng);
   const heroId = botHeroIdFor(playerHeroId, botLevel, seed);
   const school = getHero(heroId).faction;
   const deck = botDeckForLevel(botLevel, school, { seed, persona });

@@ -190,8 +190,8 @@ export function CampaignMap({
             <p className="hint">
               Уровень врага ≈{" "}
               <strong>{campaignFoeLevel(level, previewNode)}</strong> (ты ур.{" "}
-              {level}). Первые бои — разминка на картах твоего тира; дальше
-              колода и оракул становятся жёстче.
+              {level}). Узлы 1–3 — разминка (тир I); дальше кривая растёт к
+              финалу.
             </p>
             <p className="hint">
               За бой — только опыт. Золото и алмазы на квадратах{" "}
