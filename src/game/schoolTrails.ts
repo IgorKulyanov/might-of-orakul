@@ -250,8 +250,9 @@ export const SCHOOL_TRAIL_SCRIPTS: Record<Faction, SchoolTrailStep[]> = {
     },
     {
       slots: ["skeleton", "skeleton", null, null, null],
+      hand: ["skeleton", "skeleton"],
       foeName: "Костяной дозор",
-      lesson: "Двое кусают лицо. Игнор доски = смерть, не только «стреляй оракула».",
+      lesson: "Двое на столе и ещё скелеты в руке. Снял — снова кости.",
     },
     {
       slots: [null, "necro_mage", null, null, null],
@@ -269,11 +270,10 @@ export const SCHOOL_TRAIL_SCRIPTS: Record<Faction, SchoolTrailStep[]> = {
       upgradeLevel: U,
     },
     {
-      slots: ["zombie", "necro_mage", "skeleton", null, null],
+      slots: ["zombie", "skeleton", "vampire", null, null],
       foeName: "Страж могил",
-      lesson: "Пик: якорь + клепальщик. Реши, кого гасить первым.",
+      lesson: "Пик: зомби, скелет, вампир. Все ур.1 — приоритет, кого гасить первым.",
       wowHint: "Смерть кормится могилой. Школа трупов ждёт тебя.",
-      upgradeLevel: U,
     },
   ],
   nature: [
@@ -290,26 +290,26 @@ export const SCHOOL_TRAIL_SCRIPTS: Record<Faction, SchoolTrailStep[]> = {
       lesson: "Два на столе и ещё два в руке. Снял — снова яд. Не гони только лицо.",
     },
     {
-      // Витрина без матки-снежного кома: лучник природы.
       slots: [null, "elf", null, null, null],
+      hand: ["spider", "spider", "spider"],
       foeName: "Стрелок рощи",
-      lesson: "Витрина: эльф бьёт через линию. Стена не закрывает лицо.",
+      lesson: "Эльф бьёт через линию; пауки из руки заполняют стол.",
       wowHint: "Эльф — лучник Природы. Такие карты в лавке рощи.",
     },
     {
-      // Лучник на столе + запас на выкладку (без матки и рой-бафа).
-      slots: [null, "elf", null, null, null],
-      hand: ["hornet_warrior", "spider", "hornet_warrior"],
-      foeName: "Дозор опушки",
-      lesson: "Лучник держит лицо; убил воина/паука — враг ставит снова.",
+      // Ур.1: без flex — воины из руки (клеп выкладкой).
+      slots: [null, "hornet_queen", null, null, null],
+      hand: ["hornet_warrior", "hornet_warrior", "hornet_warrior"],
+      foeName: "Матка шершней",
+      lesson: "Матка ур.1: воины из руки. Убей её, пока рой не забил стол.",
+      wowHint: "Матка собирает рой. Такие карты — в лавке Природы.",
     },
     {
-      // Пик без матки: лучник + давление + запас в руке.
-      slots: ["hornet_warrior", "elf", "spider", null, null],
-      hand: ["spider", "hornet_warrior"],
+      slots: [null, "ent", null, null, null],
+      hand: ["spider", "spider", "spider"],
       foeName: "Страж рощи",
-      lesson: "Пик: стрелок + жало + яд. Приоритет — кого гасить первым.",
-      wowHint: "Природа давит числом и стрелой. Выбери её — копи на рощу.",
+      lesson: "Энт держит линию; пауки из руки — яд и давление.",
+      wowHint: "Природа давит числом. Выбери её — копи на рощу.",
     },
   ],
   water: [
@@ -320,8 +320,9 @@ export const SCHOOL_TRAIL_SCRIPTS: Record<Faction, SchoolTrailStep[]> = {
     },
     {
       slots: ["aquilite", "aquilite", null, null, null],
+      hand: ["aquilite", "aquilite"],
       foeName: "Пара прибоя",
-      lesson: "Двое в лицо. Держи линию, не отдавай оракула даром.",
+      lesson: "Двое на столе и ещё двое в руке. Снял — снова кусают.",
     },
     {
       slots: [null, "triton", null, null, null],
@@ -331,17 +332,17 @@ export const SCHOOL_TRAIL_SCRIPTS: Record<Faction, SchoolTrailStep[]> = {
       upgradeLevel: U,
     },
     {
-      slots: ["triton", "mermaid", null, null, null],
+      slots: [null, "mermaid", null, null, null],
+      hand: ["aquilite", "aquilite", "aquilite"],
       foeName: "Сон волны",
-      lesson: "Другой трюк: русалка усыпляет. Стена может просто заснуть.",
+      lesson: "Русалка усыпляет; акулиты из руки заполняют стол.",
       upgradeLevel: U,
     },
     {
-      slots: ["aquilite", "triton", "mermaid", null, null],
+      slots: ["water_golem", "water_golem", "water_golem", null, null],
       foeName: "Страж волн",
-      lesson: "Пик: призыв + сон. Контроль, не гонка в лицо.",
-      wowHint: "Вода клепает и выключает. Школа пучины зовёт.",
-      upgradeLevel: U,
+      lesson: "Пик: три водяных голема. Толстая линия — ломай по одному.",
+      wowHint: "Вода давит массой. Школа пучины зовёт.",
     },
   ],
   life: [
@@ -352,8 +353,9 @@ export const SCHOOL_TRAIL_SCRIPTS: Record<Faction, SchoolTrailStep[]> = {
     },
     {
       slots: ["tank", null, null, null, null],
+      hand: ["tank", "tank"],
       foeName: "Щит ордена",
-      lesson: "Толстая стена. В неё впустую не бей — копи ману и обходи.",
+      lesson: "Один танк на столе и ещё два в руке. Снял стену — встаёт новая.",
     },
     {
       slots: ["tank", "mage", null, null, null],
@@ -383,14 +385,16 @@ export const SCHOOL_TRAIL_SCRIPTS: Record<Faction, SchoolTrailStep[]> = {
       lesson: "Один ящер. Быстрый трейд — разминка ада.",
     },
     {
-      slots: ["fire_gopnik", null, null, null, null],
-      foeName: "Гопник огня",
-      lesson: "Стрелок: твоя стена не закрывает лицо. Ответ — давление или снайп.",
+      slots: ["fire_lizard", "fire_lizard", null, null, null],
+      hand: ["fire_lizard", "fire_lizard"],
+      foeName: "Пара пепла",
+      lesson: "Два ящера на столе и ещё два в руке. Снял — снова жгут.",
     },
     {
       slots: [null, "succubus", null, null, null],
+      hand: ["cerberus", "cerberus"],
       foeName: "Суккуб",
-      lesson: "Витрина: мужчины не бьют её. Смени ответ — не «забияка в оракула».",
+      lesson: "Суккуб ур.2; церберы из руки. Мужчины её не бьют.",
       wowHint: "Суккуб ломает правила боя. Цель лавки Ада.",
       upgradeLevel: U,
     },
@@ -401,10 +405,11 @@ export const SCHOOL_TRAIL_SCRIPTS: Record<Faction, SchoolTrailStep[]> = {
       upgradeLevel: U,
     },
     {
-      slots: ["fire_gopnik", "succubus", "imp", null, null],
+      slots: [null, "balthazar", null, null, null],
+      hand: ["imp", "imp", "imp"],
       foeName: "Страж жара",
-      lesson: "Пик: запрет + огонь + имп. Пламя не прощает зевок.",
-      wowHint: "Ад жжёт и запрещает. Пламя зовёт.",
+      lesson: "Бальтазар ур.2; импы из руки жрут лицо. Меняй приоритет.",
+      wowHint: "Ад жжёт и меняет доску. Пламя зовёт.",
       upgradeLevel: U,
     },
   ],
