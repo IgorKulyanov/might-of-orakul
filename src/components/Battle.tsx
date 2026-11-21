@@ -605,36 +605,45 @@ function BattleMissile({
         return;
       }
 
-      // Рогатка: камушек прямо в цель (без дуги — иначе улетал мимо).
+      // Рогатка: только translate по прямой (rotate в том же transform
+      // ломает траекторию в WAAPI — камень улетал мимо). Кручение — на .missile-sling-core.
       if (kind === "sling") {
-        const duration = reduce ? 160 : 400;
+        const duration = reduce ? 160 : 380;
+        el.classList.add("is-sling-spinning");
         other = el.animate(
           [
             {
-              transform: `translate(${from.x}px, ${from.y}px) scale(0.6) rotate(0deg)`,
-              opacity: 0.45,
+              transform: `translate(${from.x}px, ${from.y}px) scale(0.65)`,
+              opacity: 0.5,
             },
             {
-              transform: `translate(${from.x}px, ${from.y}px) scale(1) rotate(30deg)`,
+              transform: `translate(${from.x}px, ${from.y}px) scale(1)`,
               opacity: 1,
-              offset: 0.1,
+              offset: 0.08,
             },
             {
-              transform: `translate(${to.x}px, ${to.y}px) scale(1.05) rotate(300deg)`,
+              transform: `translate(${to.x}px, ${to.y}px) scale(1.05)`,
               opacity: 1,
-              offset: 0.88,
+              offset: 0.9,
             },
             {
-              transform: `translate(${to.x}px, ${to.y}px) scale(0.4) rotate(360deg)`,
+              transform: `translate(${to.x}px, ${to.y}px) scale(0.45)`,
               opacity: 0,
             },
           ],
           {
             duration,
-            easing: "cubic-bezier(0.2, 0.75, 0.25, 1)",
+            easing: "linear",
             fill: "forwards",
           },
         );
+        other.finished
+          .then(() => {
+            el.classList.remove("is-sling-spinning");
+          })
+          .catch(() => {
+            el.classList.remove("is-sling-spinning");
+          });
         return;
       }
 
