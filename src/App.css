@@ -6324,6 +6324,7 @@ html.is-hand-dragging .oracle-folio {
 .multi-screen,
 .arena-screen,
 .campaign-screen,
+.school-trails-screen,
 .dev-sandbox {
   --desk-img: url("/ui/oracle-desk-bg.jpg");
   --desk-pos: center 30%;
@@ -6345,6 +6346,11 @@ html.is-hand-dragging .oracle-folio {
   background-size: auto, auto, cover;
   background-position: center, center, var(--desk-pos);
   background-repeat: no-repeat;
+}
+
+.school-trails-screen {
+  --desk-img: url("/ui/oracle-desk-bg-b.jpg");
+  --desk-pos: 58% 42%;
 }
 
 .collection {
@@ -7712,11 +7718,11 @@ html.is-hand-dragging .oracle-folio {
   min-height: 0;
   width: 100%;
   margin: 0.15rem 0;
-  border-radius: 10px;
+  border-radius: 0;
   overflow: hidden;
-  border: 2px solid color-mix(in srgb, var(--gold, #e8c547) 45%, transparent);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
-  background: #2a2118;
+  border: none;
+  box-shadow: none;
+  background: transparent;
   touch-action: none;
   cursor: grab;
   overscroll-behavior: none;
