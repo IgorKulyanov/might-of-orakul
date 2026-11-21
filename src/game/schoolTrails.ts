@@ -7,13 +7,18 @@ import type { BattleState, Faction, OwnedState } from "./types";
 import type { CardUpgradeLevel } from "./cardUpgrades";
 import { getCard } from "./cards";
 import { getHero } from "./heroes";
-import { seedBoardCreature } from "./engine";
+import { MAX_HAND_SIZE, seedBoardCreature } from "./engine";
+import { NEUTRAL_STARTER_IDS } from "./starterDecks";
 
 /** Выбор школы — после полной тропы (5 побед на одной школе). */
 export const SCHOOL_TRAIL_WINS_TO_PICK = 5;
 export const SCHOOL_TRAIL_STEPS = 5;
 
-/** Награды тропы: бой 1 — карта, бой 3 — магия, бой 5 — юнит школы. */
+/**
+ * Награды тропы (в мини-колоду школы, играют в следующих боях этой тропы):
+ * 1 — доп. мана · 2 — первый юнит · 3 — магия · 5 — второй юнит.
+ * Флаг 3 без маны+юнита тяжело пройти — так и задумано.
+ */
 export type SchoolTrailReward = {
   afterCleared: number;
   cardId: string;
@@ -21,27 +26,32 @@ export type SchoolTrailReward = {
 
 export const SCHOOL_TRAIL_REWARDS: Record<Faction, SchoolTrailReward[]> = {
   death: [
-    { afterCleared: 1, cardId: "skeleton" },
+    { afterCleared: 1, cardId: "hero_mana" },
+    { afterCleared: 2, cardId: "skeleton" },
     { afterCleared: 3, cardId: "poison" },
     { afterCleared: 5, cardId: "zombie" },
   ],
   nature: [
-    { afterCleared: 1, cardId: "spider" },
+    { afterCleared: 1, cardId: "hero_mana" },
+    { afterCleared: 2, cardId: "spider" },
     { afterCleared: 3, cardId: "slow_foe" },
     { afterCleared: 5, cardId: "elf" },
   ],
   water: [
-    { afterCleared: 1, cardId: "aquilite" },
+    { afterCleared: 1, cardId: "hero_mana" },
+    { afterCleared: 2, cardId: "aquilite" },
     { afterCleared: 3, cardId: "ice_trap" },
     { afterCleared: 5, cardId: "water_spirit" },
   ],
   life: [
-    { afterCleared: 1, cardId: "crossbowman" },
+    { afterCleared: 1, cardId: "hero_mana" },
+    { afterCleared: 2, cardId: "crossbowman" },
     { afterCleared: 3, cardId: "life_root" },
     { afterCleared: 5, cardId: "tank" },
   ],
   hell: [
-    { afterCleared: 1, cardId: "fire_lizard" },
+    { afterCleared: 1, cardId: "hero_mana" },
+    { afterCleared: 2, cardId: "fire_lizard" },
     { afterCleared: 3, cardId: "strike" },
     { afterCleared: 5, cardId: "fire_gopnik" },
   ],
@@ -511,7 +521,15 @@ export function rewardGiftLine(
   if (rewardCardId) {
     try {
       const name = getCard(rewardCardId).name;
-      return `Награда тропы: «${name}» (только для этой школы, пока не выберешь оракула)`;
+      const role =
+        newlyCleared === 1
+          ? "доп. мана школы — будет в руке в следующих боях тропы"
+          : newlyCleared === 2
+            ? "юнит школы — бери в бой уже на следующем флаге"
+            : newlyCleared === 3
+              ? "магия школы — без неё третий рубеж был бы жёстче"
+              : "в мини-колоду этой школы";
+      return `Награда: «${name}» (${role})`;
     } catch {
       return `Награда тропы получена (${newlyCleared}/5)`;
     }
@@ -522,6 +540,20 @@ export function rewardGiftLine(
   );
 }
 
+/** Колода боя тропы: 3 нейтрала + уже добытый черновик этой школы. */
+export function schoolTrailBattleDeck(
+  owned: OwnedState,
+  faction: Faction,
+): string[] {
+  const base: string[] = [...NEUTRAL_STARTER_IDS];
+  const draft = schoolTrailDraft(owned, faction);
+  const out = [...base];
+  for (const id of draft) {
+    if (!out.includes(id)) out.push(id);
+  }
+  return out;
+}
+
 /** Герой-оболочка врага той же школы (арт/мана), без скиллов. */
 export function schoolTrailEnemyHeroId(faction: Faction): string {
   return `hero_${faction}`;
@@ -529,13 +561,14 @@ export function schoolTrailEnemyHeroId(faction: Faction): string {
 
 /**
  * Подготовка боя тропы: стол, могила, пустая рука/колода врага.
- * Без «жирной» стартовой маны и без скилла маны — только по 1 life/death/nature
- * (стоимость трёх нейтралов), без карты «доп. мана» в колоде.
+ * Фракция игрока = школа тропы (чтобы «Доп. мана» качала именно её).
+ * Карты черновика этой школы — сразу в руку (играть здесь, не «потом»).
  */
 export function prepareSchoolTrailBattle(
   state: BattleState,
   faction: Faction,
   stepIndex: number,
+  draftCards: string[] = [],
 ): BattleState {
   const step = schoolTrailStep(faction, stepIndex);
   if (!step) return state;
@@ -563,7 +596,10 @@ export function prepareSchoolTrailBattle(
     next.enemy.slots[i] = seedBoardCreature(cardId, up, next.rules);
   });
 
-  // Мана под трёх нейтралов (life/death/nature), без плюсов «на всё».
+  // Искатель «надевает» школу тропы на этот бой — мана и hero_mana идут сюда.
+  next.you.faction = faction;
+  next.you.mana[faction] = Math.max(next.you.mana[faction] ?? 0, 1);
+  // Мана под трёх нейтралов (life/death/nature).
   for (const f of ["life", "death", "nature"] as Faction[]) {
     next.you.mana[f] = Math.max(next.you.mana[f] ?? 0, 1);
   }
@@ -571,10 +607,37 @@ export function prepareSchoolTrailBattle(
   next.you.oracleSkillUsed = {};
   next.you.oracleActiveUsedThisTurn = false;
 
+  // Черновик тропы — в руку (остальное в колоде).
+  const extras = draftCards.map(String).filter(Boolean);
+  if (extras.length) {
+    const pool = [...next.you.hand, ...next.you.deck];
+    const kept: string[] = [];
+    const pulled: string[] = [];
+    for (const id of pool) {
+      if (extras.includes(id) && !pulled.includes(id)) pulled.push(id);
+      else kept.push(id);
+    }
+    for (const id of extras) {
+      if (!pulled.includes(id)) pulled.push(id);
+    }
+    next.you.hand = [];
+    next.you.deck = kept;
+    for (const id of pulled) {
+      if (next.you.hand.length < MAX_HAND_SIZE) next.you.hand.push(id);
+      else next.you.deck.unshift(id);
+    }
+    // Добить руку с колоды, если вытащили мало
+    while (next.you.hand.length < Math.min(MAX_HAND_SIZE, 3) && next.you.deck.length) {
+      next.you.hand.push(next.you.deck.shift()!);
+    }
+  }
+
   next.aiLevel = Math.max(next.aiLevel ?? 1, 8);
   next.log = [
     step.lesson,
-    `${step.foeName} выходит на тропу…`,
+    extras.length
+      ? `В руке карты тропы «${schoolTrailTitle(faction)}» — пользуйся ими в этом бою.`
+      : `${step.foeName} выходит на тропу…`,
     ...next.log,
   ].slice(0, 10);
 

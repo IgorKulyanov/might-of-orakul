@@ -68,6 +68,8 @@ import {
   applySchoolTrailWin,
   prepareSchoolTrailBattle,
   rewardGiftLine,
+  schoolTrailBattleDeck,
+  schoolTrailDraft,
   schoolTrailEnemyHeroId,
   schoolTrailEnemyUpgrades,
   schoolTrailStep,
@@ -1600,10 +1602,11 @@ export default function App() {
   if (seeker) {
     if (screen === "battle_school_trail" && trailFight) {
       const foeHero = schoolTrailEnemyHeroId(trailFight.faction);
+      const trailDraft = schoolTrailDraft(owned, trailFight.faction);
       return (
         <Battle
-          key={`trail-${trailFight.faction}-${trailFight.step}`}
-          yourDeck={battleDeck(owned)}
+          key={`trail-${trailFight.faction}-${trailFight.step}-${trailDraft.join(".")}`}
+          yourDeck={schoolTrailBattleDeck(owned, trailFight.faction)}
           enemyDeck={[]}
           yourHeroId={activeHeroId(owned)}
           enemyHeroId={foeHero}
@@ -1617,7 +1620,12 @@ export default function App() {
           oracleSkills={[]}
           enemyOracleSkills={[]}
           prepareBattle={(s) =>
-            prepareSchoolTrailBattle(s, trailFight.faction, trailFight.step)
+            prepareSchoolTrailBattle(
+              s,
+              trailFight.faction,
+              trailFight.step,
+              trailDraft,
+            )
           }
           allowRematch
           rematchLabel="Ещё раз"
@@ -1661,10 +1669,11 @@ export default function App() {
 
   if (screen === "battle_school_trail" && trailFight) {
     const foeHero = schoolTrailEnemyHeroId(trailFight.faction);
+    const trailDraft = schoolTrailDraft(owned, trailFight.faction);
     return (
       <Battle
-        key={`trail-${trailFight.faction}-${trailFight.step}`}
-        yourDeck={battleDeck(owned)}
+        key={`trail-${trailFight.faction}-${trailFight.step}-${trailDraft.join(".")}`}
+        yourDeck={schoolTrailBattleDeck(owned, trailFight.faction)}
         enemyDeck={[]}
         yourHeroId={activeHeroId(owned)}
         enemyHeroId={foeHero}
@@ -1678,7 +1687,12 @@ export default function App() {
         oracleSkills={owned.oracleSkillLoadout}
         enemyOracleSkills={[]}
         prepareBattle={(s) =>
-          prepareSchoolTrailBattle(s, trailFight.faction, trailFight.step)
+          prepareSchoolTrailBattle(
+            s,
+            trailFight.faction,
+            trailFight.step,
+            trailDraft,
+          )
         }
         allowRematch
         rematchLabel="Ещё раз"

@@ -6475,7 +6475,7 @@ export function takeAiStep(
           choices.push({
             kind: "flex",
             slot: i,
-            score: (12 + bestSc) * fm,
+            score: (28 + bestSc) * fm,
             flex: { type: "mage_buff", toSlot: best },
           });
         }
@@ -6483,7 +6483,7 @@ export function takeAiStep(
           choices.push({
             kind: "flex",
             slot: i,
-            score: (16 + (14 - Math.min(14, me.hp))) * fm,
+            score: (30 + (14 - Math.min(14, me.hp))) * fm,
             flex: { type: "mage_oracle" },
           });
         }
@@ -6529,10 +6529,12 @@ export function takeAiStep(
           mission.openLanes.find((s) => !me.slots[s]) ??
           me.slots.findIndex((s) => !s);
         if (empty >= 0 && !me.slots[empty]) {
+          // Призыв важнее «просто ударить»: иначе клепальщики только лупят юнитов.
           const sc =
-            (22 +
-              (mission.openLanes.includes(empty) ? 28 : 0) +
-              (boardCount < skill.developUntil ? 14 : 0)) *
+            (36 +
+              (mission.openLanes.includes(empty) ? 30 : 8) +
+              (boardCount < skill.developUntil ? 18 : 0) +
+              (boardCount <= 1 ? 45 : boardCount <= 2 ? 22 : 0)) *
             fm;
           choices.push({
             kind: "flex",
