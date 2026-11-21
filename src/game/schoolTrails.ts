@@ -652,6 +652,9 @@ export function prepareSchoolTrailBattle(
   const next = structuredClone(state) as BattleState;
   const up: CardUpgradeLevel = step.upgradeLevel ?? 1;
 
+  // Убитые витринные маги не возвращаются из грейва в руку врага.
+  next.rules = { ...(next.rules ?? {}), enemyNoGraveRecycle: true };
+
   next.enemy.name = step.foeName;
   next.enemy.deck = [];
   next.enemy.hand = [];

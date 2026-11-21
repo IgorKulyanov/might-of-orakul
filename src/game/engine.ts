@@ -1065,6 +1065,14 @@ function draw(p: PlayerState, n = 1, state?: BattleState): void {
       // Грейв → колода. Если пусто — просто нет добора.
       // Буйство крови стартует в end*Turn через shouldStartBloodFrenzy
       // (с учётом руки — короткая стартовая колода не считается «иссякшей»).
+      // Тропы оракула: враг не ресайклит грейв — убитый маг не возвращается.
+      if (
+        state?.rules?.enemyNoGraveRecycle &&
+        p.id === "enemy" &&
+        p.graveyard.length > 0
+      ) {
+        continue;
+      }
       if (p.graveyard.length > 0) {
         const recycled = state
           ? p.graveyard.filter((id) => !resourceSpellExhausted(state, p, id))
