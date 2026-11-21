@@ -660,13 +660,16 @@ export default function App() {
   const [devSetup, setDevSetup] = useState<DevBattleSetup | null>(null);
   /** Seed соперника: новый на вход в бой и на «Новая битва». */
   const [botSeed, setBotSeed] = useState(() => freshBotSeed());
-  /** Текущий бой тропы вкуса (онбординг). */
+  /** Текущий бой тропы вкуса (онбординг). id стабилен — иначе смена draft на победе ремаунтит Battle. */
   const [trailFight, setTrailFight] = useState<{
     faction: Faction;
     step: number;
+    id: string;
   } | null>(null);
   /** Пауза после победы на тропе — пока открыта, следующий бой нельзя. */
   const [trailBeat, setTrailBeat] = useState<SchoolTrailBeat | null>(null);
+  const trailBeatRef = useRef<SchoolTrailBeat | null>(null);
+  trailBeatRef.current = trailBeat;
   const [devToolsOn, setDevToolsOn] = useState(() => isDevToolsEnabled());
   const [hubTutStep, setHubTutStep] = useState<number | null>(() =>
     hasSeenHubTutorial() ? null : 0,
@@ -1317,13 +1320,15 @@ export default function App() {
       saveOwned(applied.owned);
       setOwned(applied.owned);
       ownedRef.current = applied.owned;
-      setTrailBeat({
+      const beat: SchoolTrailBeat = {
         faction: fight.faction,
         newlyCleared: applied.newlyCleared,
         rewardCardId: applied.rewardCardId,
         foeName: step?.foeName ?? applied.step.foeName,
         wowHint: step?.wowHint ?? applied.step.wowHint,
-      });
+      };
+      trailBeatRef.current = beat;
+      setTrailBeat(beat);
       const t = token ?? getToken();
       if (t) {
         void apiUpdateMe(t, { owned: applied.owned }).then(({ user: me }) => {
@@ -1629,7 +1634,7 @@ export default function App() {
       const trailDraft = schoolTrailDraft(owned, trailFight.faction);
       return (
         <Battle
-          key={`trail-${trailFight.faction}-${trailFight.step}-${trailDraft.join(".")}`}
+          key={trailFight.id}
           yourDeck={schoolTrailBattleDeck(owned, trailFight.faction)}
           enemyDeck={[]}
           yourHeroId={activeHeroId(owned)}
@@ -1653,7 +1658,9 @@ export default function App() {
           }
           allowRematch={false}
           exitPolicy="free"
-          resultExitLabel={() => "На карту — следующий флаг"}
+          resultExitLabel={(won) =>
+            won ? "Забрать награду" : "На карту"
+          }
           onExit={() => {
             setTrailFight(null);
             setScreen("school_trails");
@@ -1680,12 +1687,19 @@ export default function App() {
         displayName={displayName}
         asTutorial
         trailBeat={trailBeat}
-        onDismissTrailBeat={() => setTrailBeat(null)}
+        onDismissTrailBeat={() => {
+          trailBeatRef.current = null;
+          setTrailBeat(null);
+        }}
         onPlayTrail={(faction, stepIndex) => {
-          if (trailBeat) return;
+          if (trailBeatRef.current) return;
           unlockSfx();
           void startBattleMusic();
-          setTrailFight({ faction, step: stepIndex });
+          setTrailFight({
+            faction,
+            step: stepIndex,
+            id: `trail-${faction}-${stepIndex}-${Date.now()}`,
+          });
           setScreen("battle_school_trail");
         }}
         onPickSchool={() => setScreen("school_pick")}
@@ -1698,7 +1712,7 @@ export default function App() {
     const trailDraft = schoolTrailDraft(owned, trailFight.faction);
     return (
       <Battle
-        key={`trail-${trailFight.faction}-${trailFight.step}-${trailDraft.join(".")}`}
+        key={trailFight.id}
         yourDeck={schoolTrailBattleDeck(owned, trailFight.faction)}
         enemyDeck={[]}
         yourHeroId={activeHeroId(owned)}
@@ -1722,7 +1736,9 @@ export default function App() {
         }
         allowRematch={false}
         exitPolicy="free"
-        resultExitLabel={() => "На карту — следующий флаг"}
+        resultExitLabel={(won) =>
+          won ? "Забрать награду" : "На карту"
+        }
         onExit={() => {
           setTrailFight(null);
           setScreen("school_trails");
@@ -1750,12 +1766,19 @@ export default function App() {
         displayName={displayName}
         onBack={() => setScreen("menu")}
         trailBeat={trailBeat}
-        onDismissTrailBeat={() => setTrailBeat(null)}
+        onDismissTrailBeat={() => {
+          trailBeatRef.current = null;
+          setTrailBeat(null);
+        }}
         onPlayTrail={(faction, stepIndex) => {
-          if (trailBeat) return;
+          if (trailBeatRef.current) return;
           unlockSfx();
           void startBattleMusic();
-          setTrailFight({ faction, step: stepIndex });
+          setTrailFight({
+            faction,
+            step: stepIndex,
+            id: `trail-${faction}-${stepIndex}-${Date.now()}`,
+          });
           setScreen("battle_school_trail");
         }}
         onPickSchool={() => setScreen("school_pick")}
