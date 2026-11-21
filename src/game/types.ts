@@ -388,6 +388,11 @@ export interface PlayerState {
   oracleSkillsMutedTurns?: number;
   /** Затишье ур.2+: этот игрок не получает прирост маны на следующий beginTurn. */
   skipManaGrowth?: boolean;
+  /**
+   * Искатель до выбора оракула (тропы): нет «своей» школы —
+   * все школы растут одинаково, через ход.
+   */
+  equalManaGrowth?: boolean;
   /** Ураган ур.3: в начале своего следующего хода усыпить всех врагов. */
   pendingEnemySleep?: boolean;
   /** Бан карт (id) из руки на весь бой (убрать с поля ур.3). */

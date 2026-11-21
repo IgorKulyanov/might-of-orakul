@@ -53,10 +53,19 @@ export function startingManaPool(
 /**
  * Рост маны в начале своего хода:
  * — своя школа +1 только если экипировано умение «Мана школы каждый ход»;
- * — чужие школы +1 через ход (чётные циклы).
+ * — чужие школы +1 через ход (чётные циклы);
+ * — equalManaGrowth (искатель на тропах): все школы только через ход, без «своей».
  */
 export function growMana(p: PlayerState, turn: number, cap = 10): void {
   const foreignTick = turn > 0 && turn % 2 === 0;
+  if (p.equalManaGrowth) {
+    if (!foreignTick) return;
+    for (const f of FACTIONS) {
+      const cur = Number(p.mana[f]) || 0;
+      p.mana[f] = Math.min(cap, cur + 1);
+    }
+    return;
+  }
   const load = p.oracleSkillLoadout ?? [];
   const hasSchoolMana =
     load.length === 0 ||

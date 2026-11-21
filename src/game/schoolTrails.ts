@@ -689,14 +689,19 @@ export function prepareSchoolTrailBattle(
     next.enemy.slots[i] = seedBoardCreature(cardId, up, next.rules);
   });
 
-  // Искатель «надевает» школу тропы на этот бой — мана и hero_mana идут сюда.
+  // До выбора оракула своей школы нет: старт 1 во всех пяти, рост через ход.
+  // faction тропы оставляем только чтобы «Доп. мана» / черновик школы качали её.
   next.you.faction = faction;
-  next.you.mana[faction] = Math.max(next.you.mana[faction] ?? 0, 1);
-  // Мана под трёх нейтралов (life/death/nature).
-  for (const f of ["life", "death", "nature"] as Faction[]) {
-    next.you.mana[f] = Math.max(next.you.mana[f] ?? 0, 1);
-  }
-  next.you.oracleSkillLoadout = [];
+  next.you.mana = {
+    water: 1,
+    hell: 1,
+    death: 1,
+    life: 1,
+    nature: 1,
+  };
+  next.you.equalManaGrowth = true;
+  // Без school_mana — иначе «своя» тропа качала бы ману каждый ход.
+  next.you.oracleSkillLoadout = ["__seeker_equal_mana__"];
   next.you.oracleSkillUsed = {};
   next.you.oracleActiveUsedThisTurn = false;
 
