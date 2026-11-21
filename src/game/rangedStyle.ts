@@ -12,6 +12,9 @@ export const ARROW_SHOT_IDS = new Set([
   "archer",
 ]);
 
+/** Рогатка — летящий камушек, звук как у стрелы. */
+export const SLING_SHOT_IDS = new Set(["neutral_archer"]);
+
 /** Огненный плевок / болт. */
 export const FIRE_BOLT_IDS = new Set([
   "fire_gopnik",
@@ -38,6 +41,7 @@ export const MAGIC_BOLT_IDS = new Set([
 
 export type RangedShotStyle =
   | "arrow"
+  | "sling"
   | "fire"
   | "water"
   | "magic"
@@ -52,12 +56,17 @@ export function isArrowShotCard(cardId: string | undefined): boolean {
   return !!cardId && ARROW_SHOT_IDS.has(cardId);
 }
 
+export function isSlingShotCard(cardId: string | undefined): boolean {
+  return !!cardId && SLING_SHOT_IDS.has(cardId);
+}
+
 /** Стиль дальнего выстрела по id (и запасной разбор по школе). */
 export function rangedShotStyle(
   cardId: string | undefined,
 ): RangedShotStyle | null {
   if (!cardId) return null;
   if (ARROW_SHOT_IDS.has(cardId)) return "arrow";
+  if (SLING_SHOT_IDS.has(cardId)) return "sling";
   if (FIRE_BOLT_IDS.has(cardId)) return "fire";
   if (WATER_BOLT_IDS.has(cardId)) return "water";
   if (POISON_BOLT_IDS.has(cardId)) return "poison";
@@ -77,12 +86,12 @@ export function rangedShotStyle(
   }
 }
 
-/** motion для FX: стрела = ranged, любой другой дальник = bolt, иначе melee. */
+/** motion для FX: стрела/рогатка = ranged, любой другой дальник = bolt, иначе melee. */
 export function attackMotionForCard(
   cardId: string,
 ): "melee" | "ranged" | "bolt" {
   const style = rangedShotStyle(cardId);
-  if (style === "arrow") return "ranged";
+  if (style === "arrow" || style === "sling") return "ranged";
   if (style != null) return "bolt";
   return "melee";
 }
@@ -101,6 +110,7 @@ const PATTERN_FALLBACK: Record<
 
 const SHOT_GLYPH: Record<RangedShotStyle, { icon: string; title: string }> = {
   arrow: { icon: "🏹", title: "Лук / арбалет — стрелы" },
+  sling: { icon: "🪨", title: "Рогатка — камушек" },
   fire: { icon: "🔥", title: "Огненный выстрел" },
   water: { icon: "💧", title: "Водный выстрел" },
   magic: { icon: "🔮", title: "Колдовской выстрел" },

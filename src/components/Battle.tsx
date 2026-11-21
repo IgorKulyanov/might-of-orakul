@@ -401,7 +401,7 @@ function BattleMissile({
   fromSky,
 }: {
   className: string;
-  kind: "arrow" | "bolt" | "magic" | "poison" | "fire" | "water";
+  kind: "arrow" | "sling" | "bolt" | "magic" | "poison" | "fire" | "water";
   boardRef: RefObject<HTMLDivElement | null>;
   fromSide: "you" | "enemy";
   fromSlot?: number;
@@ -605,6 +605,46 @@ function BattleMissile({
         return;
       }
 
+      // Рогатка: камушек по дуге + кручение.
+      if (kind === "sling") {
+        const duration = reduce ? 170 : 480;
+        const midX = from.x + (to.x - from.x) * 0.5;
+        const midY = from.y + (to.y - from.y) * 0.5 - 28;
+        other = el.animate(
+          [
+            {
+              transform: `translate(${from.x}px, ${from.y}px) scale(0.55) rotate(0deg)`,
+              opacity: 0.4,
+            },
+            {
+              transform: `translate(${from.x}px, ${from.y}px) scale(1) rotate(40deg)`,
+              opacity: 1,
+              offset: 0.08,
+            },
+            {
+              transform: `translate(${midX}px, ${midY}px) scale(1.05) rotate(180deg)`,
+              opacity: 1,
+              offset: 0.48,
+            },
+            {
+              transform: `translate(${to.x}px, ${to.y}px) scale(1.1) rotate(340deg)`,
+              opacity: 1,
+              offset: 0.86,
+            },
+            {
+              transform: `translate(${to.x}px, ${to.y}px) scale(0.35) rotate(400deg)`,
+              opacity: 0,
+            },
+          ],
+          {
+            duration,
+            easing: "cubic-bezier(0.18, 0.72, 0.22, 1)",
+            fill: "forwards",
+          },
+        );
+        return;
+      }
+
       const duration =
         reduce ? 180 : kind === "poison" ? 620 : kind === "water" ? 560 : 520;
       other = el.animate(
@@ -663,6 +703,11 @@ function BattleMissile({
           <span className="missile-arrow-fletch" />
           <span className="missile-arrow-shaft" />
           <span className="missile-arrow-head" />
+        </>
+      ) : kind === "sling" ? (
+        <>
+          <span className="missile-sling-glow" aria-hidden />
+          <span className="missile-sling-core" />
         </>
       ) : kind === "poison" ? (
         <>
@@ -3177,6 +3222,7 @@ export function Battle({
   // Melee/колющее/режущее — без снаряда. Огонь летит только у огненных болтов/спеллов.
   const missileKind = (():
     | "arrow"
+    | "sling"
     | "bolt"
     | "magic"
     | "poison"

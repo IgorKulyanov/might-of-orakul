@@ -5159,7 +5159,7 @@ export function normalizeBattleFx(fx: BattleFx): BattleFx {
   }
   if (fx.kind === "lunge" && fx.cardId && !next.vfx) {
     const shot = rangedShotStyle(fx.cardId);
-    if (shot === "arrow") next.vfx = "arrow";
+    if (shot === "arrow" || shot === "sling") next.vfx = "arrow";
     else if (shot === "fire") next.vfx = "burn";
     else if (shot === "water") next.vfx = "water";
     else if (shot === "poison") next.vfx = "poison";
@@ -5167,7 +5167,9 @@ export function normalizeBattleFx(fx: BattleFx): BattleFx {
   }
   if (
     fx.kind === "lunge" &&
-    (next.motion === "ranged" || rangedShotStyle(fx.cardId) === "arrow") &&
+    (next.motion === "ranged" ||
+      rangedShotStyle(fx.cardId) === "arrow" ||
+      rangedShotStyle(fx.cardId) === "sling") &&
     !next.vfx
   ) {
     next.vfx = "arrow";

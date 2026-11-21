@@ -825,7 +825,7 @@ export function sfxMageBolt(): void {
 export function isMageBoltCard(cardId: string | undefined): boolean {
   if (!cardId) return false;
   const shot = rangedShotStyle(cardId);
-  return shot != null && shot !== "arrow";
+  return shot != null && shot !== "arrow" && shot !== "sling";
 }
 
 /** Стрела / болт: public/sfx/arrow.mp3 */

@@ -226,7 +226,7 @@ export function shouldFlyMissile(fx: BattleFx | null | undefined): boolean {
 
 export function missileVisual(
   fx: BattleFx,
-): "arrow" | "bolt" | "magic" | "poison" | "fire" | "water" {
+): "arrow" | "sling" | "bolt" | "magic" | "poison" | "fire" | "water" {
   if (fx.kind === "spell") {
     if (fx.vfx === "poison") return "poison";
     if (fx.vfx === "arrow") return "arrow";
@@ -235,9 +235,10 @@ export function missileVisual(
     if (fx.vfx === "slash") return "arrow";
     return "magic";
   }
+  const shot = rangedShotStyle(fx.cardId);
+  if (shot === "sling") return "sling";
   const motion = fx.motion ?? "melee";
   if (motion === "ranged") return "arrow";
-  const shot = rangedShotStyle(fx.cardId);
   if (fx.vfx === "burn" || shot === "fire" || isFireBoltCard(fx.cardId)) {
     return "fire";
   }

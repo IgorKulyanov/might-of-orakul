@@ -1843,6 +1843,40 @@ button {
   display: block;
 }
 
+/* —— Рогатка: камушек —— */
+.battle-missile.is-sling {
+  width: 16px;
+  height: 16px;
+  margin-left: -8px;
+  margin-top: -8px;
+  border-radius: 50%;
+  background: transparent;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45));
+  overflow: visible;
+}
+.missile-sling-glow {
+  position: absolute;
+  inset: -55%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(210, 180, 120, 0.35) 0%,
+    transparent 70%
+  );
+}
+.missile-sling-core {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 28%, #e8dcc8 0%, transparent 42%),
+    radial-gradient(circle at 70% 68%, #5a4a38 0%, transparent 45%),
+    linear-gradient(145deg, #c4b49a 0%, #8a7358 45%, #5c4a36 100%);
+  box-shadow:
+    inset 0 -2px 3px rgba(0, 0, 0, 0.35),
+    inset 1px 1px 2px rgba(255, 255, 255, 0.35);
+}
+
 /* —— Стрела (тонкая, одна) —— */
 .battle-missile.is-arrow {
   width: 36px;
