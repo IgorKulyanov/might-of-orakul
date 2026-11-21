@@ -73,6 +73,8 @@ import {
   schoolTrailEnemyHeroId,
   schoolTrailEnemyUpgrades,
   schoolTrailStep,
+  trailVictoryLead,
+  trailVictoryTitle,
 } from "./game/schoolTrails";
 import {
   apiMe,
@@ -1325,6 +1327,18 @@ export default function App() {
         gainedLevels: 0,
         goldReward: 0,
         diamondReward: 0,
+        celebration: true,
+        resultEyebrow: `Путь оракула · флаг ${applied.newlyCleared}/5`,
+        resultTitle: trailVictoryTitle(
+          applied.newlyCleared,
+          applied.rewardCardId,
+        ),
+        resultLead: trailVictoryLead(
+          fight.faction,
+          applied.newlyCleared,
+          applied.rewardCardId,
+          step?.wowHint,
+        ),
         giftLine: rewardGiftLine(
           fight.faction,
           applied.newlyCleared,
@@ -1627,10 +1641,9 @@ export default function App() {
               trailDraft,
             )
           }
-          allowRematch
-          rematchLabel="Ещё раз"
+          allowRematch={false}
           exitPolicy="free"
-          resultExitLabel={() => "К пути"}
+          resultExitLabel={() => "На карту — следующий флаг"}
           onExit={() => {
             setTrailFight(null);
             setScreen("school_trails");
@@ -1694,10 +1707,9 @@ export default function App() {
             trailDraft,
           )
         }
-        allowRematch
-        rematchLabel="Ещё раз"
+        allowRematch={false}
         exitPolicy="free"
-        resultExitLabel={() => "К пути"}
+        resultExitLabel={() => "На карту — следующий флаг"}
         onExit={() => {
           setTrailFight(null);
           setScreen("school_trails");

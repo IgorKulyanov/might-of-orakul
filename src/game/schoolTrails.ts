@@ -237,161 +237,161 @@ export const SCHOOL_TRAIL_SCRIPTS: Record<Faction, SchoolTrailStep[]> = {
     {
       slots: ["zombie", "zombie", null, null, null],
       foeName: "Гниль окраины",
-      lesson: "Ход, призыв, мана. Жирные зомби бьются по очереди.",
+      lesson: "Два жирных зомби. Ход, призыв, мана — не стой впустую.",
     },
     {
-      slots: ["skeleton", "skeleton", null, null, null],
+      slots: ["skeleton", "skeleton", "zombie", null, null],
       foeName: "Костяной дозор",
-      lesson: "Два скелета вместе опаснее — выбирай цель.",
+      lesson: "Трое на поле: выбирай, кого снять первым.",
     },
     {
-      slots: [null, "necro_mage", null, null, null],
+      slots: ["skeleton", "necro_mage", null, null, null],
       foeName: "Некромант-искатель",
-      lesson: "Некромант клепает скелетов с поля.",
+      lesson: "Некромант клепает скелетов. Скелет уже держит линию.",
       wowHint: "Некромант зовёт костяных слуг. Такие карты бывают в лавке Смерти.",
       upgradeLevel: U,
     },
     {
-      slots: [null, "gravedigger", null, null, null],
+      slots: ["zombie", "gravedigger", null, null, null],
       graveyard: ["skeleton", "zombie"],
       foeName: "Могильщик",
-      lesson: "Могильщик выкапывает труп из могилы.",
+      lesson: "Могильщик выкапывает труп. Пока бьёшь якорь — растёт доска.",
       wowHint: "Могильщик поднимает мёртвых. Копи на него в лавке Смерти.",
       upgradeLevel: U,
     },
     {
-      slots: ["zombie", "gravedigger", null, null, null],
-      graveyard: ["skeleton"],
+      slots: ["zombie", "gravedigger", "skeleton", null, null],
+      graveyard: ["skeleton", "zombie"],
       foeName: "Страж могил",
-      lesson: "Сначала саппорт или якорь — решай приоритет.",
+      lesson: "Полный накал Смерти: якорь, подъём, костяной пресс.",
       wowHint: "Смерть кормится могилой. Школа трупов ждёт тебя.",
       upgradeLevel: U,
     },
   ],
   nature: [
     {
-      slots: ["spider", null, null, null, null],
-      foeName: "Паук чащи",
-      lesson: "Маленький, но яд кусает ход за ходом.",
-    },
-    {
       slots: ["spider", "spider", null, null, null],
-      foeName: "Паучья пара",
-      lesson: "Два яда — не тяни бой.",
+      foeName: "Паучья опушка",
+      lesson: "Два яда сразу — не тяни бой.",
     },
     {
-      slots: [null, "hornet_queen", null, null, null],
+      slots: ["spider", "spider", "elf", null, null],
+      foeName: "Чаща и стрела",
+      lesson: "Яд спереди, эльф сзади — стенкой лицо не закрыть.",
+    },
+    {
+      slots: ["spider", "hornet_queen", null, null, null],
       foeName: "Матка шершней",
-      lesson: "Матка клепает воинов-шершней.",
+      lesson: "Матка клепает воинов. Паук кусает, пока растёт рой.",
       wowHint: "Матка сама собирает рой. Такие карты — в лавке Природы.",
       upgradeLevel: U,
     },
     {
-      slots: ["hornet_warrior", "hornet_queen", null, null, null],
+      slots: ["hornet_warrior", "hornet_queen", "spider", null, null],
       foeName: "Рой опушки",
-      lesson: "Опоздал на ход — рой вырос.",
+      lesson: "Рой уже на поле. Опоздал на ход — станет хуже.",
       upgradeLevel: U,
     },
     {
-      slots: ["hornet_warrior", "hornet_queen", "elf", null, null],
+      slots: ["hornet_warrior", "hornet_queen", "elf", "spider", null],
       foeName: "Страж рощи",
-      lesson: "Рой + стрелок сзади. Стеной не закрыть всё.",
+      lesson: "Четверо: рой, стрелок, яд. Это пик тропы.",
       wowHint: "Природа давит числом. Выбери её — и копи на матку.",
       upgradeLevel: U,
     },
   ],
   water: [
     {
-      slots: ["aquilite", null, null, null, null],
-      foeName: "Акулит прибоя",
-      lesson: "Дешёвый кусака — быстрый трейд.",
-    },
-    {
       slots: ["aquilite", "aquilite", null, null, null],
-      foeName: "Пара аквалитов",
-      lesson: "Двое лезут — не дай обоим в лицо.",
+      foeName: "Пара прибоя",
+      lesson: "Двое кусак — не дай обоим в лицо.",
     },
     {
-      slots: [null, "triton", null, null, null],
+      slots: ["aquilite", "aquilite", "water_spirit", null, null],
+      foeName: "Приливная тройка",
+      lesson: "Кусаки + стрелок сзади. Копи ману под свой ответ.",
+    },
+    {
+      slots: ["aquilite", "triton", null, null, null],
       foeName: "Тритон пучины",
-      lesson: "Тритон клепает аквалитов.",
+      lesson: "Тритон клепает аквалитов. Один уже на поле.",
       wowHint: "Тритон зовёт аквалитов из пучины. Цель для лавки Воды.",
       upgradeLevel: U,
     },
     {
-      slots: ["water_spirit", "triton", null, null, null],
+      slots: ["water_spirit", "triton", "aquilite", null, null],
       foeName: "Прилив",
-      lesson: "Клепальщик + стрелок сзади.",
+      lesson: "Клепальщик, стрелок и кусака — вода давит числом.",
       upgradeLevel: U,
     },
     {
-      slots: [null, "triton", "mermaid", null, null],
+      slots: ["aquilite", "triton", "mermaid", "water_spirit", null],
       foeName: "Страж волн",
-      lesson: "Призыв + сон — вода контролирует.",
+      lesson: "Призыв + сон + стрелок. Контроль пучины на максимуме.",
       wowHint: "Вода клепает и выключает. Школа пучины зовёт.",
       upgradeLevel: U,
     },
   ],
   life: [
     {
-      slots: ["tank", null, null, null, null],
-      foeName: "Щит аванпоста",
-      lesson: "Толстая стена — копи ману, не упирайся впустую.",
-    },
-    {
       slots: ["tank", "spearman", null, null, null],
-      foeName: "Стена и копьё",
-      lesson: "Танк держит, копейщик бьёт.",
+      foeName: "Щит аванпоста",
+      lesson: "Стена и копьё. Копи ману — в стену впустую не бей.",
     },
     {
-      slots: ["tank", "mage", null, null, null],
+      slots: ["tank", "spearman", "crossbowman", null, null],
+      foeName: "Стена и залп",
+      lesson: "Танк держит, копьё и арбалет жмут.",
+    },
+    {
+      slots: ["tank", "mage", "spearman", null, null],
       foeName: "Маг ордена",
-      lesson: "Хил ломает честный трейд.",
+      lesson: "Маг лечит стену. Честный трейд ломается.",
       wowHint: "Маг лечит своих. Такие якоря — в лавке Жизни.",
       upgradeLevel: U,
     },
     {
-      slots: ["tank", "paladin", null, null, null],
+      slots: ["tank", "paladin", "crossbowman", null, null],
       foeName: "Паладин",
-      lesson: "Щит — первая атака не убивает.",
+      lesson: "Щит + стена + стрелок. Первая атака не убивает.",
       upgradeLevel: U,
     },
     {
-      slots: ["tank", "angel", "crossbowman", null, null],
+      slots: ["tank", "angel", "crossbowman", "paladin", null],
       foeName: "Страж света",
-      lesson: "Стена, хил, стрелок — школа удержания.",
+      lesson: "Стена, хил, щит, стрелок — школа удержания на пике.",
       wowHint: "Жизнь не сваливается. Орден ждёт твоего голоса.",
       upgradeLevel: U,
     },
   ],
   hell: [
     {
-      slots: ["fire_lizard", null, null, null, null],
-      foeName: "Ящер пепла",
-      lesson: "Ад лезет сразу — быстрый трейд.",
+      slots: ["fire_lizard", "fire_lizard", null, null, null],
+      foeName: "Пепельная пара",
+      lesson: "Два ящера лезут сразу. Быстрый трейд, не зевай.",
     },
     {
-      slots: ["fire_gopnik", null, null, null, null],
-      foeName: "Гопник огня",
-      lesson: "Стрелок жжёт — стенкой лицо не закрыть навсегда.",
+      slots: ["fire_lizard", "fire_gopnik", "imp", null, null],
+      foeName: "Жар окраины",
+      lesson: "Мили + стрелок + имп. Стенкой лицо не закрыть навсегда.",
     },
     {
-      slots: [null, "succubus", null, null, null],
+      slots: ["fire_lizard", "succubus", null, null, null],
       foeName: "Суккуб",
-      lesson: "Мужчины не бьют суккуба.",
+      lesson: "Мужчины не бьют суккуба. Ящер кусает, пока выбираешь ответ.",
       wowHint: "Суккуб ломает правила боя. Цель лавки Ада.",
       upgradeLevel: U,
     },
     {
-      slots: ["imp", "succubus", null, null, null],
+      slots: ["imp", "succubus", "fire_lizard", null, null],
       foeName: "Искусительница",
-      lesson: "Суккуб держит линию, имп жрёт оракула.",
+      lesson: "Суккуб держит линию, имп и ящер жрут ход за ходом.",
       upgradeLevel: U,
     },
     {
-      slots: ["fire_gopnik", "succubus", null, null, null],
+      slots: ["fire_gopnik", "succubus", "imp", "fire_lizard", null],
       foeName: "Страж жара",
-      lesson: "Запреты + огонь — подлая школа.",
+      lesson: "Четверо ада: запреты + огонь. Пик тропы.",
       wowHint: "Ад жжёт и запрещает. Пламя зовёт.",
       upgradeLevel: U,
     },
@@ -512,6 +512,22 @@ export function applySchoolTrailWin(
   };
 }
 
+export function rewardCardRole(newlyCleared: number): string {
+  if (newlyCleared === 1) {
+    return "доп. мана школы — в руке на следующем флаге";
+  }
+  if (newlyCleared === 2) {
+    return "первый юнит школы — бери в бой сразу";
+  }
+  if (newlyCleared === 3) {
+    return "магия школы — без неё дальше тяжело";
+  }
+  if (newlyCleared === 5) {
+    return "второй юнит — мини-колода школы почти собрана";
+  }
+  return "в мини-колоду этой школы";
+}
+
 export function rewardGiftLine(
   faction: Faction,
   newlyCleared: number,
@@ -521,23 +537,72 @@ export function rewardGiftLine(
   if (rewardCardId) {
     try {
       const name = getCard(rewardCardId).name;
-      const role =
-        newlyCleared === 1
-          ? "доп. мана школы — будет в руке в следующих боях тропы"
-          : newlyCleared === 2
-            ? "юнит школы — бери в бой уже на следующем флаге"
-            : newlyCleared === 3
-              ? "магия школы — без неё третий рубеж был бы жёстче"
-              : "в мини-колоду этой школы";
-      return `Награда: «${name}» (${role})`;
+      return `Теперь у тебя «${name}» — ${rewardCardRole(newlyCleared)}`;
     } catch {
-      return `Награда тропы получена (${newlyCleared}/5)`;
+      return `Теперь у тебя новая карта тропы (${newlyCleared}/5)`;
     }
   }
   return (
     wowHint ??
-    `Шаг ${newlyCleared}/5 на тропе «${schoolTrailTitle(faction)}»`
+    `Флаг ${newlyCleared}/5 на тропе «${schoolTrailTitle(faction)}». Вернись на карту — следующий рубеж ждёт.`
   );
+}
+
+/** Заголовок экрана победы тропы. */
+export function trailVictoryTitle(
+  newlyCleared: number,
+  rewardCardId: string | null,
+): string {
+  if (rewardCardId) {
+    try {
+      return `Теперь у тебя «${getCard(rewardCardId).name}»`;
+    } catch {
+      return "Новая карта тропы";
+    }
+  }
+  if (newlyCleared >= SCHOOL_TRAIL_STEPS) return "Тропа пройдена";
+  return `Флаг ${newlyCleared} из ${SCHOOL_TRAIL_STEPS}`;
+}
+
+export function trailVictoryLead(
+  faction: Faction,
+  newlyCleared: number,
+  rewardCardId: string | null,
+  wowHint?: string,
+): string {
+  const trail = schoolTrailTitle(faction);
+  if (rewardCardId) {
+    try {
+      const name = getCard(rewardCardId).name;
+      return `«${name}» уже в твоей руке на следующих боях «${trail}». Вернись на карту, переведи дух — и бери следующий флажок.`;
+    } catch {
+      /* fallthrough */
+    }
+  }
+  if (newlyCleared >= SCHOOL_TRAIL_STEPS) {
+    return (
+      wowHint ??
+      `«${trail}» закрыта. Можно выбрать оракула в сердце мира или пройти другую землю.`
+    );
+  }
+  return (
+    wowHint ??
+    `Рубеж взят (${newlyCleared}/${SCHOOL_TRAIL_STEPS}). На карте уже открыт следующий флажок — с более жёстким составом.`
+  );
+}
+
+/** Имена юнитов на столе врага (для превью флажка). */
+export function schoolTrailFoeLine(step: SchoolTrailStep): string {
+  const names: string[] = [];
+  for (const id of step.slots) {
+    if (!id) continue;
+    try {
+      names.push(getCard(id).name);
+    } catch {
+      names.push(id);
+    }
+  }
+  return names.length ? names.join(" · ") : "пусто";
 }
 
 /** Колода боя тропы: 3 нейтрала + уже добытый черновик этой школы. */
@@ -587,8 +652,10 @@ export function prepareSchoolTrailBattle(
   const hero = getHero(schoolTrailEnemyHeroId(faction));
   next.enemy.heroId = hero.id;
   next.enemy.faction = faction;
-  // Чуть меньше HP — обучение не в стену оракула
-  next.enemy.maxHp = Math.min(next.enemy.maxHp, 22);
+  // Накал по флагам: 1→мягче, 5→жёстче (не стена оракула, но растёт).
+  const hpByStep = [18, 20, 22, 24, 26] as const;
+  const cap = hpByStep[Math.max(0, Math.min(4, stepIndex))] ?? 22;
+  next.enemy.maxHp = Math.min(next.enemy.maxHp, cap);
   next.enemy.hp = next.enemy.maxHp;
 
   step.slots.forEach((cardId, i) => {

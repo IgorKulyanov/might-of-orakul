@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   SCHOOL_TRAIL_FACTIONS,
-  SCHOOL_TRAIL_REWARDS,
   SCHOOL_TRAIL_STEPS,
   canPickSchool,
   clearSchoolTrailFlagLayout,
@@ -11,6 +10,8 @@ import {
   saveSchoolTrailFlagLayout,
   schoolTrailCleared,
   schoolTrailDraft,
+  schoolTrailFoeLine,
+  schoolTrailRewardForClear,
   schoolTrailStep,
   schoolTrailTitle,
   type FlagXY,
@@ -636,6 +637,9 @@ export function SchoolTrailsScreen({
             <p className="campaign-preview-story">
               {previewStep.lesson || "История этого флажка ещё пишется."}
             </p>
+            <p className="hint">
+              Враг на столе: {schoolTrailFoeLine(previewStep)}
+            </p>
             {previewDone && previewStep.wowHint ? (
               <p className="campaign-preview-outro">
                 <strong>Заключение:</strong> {previewStep.wowHint}
@@ -645,17 +649,51 @@ export function SchoolTrailsScreen({
               <p className="hint">Сначала пройди предыдущий флажок этой земли.</p>
             ) : null}
             {previewFightable ? (
-              <p className="hint">
-                Награда тропы:{" "}
-                {SCHOOL_TRAIL_REWARDS[preview.faction]
-                  .map((r) => `${r.afterCleared}→${cardName(r.cardId)}`)
-                  .join(" · ")}
-                {schoolTrailDraft(owned, preview.faction).length
-                  ? ` · уже: ${schoolTrailDraft(owned, preview.faction)
-                      .map(cardName)
-                      .join(", ")}`
-                  : ""}
-              </p>
+              <>
+                {(() => {
+                  const nextReward = schoolTrailRewardForClear(
+                    preview.faction,
+                    preview.stepIndex + 1,
+                  );
+                  const draft = schoolTrailDraft(owned, preview.faction);
+                  return (
+                    <>
+                      {nextReward ? (
+                        <p className="campaign-preview-outro">
+                          <strong>После победы получишь:</strong> «
+                          {cardName(nextReward.cardId)}» — будет в руке на
+                          следующих боях этой тропы.
+                        </p>
+                      ) : (
+                        <p className="hint">
+                          Этот флаг без новой карты — но открывает финал тропы.
+                        </p>
+                      )}
+                      {draft.length ? (
+                        <p className="hint">
+                          Уже в руке тропы:{" "}
+                          {draft.map(cardName).join(" · ")}
+                        </p>
+                      ) : (
+                        <p className="hint">
+                          Пока только нейтралы. Победы наполняют руку школы.
+                        </p>
+                      )}
+                      <p className="hint">
+                        Накал: флаг {preview.stepIndex + 1}/
+                        {SCHOOL_TRAIL_STEPS}
+                        {preview.stepIndex === 0
+                          ? " — разминка"
+                          : preview.stepIndex === 2
+                            ? " — витрина школы"
+                            : preview.stepIndex >= 4
+                              ? " — пик тропы"
+                              : " — давление растёт"}
+                      </p>
+                    </>
+                  );
+                })()}
+              </>
             ) : null}
             <div className="campaign-preview-actions">
               {previewFightable ? (
