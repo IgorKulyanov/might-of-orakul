@@ -1065,14 +1065,6 @@ function draw(p: PlayerState, n = 1, state?: BattleState): void {
       // Грейв → колода. Если пусто — просто нет добора.
       // Буйство крови стартует в end*Turn через shouldStartBloodFrenzy
       // (с учётом руки — короткая стартовая колода не считается «иссякшей»).
-      // Тропы оракула: враг не ресайклит грейв — убитый маг не возвращается.
-      if (
-        state?.rules?.enemyNoGraveRecycle &&
-        p.id === "enemy" &&
-        p.graveyard.length > 0
-      ) {
-        continue;
-      }
       if (p.graveyard.length > 0) {
         const recycled = state
           ? p.graveyard.filter((id) => !resourceSpellExhausted(state, p, id))
@@ -3917,6 +3909,31 @@ export function gravediggerFlexReady(
   return true;
 }
 
+/**
+ * Призыв клепальщиком (некро / тритон / матка): 1 маны школы карты.
+ * Без маны — только удар (и у игрока, и у ИИ).
+ */
+export function flexSummonManaCost(summonerCardId: string): ManaCost {
+  const school = getCard(summonerCardId).school;
+  if (
+    school !== "death" &&
+    school !== "nature" &&
+    school !== "water" &&
+    school !== "life" &&
+    school !== "hell"
+  ) {
+    return {};
+  }
+  return { [school]: 1 };
+}
+
+export function canPayFlexSummon(
+  p: PlayerState,
+  summonerCardId: string,
+): boolean {
+  return canPay(p.mana, flexSummonManaCost(summonerCardId));
+}
+
 /** Тритон: действие хода — призвать Акулита в свободный слот (вместо атаки). */
 export function summonAquiliteWithTriton(
   state: BattleState,
@@ -3929,6 +3946,14 @@ export function summonAquiliteWithTriton(
   const triton = me.slots[fromSlot];
   if (!triton || !triton.canAttack) return state;
   if (abilityOf(triton.cardId, triton) !== "triton_flex") return state;
+  const cost = flexSummonManaCost(triton.cardId);
+  if (!canPay(me.mana, cost)) {
+    next.log = [
+      `${getCard(triton.cardId).name}: нет маны на призыв — бей`,
+      ...next.log,
+    ].slice(0, 10);
+    return next;
+  }
   if (toSlot < 0 || toSlot > 4 || me.slots[toSlot]) {
     next.log = ["Нужен свободный свой слот для Акулита", ...next.log].slice(
       0,
@@ -3937,6 +3962,7 @@ export function summonAquiliteWithTriton(
     return next;
   }
 
+  payMana(me.mana, cost);
   const aqua = spawnCreature(
     "aquilite",
     next.rules,
@@ -3950,7 +3976,7 @@ export function summonAquiliteWithTriton(
   next.selectedHand = null;
   syncBoardAuras(me, next.log);
   next.log = [
-    `${getCard(triton.cardId).name} призывает Акулита в слот ${toSlot + 1}`,
+    `${getCard(triton.cardId).name} призывает Акулита (−1 воды) в слот ${toSlot + 1}`,
     ...next.log,
   ].slice(0, 10);
   return next;
@@ -3958,7 +3984,12 @@ export function summonAquiliteWithTriton(
 
 export function tritonFlexReady(state: BattleState, fromSlot: number): boolean {
   const u = state.you.slots[fromSlot];
-  return !!u && u.canAttack && abilityOf(u.cardId, u) === "triton_flex";
+  return (
+    !!u &&
+    u.canAttack &&
+    abilityOf(u.cardId, u) === "triton_flex" &&
+    canPayFlexSummon(state.you, u.cardId)
+  );
 }
 
 export function mermaidFlexReady(state: BattleState, fromSlot: number): boolean {
@@ -3992,7 +4023,12 @@ export function balthazarFlexReady(
 
 export function necroFlexReady(state: BattleState, fromSlot: number): boolean {
   const u = state.you.slots[fromSlot];
-  return !!u && u.canAttack && abilityOf(u.cardId, u) === "necro_flex";
+  return (
+    !!u &&
+    u.canAttack &&
+    abilityOf(u.cardId, u) === "necro_flex" &&
+    canPayFlexSummon(state.you, u.cardId)
+  );
 }
 
 export function hornetQueenFlexReady(
@@ -4000,7 +4036,12 @@ export function hornetQueenFlexReady(
   fromSlot: number,
 ): boolean {
   const u = state.you.slots[fromSlot];
-  return !!u && u.canAttack && abilityOf(u.cardId, u) === "hornet_queen_flex";
+  return (
+    !!u &&
+    u.canAttack &&
+    abilityOf(u.cardId, u) === "hornet_queen_flex" &&
+    canPayFlexSummon(state.you, u.cardId)
+  );
 }
 
 export function leshyFlexReady(state: BattleState, fromSlot: number): boolean {
@@ -4340,7 +4381,7 @@ export function swapEnemyWithBalthazar(
   return next;
 }
 
-/** Некромант: призвать скелета. */
+/** Некромант: призвать скелета (−1 маны смерти). */
 export function summonSkeletonWithNecro(
   state: BattleState,
   fromSlot: number,
@@ -4352,10 +4393,19 @@ export function summonSkeletonWithNecro(
   const necro = me.slots[fromSlot];
   if (!necro || !necro.canAttack) return state;
   if (abilityOf(necro.cardId, necro) !== "necro_flex") return state;
+  const cost = flexSummonManaCost(necro.cardId);
+  if (!canPay(me.mana, cost)) {
+    next.log = [
+      `${getCard(necro.cardId).name}: нет маны на призыв — бей`,
+      ...next.log,
+    ].slice(0, 10);
+    return next;
+  }
   if (me.slots[toSlot]) {
     next.log = ["Слот занят", ...next.log].slice(0, 10);
     return next;
   }
+  payMana(me.mana, cost);
   const count = necroSummonCount(hostUpgradeLevel(necro, necro.cardId));
   const slots: number[] = [toSlot];
   if (count >= 2) {
@@ -4375,14 +4425,14 @@ export function summonSkeletonWithNecro(
   syncBoardAuras(me, next.log);
   next.log = [
     slots.length > 1
-      ? `${getCard(necro.cardId).name} призывает ${slots.length} скелетов`
-      : `${getCard(necro.cardId).name} призывает Скелета в слот ${toSlot + 1}`,
+      ? `${getCard(necro.cardId).name} призывает ${slots.length} скелетов (−1 смерти)`
+      : `${getCard(necro.cardId).name} призывает Скелета (−1 смерти) в слот ${toSlot + 1}`,
     ...next.log,
   ].slice(0, 10);
   return next;
 }
 
-/** Матка шершней: призвать Шершня-воина. */
+/** Матка шершней: призвать Шершня-воина (−1 маны природы). */
 export function summonHornetWithQueen(
   state: BattleState,
   fromSlot: number,
@@ -4394,16 +4444,25 @@ export function summonHornetWithQueen(
   const queen = me.slots[fromSlot];
   if (!queen || !queen.canAttack) return state;
   if (abilityOf(queen.cardId, queen) !== "hornet_queen_flex") return state;
+  const cost = flexSummonManaCost(queen.cardId);
+  if (!canPay(me.mana, cost)) {
+    next.log = [
+      `${getCard(queen.cardId).name}: нет маны на призыв — бей`,
+      ...next.log,
+    ].slice(0, 10);
+    return next;
+  }
   if (me.slots[toSlot]) {
     next.log = ["Слот занят", ...next.log].slice(0, 10);
     return next;
   }
+  payMana(me.mana, cost);
   me.slots[toSlot] = spawnCreature("hornet_warrior", next.rules);
   queen.canAttack = false;
   next.selectedSlot = null;
   syncBoardAuras(me, next.log);
   next.log = [
-    `${getCard(queen.cardId).name} создаёт Шершня-воина в слот ${toSlot + 1}`,
+    `${getCard(queen.cardId).name} создаёт Шершня-воина (−1 природы) в слот ${toSlot + 1}`,
     ...next.log,
   ].slice(0, 10);
   return next;
@@ -6528,29 +6587,33 @@ export function takeAiStep(
       }
 
       if (ab === "triton_flex" || ab === "necro_flex" || ab === "hornet_queen_flex") {
-        const cardId =
-          ab === "triton_flex"
-            ? "aquilite"
-            : ab === "necro_flex"
-              ? "skeleton"
-              : "hornet_warrior";
-        const empty =
-          mission.openLanes.find((s) => !me.slots[s]) ??
-          me.slots.findIndex((s) => !s);
-        if (empty >= 0 && !me.slots[empty]) {
-          // Путь оракула: клепальщик обязан клепать, а не лупить лицом.
-          const sc =
-            (90 +
-              (mission.openLanes.includes(empty) ? 30 : 8) +
-              (boardCount < skill.developUntil ? 18 : 0) +
-              (boardCount <= 1 ? 45 : boardCount <= 2 ? 22 : 0)) *
-            fm;
-          choices.push({
-            kind: "flex",
-            slot: i,
-            score: sc,
-            flex: { type: "summon", toSlot: empty, cardId },
-          });
+        // Нет маны школы на призыв → клепальщик бьёт (flex не предлагаем).
+        if (!canPayFlexSummon(me, atk.cardId)) {
+          /* skip summon */
+        } else {
+          const cardId =
+            ab === "triton_flex"
+              ? "aquilite"
+              : ab === "necro_flex"
+                ? "skeleton"
+                : "hornet_warrior";
+          const empty =
+            mission.openLanes.find((s) => !me.slots[s]) ??
+            me.slots.findIndex((s) => !s);
+          if (empty >= 0 && !me.slots[empty]) {
+            const sc =
+              (90 +
+                (mission.openLanes.includes(empty) ? 30 : 8) +
+                (boardCount < skill.developUntil ? 18 : 0) +
+                (boardCount <= 1 ? 45 : boardCount <= 2 ? 22 : 0)) *
+              fm;
+            choices.push({
+              kind: "flex",
+              slot: i,
+              score: sc,
+              flex: { type: "summon", toSlot: empty, cardId },
+            });
+          }
         }
       }
 
@@ -7062,6 +7125,9 @@ export function takeAiStep(
 
     if (flex.type === "summon") {
       if (me.slots[flex.toSlot]) return null;
+      const cost = flexSummonManaCost(atk.cardId);
+      if (!canPay(me.mana, cost)) return null;
+      payMana(me.mana, cost);
       me.slots[flex.toSlot] = spawnCreature(
         flex.cardId,
         next.rules,
@@ -7070,7 +7136,7 @@ export function takeAiStep(
       atk.canAttack = false;
       syncBoardAuras(me, next.log);
       next.log.unshift(
-        `Соперник: ${name} призывает ${getCard(flex.cardId).name}`,
+        `Соперник: ${name} призывает ${getCard(flex.cardId).name} (−1 маны)`,
       );
       next.log = next.log.slice(0, 10);
       return {
