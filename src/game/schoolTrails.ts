@@ -270,9 +270,10 @@ export const SCHOOL_TRAIL_SCRIPTS: Record<Faction, SchoolTrailStep[]> = {
       upgradeLevel: U,
     },
     {
-      slots: ["zombie", "skeleton", "vampire", null, null],
+      slots: [null, "vampire", null, null, null],
+      hand: ["banshee"],
       foeName: "Страж могил",
-      lesson: "Пик: зомби, скелет, вампир. Все ур.1 — приоритет, кого гасить первым.",
+      lesson: "Пик: вампир на столе, банши из руки. Сними укус, пока не вышла певица.",
       wowHint: "Смерть кормится могилой. Школа трупов ждёт тебя.",
     },
   ],
