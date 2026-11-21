@@ -7421,13 +7421,80 @@ html.is-hand-dragging .oracle-folio {
 }
 
 .auth-screen,
-.onboard-screen {
+.onboard-screen,
+.school-trails-screen {
   position: relative;
   isolation: isolate;
   min-height: 100vh;
   min-height: 100dvh;
   padding: 1.5rem;
   overflow: hidden;
+}
+
+.school-trails-hint {
+  max-width: 40rem;
+  margin: 0.5rem auto 0.75rem;
+  text-align: center;
+  line-height: 1.45;
+}
+
+.school-trails-progress {
+  text-align: center;
+  font-weight: 600;
+  margin: 0 0 1rem;
+  color: var(--gold, #e8c547);
+}
+
+.school-trails-grid {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.school-trail-card {
+  border: 1px solid color-mix(in srgb, var(--faction, #888) 55%, transparent);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  background: color-mix(in srgb, var(--faction, #333) 12%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.school-trail-card.done {
+  opacity: 0.72;
+}
+
+.school-trail-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.school-trail-card-head strong {
+  flex: 1;
+}
+
+.school-trail-steps {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.school-trail-lesson {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  opacity: 0.92;
+  min-height: 2.8em;
+}
+
+.school-trails-footer {
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem auto 2rem;
+  max-width: 960px;
 }
 
 .multi-room-code {

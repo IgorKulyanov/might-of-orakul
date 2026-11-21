@@ -548,4 +548,10 @@ export interface OwnedState {
   oracleSkillLoadout?: (string | null)[];
   /** Высший рубеж магазина (10/15/25/30), по которому уже выдан догон осколков. */
   shopTierShardCatchUp?: number;
+  /**
+   * Тропы вкуса школ (онбординг): сколько шагов пройдено на каждой тропе (0…5).
+   */
+  schoolTrailCleared?: Partial<Record<Faction, number>>;
+  /** Суммарные победы на тропах вкуса (ге́йт выбора школы ≈ 6). */
+  schoolTrailWins?: number;
 }

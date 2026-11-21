@@ -13,6 +13,8 @@ import { SchoolBadge } from "./GameIcon";
 type Props = {
   owned: OwnedState;
   initialName?: string;
+  /** После троп вкуса — другой заголовок/текст. */
+  afterTrails?: boolean;
   onComplete: (displayName: string, nextOwned: OwnedState) => void | Promise<void>;
 };
 
@@ -27,6 +29,7 @@ const FACTION_ORDER: Faction[] = [
 export function OnboardingScreen({
   owned,
   initialName = "",
+  afterTrails = false,
   onComplete,
 }: Props) {
   const [heroId, setHeroId] = useState(
@@ -67,11 +70,12 @@ export function OnboardingScreen({
   return (
     <div className="onboard-screen">
       <header className="page-bar">
-        <h1>Создание оракула</h1>
+        <h1>{afterTrails ? "Какая сила отозвалась?" : "Создание оракула"}</h1>
       </header>
       <p className="hint hero-screen-hint">
-        Выбери одну из пяти школ — потом сменить нельзя. Эпик купишь позже в
-        кабинете.
+        {afterTrails
+          ? "Ты уже видел школы в бою. Выбери одну — потом сменить нельзя. Эпик купишь позже в кабинете."
+          : "Выбери одну из пяти школ — потом сменить нельзя. Эпик купишь позже в кабинете."}
       </p>
 
       <form className="onboard-form" onSubmit={submit}>

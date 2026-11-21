@@ -7722,3 +7722,12 @@ export function playGuardianBond(
 
 export { castOracleSkill, hurtOracle } from "./oracleSkillCombat";
 
+/** Публичный спавн юнита (тропы вкуса / песочница). */
+export function seedBoardCreature(
+  cardId: string,
+  upgradeLevel?: CardUpgradeLevel,
+  rules?: BattleState["rules"] | null,
+): CreatureInstance {
+  return spawnCreature(cardId, rules, upgradeLevel);
+}
+

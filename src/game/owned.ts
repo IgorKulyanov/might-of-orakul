@@ -54,6 +54,13 @@ import {
   starterDeckForFaction,
   starterUnlockIdsForFaction,
 } from "./progression";
+import {
+  NEUTRAL_CONVERT_GOLD,
+  NEUTRAL_CREATURE_IDS,
+  NEUTRAL_STARTER_IDS,
+  neutralStarterCollection,
+  neutralStarterDeck,
+} from "./starterDecks";
 import { GOLD_EXCHANGE_MAP, goldForDiamonds } from "./shop";
 import type { Faction, OwnedState } from "./types";
 
@@ -231,7 +238,72 @@ function scrubCollectionForHero(
   return mergeCollection(cleaned, starterCollectionForFaction(faction));
 }
 
+function withNeutralOnboardingDefaults(parsed: OwnedState): OwnedState {
+  const heroId = "hero_life";
+  const purchased = [...new Set(parsed.purchased ?? [])];
+  let collection = {
+    ...neutralStarterCollection(),
+    ...(parsed.collection ?? {}),
+  };
+  for (const id of NEUTRAL_STARTER_IDS) {
+    if ((collection[id] ?? 0) < 1) collection[id] = 1;
+  }
+  for (const [id, n] of Object.entries(collection)) {
+    const capped = Math.min(maxCopiesForCard(id), Math.floor(Number(n)) || 0);
+    if (capped <= 0) delete collection[id];
+    else collection[id] = capped;
+  }
+  const unlocked = [
+    ...new Set([
+      ...NEUTRAL_STARTER_IDS,
+      ...(parsed.unlocked ?? []),
+      ...unlockedFromCollection(collection),
+    ]),
+  ];
+  let starter = normalizeDeck(
+    parsed.decks?.starter?.length
+      ? parsed.decks.starter
+      : neutralStarterDeck(),
+    collection,
+  );
+  if (starter.length < MIN_DECK_SIZE) {
+    starter = normalizeDeck(neutralStarterDeck(), collection);
+  }
+  const progress = normalizeProgress({
+    level: parsed.level,
+    xp: parsed.xp,
+  });
+  return migrateCardUpgrades({
+    unlocked,
+    collection,
+    decks: { starter },
+    activeDeckId: "starter",
+    heroId,
+    homeFaction: undefined,
+    gold: parsed.gold ?? START_GOLD,
+    diamonds: parsed.diamonds ?? START_DIAMONDS,
+    level: progress.level,
+    xp: progress.xp,
+    purchased,
+    unlockedHeroes: [...new Set(parsed.unlockedHeroes ?? [])],
+    cardUpgrades: parsed.cardUpgrades,
+    cardShards: parsed.cardShards,
+    upgradeEpoch: parsed.upgradeEpoch,
+    willPoints: parsed.willPoints,
+    oracleSkillsOwned: parsed.oracleSkillsOwned,
+    oracleSkillLoadout: parsed.oracleSkillLoadout,
+    shopTierShardCatchUp: parsed.shopTierShardCatchUp,
+    schoolTrailCleared: parsed.schoolTrailCleared,
+    schoolTrailWins: parsed.schoolTrailWins,
+  });
+}
+
 function withDefaults(parsed: OwnedState): OwnedState {
+  // До выбора школы — нейтральная колода, без подстановки life-стартов.
+  if (!parsed.homeFaction) {
+    return withNeutralOnboardingDefaults(parsed);
+  }
+
   const heroId = parsed.heroId ?? "hero_life";
   const faction = getHero(heroId).faction;
   // Только явные покупки — чужие старты в unlocked больше не считаем «купленным»
@@ -284,11 +356,7 @@ function withDefaults(parsed: OwnedState): OwnedState {
     decks,
     activeDeckId: parsed.activeDeckId ?? "starter",
     heroId,
-    homeFaction:
-      parsed.homeFaction ??
-      (parsed.heroId && parsed.heroId !== "hero_life"
-        ? getHero(parsed.heroId).faction
-        : parsed.homeFaction),
+    homeFaction: parsed.homeFaction,
     gold: parsed.gold ?? START_GOLD,
     diamonds: parsed.diamonds ?? START_DIAMONDS,
     level: progress.level,
@@ -302,6 +370,8 @@ function withDefaults(parsed: OwnedState): OwnedState {
     oracleSkillsOwned: parsed.oracleSkillsOwned,
     oracleSkillLoadout: parsed.oracleSkillLoadout,
     shopTierShardCatchUp: parsed.shopTierShardCatchUp,
+    schoolTrailCleared: parsed.schoolTrailCleared,
+    schoolTrailWins: parsed.schoolTrailWins,
   });
   return applySkillStateToOwned(base, getHero(heroId).faction);
 }
@@ -356,19 +426,21 @@ export function repairOracleRace(owned: OwnedState): OwnedState {
   return setHero({ ...owned, homeFaction: faction }, heroId);
 }
 
-function freshOwned(heroId = "hero_life"): OwnedState {
-  const faction = getHero(heroId).faction;
-  const deck = starterDeckFor(heroId);
+function freshOwned(_heroId = "hero_life"): OwnedState {
+  // Свежий сейв — без школы, нейтральная колода (тропы вкуса).
   return withDefaults({
-    unlocked: starterIds(heroId),
-    collection: starterCollectionForFaction(faction),
-    decks: { starter: deck },
+    unlocked: [...NEUTRAL_STARTER_IDS],
+    collection: neutralStarterCollection(),
+    decks: { starter: neutralStarterDeck() },
     activeDeckId: "starter",
-    heroId,
+    heroId: "hero_life",
+    homeFaction: undefined,
     gold: START_GOLD,
     diamonds: START_DIAMONDS,
     level: 1,
     xp: 0,
+    schoolTrailCleared: {},
+    schoolTrailWins: 0,
   });
 }
 
@@ -597,6 +669,8 @@ export function canBuyShardsForCard(
   owned: OwnedState,
   cardId: string,
 ): boolean {
+  // Магазин закрыт до выбора школы (тропы вкуса).
+  if (!owned.homeFaction) return false;
   if (!isUpgradeableCard(cardId)) return false;
   const card = CARDS.find((c) => c.id === cardId);
   if (!card) return false;
@@ -604,6 +678,11 @@ export function canBuyShardsForCard(
   if (ownedCopies(owned, cardId) <= 0) return true;
   const lv = getCardUpgradeLevel(owned, cardId);
   return shardsNeededForNext(cardId, lv) != null;
+}
+
+/** Можно ли открыть магазин / покупать карты. */
+export function shopUnlocked(owned: OwnedState): boolean {
+  return Boolean(owned.homeFaction);
 }
 
 function payCardPrice(
@@ -804,9 +883,31 @@ export function beginWithHero(
   }
 
   const home = hero.faction;
+
+  // Конверт нейтралов в золото (не тащим 1/10 в PvP).
+  let convertGold = 0;
+  const strippedCollection = { ...(owned.collection ?? {}) };
+  for (const id of NEUTRAL_CREATURE_IDS) {
+    const n = Math.max(0, Math.floor(Number(strippedCollection[id]) || 0));
+    if (n > 0) {
+      convertGold += n * NEUTRAL_CONVERT_GOLD;
+      delete strippedCollection[id];
+    }
+  }
+  const strippedUnlocked = (owned.unlocked ?? []).filter(
+    (id) =>
+      !(NEUTRAL_CREATURE_IDS as readonly string[]).includes(id),
+  );
+
   let state: OwnedState = {
     ...owned,
     homeFaction: home,
+    collection: strippedCollection,
+    unlocked: strippedUnlocked,
+    gold: Math.min(
+      5_000_000,
+      (owned.gold ?? 0) + convertGold,
+    ),
   };
 
   if (hero.tier === "epic") {

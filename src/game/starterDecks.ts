@@ -8,6 +8,23 @@ import type { Faction } from "./types";
 
 export const STARTER_DECK_SIZE = 4;
 
+/** До выбора школы: 3 нейтрала + мана. */
+export const NEUTRAL_STARTER_IDS = [
+  "neutral_fighter",
+  "neutral_wall",
+  "neutral_archer",
+  "hero_mana",
+] as const;
+
+export const NEUTRAL_CREATURE_IDS = [
+  "neutral_fighter",
+  "neutral_wall",
+  "neutral_archer",
+] as const;
+
+/** Золото за сдачу одного нейтрала при выборе школы. */
+export const NEUTRAL_CONVERT_GOLD = 15;
+
 function build(parts: string[]): string[] {
   if (parts.length !== STARTER_DECK_SIZE) {
     throw new Error(
@@ -42,6 +59,14 @@ export function starterCollectionForFaction(
   faction: Faction,
 ): Record<string, number> {
   return starterCollectionFromDeck(STARTER_DECK_BY_FACTION[faction]);
+}
+
+export function neutralStarterDeck(): string[] {
+  return [...NEUTRAL_STARTER_IDS];
+}
+
+export function neutralStarterCollection(): Record<string, number> {
+  return starterCollectionFromDeck(neutralStarterDeck());
 }
 
 /** Id карт, которые когда-либо были бесплатным стартом (миграция). */
@@ -93,6 +118,7 @@ export function allStarterCardIds(): string[] {
     "leprechaun",
     "swamp",
     "shield",
+    ...NEUTRAL_STARTER_IDS,
   ]) {
     set.add(id);
   }

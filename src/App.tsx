@@ -18,6 +18,7 @@ import { DevSandbox } from "./components/DevSandbox";
 import { HeroSelect } from "./components/HeroSelect";
 import { MultiMenu } from "./components/MultiMenu";
 import { OnboardingScreen } from "./components/OnboardingScreen";
+import { SchoolTrailsScreen } from "./components/SchoolTrailsScreen";
 import { HubTutorial } from "./components/HubTutorial";
 import { SplashMenu } from "./components/SplashMenu";
 import {
@@ -60,6 +61,13 @@ import {
   resetCampaignProgress,
   type CampaignState,
 } from "./game/campaign";
+import {
+  applySchoolTrailWin,
+  prepareSchoolTrailBattle,
+  schoolTrailEnemyHeroId,
+  schoolTrailEnemyUpgrades,
+  schoolTrailStep,
+} from "./game/schoolTrails";
 import {
   apiMe,
   apiPaymentOrder,
@@ -110,7 +118,7 @@ import {
 } from "./game/pvpProtocol";
 import { startBattleMusic, startMenuMusic, unlockSfx } from "./game/sfx";
 import { detectTelegramUser } from "./game/telegram";
-import type { BattleState, OwnedState } from "./game/types";
+import type { BattleState, Faction, OwnedState } from "./game/types";
 import "./App.css";
 
 type PvpClock = {
@@ -135,6 +143,7 @@ type Screen =
   | "battle_bot"
   | "battle_campaign"
   | "battle_arena"
+  | "battle_school_trail"
   | "battle_pvp"
   | "battle_dev"
   | "dev"
@@ -142,7 +151,9 @@ type Screen =
   | "hero"
   | "cabinet"
   | "multi"
-  | "dailies";
+  | "dailies"
+  | "school_trails"
+  | "school_pick";
 
 function richerDecks(
   a: OwnedState["decks"] | undefined,
@@ -175,23 +186,12 @@ function accountNeedsOnboarding(user: ApiUser): boolean {
 }
 
 /**
- * Чистый лист для онбординга: без homeFaction.
+ * Чистый лист для онбординга: без homeFaction, нейтральная колода (тропы вкуса).
  * Раньше setHero(hero_life) сам ставил школу «жизнь» → экран выбора скипался.
  */
 function blankOnboardingOwned(): OwnedState {
-  const blank = clearActiveOwned();
-  const next: OwnedState = {
-    ...blank,
-    heroId: undefined,
-    homeFaction: undefined,
-    unlocked: [],
-    collection: {},
-    decks: { starter: [] },
-    purchased: [],
-    unlockedHeroes: [],
-    level: 1,
-    xp: 0,
-  };
+  // clearActiveOwned → freshOwned уже даёт нейтралов без homeFaction.
+  const next = clearActiveOwned();
   saveOwned(next);
   return next;
 }
@@ -403,6 +403,12 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
         ? getHeroSafeFaction(localHero)
         : undefined));
   if (!homeFaction) {
+    // Не сносим тропы вкуса: подтягиваем нейтральный сейв с локальным прогрессом.
+    const localOnboard = loadOwned();
+    if (!localOnboard.homeFaction) {
+      saveOwned(localOnboard);
+      return localOnboard;
+    }
     return blankOnboardingOwned();
   }
   // Коллекция/покупки: сервер — касса. Локальный max раньше оставлял бесплатные карты.
@@ -535,8 +541,18 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
       Math.floor(Number(local.shopTierShardCatchUp) || 0),
       Math.floor(Number(serverOwned?.shopTierShardCatchUp) || 0),
     ),
+    schoolTrailWins: Math.max(
+      Math.floor(Number(local.schoolTrailWins) || 0),
+      Math.floor(Number(serverOwned?.schoolTrailWins) || 0),
+    ),
+    schoolTrailCleared: {
+      ...(serverOwned?.schoolTrailCleared ?? {}),
+      ...(local.schoolTrailCleared ?? {}),
+    },
   };
-  let next = applySkillStateToOwned(setHero(merged, heroId), homeFaction);
+  let next = homeFaction
+    ? applySkillStateToOwned(setHero(merged, heroId), homeFaction)
+    : merged;
   // Уже на 15+ без осколков нового тира — разовый догон (старый дроп их топил).
   next = catchUpShopTierShardsIfNeeded(next).owned;
   saveOwned(next);
@@ -630,6 +646,11 @@ export default function App() {
   const [devSetup, setDevSetup] = useState<DevBattleSetup | null>(null);
   /** Seed соперника: новый на вход в бой и на «Новая битва». */
   const [botSeed, setBotSeed] = useState(() => freshBotSeed());
+  /** Текущий бой тропы вкуса (онбординг). */
+  const [trailFight, setTrailFight] = useState<{
+    faction: Faction;
+    step: number;
+  } | null>(null);
   const [devToolsOn, setDevToolsOn] = useState(() => isDevToolsEnabled());
   const [hubTutStep, setHubTutStep] = useState<number | null>(() =>
     hasSeenHubTutorial() ? null : 0,
@@ -916,6 +937,7 @@ export default function App() {
       screen === "battle_bot" ||
       screen === "battle_campaign" ||
       screen === "battle_arena" ||
+      screen === "battle_school_trail" ||
       screen === "battle_pvp" ||
       screen === "battle_dev";
     unlockSfx();
@@ -1238,6 +1260,42 @@ export default function App() {
         giftLine: "🧪 Тест — прогресс не изменён",
       };
     }
+    // Тропы вкуса: без XP/лута, только прогресс шага
+    if (screenRef.current === "battle_school_trail") {
+      const fight = trailFight;
+      if (!won || !fight) {
+        return {
+          won: false,
+          xpGained: 0,
+          gainedLevels: 0,
+          goldReward: 0,
+          diamondReward: 0,
+          giftLine: "Попробуй ещё раз — тропа ждёт",
+        };
+      }
+      const step = schoolTrailStep(fight.faction, fight.step);
+      const applied = applySchoolTrailWin(ownedRef.current, fight.faction);
+      saveOwned(applied.owned);
+      setOwned(applied.owned);
+      ownedRef.current = applied.owned;
+      const t = token ?? getToken();
+      if (t) {
+        void apiUpdateMe(t, { owned: applied.owned }).then(({ user: me }) => {
+          updateCachedUser(me);
+          setUser(me);
+        });
+      }
+      return {
+        won: true,
+        xpGained: 0,
+        gainedLevels: 0,
+        goldReward: 0,
+        diamondReward: 0,
+        giftLine:
+          step?.wowHint ??
+          `Шаг ${applied.newlyCleared}/5 на тропе. Побед: ${applied.owned.schoolTrailWins ?? 0}`,
+      };
+    }
     const isCampaign = screenRef.current === "battle_campaign";
     const isArena = screenRef.current === "battle_arena";
     const isPvp = screenRef.current === "battle_pvp";
@@ -1463,14 +1521,64 @@ export default function App() {
     );
   }
 
-  // Школа = homeFaction. Пока её нет — выбор из пяти оракулов.
-  // beginWithHero при восстановлении колоду не сносит (hasOwnedProgress).
+  // Школа = homeFaction. Сначала тропы вкуса, потом явный выбор школы.
   if (!owned.homeFaction) {
+    if (screen === "battle_school_trail" && trailFight) {
+      const foeHero = schoolTrailEnemyHeroId(trailFight.faction);
+      return (
+        <Battle
+          key={`trail-${trailFight.faction}-${trailFight.step}`}
+          yourDeck={battleDeck(owned)}
+          enemyDeck={[]}
+          yourHeroId="hero_life"
+          enemyHeroId={foeHero}
+          yourName={user.displayName ?? user.login ?? "Искатель"}
+          yourLevel={1}
+          enemyLevel={8}
+          enemyCardUpgrades={schoolTrailEnemyUpgrades(
+            trailFight.faction,
+            trailFight.step,
+          )}
+          oracleSkills={[]}
+          enemyOracleSkills={[]}
+          prepareBattle={(s) =>
+            prepareSchoolTrailBattle(s, trailFight.faction, trailFight.step)
+          }
+          allowRematch
+          rematchLabel="Ещё раз"
+          exitPolicy="free"
+          resultExitLabel={() => "К тропам"}
+          onExit={() => {
+            setTrailFight(null);
+            setScreen("school_trails");
+          }}
+          onBattleEnd={onBattleEnd}
+        />
+      );
+    }
+
+    if (screen === "school_pick") {
+      return (
+        <OnboardingScreen
+          owned={owned}
+          initialName={user.displayName ?? ""}
+          afterTrails
+          onComplete={finishOnboarding}
+        />
+      );
+    }
+
     return (
-      <OnboardingScreen
+      <SchoolTrailsScreen
         owned={owned}
-        initialName={user.displayName ?? ""}
-        onComplete={finishOnboarding}
+        displayName={user.displayName ?? user.login ?? ""}
+        onPlayTrail={(faction, stepIndex) => {
+          unlockSfx();
+          void startBattleMusic();
+          setTrailFight({ faction, step: stepIndex });
+          setScreen("battle_school_trail");
+        }}
+        onPickSchool={() => setScreen("school_pick")}
       />
     );
   }
