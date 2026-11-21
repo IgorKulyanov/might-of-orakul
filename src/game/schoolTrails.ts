@@ -655,7 +655,9 @@ export function prepareSchoolTrailBattle(
   next.enemy.name = step.foeName;
   next.enemy.deck = [];
   next.enemy.hand = [];
-  next.enemy.oracleSkillLoadout = [];
+  // Не []: пустой loadout даёт +1 маны школы каждый ход → бесконечный клеп.
+  // [null] = умений нет, своя мана не растёт — после стартовых призывов бьёт.
+  next.enemy.oracleSkillLoadout = [null];
   next.enemy.oracleActiveUsedThisTurn = false;
   next.enemy.oracleSkillUsed = {};
   next.enemy.graveyard = [...(step.graveyard ?? [])];
