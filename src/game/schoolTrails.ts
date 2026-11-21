@@ -633,6 +633,8 @@ export function prepareSchoolTrailBattle(
   }
 
   next.aiLevel = Math.max(next.aiLevel ?? 1, 8);
+  // Контроль: витринные маги чаще кастуют flex, меньше тупой face.
+  next.aiPersona = "control";
   next.log = [
     step.lesson,
     extras.length

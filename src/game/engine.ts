@@ -5769,9 +5769,9 @@ function aiSkill(
     faceBias,
     rampBias,
     spellBias,
-    /** Сложные флексы раньше — бот пользуется умениями. */
-    advancedFlex: lv >= 5,
-    verdictOk: lv >= 8,
+    /** Сложные флексы раньше — бот пользуется умениями (тропы оракула с lv≈8). */
+    advancedFlex: lv >= 2,
+    verdictOk: lv >= 6,
     /**
      * Узкий разброс: разнообразие без тупых ходов.
      * Раньше slack 14–22 делал бота «безопасным».
@@ -6450,7 +6450,7 @@ export function takeAiStep(
           choices.push({
             kind: "flex",
             slot: i,
-            score: (14 + bestMiss * 2 + (me.hp <= 12 ? 8 : 0)) * fm,
+            score: (55 + bestMiss * 2 + (me.hp <= 12 ? 8 : 0)) * fm,
             flex: { type: "angel_buff", toSlot: best },
           });
         }
@@ -6475,18 +6475,19 @@ export function takeAiStep(
           choices.push({
             kind: "flex",
             slot: i,
-            score: (28 + bestSc) * fm,
+            score: (72 + bestSc) * fm,
             flex: { type: "mage_buff", toSlot: best },
           });
         }
-        if (mission.mustDefend || me.hp <= 12) {
-          choices.push({
-            kind: "flex",
-            slot: i,
-            score: (30 + (14 - Math.min(14, me.hp))) * fm,
-            flex: { type: "mage_oracle" },
-          });
-        }
+        // Маг Пути оракула — витрина каста, не только «бить лицом».
+        choices.push({
+          kind: "flex",
+          slot: i,
+          score:
+            (best >= 0 ? 40 : 78) * fm +
+            (mission.mustDefend || me.hp <= 14 ? 18 : 0),
+          flex: { type: "mage_oracle" },
+        });
       }
 
       if (ab === "banshee_flex" || ab === "mermaid_flex" || ab === "succubus_flex") {
@@ -6512,7 +6513,7 @@ export function takeAiStep(
           choices.push({
             kind: "flex",
             slot: i,
-            score: (18 + sleepSc * 0.85) * fm * skill.tradeMul,
+            score: (55 + sleepSc) * fm * skill.tradeMul,
             flex: { type: "sleep", toSlot: sleepT },
           });
         }
@@ -6529,9 +6530,9 @@ export function takeAiStep(
           mission.openLanes.find((s) => !me.slots[s]) ??
           me.slots.findIndex((s) => !s);
         if (empty >= 0 && !me.slots[empty]) {
-          // Призыв важнее «просто ударить»: иначе клепальщики только лупят юнитов.
+          // Путь оракула: клепальщик обязан клепать, а не лупить лицом.
           const sc =
-            (36 +
+            (90 +
               (mission.openLanes.includes(empty) ? 30 : 8) +
               (boardCount < skill.developUntil ? 18 : 0) +
               (boardCount <= 1 ? 45 : boardCount <= 2 ? 22 : 0)) *
@@ -6562,7 +6563,7 @@ export function takeAiStep(
           choices.push({
             kind: "flex",
             slot: i,
-            score: (14 + bestSc * 0.5) * fm,
+            score: (60 + bestSc * 0.5) * fm,
             flex: { type: "paladin_shield", toSlot: best },
           });
         }
@@ -6582,7 +6583,7 @@ export function takeAiStep(
           choices.push({
             kind: "flex",
             slot: i,
-            score: (24 + (mission.openLanes.includes(empty) ? 20 : 8)) * fm,
+            score: (85 + (mission.openLanes.includes(empty) ? 20 : 8)) * fm,
             flex: {
               type: "gravedigger",
               toSlot: empty,
@@ -6601,7 +6602,7 @@ export function takeAiStep(
             choices.push({
               kind: "flex",
               slot: i,
-              score: (18 + t.health * 2) * fm,
+              score: (70 + t.health * 2) * fm,
               flex: { type: "leshy", side: "ally", toSlot: j },
             });
           }
@@ -6625,7 +6626,7 @@ export function takeAiStep(
           choices.push({
             kind: "flex",
             slot: i,
-            score: (20 + (foePow - myPow)) * fm,
+            score: (70 + (foePow - myPow)) * fm,
             flex: { type: "arbiter" },
           });
         }
@@ -6660,11 +6661,27 @@ export function takeAiStep(
               choices.push({
                 kind: "flex",
                 slot: i,
-                score: (10 + sc) * fm,
+                score: (55 + sc) * fm,
                 flex: { type: "balthazar", a, b },
               });
             }
           }
+        }
+      }
+    }
+  }
+
+  // Витрина Пути оракула: если у юнита есть flex — колдует, а не тупо бьёт.
+  // Без летала удар того же слота режется; нет flex → бьёт как обычно (чередование по ситуации).
+  if (!mission.canLethal) {
+    const flexSlots = new Set<number>();
+    for (const c of choices) {
+      if (c.kind === "flex") flexSlots.add(c.slot);
+    }
+    if (flexSlots.size) {
+      for (const c of choices) {
+        if (c.kind === "combat" && flexSlots.has(c.slot)) {
+          c.score -= 120;
         }
       }
     }
