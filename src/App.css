@@ -7852,26 +7852,37 @@ html.is-hand-dragging .oracle-folio {
   text-shadow: 0 1px 2px #000;
 }
 
-/* Цвета школ — контраст к земле (не жёлтые все подряд) */
+/* Цвета школ против своей земли + чёрно-белая обводка */
+.oracle-path-flag .oracle-path-flag-cloth {
+  box-shadow:
+    0 0 0 1.5px #0a0a0a,
+    0 0 0 3px rgba(255, 255, 255, 0.92);
+}
+
 .oracle-path-flag.school-hell .oracle-path-flag-cloth {
-  background: linear-gradient(145deg, #5eb8ff, #1565c0);
+  /* синий на лаве */
+  background: linear-gradient(145deg, #7ecbff, #0d47a1);
 }
 .oracle-path-flag.school-life .oracle-path-flag-cloth {
-  background: linear-gradient(145deg, #d4a0ff, #7b1fa2);
+  /* фиолетовый на зелени/золоте */
+  background: linear-gradient(145deg, #e040fb, #6a1b9a);
 }
 .oracle-path-flag.school-death .oracle-path-flag-cloth {
-  background: linear-gradient(145deg, #ffe082, #c9a227);
+  /* золото на фиолетовом */
+  background: linear-gradient(145deg, #ffe566, #b8860b);
 }
 .oracle-path-flag.school-nature .oracle-path-flag-cloth {
-  background: linear-gradient(145deg, #ff6b6b, #c62828);
+  /* не красный (сливается) — ярко-бирюзовый на зелени */
+  background: linear-gradient(145deg, #18ffff, #00838f);
 }
 .oracle-path-flag.school-water .oracle-path-flag-cloth {
-  background: linear-gradient(145deg, #69f0ae, #1b5e20);
+  /* зелёный на синей воде */
+  background: linear-gradient(145deg, #76ff03, #33691e);
 }
 
 .oracle-path-flag.is-locked .oracle-path-flag-cloth {
-  filter: brightness(0.45) saturate(0.55);
-  opacity: 0.85;
+  filter: brightness(0.5) saturate(0.7);
+  opacity: 0.9;
 }
 
 .oracle-path-flag.is-locked .oracle-path-flag-pole {
@@ -7879,16 +7890,16 @@ html.is-hand-dragging .oracle-folio {
 }
 
 .oracle-path-flag.is-cleared .oracle-path-flag-cloth {
-  filter: brightness(0.72);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  filter: brightness(0.78);
 }
 
 .oracle-path-flag.is-current .oracle-path-flag-cloth,
 .oracle-path-flag.is-fightable .oracle-path-flag-cloth {
-  filter: brightness(1.12);
+  filter: brightness(1.15);
   box-shadow:
-    0 0 0 2px #fff,
-    0 0 10px rgba(255, 255, 255, 0.55);
+    0 0 0 2px #0a0a0a,
+    0 0 0 4px #fff,
+    0 0 12px rgba(255, 255, 255, 0.75);
   animation: oracle-path-flag-pulse 1.8s ease-in-out infinite;
 }
 
