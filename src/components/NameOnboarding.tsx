@@ -5,7 +5,7 @@ type Props = {
   onComplete: (displayName: string) => void | Promise<void>;
 };
 
-/** Только ник — без выбора школы. Дальше игрок в хабе. */
+/** Только ник. Дальше — обучение «Путь оракула» (хаб ещё закрыт). */
 export function NameOnboarding({ initialName = "", onComplete }: Props) {
   const [name, setName] = useState(initialName);
   const [busy, setBusy] = useState(false);
@@ -34,7 +34,7 @@ export function NameOnboarding({ initialName = "", onComplete }: Props) {
         <h1>Как тебя зовут?</h1>
       </header>
       <p className="hint hero-screen-hint">
-        Ник — и сразу в игру. Школу можно выбрать потом.
+        Ник — и короткое обучение: попробуешь школы, потом выберешь свою.
       </p>
       <form className="onboard-form" onSubmit={submit}>
         <div className="onboard-name-row">
@@ -55,7 +55,7 @@ export function NameOnboarding({ initialName = "", onComplete }: Props) {
             className="primary large onboard-ready"
             disabled={busy}
           >
-            {busy ? "…" : "В игру"}
+            {busy ? "…" : "Дальше"}
           </button>
         </div>
         {error && <p className="auth-error">{error}</p>}

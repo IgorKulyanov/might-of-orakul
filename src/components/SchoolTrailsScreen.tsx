@@ -17,7 +17,10 @@ type Props = {
   displayName: string;
   onPlayTrail: (faction: Faction, stepIndex: number) => void;
   onPickSchool: () => void;
+  /** Повторный заход из хаба — можно назад в меню. */
   onBack?: () => void;
+  /** Первый проход: без выхода в меню, тон «обучение». */
+  asTutorial?: boolean;
   onSaveName?: (name: string) => void;
 };
 
@@ -27,29 +30,31 @@ export function SchoolTrailsScreen({
   onPlayTrail,
   onPickSchool,
   onBack,
+  asTutorial = false,
 }: Props) {
   const wins = schoolTrailWinsTotal(owned);
   const ready = canPickSchool(owned);
 
   return (
-    <div className="school-trails-screen">
+    <div className={`school-trails-screen${asTutorial ? " is-tutorial" : ""}`}>
       <header className="page-bar">
-        {onBack ? (
+        {onBack && !asTutorial ? (
           <button type="button" className="ghost" onClick={onBack}>
             ← Меню
           </button>
         ) : null}
-        <h1>Путь оракула</h1>
+        <h1>{asTutorial ? "Обучение · Путь оракула" : "Путь оракула"}</h1>
       </header>
       <p className="hint school-trails-hint">
         {displayName ? `${displayName}, ` : ""}
-        короткие тропы пяти школ — враг только юниты на столе, без колоды.
-        Можно выйти в меню в любой момент.
+        {asTutorial
+          ? "короткие бои пяти школ — почувствуй вкус силы. Враг только юниты на столе, без колоды. Потом выберешь свою школу и откроется весь мир."
+          : "короткие тропы пяти школ — враг только юниты на столе, без колоды."}
       </p>
       <p className="school-trails-progress">
         Побед на тропах: {wins}
         {ready
-          ? " — уже хватает, чтобы уверенно выбрать школу"
+          ? " — уже можно уверенно выбрать школу"
           : ` · совет: попробуй ~${SCHOOL_TRAIL_WINS_TO_PICK}, но выбрать можно раньше`}
       </p>
 
@@ -57,7 +62,10 @@ export function SchoolTrailsScreen({
         {SCHOOL_TRAIL_FACTIONS.map((faction) => {
           const cleared = schoolTrailCleared(owned, faction);
           const done = cleared >= SCHOOL_TRAIL_STEPS;
-          const step = schoolTrailStep(faction, done ? SCHOOL_TRAIL_STEPS - 1 : cleared);
+          const step = schoolTrailStep(
+            faction,
+            done ? SCHOOL_TRAIL_STEPS - 1 : cleared,
+          );
           const color = SCHOOL_COLOR[faction];
           return (
             <div
@@ -74,7 +82,9 @@ export function SchoolTrailsScreen({
               </div>
               {step && (
                 <p className="school-trail-lesson">
-                  {done ? "Тропа пройдена." : `Дальше: ${step.foeName}. ${step.lesson}`}
+                  {done
+                    ? "Тропа пройдена."
+                    : `Дальше: ${step.foeName}. ${step.lesson}`}
                 </p>
               )}
               <button

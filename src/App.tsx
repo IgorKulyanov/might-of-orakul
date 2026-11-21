@@ -1218,7 +1218,8 @@ export default function App() {
         /* offline */
       }
     })();
-    setScreen("menu");
+    // Искатель → обучение; со школой — хаб. Заставка позже встанет перед тропами.
+    setScreen(u.owned?.homeFaction ? "menu" : "school_trails");
   };
 
   const logout = () => {
@@ -1237,7 +1238,8 @@ export default function App() {
     const { user: me } = await apiUpdateMe(t, { displayName });
     updateCachedUser(me);
     setUser(me);
-    setScreen("menu");
+    // Скоро: заставка → сюда. Пока сразу в обучение «Путь оракула».
+    setScreen("school_trails");
   };
 
   const finishOnboarding = async (
@@ -1532,7 +1534,7 @@ export default function App() {
     );
   }
 
-  // Только ник обязателен. Школа — через «Путь оракула» с главного меню.
+  // Только ник обязателен. Дальше — обучение «Путь оракула» (хаб до школы закрыт).
   if (accountNeedsOnboarding(user)) {
     return (
       <NameOnboarding
@@ -1546,6 +1548,70 @@ export default function App() {
   const displayName = user.displayName ?? user.login ?? "Игрок";
   const level = playerLevel(owned);
   const foeLevel = botLevelNear(level);
+  const seeker = !owned.homeFaction;
+
+  // Искатель: не пускаем шариться по меню. Тропы / выбор школы / бой тропы.
+  if (seeker) {
+    if (screen === "battle_school_trail" && trailFight) {
+      const foeHero = schoolTrailEnemyHeroId(trailFight.faction);
+      return (
+        <Battle
+          key={`trail-${trailFight.faction}-${trailFight.step}`}
+          yourDeck={battleDeck(owned)}
+          enemyDeck={[]}
+          yourHeroId={activeHeroId(owned)}
+          enemyHeroId={foeHero}
+          yourName={displayName}
+          yourLevel={level}
+          enemyLevel={8}
+          enemyCardUpgrades={schoolTrailEnemyUpgrades(
+            trailFight.faction,
+            trailFight.step,
+          )}
+          oracleSkills={[]}
+          enemyOracleSkills={[]}
+          prepareBattle={(s) =>
+            prepareSchoolTrailBattle(s, trailFight.faction, trailFight.step)
+          }
+          allowRematch
+          rematchLabel="Ещё раз"
+          exitPolicy="free"
+          resultExitLabel={() => "К пути"}
+          onExit={() => {
+            setTrailFight(null);
+            setScreen("school_trails");
+          }}
+          onBattleEnd={onBattleEnd}
+        />
+      );
+    }
+
+    if (screen === "school_pick") {
+      return (
+        <OnboardingScreen
+          owned={owned}
+          initialName={displayName}
+          afterTrails
+          onComplete={finishOnboarding}
+        />
+      );
+    }
+
+    return (
+      <SchoolTrailsScreen
+        owned={owned}
+        displayName={displayName}
+        asTutorial
+        onPlayTrail={(faction, stepIndex) => {
+          unlockSfx();
+          void startBattleMusic();
+          setTrailFight({ faction, step: stepIndex });
+          setScreen("battle_school_trail");
+        }}
+        onPickSchool={() => setScreen("school_pick")}
+      />
+    );
+  }
 
   if (screen === "battle_school_trail" && trailFight) {
     const foeHero = schoolTrailEnemyHeroId(trailFight.faction);
@@ -1563,7 +1629,7 @@ export default function App() {
           trailFight.faction,
           trailFight.step,
         )}
-        oracleSkills={owned.homeFaction ? owned.oracleSkillLoadout : []}
+        oracleSkills={owned.oracleSkillLoadout}
         enemyOracleSkills={[]}
         prepareBattle={(s) =>
           prepareSchoolTrailBattle(s, trailFight.faction, trailFight.step)
