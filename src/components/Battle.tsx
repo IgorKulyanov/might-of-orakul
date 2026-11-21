@@ -605,40 +605,33 @@ function BattleMissile({
         return;
       }
 
-      // Рогатка: камушек по дуге + кручение.
+      // Рогатка: камушек прямо в цель (без дуги — иначе улетал мимо).
       if (kind === "sling") {
-        const duration = reduce ? 170 : 480;
-        const midX = from.x + (to.x - from.x) * 0.5;
-        const midY = from.y + (to.y - from.y) * 0.5 - 28;
+        const duration = reduce ? 160 : 400;
         other = el.animate(
           [
             {
-              transform: `translate(${from.x}px, ${from.y}px) scale(0.55) rotate(0deg)`,
-              opacity: 0.4,
+              transform: `translate(${from.x}px, ${from.y}px) scale(0.6) rotate(0deg)`,
+              opacity: 0.45,
             },
             {
-              transform: `translate(${from.x}px, ${from.y}px) scale(1) rotate(40deg)`,
+              transform: `translate(${from.x}px, ${from.y}px) scale(1) rotate(30deg)`,
               opacity: 1,
-              offset: 0.08,
+              offset: 0.1,
             },
             {
-              transform: `translate(${midX}px, ${midY}px) scale(1.05) rotate(180deg)`,
+              transform: `translate(${to.x}px, ${to.y}px) scale(1.05) rotate(300deg)`,
               opacity: 1,
-              offset: 0.48,
+              offset: 0.88,
             },
             {
-              transform: `translate(${to.x}px, ${to.y}px) scale(1.1) rotate(340deg)`,
-              opacity: 1,
-              offset: 0.86,
-            },
-            {
-              transform: `translate(${to.x}px, ${to.y}px) scale(0.35) rotate(400deg)`,
+              transform: `translate(${to.x}px, ${to.y}px) scale(0.4) rotate(360deg)`,
               opacity: 0,
             },
           ],
           {
             duration,
-            easing: "cubic-bezier(0.18, 0.72, 0.22, 1)",
+            easing: "cubic-bezier(0.2, 0.75, 0.25, 1)",
             fill: "forwards",
           },
         );
