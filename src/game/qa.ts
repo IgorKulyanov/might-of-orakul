@@ -1335,21 +1335,21 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
 
   assert("triton summon aquilite", () => {
     let s = boardForCreatures();
-    s.you.mana.water = 1;
+    s.you.mana.water = 2;
     s.you.slots[0] = arm(dummy("triton", "tr1", 3));
     s = summonAquiliteWithTriton(s, 0, 2);
     if (s.you.slots[2]?.cardId !== "aquilite") return "акулит не призван";
-    if ((s.you.mana.water ?? 0) !== 0) return "призыв не списал 1 воды";
+    if ((s.you.mana.water ?? 0) !== 0) return "призыв не списал 2 воды";
     return null;
   });
 
   assert("necro summon skeleton", () => {
     let s = boardForCreatures();
-    s.you.mana.death = 1;
+    s.you.mana.death = 2;
     s.you.slots[0] = arm(dummy("necro_mage", "nm1", 3));
     s = summonSkeletonWithNecro(s, 0, 2);
     if (s.you.slots[2]?.cardId !== "skeleton") return "скелет не призван";
-    if ((s.you.mana.death ?? 0) !== 0) return "призыв не списал 1 смерти";
+    if ((s.you.mana.death ?? 0) !== 0) return "призыв не списал 2 смерти";
     return null;
   });
 
@@ -1365,10 +1365,10 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
 
   assert("flex summon needs mana else no spawn", () => {
     let s = boardForCreatures();
-    s.you.mana.death = 0;
+    s.you.mana.death = 1;
     s.you.slots[0] = arm(dummy("necro_mage", "nm0", 3));
     s = summonSkeletonWithNecro(s, 0, 2);
-    if (s.you.slots[2]) return "без маны скелет не должен появиться";
+    if (s.you.slots[2]) return "при 1 смерти скелет не должен появиться (нужно 2)";
     return null;
   });
 

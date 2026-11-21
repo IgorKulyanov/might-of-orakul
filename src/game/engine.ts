@@ -3909,12 +3909,38 @@ export function gravediggerFlexReady(
   return true;
 }
 
+/** Кого клепает summoner → цена призыва = стоимость этой карты своей школы. */
+function flexSummonedCardId(summonerCardId: string): string | null {
+  const ab = getCard(summonerCardId).ability;
+  if (ab === "necro_flex" || summonerCardId === "necro_mage") return "skeleton";
+  if (ab === "triton_flex" || summonerCardId === "triton") return "aquilite";
+  if (ab === "hornet_queen_flex" || summonerCardId === "hornet_queen") {
+    return "hornet_warrior";
+  }
+  return null;
+}
+
 /**
- * Призыв клепальщиком (некро / тритон / матка): 1 маны школы карты.
- * Без маны — только удар (и у игрока, и у ИИ).
+ * Призыв клепальщиком: столько маны школы, сколько стоит призванная карта.
+ * Акулит/скелет = 2; без маны — только удар (игрок и ИИ).
  */
 export function flexSummonManaCost(summonerCardId: string): ManaCost {
-  const school = getCard(summonerCardId).school;
+  const spawned = flexSummonedCardId(summonerCardId);
+  if (!spawned) {
+    const school = getCard(summonerCardId).school;
+    if (
+      school !== "death" &&
+      school !== "nature" &&
+      school !== "water" &&
+      school !== "life" &&
+      school !== "hell"
+    ) {
+      return {};
+    }
+    return { [school]: 2 };
+  }
+  const cost = getCard(spawned).manaCost ?? {};
+  const school = getCard(spawned).school;
   if (
     school !== "death" &&
     school !== "nature" &&
@@ -3924,7 +3950,8 @@ export function flexSummonManaCost(summonerCardId: string): ManaCost {
   ) {
     return {};
   }
-  return { [school]: 1 };
+  const amount = Math.max(1, Math.floor(Number(cost[school]) || 2));
+  return { [school]: amount };
 }
 
 export function canPayFlexSummon(
@@ -3976,7 +4003,7 @@ export function summonAquiliteWithTriton(
   next.selectedHand = null;
   syncBoardAuras(me, next.log);
   next.log = [
-    `${getCard(triton.cardId).name} призывает Акулита (−1 воды) в слот ${toSlot + 1}`,
+    `${getCard(triton.cardId).name} призывает Акулита (−${cost.water ?? 2} воды) в слот ${toSlot + 1}`,
     ...next.log,
   ].slice(0, 10);
   return next;
@@ -4381,7 +4408,7 @@ export function swapEnemyWithBalthazar(
   return next;
 }
 
-/** Некромант: призвать скелета (−1 маны смерти). */
+/** Некромант: призвать скелета (цена = стоимость скелета). */
 export function summonSkeletonWithNecro(
   state: BattleState,
   fromSlot: number,
@@ -4425,14 +4452,14 @@ export function summonSkeletonWithNecro(
   syncBoardAuras(me, next.log);
   next.log = [
     slots.length > 1
-      ? `${getCard(necro.cardId).name} призывает ${slots.length} скелетов (−1 смерти)`
-      : `${getCard(necro.cardId).name} призывает Скелета (−1 смерти) в слот ${toSlot + 1}`,
+      ? `${getCard(necro.cardId).name} призывает ${slots.length} скелетов (−${cost.death ?? 2} смерти)`
+      : `${getCard(necro.cardId).name} призывает Скелета (−${cost.death ?? 2} смерти) в слот ${toSlot + 1}`,
     ...next.log,
   ].slice(0, 10);
   return next;
 }
 
-/** Матка шершней: призвать Шершня-воина (−1 маны природы). */
+/** Матка шершней: призвать Шершня-воина (цена = стоимость шершня). */
 export function summonHornetWithQueen(
   state: BattleState,
   fromSlot: number,
@@ -4462,7 +4489,7 @@ export function summonHornetWithQueen(
   next.selectedSlot = null;
   syncBoardAuras(me, next.log);
   next.log = [
-    `${getCard(queen.cardId).name} создаёт Шершня-воина (−1 природы) в слот ${toSlot + 1}`,
+    `${getCard(queen.cardId).name} создаёт Шершня-воина (−${cost.nature ?? 1} природы) в слот ${toSlot + 1}`,
     ...next.log,
   ].slice(0, 10);
   return next;
@@ -7136,7 +7163,7 @@ export function takeAiStep(
       atk.canAttack = false;
       syncBoardAuras(me, next.log);
       next.log.unshift(
-        `Соперник: ${name} призывает ${getCard(flex.cardId).name} (−1 маны)`,
+        `Соперник: ${name} призывает ${getCard(flex.cardId).name} (−${manaCostTotal(cost)} маны)`,
       );
       next.log = next.log.slice(0, 10);
       return {
