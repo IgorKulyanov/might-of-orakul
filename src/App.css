@@ -7735,6 +7735,7 @@ html.is-hand-dragging .oracle-folio {
   transform-origin: 0 0;
   will-change: transform;
   user-select: none;
+  /* scale() от угла — пан/щипок считают координаты отсюда */
 }
 
 .oracle-path-map-art {

@@ -48,6 +48,24 @@ type PanDrag = {
   moved: boolean;
 };
 
+type PinchState = {
+  startDist: number;
+  startScale: number;
+  startPanX: number;
+  startPanY: number;
+  midX: number;
+  midY: number;
+};
+
+const MAP_MIN_SCALE = 0.55;
+const MAP_MAX_SCALE = 2.8;
+
+function dist2(a: { x: number; y: number }, b: { x: number; y: number }) {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return Math.hypot(dx, dy);
+}
+
 export function SchoolTrailsScreen({
   owned,
   displayName,
@@ -59,17 +77,26 @@ export function SchoolTrailsScreen({
   const ready = canPickSchool(owned);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [scale, setScale] = useState(1);
   const viewportRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<PanDrag | null>(null);
+  const pinchRef = useRef<PinchState | null>(null);
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const panRef = useRef(pan);
+  const scaleRef = useRef(scale);
   const suppressClickRef = useRef(false);
+  panRef.current = pan;
+  scaleRef.current = scale;
 
-  const clampPan = useCallback((x: number, y: number) => {
+  const clampPan = useCallback((x: number, y: number, s = scaleRef.current) => {
     const vp = viewportRef.current;
     const map = mapRef.current;
     if (!vp || !map) return { x, y };
-    const minX = Math.min(0, vp.clientWidth - map.offsetWidth);
-    const minY = Math.min(0, vp.clientHeight - map.offsetHeight);
+    const w = map.offsetWidth * s;
+    const h = map.offsetHeight * s;
+    const minX = Math.min(0, vp.clientWidth - w);
+    const minY = Math.min(0, vp.clientHeight - h);
     return {
       x: Math.max(minX, Math.min(0, x)),
       y: Math.max(minY, Math.min(0, y)),
@@ -80,8 +107,9 @@ export function SchoolTrailsScreen({
     const vp = viewportRef.current;
     const map = mapRef.current;
     if (!vp || !map) return;
-    const minX = Math.min(0, vp.clientWidth - map.offsetWidth);
-    const minY = Math.min(0, vp.clientHeight - map.offsetHeight);
+    const s = scaleRef.current;
+    const minX = Math.min(0, vp.clientWidth - map.offsetWidth * s);
+    const minY = Math.min(0, vp.clientHeight - map.offsetHeight * s);
     setPan({ x: minX / 2, y: minY / 2 });
   }, []);
 
@@ -98,21 +126,113 @@ export function SchoolTrailsScreen({
     };
   }, [centerMap]);
 
+  // Ctrl+колесо / тачпад-пинч — без passive, иначе preventDefault не сработает
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const wheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const vp = el.getBoundingClientRect();
+      const midX = e.clientX - vp.left;
+      const midY = e.clientY - vp.top;
+      const prev = scaleRef.current;
+      const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
+      const nextScale = Math.min(
+        MAP_MAX_SCALE,
+        Math.max(MAP_MIN_SCALE, prev * factor),
+      );
+      const worldX = (midX - panRef.current.x) / prev;
+      const worldY = (midY - panRef.current.y) / prev;
+      const nextPan = clampPan(
+        midX - worldX * nextScale,
+        midY - worldY * nextScale,
+        nextScale,
+      );
+      scaleRef.current = nextScale;
+      panRef.current = nextPan;
+      setScale(nextScale);
+      setPan(nextPan);
+    };
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => el.removeEventListener("wheel", wheel);
+  }, [clampPan]);
+
+  const beginPinch = () => {
+    const pts = [...pointersRef.current.values()];
+    if (pts.length < 2) return;
+    const [a, b] = pts;
+    const vp = viewportRef.current?.getBoundingClientRect();
+    if (!vp) return;
+    const midX = (a!.x + b!.x) / 2 - vp.left;
+    const midY = (a!.y + b!.y) / 2 - vp.top;
+    pinchRef.current = {
+      startDist: Math.max(1, dist2(a!, b!)),
+      startScale: scaleRef.current,
+      startPanX: panRef.current.x,
+      startPanY: panRef.current.y,
+      midX,
+      midY,
+    };
+    dragRef.current = null;
+    suppressClickRef.current = true;
+  };
+
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0 && e.pointerType === "mouse") return;
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    viewportRef.current?.setPointerCapture(e.pointerId);
+
+    if (pointersRef.current.size >= 2) {
+      beginPinch();
+      return;
+    }
+
     dragRef.current = {
       pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
-      originX: pan.x,
-      originY: pan.y,
+      originX: panRef.current.x,
+      originY: panRef.current.y,
       moved: false,
     };
     suppressClickRef.current = false;
-    viewportRef.current?.setPointerCapture(e.pointerId);
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
+    if (!pointersRef.current.has(e.pointerId)) return;
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pointersRef.current.size >= 2) {
+      if (!pinchRef.current) beginPinch();
+      const pinch = pinchRef.current;
+      const pts = [...pointersRef.current.values()];
+      if (!pinch || pts.length < 2) return;
+      const [a, b] = pts;
+      const vp = viewportRef.current?.getBoundingClientRect();
+      if (!vp) return;
+      const midX = (a!.x + b!.x) / 2 - vp.left;
+      const midY = (a!.y + b!.y) / 2 - vp.top;
+      const ratio = Math.max(1, dist2(a!, b!)) / pinch.startDist;
+      const nextScale = Math.min(
+        MAP_MAX_SCALE,
+        Math.max(MAP_MIN_SCALE, pinch.startScale * ratio),
+      );
+      // Зум вокруг точки между пальцами
+      const worldX = (pinch.midX - pinch.startPanX) / pinch.startScale;
+      const worldY = (pinch.midY - pinch.startPanY) / pinch.startScale;
+      const nextPan = clampPan(
+        midX - worldX * nextScale,
+        midY - worldY * nextScale,
+        nextScale,
+      );
+      scaleRef.current = nextScale;
+      panRef.current = nextPan;
+      setScale(nextScale);
+      setPan(nextPan);
+      return;
+    }
+
     const d = dragRef.current;
     if (!d || d.pointerId !== e.pointerId) return;
     const dx = e.clientX - d.startX;
@@ -122,18 +242,39 @@ export function SchoolTrailsScreen({
       suppressClickRef.current = true;
     }
     if (d.moved) {
-      setPan(clampPan(d.originX + dx, d.originY + dy));
+      const next = clampPan(d.originX + dx, d.originY + dy);
+      panRef.current = next;
+      setPan(next);
     }
   };
 
   const endDrag = (e: React.PointerEvent) => {
-    const d = dragRef.current;
-    if (!d || d.pointerId !== e.pointerId) return;
-    dragRef.current = null;
+    pointersRef.current.delete(e.pointerId);
     try {
       viewportRef.current?.releasePointerCapture(e.pointerId);
     } catch {
       /* ignore */
+    }
+
+    if (pointersRef.current.size < 2) {
+      pinchRef.current = null;
+    }
+
+    if (pointersRef.current.size === 1) {
+      const [id, pt] = [...pointersRef.current.entries()][0]!;
+      dragRef.current = {
+        pointerId: id,
+        startX: pt.x,
+        startY: pt.y,
+        originX: panRef.current.x,
+        originY: panRef.current.y,
+        moved: true,
+      };
+      return;
+    }
+
+    if (dragRef.current?.pointerId === e.pointerId) {
+      dragRef.current = null;
     }
   };
 
@@ -173,7 +314,7 @@ export function SchoolTrailsScreen({
       </header>
       <p className="hint school-trails-hint">
         {displayName ? `${displayName}: ` : ""}
-        5×5 флажков. На телефоне карту можно двигать пальцем. ★ — выбор школы.
+        5×5 флажков. Двигай одним пальцем, щипок — масштаб. ★ — выбор школы.
       </p>
 
       <div
@@ -187,7 +328,9 @@ export function SchoolTrailsScreen({
         <div
           className="oracle-path-map-wrap"
           ref={mapRef}
-          style={{ transform: `translate(${pan.x}px, ${pan.y}px)` }}
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
+          }}
         >
           <img
             className="oracle-path-map-art"
