@@ -680,19 +680,16 @@ export function prepareSchoolTrailBattle(
   const up: CardUpgradeLevel = step.upgradeLevel ?? 1;
 
   next.enemy.name = step.foeName;
+  // Рука тропы = ровно то, что в скрипте. Без добора и без рецикла могилы.
   const foeHand = (step.hand ?? []).map(String).filter(Boolean);
   const foeDeck = (step.deck ?? []).map(String).filter(Boolean);
-  next.enemy.hand = foeHand.slice(0, MAX_HAND_SIZE);
-  next.enemy.deck = [
-    ...foeDeck,
-    ...foeHand.slice(MAX_HAND_SIZE),
-  ];
+  next.enemy.hand = [...foeHand];
+  next.enemy.deck = [...foeDeck];
   // Как в основной игре: своя школа каждый ход, чужие через ход.
   next.enemy.oracleSkillLoadout = [];
   next.enemy.equalManaGrowth = false;
-  // Могила витрины (могильщик) — не тасовать. Если есть рука/колода на выкладку — можно крутить.
-  next.enemy.preserveGraveyard =
-    (step.graveyard?.length ?? 0) > 0 && foeHand.length === 0 && foeDeck.length === 0;
+  // Иначе убитые снова тасуются в колоду/руку — бесконечный запас.
+  next.enemy.preserveGraveyard = true;
   next.enemy.oracleActiveUsedThisTurn = false;
   next.enemy.oracleSkillUsed = {};
   next.enemy.graveyard = [...(step.graveyard ?? [])];
