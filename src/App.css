@@ -1176,7 +1176,10 @@ button {
 
 /* Высокие портреты: cover срезал головы — вписываем по высоте */
 .card[data-card="banshee"] .card-art,
-.card[data-card="basilisk"] .card-art {
+.card[data-card="basilisk"] .card-art,
+.card[data-card="neutral_fighter"] .card-art,
+.card[data-card="neutral_wall"] .card-art,
+.card[data-card="neutral_archer"] .card-art {
   background-size: auto 100% !important;
   background-position: center top !important;
 }

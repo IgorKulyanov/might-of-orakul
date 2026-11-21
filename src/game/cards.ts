@@ -76,7 +76,7 @@ export function manaCostTotal(cost: ManaCost): number {
 }
 
 /** Сброс кэша браузера/CDN после замены JPG (бампай при новых артах). */
-const CARD_ART_VER = "20261121n";
+const CARD_ART_VER = "20261121n2";
 
 export function cardArtUrl(card: CardDef): string {
   const art = card.art ?? `${card.id}.png`;
@@ -100,6 +100,19 @@ export function cardArtStyle(card: CardDef): {
     },
     basilisk: {
       backgroundPosition: "68% top",
+      backgroundSize: "auto 100%",
+    },
+    // Полноростовые нейтралы: cover + 38% режет макушку под чёрной полосой статов.
+    neutral_fighter: {
+      backgroundPosition: "center top",
+      backgroundSize: "auto 100%",
+    },
+    neutral_wall: {
+      backgroundPosition: "center top",
+      backgroundSize: "auto 100%",
+    },
+    neutral_archer: {
+      backgroundPosition: "center top",
       backgroundSize: "auto 100%",
     },
   };

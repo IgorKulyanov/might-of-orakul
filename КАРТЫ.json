@@ -2389,7 +2389,8 @@
       "unitLevel": 1,
       "priceGold": 0,
       "priceDiamonds": 0,
-      "artFocus": "center 28%"
+      "artFit": "height",
+      "artFocus": "center top"
     },
     {
       "id": "neutral_wall",
@@ -2408,7 +2409,8 @@
       "unitLevel": 1,
       "priceGold": 0,
       "priceDiamonds": 0,
-      "artFocus": "center 30%"
+      "artFit": "height",
+      "artFocus": "center top"
     },
     {
       "id": "neutral_archer",
@@ -2427,7 +2429,8 @@
       "unitLevel": 1,
       "priceGold": 0,
       "priceDiamonds": 0,
-      "artFocus": "center 26%"
+      "artFit": "height",
+      "artFocus": "center top"
     }
   ]
 }
