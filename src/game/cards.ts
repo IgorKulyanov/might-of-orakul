@@ -76,7 +76,7 @@ export function manaCostTotal(cost: ManaCost): number {
 }
 
 /** Сброс кэша браузера/CDN после замены JPG (бампай при новых артах). */
-const CARD_ART_VER = "20261121n3";
+const CARD_ART_VER = "20261121n6";
 
 export function cardArtUrl(card: CardDef): string {
   const art = card.art ?? `${card.id}.png`;
@@ -101,19 +101,6 @@ export function cardArtStyle(card: CardDef): {
     basilisk: {
       backgroundPosition: "68% top",
       backgroundSize: "auto 100%",
-    },
-    // Широкие полноростовые сцены: height-fit режет бока — целиком в кадр.
-    neutral_fighter: {
-      backgroundPosition: "center center",
-      backgroundSize: "contain",
-    },
-    neutral_wall: {
-      backgroundPosition: "center center",
-      backgroundSize: "contain",
-    },
-    neutral_archer: {
-      backgroundPosition: "center center",
-      backgroundSize: "contain",
     },
   };
   if (forced[card.id]) return forced[card.id];

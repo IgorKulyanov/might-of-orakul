@@ -2384,13 +2384,11 @@
       "text": "Воин. 3/4. Стоит 1 маны жизни.",
       "rarity": "common",
       "premium": false,
-      "art": "нетральные существа/страж_ворот.png",
+      "art": "нетральные существа/страж_ворот.jpg",
       "gender": "male",
       "unitLevel": 1,
       "priceGold": 0,
-      "priceDiamonds": 0,
-      "artFit": "contain",
-      "artFocus": "center center"
+      "priceDiamonds": 0
     },
     {
       "id": "neutral_wall",
@@ -2404,13 +2402,11 @@
       "text": "Стена. 1/10. Стоит 1 маны смерти.",
       "rarity": "common",
       "premium": false,
-      "art": "нетральные существа/бывалый.png",
+      "art": "нетральные существа/бывалый.jpg",
       "gender": "male",
       "unitLevel": 1,
       "priceGold": 0,
-      "priceDiamonds": 0,
-      "artFit": "contain",
-      "artFocus": "center center"
+      "priceDiamonds": 0
     },
     {
       "id": "neutral_archer",
@@ -2424,13 +2420,11 @@
       "text": "Стрелок. 2/6. Стоит 1 маны природы.",
       "rarity": "common",
       "premium": false,
-      "art": "нетральные существа/озорница.png",
+      "art": "нетральные существа/озорница.jpg",
       "gender": "female",
       "unitLevel": 1,
       "priceGold": 0,
-      "priceDiamonds": 0,
-      "artFit": "contain",
-      "artFocus": "center center"
+      "priceDiamonds": 0
     }
   ]
 }
