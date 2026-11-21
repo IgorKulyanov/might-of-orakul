@@ -7705,21 +7705,36 @@ html.is-hand-dragging .oracle-folio {
   padding: 0.15rem 0.25rem;
 }
 
-.oracle-path-map-wrap {
+.oracle-path-map-viewport {
   position: relative;
   z-index: 1;
   flex: 1 1 auto;
-  margin: 0.15rem auto;
-  width: min(100%, calc(100dvh - 7.5rem));
-  height: min(100%, calc(100dvh - 7.5rem));
-  max-width: min(96vw, 920px);
-  max-height: calc(100dvh - 7.5rem);
-  aspect-ratio: 1 / 1;
+  min-height: 0;
+  width: 100%;
+  margin: 0.15rem 0;
   border-radius: 10px;
   overflow: hidden;
   border: 2px solid color-mix(in srgb, var(--gold, #e8c547) 45%, transparent);
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
   background: #2a2118;
+  touch-action: none;
+  cursor: grab;
+  overscroll-behavior: none;
+}
+
+.oracle-path-map-viewport:active {
+  cursor: grabbing;
+}
+
+.oracle-path-map-wrap {
+  position: relative;
+  width: min(100%, calc(100dvh - 7.5rem), 920px);
+  aspect-ratio: 1 / 1;
+  height: auto;
+  flex: none;
+  transform-origin: 0 0;
+  will-change: transform;
+  user-select: none;
 }
 
 .oracle-path-map-art {
@@ -7730,6 +7745,7 @@ html.is-hand-dragging .oracle-folio {
   object-position: center;
   user-select: none;
   pointer-events: none;
+  -webkit-user-drag: none;
 }
 
 .oracle-path-flag {
@@ -7851,11 +7867,11 @@ html.is-hand-dragging .oracle-folio {
     line-height: 1.3;
   }
 
+  /* Карта шире экрана — двигай пальцем влево/вправо и вверх/вниз */
   .oracle-path-map-wrap {
-    width: min(100%, calc(100dvh - 8.75rem));
-    height: min(100%, calc(100dvh - 8.75rem));
-    max-height: calc(100dvh - 8.75rem);
-    margin: 0.1rem auto;
+    width: max(160vw, 560px);
+    max-width: none;
+    height: auto;
   }
 
   .oracle-path-flag-pole {
@@ -7869,6 +7885,19 @@ html.is-hand-dragging .oracle-folio {
 
   .oracle-path-flag-cloth em {
     font-size: 0.55rem;
+  }
+}
+
+@media (min-width: 641px) {
+  .oracle-path-map-viewport {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .oracle-path-map-wrap {
+    /* На компе тоже чуть крупнее окна — можно подвигать мышью */
+    width: min(1100px, max(100%, calc(100dvh - 7rem)));
   }
 }
 
