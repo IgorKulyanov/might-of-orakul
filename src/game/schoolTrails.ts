@@ -16,9 +16,9 @@ export const SCHOOL_TRAIL_WINS_TO_PICK = 5;
 export const SCHOOL_TRAIL_STEPS = 5;
 
 /**
- * Награды тропы (в мини-колоду школы, играют в следующих боях этой тропы):
- * 1 — доп. мана · 2 — первый юнит · 3 — магия · 5 — второй юнит.
- * Флаг 3 без маны+юнита тяжело пройти — так и задумано.
+ * Награды тропы (в мини-колоду школы): по 1 карте за бой на флагах 1–4.
+ * К 5-му бою уже все 4 карты школы в колоде/руке.
+ * 1 — доп. мана · 2 — первый юнит · 3 — магия · 4 — второй юнит.
  */
 export type SchoolTrailReward = {
   afterCleared: number;
@@ -30,31 +30,31 @@ export const SCHOOL_TRAIL_REWARDS: Record<Faction, SchoolTrailReward[]> = {
     { afterCleared: 1, cardId: "hero_mana" },
     { afterCleared: 2, cardId: "skeleton" },
     { afterCleared: 3, cardId: "poison" },
-    { afterCleared: 5, cardId: "zombie" },
+    { afterCleared: 4, cardId: "zombie" },
   ],
   nature: [
     { afterCleared: 1, cardId: "hero_mana" },
     { afterCleared: 2, cardId: "spider" },
     { afterCleared: 3, cardId: "slow_foe" },
-    { afterCleared: 5, cardId: "elf" },
+    { afterCleared: 4, cardId: "elf" },
   ],
   water: [
     { afterCleared: 1, cardId: "hero_mana" },
     { afterCleared: 2, cardId: "aquilite" },
     { afterCleared: 3, cardId: "ice_trap" },
-    { afterCleared: 5, cardId: "water_spirit" },
+    { afterCleared: 4, cardId: "water_spirit" },
   ],
   life: [
     { afterCleared: 1, cardId: "hero_mana" },
     { afterCleared: 2, cardId: "crossbowman" },
     { afterCleared: 3, cardId: "life_root" },
-    { afterCleared: 5, cardId: "tank" },
+    { afterCleared: 4, cardId: "tank" },
   ],
   hell: [
     { afterCleared: 1, cardId: "hero_mana" },
     { afterCleared: 2, cardId: "fire_lizard" },
     { afterCleared: 3, cardId: "strike" },
-    { afterCleared: 5, cardId: "fire_gopnik" },
+    { afterCleared: 4, cardId: "fire_gopnik" },
   ],
 };
 
@@ -543,8 +543,8 @@ export function rewardCardRole(newlyCleared: number): string {
   if (newlyCleared === 3) {
     return "магия школы — без неё дальше тяжело";
   }
-  if (newlyCleared === 5) {
-    return "второй юнит — мини-колода школы почти собрана";
+  if (newlyCleared === 4) {
+    return "второй юнит — к 5-му флагу мини-колода школы полная";
   }
   return "в мини-колоду этой школы";
 }
