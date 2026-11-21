@@ -617,10 +617,9 @@ export function trailVictoryLead(
   );
 }
 
-/** Имена юнитов на столе врага (для превью флажка). */
-export function schoolTrailFoeLine(step: SchoolTrailStep): string {
+function cardNamesLine(ids: (string | null | undefined)[]): string {
   const names: string[] = [];
-  for (const id of step.slots) {
+  for (const id of ids) {
     if (!id) continue;
     try {
       names.push(getCard(id).name);
@@ -628,7 +627,21 @@ export function schoolTrailFoeLine(step: SchoolTrailStep): string {
       names.push(id);
     }
   }
-  return names.length ? names.join(" · ") : "пусто";
+  return names.join(" · ");
+}
+
+/** Имена юнитов на столе (+ рука/могила) для превью флажка. */
+export function schoolTrailFoeLine(step: SchoolTrailStep): string {
+  const board = cardNamesLine(step.slots);
+  const parts: string[] = [];
+  parts.push(board || "пусто");
+  const hand = cardNamesLine(step.hand ?? []);
+  if (hand) parts.push(`рука: ${hand}`);
+  const grave = cardNamesLine(step.graveyard ?? []);
+  if (grave) parts.push(`могила: ${grave}`);
+  const lv = step.upgradeLevel ?? 1;
+  parts.push(`ур.${lv}`);
+  return parts.join(" · ");
 }
 
 /** Колода боя тропы: 3 нейтрала + уже добытый черновик этой школы. */
