@@ -7803,8 +7803,8 @@ html.is-hand-dragging .oracle-folio {
 .oracle-path-flag {
   position: absolute;
   z-index: 3;
-  width: clamp(1.15rem, 3.6vw, 1.55rem);
-  height: clamp(1.5rem, 4.8vw, 2.05rem);
+  width: clamp(1.35rem, 4.2vw, 1.75rem);
+  height: clamp(1.75rem, 5.4vw, 2.25rem);
   margin: 0;
   padding: 0;
   /* Точка якоря у основания древка — не улетает за верх/низ карты */
@@ -7812,10 +7812,16 @@ html.is-hand-dragging .oracle-folio {
   border: none;
   background: transparent;
   cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
   transition:
     transform 0.15s ease,
     filter 0.15s ease;
+}
+
+.oracle-path-flag.is-fightable {
+  z-index: 6;
 }
 
 .oracle-path-flag-pole {

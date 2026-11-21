@@ -227,6 +227,9 @@ export function SchoolTrailsScreen({
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0 && e.pointerType === "mouse") return;
     if (flagDragRef.current) return;
+    // Тап по флажку — не панорамировать карту (иначе бой не открывается)
+    const t = e.target as Element | null;
+    if (t?.closest?.(".oracle-path-flag")) return;
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     viewportRef.current?.setPointerCapture(e.pointerId);
 
@@ -363,8 +366,8 @@ export function SchoolTrailsScreen({
   };
 
   const startFlagDrag = (e: React.PointerEvent, target: FlagDragTarget) => {
-    if (!editFlags) return;
     e.stopPropagation();
+    if (!editFlags) return;
     e.preventDefault();
     const pointerId = e.pointerId;
     const fd: FlagDrag = { ...target, pointerId };
@@ -398,7 +401,6 @@ export function SchoolTrailsScreen({
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);
-    // Сразу чуть сдвинуть под палец — видно, что схватили
     applyFlagPct(fd, e.clientX, e.clientY);
   };
 
@@ -408,6 +410,12 @@ export function SchoolTrailsScreen({
       suppressClickRef.current = false;
       return;
     }
+    setPreview(next);
+  };
+
+  const onFlagActivate = (next: Preview) => {
+    if (editFlags) return;
+    suppressClickRef.current = false;
     setPreview(next);
   };
 
@@ -536,20 +544,21 @@ export function SchoolTrailsScreen({
                       ? `${schoolTrailTitle(faction)} ${stepIndex + 1} · ${pos.x}/${pos.y}`
                       : `${schoolTrailTitle(faction)} · ${stepIndex + 1}/${SCHOOL_TRAIL_STEPS}`
                   }
-                  onPointerDown={(e) =>
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
                     startFlagDrag(e, {
                       kind: "step",
                       faction,
                       stepIndex,
-                    })
-                  }
+                    });
+                  }}
                   onClick={(e) => {
+                    e.stopPropagation();
                     if (editFlags) {
                       e.preventDefault();
-                      e.stopPropagation();
                       return;
                     }
-                    openPreview({ kind: "step", faction, stepIndex });
+                    onFlagActivate({ kind: "step", faction, stepIndex });
                   }}
                 >
                   <span className="oracle-path-flag-pole" aria-hidden />
@@ -582,16 +591,17 @@ export function SchoolTrailsScreen({
                   ? "Сердце мира — выбрать оракула"
                   : "Сначала заверши любую тропу (5/5)"
             }
-            onPointerDown={(e) =>
-              startFlagDrag(e, { kind: "finale" })
-            }
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              startFlagDrag(e, { kind: "finale" });
+            }}
             onClick={(e) => {
+              e.stopPropagation();
               if (editFlags) {
                 e.preventDefault();
-                e.stopPropagation();
                 return;
               }
-              openPreview({ kind: "finale" });
+              onFlagActivate({ kind: "finale" });
             }}
           >
             <span className="oracle-path-flag-pole" aria-hidden />
