@@ -1,6 +1,7 @@
 /**
  * Тропы вкуса школ — онбординг до выбора homeFaction.
- * Враг: фиксированный стол без колоды. Основной takeAiStep бота не меняем.
+ * Враг: стол + опционально рука/колода (выкладка после убийств).
+ * Основной takeAiStep бота не меняем.
  * Награды школ изолированы: в мир уходит только одна мини-колода + оракул.
  */
 import type { BattleState, Faction, OwnedState } from "./types";
@@ -218,6 +219,10 @@ export function formatSchoolTrailFlagLayoutTs(
 export type SchoolTrailStep = {
   /** Юниты на столе врага (слоты слева направо, null = пусто). */
   slots: (string | null)[];
+  /** Стартовая рука врага — выкладывает, когда есть слот и мана. */
+  hand?: string[];
+  /** Колода врага (добор / запас на выкладку). */
+  deck?: string[];
   /** Могила врага до боя (для могильщика). */
   graveyard?: string[];
   /** Подпись врага. */
@@ -278,30 +283,33 @@ export const SCHOOL_TRAIL_SCRIPTS: Record<Faction, SchoolTrailStep[]> = {
       lesson: "Яд тикает каждый ход. Тянуть «в оракула» — самоубийство.",
     },
     {
+      // Двое на столе + ещё двое в руке: убил — выкладывает снова.
       slots: ["spider", "spider", null, null, null],
+      hand: ["spider", "spider"],
       foeName: "Паучья пара",
-      lesson: "Два яда. Снимай тварей, не копи урон в лицо врага.",
+      lesson: "Два на столе и ещё два в руке. Снял — снова яд. Не гони только лицо.",
     },
     {
-      // Одна матка, без воина на столе — урок «клепает», не «убит за 3 хода».
-      slots: [null, "hornet_queen", null, null, null],
-      foeName: "Матка шершней",
-      lesson: "Витрина: одна матка клепает рой. Убей её, пока не наросла стая.",
-      wowHint: "Матка сама собирает рой. Такие карты — в лавке Природы.",
-      upgradeLevel: U,
+      // Витрина без матки-снежного кома: лучник природы.
+      slots: [null, "elf", null, null, null],
+      foeName: "Стрелок рощи",
+      lesson: "Витрина: эльф бьёт через линию. Стена не закрывает лицо.",
+      wowHint: "Эльф — лучник Природы. Такие карты в лавке рощи.",
     },
     {
-      // Ответ на трюк БЕЗ матки: яд + жало, без спавна и рой-бафа.
-      slots: ["spider", "hornet_warrior", null, null, null],
-      foeName: "Жало опушки",
-      lesson: "Без матки: паук ядом, шершень кусает. Снимай доску, не гони лицо.",
+      // Лучник на столе + запас на выкладку (без матки и рой-бафа).
+      slots: [null, "elf", null, null, null],
+      hand: ["hornet_warrior", "spider", "hornet_warrior"],
+      foeName: "Дозор опушки",
+      lesson: "Лучник держит лицо; убил воина/паука — враг ставит снова.",
     },
     {
-      slots: ["hornet_warrior", "hornet_queen", "elf", null, null],
+      // Пик без матки: лучник + давление + запас в руке.
+      slots: ["hornet_warrior", "elf", "spider", null, null],
+      hand: ["spider", "hornet_warrior"],
       foeName: "Страж рощи",
-      lesson: "Пик: рой + стрелок. Стена не закроет эльфа.",
-      wowHint: "Природа давит числом. Выбери её — и копи на матку.",
-      upgradeLevel: U,
+      lesson: "Пик: стрелок + жало + яд. Приоритет — кого гасить первым.",
+      wowHint: "Природа давит числом и стрелой. Выбери её — копи на рощу.",
     },
   ],
   water: [
@@ -654,13 +662,19 @@ export function prepareSchoolTrailBattle(
   const up: CardUpgradeLevel = step.upgradeLevel ?? 1;
 
   next.enemy.name = step.foeName;
-  next.enemy.deck = [];
-  next.enemy.hand = [];
+  const foeHand = (step.hand ?? []).map(String).filter(Boolean);
+  const foeDeck = (step.deck ?? []).map(String).filter(Boolean);
+  next.enemy.hand = foeHand.slice(0, MAX_HAND_SIZE);
+  next.enemy.deck = [
+    ...foeDeck,
+    ...foeHand.slice(MAX_HAND_SIZE),
+  ];
   // Как в основной игре: своя школа каждый ход, чужие через ход.
   next.enemy.oracleSkillLoadout = [];
   next.enemy.equalManaGrowth = false;
-  // Не тасовать учебную могилу в колоду (могильщик / пустая колода витрины).
-  next.enemy.preserveGraveyard = true;
+  // Могила витрины (могильщик) — не тасовать. Если есть рука/колода на выкладку — можно крутить.
+  next.enemy.preserveGraveyard =
+    (step.graveyard?.length ?? 0) > 0 && foeHand.length === 0 && foeDeck.length === 0;
   next.enemy.oracleActiveUsedThisTurn = false;
   next.enemy.oracleSkillUsed = {};
   next.enemy.graveyard = [...(step.graveyard ?? [])];
@@ -684,16 +698,16 @@ export function prepareSchoolTrailBattle(
     next.enemy.slots[i] = seedBoardCreature(cardId, up, next.rules);
   });
 
-  // Витрина матки (не пик): тонкое тело + мало природы — клепает со 2-го хода, не с первого.
-  if (faction === "nature" && stepIndex === 2) {
-    const q = next.enemy.slots.find((u) => u?.cardId === "hornet_queen");
-    if (q) {
-      const soft = 14;
-      q.baseHealth = Math.min(q.baseHealth, soft);
-      q.health = Math.min(q.health, soft);
-    }
-    next.enemy.mana.nature = Math.min(next.enemy.mana.nature ?? 0, 1);
+  // Прокачка и для карт из руки/колоды (не только стол).
+  const ups: Record<string, number> = { ...(next.enemyCardUpgrades ?? {}) };
+  for (const id of [
+    ...step.slots,
+    ...(step.hand ?? []),
+    ...(step.deck ?? []),
+  ]) {
+    if (id) ups[id] = Math.max(ups[id] ?? 1, up);
   }
+  next.enemyCardUpgrades = ups;
 
   // До выбора оракула своей школы нет: старт 1 во всех пяти, рост через ход.
   // faction тропы оставляем только чтобы «Доп. мана» / черновик школы качали её.
@@ -745,13 +759,6 @@ export function prepareSchoolTrailBattle(
     ...next.log,
   ].slice(0, 10);
 
-  // Прокачка flex на враге
-  const ups: Record<string, number> = { ...(next.enemyCardUpgrades ?? {}) };
-  for (const id of step.slots) {
-    if (id) ups[id] = Math.max(ups[id] ?? 1, up);
-  }
-  next.enemyCardUpgrades = ups;
-
   return next;
 }
 
@@ -763,7 +770,11 @@ export function schoolTrailEnemyUpgrades(
   if (!step) return {};
   const up = step.upgradeLevel ?? 1;
   const out: Record<string, number> = {};
-  for (const id of step.slots) {
+  for (const id of [
+    ...step.slots,
+    ...(step.hand ?? []),
+    ...(step.deck ?? []),
+  ]) {
     if (id) out[id] = up;
   }
   return out;
