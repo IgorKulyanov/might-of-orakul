@@ -5180,6 +5180,35 @@ html.is-hand-dragging .oracle-folio {
   margin-top: 0.35rem;
 }
 
+
+.campaign-preview-story {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(240, 208, 96, 0.22);
+  color: #f2e8d5;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.campaign-preview-outro {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  background: rgba(82, 183, 136, 0.12);
+  border: 1px solid rgba(82, 183, 136, 0.35);
+  color: #c8f0d8;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.campaign-preview-panel .hint.muted {
+  opacity: 0.65;
+}
+
 /* —— Арена испытаний —— */
 .arena-screen {
   min-height: 100vh;
@@ -7655,63 +7684,139 @@ html.is-hand-dragging .oracle-folio {
   color: var(--gold, #e8c547);
 }
 
-.school-trail-draft {
-  margin: 0;
-  font-size: 0.82rem;
-  line-height: 1.35;
-  opacity: 0.88;
-}
-
-.school-trails-grid {
-  display: grid;
-  gap: 0.85rem;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  max-width: 960px;
-  margin: 0 auto;
-}
-
-.school-trail-card {
-  border: 1px solid color-mix(in srgb, var(--faction, #888) 55%, transparent);
-  border-radius: 12px;
-  padding: 0.85rem 1rem;
-  background: color-mix(in srgb, var(--faction, #333) 12%, transparent);
+.school-trails-screen {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  padding-bottom: 0.75rem;
 }
 
-.school-trail-card.done {
-  opacity: 0.72;
+.oracle-path-map-wrap {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  margin: 0.25rem auto 0.75rem;
+  width: min(calc(100% - 0.5rem), min(72vh, calc(100dvh - 14rem)));
+  aspect-ratio: 1 / 1;
+  max-height: min(72vh, calc(100dvh - 14rem));
+  min-height: 280px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid color-mix(in srgb, var(--gold, #e8c547) 45%, transparent);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+  background: #2a2118;
 }
 
-.school-trail-card-head {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
+.oracle-path-map-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  user-select: none;
+  pointer-events: none;
 }
 
-.school-trail-card-head strong {
-  flex: 1;
-}
-
-.school-trail-steps {
-  font-size: 0.85rem;
-  opacity: 0.85;
-}
-
-.school-trail-lesson {
+.oracle-path-flag {
+  position: absolute;
+  z-index: 3;
+  width: 1.55rem;
+  height: 2.05rem;
   margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.4;
-  opacity: 0.92;
-  min-height: 2.8em;
+  padding: 0;
+  transform: translate(-50%, -85%);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
+  transition:
+    transform 0.15s ease,
+    filter 0.15s ease;
+}
+
+.oracle-path-flag-pole {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 0.18rem;
+  height: 1.15rem;
+  transform: translateX(-50%);
+  border-radius: 1px;
+  background: linear-gradient(180deg, #d4b06a, #6b5428);
+}
+
+.oracle-path-flag-cloth {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 1.35rem;
+  height: 0.95rem;
+  transform: translateX(-15%);
+  border-radius: 2px 6px 6px 2px;
+  display: grid;
+  place-items: center;
+  clip-path: polygon(0 0, 100% 12%, 100% 88%, 0 100%);
+}
+
+.oracle-path-flag-cloth em {
+  font-family: var(--display);
+  font-style: normal;
+  font-weight: 700;
+  font-size: 0.62rem;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 1px 2px #000;
+}
+
+.oracle-path-flag.is-locked .oracle-path-flag-cloth {
+  background: linear-gradient(145deg, #8a8a8a, #4a4a4a);
+  filter: grayscale(0.85);
+  opacity: 0.78;
+}
+
+.oracle-path-flag.is-locked .oracle-path-flag-pole {
+  background: linear-gradient(180deg, #9a9a9a, #555);
+}
+
+.oracle-path-flag.is-cleared .oracle-path-flag-cloth {
+  background: linear-gradient(145deg, #52b788, #1b4332);
+}
+
+.oracle-path-flag.is-current .oracle-path-flag-cloth,
+.oracle-path-flag.is-fightable .oracle-path-flag-cloth {
+  background: linear-gradient(145deg, #f0d060, #c4891a);
+  box-shadow: 0 0 0 2px rgba(240, 208, 96, 0.45);
+  animation: oracle-path-flag-pulse 1.8s ease-in-out infinite;
+}
+
+.oracle-path-flag.is-finale .oracle-path-flag-cloth {
+  background: linear-gradient(145deg, #e8c547, #7b2cbf);
+}
+
+.oracle-path-flag.is-finale.is-locked .oracle-path-flag-cloth {
+  background: linear-gradient(145deg, #6a6a6a, #3a3a3a);
+}
+
+.oracle-path-flag.is-fightable:hover {
+  transform: translate(-50%, -85%) scale(1.14);
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.65)) brightness(1.08);
+}
+
+@keyframes oracle-path-flag-pulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.18);
+  }
 }
 
 .school-trails-footer {
   display: flex;
   justify-content: center;
-  margin: 1.5rem auto 2rem;
+  margin: 0.35rem auto 0.75rem;
   max-width: 960px;
+  flex: 0 0 auto;
 }
 
 .multi-room-code {
