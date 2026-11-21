@@ -4443,12 +4443,14 @@ export function Battle({
             ) : null}
             {reward && (
               <div className="battle-result-rewards" aria-label="Награды">
-                <div className="battle-reward-chip xp">
-                  <span className="battle-reward-label">Опыт</span>
-                  <span className="battle-reward-value">
-                    +{reward.xpGained}
-                  </span>
-                </div>
+                {reward.xpGained > 0 ? (
+                  <div className="battle-reward-chip xp">
+                    <span className="battle-reward-label">Опыт</span>
+                    <span className="battle-reward-value">
+                      +{reward.xpGained}
+                    </span>
+                  </div>
+                ) : null}
                 {reward.gainedLevels > 0 && (
                   <div className="battle-reward-chip lvl">
                     <span className="battle-reward-label">Уровень</span>
@@ -4480,7 +4482,7 @@ export function Battle({
                 {reward.giftLine && (
                   <div className="battle-reward-chip gift">
                     <span className="battle-reward-label">
-                      {reward.celebration ? "Итог" : "Дар"}
+                      {reward.celebration ? "Карта" : "Дар"}
                     </span>
                     <span className="battle-reward-value">
                       {reward.giftLine}

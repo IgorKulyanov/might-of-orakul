@@ -75,6 +75,7 @@ import {
   schoolTrailStep,
   trailVictoryLead,
   trailVictoryTitle,
+  type SchoolTrailBeat,
 } from "./game/schoolTrails";
 import {
   apiMe,
@@ -664,6 +665,8 @@ export default function App() {
     faction: Faction;
     step: number;
   } | null>(null);
+  /** Пауза после победы на тропе — пока открыта, следующий бой нельзя. */
+  const [trailBeat, setTrailBeat] = useState<SchoolTrailBeat | null>(null);
   const [devToolsOn, setDevToolsOn] = useState(() => isDevToolsEnabled());
   const [hubTutStep, setHubTutStep] = useState<number | null>(() =>
     hasSeenHubTutorial() ? null : 0,
@@ -1314,6 +1317,13 @@ export default function App() {
       saveOwned(applied.owned);
       setOwned(applied.owned);
       ownedRef.current = applied.owned;
+      setTrailBeat({
+        faction: fight.faction,
+        newlyCleared: applied.newlyCleared,
+        rewardCardId: applied.rewardCardId,
+        foeName: step?.foeName ?? applied.step.foeName,
+        wowHint: step?.wowHint ?? applied.step.wowHint,
+      });
       const t = token ?? getToken();
       if (t) {
         void apiUpdateMe(t, { owned: applied.owned }).then(({ user: me }) => {
@@ -1669,7 +1679,10 @@ export default function App() {
         owned={owned}
         displayName={displayName}
         asTutorial
+        trailBeat={trailBeat}
+        onDismissTrailBeat={() => setTrailBeat(null)}
         onPlayTrail={(faction, stepIndex) => {
+          if (trailBeat) return;
           unlockSfx();
           void startBattleMusic();
           setTrailFight({ faction, step: stepIndex });
@@ -1736,7 +1749,10 @@ export default function App() {
         owned={owned}
         displayName={displayName}
         onBack={() => setScreen("menu")}
+        trailBeat={trailBeat}
+        onDismissTrailBeat={() => setTrailBeat(null)}
         onPlayTrail={(faction, stepIndex) => {
+          if (trailBeat) return;
           unlockSfx();
           void startBattleMusic();
           setTrailFight({ faction, step: stepIndex });

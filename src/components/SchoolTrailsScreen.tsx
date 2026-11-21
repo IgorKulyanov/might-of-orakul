@@ -8,6 +8,7 @@ import {
   formatSchoolTrailFlagLayoutTs,
   loadSchoolTrailFlagLayout,
   saveSchoolTrailFlagLayout,
+  rewardCardRole,
   schoolTrailCleared,
   schoolTrailDraft,
   schoolTrailFoeLine,
@@ -15,9 +16,10 @@ import {
   schoolTrailStep,
   schoolTrailTitle,
   type FlagXY,
+  type SchoolTrailBeat,
   type SchoolTrailFlagLayout,
 } from "../game/schoolTrails";
-import { getCard } from "../game/cards";
+import { cardArtUrl, getCard } from "../game/cards";
 import type { Faction, OwnedState } from "../game/types";
 import { MenuAudioDock } from "./MenuAudioDock";
 
@@ -29,6 +31,9 @@ type Props = {
   onBack?: () => void;
   asTutorial?: boolean;
   onSaveName?: (name: string) => void;
+  /** Обязательная пауза после победы — пока не закроешь, бой не начать. */
+  trailBeat?: SchoolTrailBeat | null;
+  onDismissTrailBeat?: () => void;
 };
 
 function cardName(id: string): string {
@@ -87,6 +92,8 @@ export function SchoolTrailsScreen({
   onPickSchool,
   onBack,
   asTutorial = false,
+  trailBeat = null,
+  onDismissTrailBeat,
 }: Props) {
   const ready = canPickSchool(owned);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -406,7 +413,7 @@ export function SchoolTrailsScreen({
   };
 
   const onFlagActivate = (next: Preview) => {
-    if (editFlags) return;
+    if (editFlags || trailBeat) return;
     suppressClickRef.current = false;
     setPreview(next);
   };
@@ -467,7 +474,9 @@ export function SchoolTrailsScreen({
       <p className="hint school-trails-hint">
         {editFlags
           ? "Режим расстановки: тяни флажки пальцем/мышью. Позиции пишутся сразу. «Код» — скопировать в schoolTrails.ts."
-          : `${displayName ? `${displayName}: ` : ""}5×5 флажков. Двигай карту, щипок — масштаб. ★ — выбор школы.`}
+          : trailBeat
+            ? "Сначала забери награду — следующий бой только после паузы."
+            : `${displayName ? `${displayName}: ` : ""}Один флаг — один бой. Между боями пауза на карте. ★ — выбор школы.`}
       </p>
 
       {editFlags ? (
@@ -617,7 +626,73 @@ export function SchoolTrailsScreen({
         </button>
       </div>
 
-      {preview?.kind === "step" && previewStep && (
+      {trailBeat ? (
+        <div
+          className="overlay trail-beat-overlay"
+          role="dialog"
+          aria-label="Награда тропы"
+        >
+          <div className="trail-beat-panel">
+            <p className="campaign-preview-eyebrow">
+              {schoolTrailTitle(trailBeat.faction)} · пауза · флаг{" "}
+              {trailBeat.newlyCleared}/{SCHOOL_TRAIL_STEPS}
+            </p>
+            <h2>
+              {trailBeat.rewardCardId
+                ? `Теперь у тебя «${cardName(trailBeat.rewardCardId)}»`
+                : `Флаг ${trailBeat.newlyCleared} взят`}
+            </h2>
+            {trailBeat.rewardCardId ? (
+              <div className="trail-beat-card">
+                {(() => {
+                  try {
+                    const c = getCard(trailBeat.rewardCardId!);
+                    const art = cardArtUrl(c);
+                    return (
+                      <>
+                        {art ? (
+                          <div
+                            className="trail-beat-art"
+                            style={{ backgroundImage: `url("${art}")` }}
+                            aria-hidden
+                          />
+                        ) : null}
+                        <p className="trail-beat-card-name">{c.name}</p>
+                        <p className="hint">{rewardCardRole(trailBeat.newlyCleared)}</p>
+                        <p className="campaign-preview-story">{c.text}</p>
+                      </>
+                    );
+                  } catch {
+                    return (
+                      <p className="hint">Карта добавлена в руку тропы.</p>
+                    );
+                  }
+                })()}
+              </div>
+            ) : (
+              <p className="campaign-preview-story">
+                {trailBeat.wowHint ||
+                  "Рубеж пройден. Переведи дух — следующий флаг ждёт на карте."}
+              </p>
+            )}
+            <p className="hint">
+              Свергнут: {trailBeat.foeName}. Следующий бой — только когда сам
+              откроешь следующий флажок.
+            </p>
+            <div className="campaign-preview-actions">
+              <button
+                type="button"
+                className="primary large"
+                onClick={() => onDismissTrailBeat?.()}
+              >
+                На карту — перевести дух
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {preview?.kind === "step" && previewStep && !trailBeat && (
         <div
           className="overlay campaign-preview-overlay"
           onClick={() => setPreview(null)}
@@ -720,7 +795,7 @@ export function SchoolTrailsScreen({
         </div>
       )}
 
-      {preview?.kind === "finale" && (
+      {preview?.kind === "finale" && !trailBeat && (
         <div
           className="overlay campaign-preview-overlay"
           onClick={() => setPreview(null)}
