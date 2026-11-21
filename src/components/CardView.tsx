@@ -264,10 +264,25 @@ export function CardView({
     setShowDesc(true);
   };
 
-  const closeDesc = () => {
+  const closeDesc = (e?: MouseEvent) => {
+    e?.stopPropagation();
+    e?.preventDefault();
     setShowDesc(false);
     onDescClose?.();
   };
+
+  useEffect(() => {
+    if (!showDesc) return;
+    const onKey = (ev: globalThis.KeyboardEvent) => {
+      if (ev.key === "Escape") {
+        ev.preventDefault();
+        setShowDesc(false);
+        onDescClose?.();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showDesc, onDescClose]);
 
   const onCardClick = () => {
     onClick?.();
@@ -400,15 +415,28 @@ export function CardView({
           <div
             className="card-desc-overlay"
             onClick={closeDesc}
+            onPointerDown={(e) => e.stopPropagation()}
             role="presentation"
           >
             <article
               className={`card-desc-panel frame-lv-${frameLv}`}
               style={{ ["--school" as string]: color }}
               onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
               role="dialog"
+              aria-modal="true"
               aria-label={`Описание: ${c.name}`}
             >
+              <button
+                type="button"
+                className="card-desc-x ghost"
+                aria-label="Закрыть"
+                onMouseDown={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={closeDesc}
+              >
+                ✕
+              </button>
               <div
                 className="card-desc-art"
                 style={{
@@ -421,109 +449,116 @@ export function CardView({
                 aria-label={c.name}
               />
               <div className="card-desc-body">
-                <h2>
-                  <GameIcon name={c.school} size={18} /> {c.name}
-                </h2>
-                <p className="card-desc-meta inline-icos">
-                  <SchoolBadge school={c.school} size={14} /> · мана{" "}
-                  <ManaCostIcons cost={manaCost} size={14} />
-                  {c.kind === "creature" && (
-                    <>
-                      {" "}
-                      · атака {baseAtk} · жизни {baseHp} {patternGlyph.icon}
-                      {wounded ? (
-                        <>
-                          {" "}
-                          · сейчас {atk}/{hp}
-                        </>
-                      ) : null}
-                    </>
-                  )}
-                </p>
-                {(() => {
-                  const plan = upgradePlanFor(c.id);
-                  const cur =
-                    upgradeLevel != null && upgradeLevel >= 1
-                      ? upgradeLevel
-                      : 1;
-                  const tone =
-                    cur >= 3 ? "is-lv-3" : cur === 2 ? "is-lv-2" : "is-lv-1";
-                  if (!plan) return null;
-                  const face = creatureFaceStats(c.id, cur);
-                  const skill = syncPlanStatNumbers(
-                    upgradePlanBody(c.id, cur),
-                    face.atk,
-                    face.hp,
-                  );
-                  if (!skill) return null;
-                  return (
-                    <p className={`card-desc-level ${tone}`}>
-                      <span className="card-desc-level-line">
-                        Ур.{cur} — {skill}
-                      </span>
-                    </p>
-                  );
-                })()}
-                {(() => {
-                  const plan = upgradePlanFor(c.id);
-                  if (!plan) return null;
-                  const cur =
-                    upgradeLevel != null && upgradeLevel >= 1
-                      ? upgradeLevel
-                      : 1;
-                  return (
-                    <ul className="card-desc-upgrade-list" aria-label="Уровни">
-                      {(
-                        [
-                          [1, plan.l1],
-                          [2, plan.l2],
-                          [3, plan.l3],
-                        ] as const
-                      ).map(([lv, text]) => {
-                        const face = creatureFaceStats(c.id, lv);
-                        const synced = syncPlanStatNumbers(
-                          text,
-                          face.atk,
-                          face.hp,
-                        );
-                        return (
-                          <li
-                            key={lv}
-                            className={`card-desc-upgrade-item is-lv-${lv}${
-                              cur === lv ? " is-current" : ""
-                            }`}
-                          >
-                            <span className="card-desc-upgrade-lv">
-                              Ур.{lv}
-                            </span>
-                            <span className="card-desc-upgrade-txt">
-                              {synced}
-                            </span>
-                          </li>
-                        );
-                      })}
+                <div className="card-desc-scroll">
+                  <h2>
+                    <GameIcon name={c.school} size={18} /> {c.name}
+                  </h2>
+                  <p className="card-desc-meta inline-icos">
+                    <SchoolBadge school={c.school} size={14} /> · мана{" "}
+                    <ManaCostIcons cost={manaCost} size={14} />
+                    {c.kind === "creature" && (
+                      <>
+                        {" "}
+                        · атака {baseAtk} · жизни {baseHp} {patternGlyph.icon}
+                        {wounded ? (
+                          <>
+                            {" "}
+                            · сейчас {atk}/{hp}
+                          </>
+                        ) : null}
+                      </>
+                    )}
+                  </p>
+                  {c.text ? <p className="card-desc-text">{c.text}</p> : null}
+                  {(() => {
+                    const plan = upgradePlanFor(c.id);
+                    const cur =
+                      upgradeLevel != null && upgradeLevel >= 1
+                        ? upgradeLevel
+                        : 1;
+                    const tone =
+                      cur >= 3 ? "is-lv-3" : cur === 2 ? "is-lv-2" : "is-lv-1";
+                    if (!plan) return null;
+                    const face = creatureFaceStats(c.id, cur);
+                    const skill = syncPlanStatNumbers(
+                      upgradePlanBody(c.id, cur),
+                      face.atk,
+                      face.hp,
+                    );
+                    if (!skill) return null;
+                    return (
+                      <p className={`card-desc-level ${tone}`}>
+                        <span className="card-desc-level-line">
+                          Ур.{cur} — {skill}
+                        </span>
+                      </p>
+                    );
+                  })()}
+                  {(() => {
+                    const plan = upgradePlanFor(c.id);
+                    if (!plan) return null;
+                    const cur =
+                      upgradeLevel != null && upgradeLevel >= 1
+                        ? upgradeLevel
+                        : 1;
+                    return (
+                      <ul className="card-desc-upgrade-list" aria-label="Уровни">
+                        {(
+                          [
+                            [1, plan.l1],
+                            [2, plan.l2],
+                            [3, plan.l3],
+                          ] as const
+                        ).map(([lv, text]) => {
+                          const face = creatureFaceStats(c.id, lv);
+                          const synced = syncPlanStatNumbers(
+                            text,
+                            face.atk,
+                            face.hp,
+                          );
+                          return (
+                            <li
+                              key={lv}
+                              className={`card-desc-upgrade-item is-lv-${lv}${
+                                cur === lv ? " is-current" : ""
+                              }`}
+                            >
+                              <span className="card-desc-upgrade-lv">
+                                Ур.{lv}
+                              </span>
+                              <span className="card-desc-upgrade-txt">
+                                {synced}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    );
+                  })()}
+                  {marks.length > 0 && (
+                    <ul className="card-desc-effects">
+                      {marks.map((m) => (
+                        <li key={m.key}>
+                          {m.icon} {m.title}
+                        </li>
+                      ))}
                     </ul>
-                  );
-                })()}
-                {marks.length > 0 && (
-                  <ul className="card-desc-effects">
-                    {marks.map((m) => (
-                      <li key={m.key}>
-                        {m.icon} {m.title}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {c.premium && (
-                  <p className="card-desc-prem">★ Премиум</p>
-                )}
-                <button
-                  type="button"
-                  className="primary"
-                  onClick={closeDesc}
-                >
-                  Закрыть
-                </button>
+                  )}
+                  {c.premium && (
+                    <p className="card-desc-prem">★ Премиум</p>
+                  )}
+                </div>
+                <div className="card-desc-footer">
+                  <button
+                    type="button"
+                    className="primary"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={closeDesc}
+                  >
+                    Закрыть
+                  </button>
+                </div>
               </div>
             </article>
           </div>,

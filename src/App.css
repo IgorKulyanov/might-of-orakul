@@ -1412,21 +1412,23 @@ button {
 .card-desc-overlay {
   position: fixed;
   inset: 0;
-  z-index: 200;
+  z-index: 520;
   display: grid;
   place-items: center;
   padding: 1rem;
   background: rgba(0, 0, 0, 0.72);
   backdrop-filter: blur(3px);
+  pointer-events: auto;
 }
 
 .card-desc-panel {
   --frame: var(--frame-1);
   --frame-deep: var(--frame-1-deep);
+  position: relative;
   width: min(520px, 96vw);
-  max-height: min(94vh, 820px);
+  max-height: min(92vh, 820px);
   display: grid;
-  grid-template-rows: minmax(300px, 48vh) 1fr;
+  grid-template-rows: minmax(180px, 36vh) minmax(0, 1fr);
   border-radius: 16px;
   overflow: hidden;
   border: 3px solid transparent;
@@ -1443,6 +1445,25 @@ button {
   box-shadow:
     0 24px 60px rgba(0, 0, 0, 0.55),
     0 0 24px color-mix(in srgb, var(--frame) 28%, transparent);
+}
+
+.card-desc-x {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  z-index: 3;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #f2e9dc;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .card-desc-panel.frame-lv-1 {
@@ -1472,16 +1493,16 @@ button {
   background-position: center center;
   background-repeat: no-repeat;
   background-color: #0d111c;
-  min-height: 300px;
+  min-height: 180px;
 }
 
 @media (max-width: 520px) {
   .card-desc-panel {
-    grid-template-rows: minmax(240px, 40vh) 1fr;
+    grid-template-rows: minmax(140px, 32vh) minmax(0, 1fr);
   }
 
   .card-desc-art {
-    min-height: 240px;
+    min-height: 140px;
     background-size: contain;
     background-position: center center;
   }
@@ -1490,10 +1511,39 @@ button {
 .card-desc-body {
   display: flex;
   flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.card-desc-scroll {
+  display: flex;
+  flex-direction: column;
   gap: 0.45rem;
-  padding: 1rem 1.1rem 1.1rem;
+  padding: 0.85rem 1.1rem 0.5rem;
   overflow: auto;
   min-height: 0;
+  flex: 1 1 auto;
+}
+
+.card-desc-footer {
+  flex: 0 0 auto;
+  padding: 0.65rem 1.1rem 1rem;
+  border-top: 1px solid rgba(242, 233, 220, 0.12);
+  background: rgba(8, 10, 16, 0.92);
+}
+
+.card-desc-footer .primary {
+  width: 100%;
+  margin: 0;
+}
+
+.card-desc-text {
+  margin: 0;
+  color: #d5cbbd;
+  font-size: 0.92rem;
+  line-height: 1.4;
 }
 
 .card-desc-body h2 {
@@ -1595,10 +1645,6 @@ button {
   font-size: 0.9rem;
 }
 
-.card-desc-body .primary {
-  margin-top: auto;
-  align-self: stretch;
-}
 
 .card.compact {
   --card-w: 112px;
