@@ -63,46 +63,45 @@ export const SCHOOL_TRAIL_FLAG_POS: Record<
   Faction,
   Array<{ x: number; y: number }>
 > = {
-  /* Вертикальная 3:4 — кучно в центре каждой земли. */
-  life: [
-    { x: 24, y: 22 },
-    { x: 30, y: 19 },
-    { x: 22, y: 16 },
-    { x: 28, y: 13 },
-    { x: 25, y: 10 },
-  ],
   death: [
-    { x: 72, y: 22 },
-    { x: 78, y: 19 },
-    { x: 70, y: 16 },
-    { x: 76, y: 13 },
-    { x: 73, y: 10 },
+    { x: 67.5, y: 22.9 },
+    { x: 54.4, y: 24.3 },
+    { x: 63.6, y: 29.3 },
+    { x: 78.4, y: 30.1 },
+    { x: 56.6, y: 44.4 },
   ],
   nature: [
-    { x: 22, y: 48 },
-    { x: 28, y: 45 },
-    { x: 20, y: 42 },
-    { x: 26, y: 39 },
-    { x: 23, y: 36 },
-  ],
-  hell: [
-    { x: 74, y: 48 },
-    { x: 80, y: 45 },
-    { x: 72, y: 42 },
-    { x: 78, y: 39 },
-    { x: 75, y: 36 },
+    { x: 37.1, y: 46 },
+    { x: 24.9, y: 56 },
+    { x: 12.3, y: 58.7 },
+    { x: 27.6, y: 63.6 },
+    { x: 42.9, y: 51.8 },
   ],
   water: [
-    { x: 46, y: 82 },
-    { x: 52, y: 79 },
-    { x: 44, y: 76 },
-    { x: 50, y: 73 },
-    { x: 47, y: 70 },
+    { x: 22, y: 73.9 },
+    { x: 17.1, y: 84 },
+    { x: 39.1, y: 86.6 },
+    { x: 51.7, y: 72.1 },
+    { x: 49.1, y: 58.1 },
+  ],
+  life: [
+    { x: 13.3, y: 23.8 },
+    { x: 28.7, y: 24.3 },
+    { x: 45.1, y: 25.3 },
+    { x: 37.1, y: 36.7 },
+    { x: 46.2, y: 43.6 },
+  ],
+  hell: [
+    { x: 87.2, y: 69.4 },
+    { x: 79, y: 62.3 },
+    { x: 77.4, y: 52.2 },
+    { x: 67.6, y: 57.7 },
+    { x: 57.6, y: 52.5 },
   ],
 };
 
 /** Финальный флажок «Сердце мира» — выбор оракула после любой полной тропы. */
-export const SCHOOL_TRAIL_FINALE_POS = { x: 50, y: 56 };
+export const SCHOOL_TRAIL_FINALE_POS = { x: 49.8, y: 51 };
 
 export type FlagXY = { x: number; y: number };
 
@@ -111,8 +110,8 @@ export type SchoolTrailFlagLayout = {
   finale: FlagXY;
 };
 
-/** v2 — сброс разбежавшихся раскладок с телефона. */
-const FLAG_LAYOUT_KEY = "orakul-school-trail-flags-v2";
+/** v3 — ручная раскладка с карты. */
+const FLAG_LAYOUT_KEY = "orakul-school-trail-flags-v3";
 
 function cloneFlagPos(p: FlagXY): FlagXY {
   return { x: p.x, y: p.y };
