@@ -1353,6 +1353,19 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
     return null;
   });
 
+  assert("necro L3 pays 4 for two skeletons", () => {
+    let s = boardForCreatures();
+    s.you.mana.death = 4;
+    s.you.slots[0] = arm(dummy("necro_mage", "nm3", 3));
+    s.you.slots[0]!.upgradeLevel = 3;
+    s = summonSkeletonWithNecro(s, 0, 2);
+    const n =
+      (s.you.slots.filter((u) => u?.cardId === "skeleton").length ?? 0);
+    if (n < 2) return `ждали 2 скелета, есть ${n}`;
+    if ((s.you.mana.death ?? 0) !== 0) return "за 2 скелета должны списать 4 смерти";
+    return null;
+  });
+
   assert("hornet_queen summon warrior", () => {
     let s = boardForCreatures();
     s.you.mana.nature = 1;

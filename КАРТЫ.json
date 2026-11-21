@@ -971,6 +971,8 @@
       "rarity": "common",
       "premium": false,
       "art": "заклинания/poison.jpg",
+      "artFocus": "center center",
+      "artFit": "contain",
       "spellEffects": [
         {
           "type": "poison",

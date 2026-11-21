@@ -76,7 +76,7 @@ export function manaCostTotal(cost: ManaCost): number {
 }
 
 /** Сброс кэша браузера/CDN после замены JPG (бампай при новых артах). */
-const CARD_ART_VER = "20261121n10";
+const CARD_ART_VER = "20261121n11";
 
 export function cardArtUrl(card: CardDef): string {
   const art = card.art ?? `${card.id}.png`;
@@ -101,6 +101,11 @@ export function cardArtStyle(card: CardDef): {
     basilisk: {
       backgroundPosition: "68% top",
       backgroundSize: "auto 100%",
+    },
+    // Флакон целиком — cover/38% срезал полбутылки.
+    poison: {
+      backgroundPosition: "center center",
+      backgroundSize: "contain",
     },
   };
   if (forced[card.id]) return forced[card.id];

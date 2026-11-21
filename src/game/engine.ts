@@ -3921,37 +3921,51 @@ function flexSummonedCardId(summonerCardId: string): string | null {
 }
 
 /**
- * Призыв клепальщиком: столько маны школы, сколько стоит призванная карта.
- * Акулит/скелет = 2; без маны — только удар (игрок и ИИ).
+ * Призыв клепальщиком: цена = мана школы призванной карты (акулит/скелет = 2).
+ * Без маны — только удар. Никогда не возвращает {} для известных клепальщиков.
  */
 export function flexSummonManaCost(summonerCardId: string): ManaCost {
   const spawned = flexSummonedCardId(summonerCardId);
-  if (!spawned) {
-    const school = getCard(summonerCardId).school;
+  const schoolOf = (id: string): Faction | null => {
+    const s = getCard(id).school;
     if (
-      school !== "death" &&
-      school !== "nature" &&
-      school !== "water" &&
-      school !== "life" &&
-      school !== "hell"
+      s === "death" ||
+      s === "nature" ||
+      s === "water" ||
+      s === "life" ||
+      s === "hell"
     ) {
-      return {};
+      return s;
     }
-    return { [school]: 2 };
+    return null;
+  };
+  if (spawned === "skeleton") return { death: 2 };
+  if (spawned === "aquilite") return { water: 2 };
+  if (spawned === "hornet_warrior") {
+    const n = Math.max(
+      1,
+      Math.floor(Number(getCard("hornet_warrior").manaCost?.nature) || 1),
+    );
+    return { nature: n };
   }
-  const cost = getCard(spawned).manaCost ?? {};
-  const school = getCard(spawned).school;
-  if (
-    school !== "death" &&
-    school !== "nature" &&
-    school !== "water" &&
-    school !== "life" &&
-    school !== "hell"
-  ) {
-    return {};
+  const school = schoolOf(summonerCardId);
+  if (!school) return { death: 2 }; // fail-safe: никогда бесплатно
+  return { [school]: 2 };
+}
+
+/** Суммарная цена призыва (некро ур.3 клепает 2 → платит ×2). */
+export function flexSummonManaCostForCount(
+  summonerCardId: string,
+  count: number,
+): ManaCost {
+  const one = flexSummonManaCost(summonerCardId);
+  const n = Math.max(1, Math.floor(count) || 1);
+  if (n <= 1) return one;
+  const out: ManaCost = {};
+  for (const [k, v] of Object.entries(one)) {
+    if (v && v > 0) out[k as Faction] = v * n;
   }
-  const amount = Math.max(1, Math.floor(Number(cost[school]) || 2));
-  return { [school]: amount };
+  return out;
 }
 
 export function canPayFlexSummon(
@@ -4003,7 +4017,7 @@ export function summonAquiliteWithTriton(
   next.selectedHand = null;
   syncBoardAuras(me, next.log);
   next.log = [
-    `${getCard(triton.cardId).name} призывает Акулита (−${cost.water ?? 2} воды) в слот ${toSlot + 1}`,
+    `${getCard(triton.cardId).name} призывает Акулита (−${cost.water ?? 2} воды, осталось ${me.mana.water ?? 0})`,
     ...next.log,
   ].slice(0, 10);
   return next;
@@ -4050,12 +4064,17 @@ export function balthazarFlexReady(
 
 export function necroFlexReady(state: BattleState, fromSlot: number): boolean {
   const u = state.you.slots[fromSlot];
-  return (
-    !!u &&
-    u.canAttack &&
-    abilityOf(u.cardId, u) === "necro_flex" &&
-    canPayFlexSummon(state.you, u.cardId)
+  if (!u || !u.canAttack || abilityOf(u.cardId, u) !== "necro_flex") {
+    return false;
+  }
+  const empty = state.you.slots.filter((s) => !s).length;
+  if (empty < 1) return false;
+  const want = Math.min(
+    necroSummonCount(hostUpgradeLevel(u, u.cardId)),
+    empty,
   );
+  const cost = flexSummonManaCostForCount(u.cardId, want);
+  return manaCostTotal(cost) > 0 && canPay(state.you.mana, cost);
 }
 
 export function hornetQueenFlexReady(
@@ -4420,26 +4439,26 @@ export function summonSkeletonWithNecro(
   const necro = me.slots[fromSlot];
   if (!necro || !necro.canAttack) return state;
   if (abilityOf(necro.cardId, necro) !== "necro_flex") return state;
-  const cost = flexSummonManaCost(necro.cardId);
-  if (!canPay(me.mana, cost)) {
-    next.log = [
-      `${getCard(necro.cardId).name}: нет маны на призыв — бей`,
-      ...next.log,
-    ].slice(0, 10);
-    return next;
-  }
   if (me.slots[toSlot]) {
     next.log = ["Слот занят", ...next.log].slice(0, 10);
     return next;
   }
-  payMana(me.mana, cost);
-  const count = necroSummonCount(hostUpgradeLevel(necro, necro.cardId));
+  const want = necroSummonCount(hostUpgradeLevel(necro, necro.cardId));
   const slots: number[] = [toSlot];
-  if (count >= 2) {
-    for (let i = 0; i < 5 && slots.length < count; i++) {
+  if (want >= 2) {
+    for (let i = 0; i < 5 && slots.length < want; i++) {
       if (!me.slots[i] && i !== toSlot) slots.push(i);
     }
   }
+  const cost = flexSummonManaCostForCount(necro.cardId, slots.length);
+  if (!canPay(me.mana, cost)) {
+    next.log = [
+      `${getCard(necro.cardId).name}: нет маны на призыв (−${manaCostTotal(cost)}) — бей`,
+      ...next.log,
+    ].slice(0, 10);
+    return next;
+  }
+  payMana(me.mana, cost);
   for (const slot of slots) {
     me.slots[slot] = spawnCreature(
       "skeleton",
@@ -4452,8 +4471,8 @@ export function summonSkeletonWithNecro(
   syncBoardAuras(me, next.log);
   next.log = [
     slots.length > 1
-      ? `${getCard(necro.cardId).name} призывает ${slots.length} скелетов (−${cost.death ?? 2} смерти)`
-      : `${getCard(necro.cardId).name} призывает Скелета (−${cost.death ?? 2} смерти) в слот ${toSlot + 1}`,
+      ? `${getCard(necro.cardId).name} призывает ${slots.length} скелетов (−${cost.death ?? 0} смерти, осталось ${me.mana.death ?? 0})`
+      : `${getCard(necro.cardId).name} призывает Скелета (−${cost.death ?? 0} смерти, осталось ${me.mana.death ?? 0})`,
     ...next.log,
   ].slice(0, 10);
   return next;
@@ -6176,7 +6195,7 @@ export function takeAiStep(
     | { type: "mage_buff"; toSlot: number }
     | { type: "mage_oracle" }
     | { type: "sleep"; toSlot: number }
-    | { type: "summon"; toSlot: number; cardId: string }
+    | { type: "summon"; toSlot: number; cardId: string; count?: number }
     | { type: "paladin_shield"; toSlot: number }
     | { type: "gravedigger"; toSlot: number; graveIndex: number }
     | { type: "leshy"; side: "ally" | "foe"; toSlot: number }
@@ -6614,20 +6633,31 @@ export function takeAiStep(
       }
 
       if (ab === "triton_flex" || ab === "necro_flex" || ab === "hornet_queen_flex") {
-        // Нет маны школы на призыв → клепальщик бьёт (flex не предлагаем).
-        if (!canPayFlexSummon(me, atk.cardId)) {
-          /* skip summon */
-        } else {
-          const cardId =
-            ab === "triton_flex"
-              ? "aquilite"
-              : ab === "necro_flex"
-                ? "skeleton"
-                : "hornet_warrior";
-          const empty =
-            mission.openLanes.find((s) => !me.slots[s]) ??
-            me.slots.findIndex((s) => !s);
-          if (empty >= 0 && !me.slots[empty]) {
+        const cardId =
+          ab === "triton_flex"
+            ? "aquilite"
+            : ab === "necro_flex"
+              ? "skeleton"
+              : "hornet_warrior";
+        const empty =
+          mission.openLanes.find((s) => !me.slots[s]) ??
+          me.slots.findIndex((s) => !s);
+        if (empty >= 0 && !me.slots[empty]) {
+          let summonN = 1;
+          if (ab === "necro_flex") {
+            const want = necroSummonCount(hostUpgradeLevel(atk, atk.cardId));
+            summonN = 1;
+            if (want >= 2) {
+              let free = 1;
+              for (let j = 0; j < 5 && free < want; j++) {
+                if (!me.slots[j] && j !== empty) free += 1;
+              }
+              summonN = free;
+            }
+          }
+          const cost = flexSummonManaCostForCount(atk.cardId, summonN);
+          // Строго: нет маны → только удар, flex не предлагаем.
+          if (canPay(me.mana, cost) && manaCostTotal(cost) > 0) {
             const sc =
               (90 +
                 (mission.openLanes.includes(empty) ? 30 : 8) +
@@ -6638,7 +6668,7 @@ export function takeAiStep(
               kind: "flex",
               slot: i,
               score: sc,
-              flex: { type: "summon", toSlot: empty, cardId },
+              flex: { type: "summon", toSlot: empty, cardId, count: summonN },
             });
           }
         }
@@ -7152,18 +7182,33 @@ export function takeAiStep(
 
     if (flex.type === "summon") {
       if (me.slots[flex.toSlot]) return null;
-      const cost = flexSummonManaCost(atk.cardId);
+      const want = Math.max(1, flex.count ?? 1);
+      const slots: number[] = [flex.toSlot];
+      if (want >= 2 && flex.cardId === "skeleton") {
+        for (let j = 0; j < 5 && slots.length < want; j++) {
+          if (!me.slots[j] && j !== flex.toSlot) slots.push(j);
+        }
+      }
+      const cost = flexSummonManaCostForCount(atk.cardId, slots.length);
+      if (manaCostTotal(cost) <= 0) return null;
       if (!canPay(me.mana, cost)) return null;
       payMana(me.mana, cost);
-      me.slots[flex.toSlot] = spawnCreature(
-        flex.cardId,
-        next.rules,
-        battleUpgradeLevel(next, "enemy", flex.cardId),
-      );
+      for (const slot of slots) {
+        me.slots[slot] = spawnCreature(
+          flex.cardId,
+          next.rules,
+          battleUpgradeLevel(next, "enemy", flex.cardId),
+        );
+      }
       atk.canAttack = false;
       syncBoardAuras(me, next.log);
+      const school = Object.keys(cost)[0] ?? "?";
+      const paid = manaCostTotal(cost);
+      const left = school === "?" ? 0 : (me.mana[school as Faction] ?? 0);
       next.log.unshift(
-        `Соперник: ${name} призывает ${getCard(flex.cardId).name} (−${manaCostTotal(cost)} маны)`,
+        slots.length > 1
+          ? `Соперник: ${name} призывает ×${slots.length} ${getCard(flex.cardId).name} (−${paid} ${school}, осталось ${left})`
+          : `Соперник: ${name} призывает ${getCard(flex.cardId).name} (−${paid} ${school}, осталось ${left})`,
       );
       next.log = next.log.slice(0, 10);
       return {
