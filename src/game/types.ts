@@ -264,7 +264,7 @@ export interface CardDef {
    * cover — дефолт (кроп).
    * height — вписать по высоте, голова не срезается (высокие портреты).
    */
-  artFit?: "cover" | "height";
+  artFit?: "cover" | "height" | "contain";
   spellEffects?: SpellEffect[];
   onPlayHealHero?: number;
   ability?: CreatureAbility;

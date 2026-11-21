@@ -2389,8 +2389,8 @@
       "unitLevel": 1,
       "priceGold": 0,
       "priceDiamonds": 0,
-      "artFit": "height",
-      "artFocus": "center top"
+      "artFit": "contain",
+      "artFocus": "center center"
     },
     {
       "id": "neutral_wall",
@@ -2409,8 +2409,8 @@
       "unitLevel": 1,
       "priceGold": 0,
       "priceDiamonds": 0,
-      "artFit": "height",
-      "artFocus": "center top"
+      "artFit": "contain",
+      "artFocus": "center center"
     },
     {
       "id": "neutral_archer",
@@ -2429,8 +2429,8 @@
       "unitLevel": 1,
       "priceGold": 0,
       "priceDiamonds": 0,
-      "artFit": "height",
-      "artFocus": "center top"
+      "artFit": "contain",
+      "artFocus": "center center"
     }
   ]
 }

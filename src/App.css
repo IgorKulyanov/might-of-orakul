@@ -1176,16 +1176,21 @@ button {
 
 /* Высокие портреты: cover срезал головы — вписываем по высоте */
 .card[data-card="banshee"] .card-art,
-.card[data-card="basilisk"] .card-art,
-.card[data-card="neutral_fighter"] .card-art,
-.card[data-card="neutral_wall"] .card-art,
-.card[data-card="neutral_archer"] .card-art {
+.card[data-card="basilisk"] .card-art {
   background-size: auto 100% !important;
   background-position: center top !important;
 }
 
 .card[data-card="basilisk"] .card-art {
   background-position: 68% top !important;
+}
+
+/* Нейтралы-стартеры: широкие сцены — contain, без обрезки по бокам */
+.card[data-card="neutral_fighter"] .card-art,
+.card[data-card="neutral_wall"] .card-art,
+.card[data-card="neutral_archer"] .card-art {
+  background-size: contain !important;
+  background-position: center center !important;
 }
 
 .effect-marks {

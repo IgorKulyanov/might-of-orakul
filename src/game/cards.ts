@@ -76,7 +76,7 @@ export function manaCostTotal(cost: ManaCost): number {
 }
 
 /** Сброс кэша браузера/CDN после замены JPG (бампай при новых артах). */
-const CARD_ART_VER = "20261121n2";
+const CARD_ART_VER = "20261121n3";
 
 export function cardArtUrl(card: CardDef): string {
   const art = card.art ?? `${card.id}.png`;
@@ -102,18 +102,18 @@ export function cardArtStyle(card: CardDef): {
       backgroundPosition: "68% top",
       backgroundSize: "auto 100%",
     },
-    // Полноростовые нейтралы: cover + 38% режет макушку под чёрной полосой статов.
+    // Широкие полноростовые сцены: height-fit режет бока — целиком в кадр.
     neutral_fighter: {
-      backgroundPosition: "center top",
-      backgroundSize: "auto 100%",
+      backgroundPosition: "center center",
+      backgroundSize: "contain",
     },
     neutral_wall: {
-      backgroundPosition: "center top",
-      backgroundSize: "auto 100%",
+      backgroundPosition: "center center",
+      backgroundSize: "contain",
     },
     neutral_archer: {
-      backgroundPosition: "center top",
-      backgroundSize: "auto 100%",
+      backgroundPosition: "center center",
+      backgroundSize: "contain",
     },
   };
   if (forced[card.id]) return forced[card.id];
@@ -124,6 +124,7 @@ export function cardArtStyle(card: CardDef): {
   } = {};
   if (card.artFocus) style.backgroundPosition = card.artFocus;
   if (card.artFit === "height") style.backgroundSize = "auto 100%";
+  if (card.artFit === "contain") style.backgroundSize = "contain";
   return style;
 }
 
