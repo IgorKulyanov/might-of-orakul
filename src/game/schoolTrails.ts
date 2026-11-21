@@ -283,17 +283,18 @@ export const SCHOOL_TRAIL_SCRIPTS: Record<Faction, SchoolTrailStep[]> = {
       lesson: "Два яда. Снимай тварей, не копи урон в лицо врага.",
     },
     {
+      // Одна матка, без воина на столе — урок «клепает», не «убит за 3 хода».
       slots: [null, "hornet_queen", null, null, null],
       foeName: "Матка шершней",
-      lesson: "Витрина: клепает рой. Лицо можно чипать — рой всё равно вырастет.",
+      lesson: "Витрина: одна матка клепает рой. Убей её, пока не наросла стая.",
       wowHint: "Матка сама собирает рой. Такие карты — в лавке Природы.",
       upgradeLevel: U,
     },
     {
-      slots: ["hornet_warrior", "hornet_queen", null, null, null],
-      foeName: "Рой опушки",
-      lesson: "Рой уже здесь. Сначала матка или воины — выбор приоритета.",
-      upgradeLevel: U,
+      // Ответ на трюк БЕЗ матки: яд + жало, без спавна и рой-бафа.
+      slots: ["spider", "hornet_warrior", null, null, null],
+      foeName: "Жало опушки",
+      lesson: "Без матки: паук ядом, шершень кусает. Снимай доску, не гони лицо.",
     },
     {
       slots: ["hornet_warrior", "hornet_queen", "elf", null, null],
@@ -670,7 +671,7 @@ export function prepareSchoolTrailBattle(
   next.enemy.faction = faction;
   // Стартовая мана оракула тропы — обычный пул своей школы (createBattle), не режем.
   // Ранние флаги — коротко. С витрины HP выше: гонка «только в оракула» наказывается.
-  const hpByStep = [16, 20, 28, 30, 32] as const;
+  const hpByStep = [16, 20, 24, 26, 30] as const;
   const cap = hpByStep[Math.max(0, Math.min(4, stepIndex))] ?? 22;
   next.enemy.maxHp = Math.min(next.enemy.maxHp, cap);
   next.enemy.hp = next.enemy.maxHp;
@@ -682,6 +683,17 @@ export function prepareSchoolTrailBattle(
     if (!cardId || i < 0 || i > 4) return;
     next.enemy.slots[i] = seedBoardCreature(cardId, up, next.rules);
   });
+
+  // Витрина матки (не пик): тонкое тело + мало природы — клепает со 2-го хода, не с первого.
+  if (faction === "nature" && stepIndex === 2) {
+    const q = next.enemy.slots.find((u) => u?.cardId === "hornet_queen");
+    if (q) {
+      const soft = 14;
+      q.baseHealth = Math.min(q.baseHealth, soft);
+      q.health = Math.min(q.health, soft);
+    }
+    next.enemy.mana.nature = Math.min(next.enemy.mana.nature ?? 0, 1);
+  }
 
   // До выбора оракула своей школы нет: старт 1 во всех пяти, рост через ход.
   // faction тропы оставляем только чтобы «Доп. мана» / черновик школы качали её.
