@@ -404,15 +404,6 @@ export function SchoolTrailsScreen({
     applyFlagPct(fd, e.clientX, e.clientY);
   };
 
-  const openPreview = (next: Preview) => {
-    if (editFlags) return;
-    if (suppressClickRef.current) {
-      suppressClickRef.current = false;
-      return;
-    }
-    setPreview(next);
-  };
-
   const onFlagActivate = (next: Preview) => {
     if (editFlags) return;
     suppressClickRef.current = false;
