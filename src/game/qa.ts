@@ -1336,7 +1336,7 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
   assert("triton summon aquilite", () => {
     let s = boardForCreatures();
     s.you.mana.water = 2;
-    s.you.slots[0] = arm(dummy("triton", "tr1", 3));
+    s.you.slots[0] = arm({ ...dummy("triton", "tr1", 3), upgradeLevel: 2 });
     s = summonAquiliteWithTriton(s, 0, 2);
     if (s.you.slots[2]?.cardId !== "aquilite") return "акулит не призван";
     if ((s.you.mana.water ?? 0) !== 0) return "призыв не списал 2 воды";
@@ -1346,7 +1346,10 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
   assert("necro summon skeleton", () => {
     let s = boardForCreatures();
     s.you.mana.death = 2;
-    s.you.slots[0] = arm(dummy("necro_mage", "nm1", 3));
+    s.you.slots[0] = arm({
+      ...dummy("necro_mage", "nm1", 3),
+      upgradeLevel: 2,
+    });
     s = summonSkeletonWithNecro(s, 0, 2);
     if (s.you.slots[2]?.cardId !== "skeleton") return "скелет не призван";
     if ((s.you.mana.death ?? 0) !== 0) return "призыв не списал 2 смерти";
@@ -1368,11 +1371,14 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
 
   assert("hornet_queen summon warrior", () => {
     let s = boardForCreatures();
-    s.you.mana.nature = 1;
-    s.you.slots[0] = arm(dummy("hornet_queen", "hq1", 5));
+    s.you.mana.nature = 2;
+    s.you.slots[0] = arm({
+      ...dummy("hornet_queen", "hq1", 5),
+      upgradeLevel: 2,
+    });
     s = summonHornetWithQueen(s, 0, 2);
     if (s.you.slots[2]?.cardId !== "hornet_warrior") return "шершень не призван";
-    if ((s.you.mana.nature ?? 0) !== 0) return "призыв не списал 1 природы";
+    if ((s.you.mana.nature ?? 0) !== 0) return "призыв не списал 2 природы";
     return null;
   });
 
@@ -1683,10 +1689,14 @@ function creaturesAll(fails: QaFail[], ok: string[]): void {
 
   assert("gravedigger_flex revive", () => {
     let s = boardForCreatures();
-    s.you.slots[0] = arm(dummy("gravedigger", "gd1", 3));
+    s.you.mana.death = 3;
+    s.you.slots[0] = arm({ ...dummy("gravedigger", "gd1", 3), upgradeLevel: 2 });
     s.you.graveyard = ["vampire"];
     s = reviveWithGravedigger(s, 0, 2, 0);
     if (s.you.slots[2]?.cardId !== "vampire") return "могильщик не поднял";
+    if ((s.you.mana.death ?? 0) !== 0) {
+      return "подъём вампира должен списать 3 смерти";
+    }
     return null;
   });
 

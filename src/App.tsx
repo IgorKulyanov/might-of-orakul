@@ -1360,6 +1360,7 @@ export default function App() {
           applied.rewardCardId,
           step?.wowHint,
         ),
+        rewardCardId: applied.rewardCardId,
       };
     }
     const isCampaign = screenRef.current === "battle_campaign";

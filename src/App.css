@@ -5267,22 +5267,49 @@ html.is-hand-dragging .oracle-folio {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.trail-beat-art {
-  width: 100%;
-  aspect-ratio: 3 / 4;
-  max-height: 220px;
-  border-radius: 8px;
-  background-size: cover;
-  background-position: center top;
-  border: 1px solid rgba(212, 175, 95, 0.35);
+.trail-beat-card-view {
+  display: flex;
+  justify-content: center;
+  margin: 0.25rem 0 0.5rem;
 }
 
-.trail-beat-card-name {
+.trail-beat-card-view .card,
+.trail-beat-card-view .card.compact,
+.battle-reward-card-wrap .card,
+.battle .battle-reward-card-wrap .card.compact {
+  --card-w: min(11rem, 58vw) !important;
+  --card-h: calc(var(--card-w) * 1.5) !important;
+  width: var(--card-w) !important;
+  height: var(--card-h) !important;
+  max-width: 100%;
+}
+
+.trail-beat-card-view .card-art,
+.battle-reward-card-wrap .card-art,
+.battle .battle-reward-card-wrap .card-art {
+  background-size: contain !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+}
+
+.battle-reward-card-wrap {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.4rem 0.7rem;
+  border-radius: 14px;
+  border: 1px solid rgba(212, 175, 95, 0.35);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.battle-reward-card-caption {
   margin: 0;
-  font-family: var(--display, Georgia, serif);
-  font-weight: 700;
-  color: #ffe7a8;
-  font-size: 1.05rem;
+  text-align: center;
+  font-size: 0.92rem;
+  line-height: 1.35;
+  color: #f0d78c;
 }
 
 /* —— Арена испытаний —— */

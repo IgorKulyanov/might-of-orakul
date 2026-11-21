@@ -148,6 +148,8 @@ type BattleEndInfo = {
   giftLine?: string | null;
   shardLine?: string | null;
   shardGains?: Array<{ cardId: string; amount: number; name: string }>;
+  /** Карта-награда тропы — показать целиком, не обрезанный чип. */
+  rewardCardId?: string | null;
   /** Праздничный заголовок (например полное прохождение арены). */
   resultEyebrow?: string | null;
   resultTitle?: string | null;
@@ -4479,7 +4481,21 @@ export function Battle({
                     </span>
                   </div>
                 )}
-                {reward.giftLine && (
+                {reward.rewardCardId ? (
+                  <div className="battle-reward-card-wrap">
+                    <span className="battle-reward-label">Награда</span>
+                    <CardView
+                      cardId={reward.rewardCardId}
+                      compact
+                      flippable={false}
+                    />
+                    {reward.giftLine ? (
+                      <p className="battle-reward-card-caption">
+                        {reward.giftLine}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : reward.giftLine ? (
                   <div className="battle-reward-chip gift">
                     <span className="battle-reward-label">
                       {reward.celebration ? "Карта" : "Дар"}
@@ -4488,7 +4504,7 @@ export function Battle({
                       {reward.giftLine}
                     </span>
                   </div>
-                )}
+                ) : null}
                 {(reward.shardGains?.length ?? 0) > 0 &&
                   reward.shardGains!.map((g) => {
                     let art = "";

@@ -1065,7 +1065,8 @@ function draw(p: PlayerState, n = 1, state?: BattleState): void {
       // Грейв → колода. Если пусто — просто нет добора.
       // Буйство крови стартует в end*Turn через shouldStartBloodFrenzy
       // (с учётом руки — короткая стартовая колода не считается «иссякшей»).
-      if (p.graveyard.length > 0) {
+      // Тропы: preserveGraveyard — могила для могильщика, не в руку.
+      if (p.graveyard.length > 0 && !p.preserveGraveyard) {
         const recycled = state
           ? p.graveyard.filter((id) => !resourceSpellExhausted(state, p, id))
           : p.graveyard.slice();
@@ -3867,7 +3868,17 @@ export function reviveWithGravedigger(
     ].slice(0, 10);
     return next;
   }
-  const cardId = me.graveyard.splice(pick.index, 1)[0]!;
+  const cardId = pick.cardId;
+  const cost = battleManaCost(next, cardId);
+  if (manaCostTotal(cost) <= 0 || !canPay(me.mana, cost)) {
+    next.log = [
+      `${getCard(src.cardId).name}: нет маны поднять ${getCard(cardId).name} (−${manaCostTotal(cost)})`,
+      ...next.log,
+    ].slice(0, 10);
+    return next;
+  }
+  payMana(me.mana, cost);
+  me.graveyard.splice(pick.index, 1);
   const raised = spawnCreature(
     cardId,
     next.rules,
@@ -3887,7 +3898,7 @@ export function reviveWithGravedigger(
   next.selectedSlot = null;
   syncBoardAuras(me, next.log);
   next.log = [
-    `${getCard(src.cardId).name} поднимает ${getCard(cardId).name} из грейва в слот ${toSlot + 1}${
+    `${getCard(src.cardId).name} поднимает ${getCard(cardId).name} (−${manaCostTotal(cost)} маны, осталось ${manaCostTotal(me.mana)}) из грейва${
       gravediggerReviveBuff(lv) ? " (+1/+1)" : ""
     }`,
     ...next.log,
@@ -3906,7 +3917,12 @@ export function gravediggerFlexReady(
   const limit = gravediggerReviveLimit(hostUpgradeLevel(u, u.cardId));
   const used = u.graveRevivesUsed ?? 0;
   if (limit != null && used >= limit) return false;
-  return true;
+  if (!state.you.slots.some((s) => !s)) return false;
+  const graves = recentGraveCreatures(state.you.graveyard, 5);
+  return graves.some((g) => {
+    const cost = battleManaCost(state, g.cardId);
+    return manaCostTotal(cost) > 0 && canPay(state.you.mana, cost);
+  });
 }
 
 /** Кого клепает summoner → цена призыва = стоимость этой карты своей школы. */
@@ -3921,7 +3937,7 @@ function flexSummonedCardId(summonerCardId: string): string | null {
 }
 
 /**
- * Призыв клепальщиком: цена = мана школы призванной карты (акулит/скелет = 2).
+ * Призыв клепальщиком: цена = manaCost призванной карты (шершень/скелет/акулит).
  * Без маны — только удар. Никогда не возвращает {} для известных клепальщиков.
  */
 export function flexSummonManaCost(summonerCardId: string): ManaCost {
@@ -3939,16 +3955,11 @@ export function flexSummonManaCost(summonerCardId: string): ManaCost {
     }
     return null;
   };
-  if (spawned === "skeleton") return { death: 2 };
-  if (spawned === "aquilite") return { water: 2 };
-  if (spawned === "hornet_warrior") {
-    const n = Math.max(
-      1,
-      Math.floor(Number(getCard("hornet_warrior").manaCost?.nature) || 1),
-    );
-    return { nature: n };
+  if (spawned) {
+    const fromCard = { ...(getCard(spawned).manaCost ?? {}) };
+    if (manaCostTotal(fromCard) > 0) return fromCard;
   }
-  const school = schoolOf(summonerCardId);
+  const school = schoolOf(spawned ?? summonerCardId);
   if (!school) return { death: 2 }; // fail-safe: никогда бесплатно
   return { [school]: 2 };
 }
@@ -4508,7 +4519,7 @@ export function summonHornetWithQueen(
   next.selectedSlot = null;
   syncBoardAuras(me, next.log);
   next.log = [
-    `${getCard(queen.cardId).name} создаёт Шершня-воина (−${cost.nature ?? 1} природы) в слот ${toSlot + 1}`,
+    `${getCard(queen.cardId).name} создаёт Шершня-воина (−${cost.nature ?? 2} природы, осталось ${me.mana.nature ?? 0})`,
     ...next.log,
   ].slice(0, 10);
   return next;
@@ -6701,7 +6712,10 @@ export function takeAiStep(
         const empty =
           mission.openLanes.find((s) => !me.slots[s]) ??
           me.slots.findIndex((s) => !s);
-        const graves = recentGraveCreatures(me.graveyard, 5);
+        const graves = recentGraveCreatures(me.graveyard, 5).filter((g) => {
+          const cost = battleManaCost(next, g.cardId);
+          return manaCostTotal(cost) > 0 && canPay(me.mana, cost);
+        });
         if (empty >= 0 && !me.slots[empty] && graves.length) {
           const pick = [...graves].sort(
             (a, b) =>
@@ -7249,7 +7263,11 @@ export function takeAiStep(
       const visible = recentGraveCreatures(me.graveyard, 5);
       const pick = visible.find((e) => e.index === flex.graveIndex);
       if (!pick) return null;
-      const cardId = me.graveyard.splice(pick.index, 1)[0]!;
+      const cardId = pick.cardId;
+      const cost = battleManaCost(next, cardId);
+      if (manaCostTotal(cost) <= 0 || !canPay(me.mana, cost)) return null;
+      payMana(me.mana, cost);
+      me.graveyard.splice(pick.index, 1);
       me.slots[flex.toSlot] = spawnCreature(
         cardId,
         next.rules,
@@ -7258,7 +7276,7 @@ export function takeAiStep(
       atk.canAttack = false;
       syncBoardAuras(me, next.log);
       next.log.unshift(
-        `Соперник: ${name} поднимает ${getCard(cardId).name}`,
+        `Соперник: ${name} поднимает ${getCard(cardId).name} (−${manaCostTotal(cost)} маны)`,
       );
       next.log = next.log.slice(0, 10);
       return {

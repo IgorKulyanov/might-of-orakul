@@ -19,8 +19,9 @@ import {
   type SchoolTrailBeat,
   type SchoolTrailFlagLayout,
 } from "../game/schoolTrails";
-import { cardArtUrl, getCard } from "../game/cards";
+import { getCard } from "../game/cards";
 import type { Faction, OwnedState } from "../game/types";
+import { CardView } from "./CardView";
 import { MenuAudioDock } from "./MenuAudioDock";
 
 type Props = {
@@ -644,28 +645,23 @@ export function SchoolTrailsScreen({
             </h2>
             {trailBeat.rewardCardId ? (
               <div className="trail-beat-card">
+                <div className="trail-beat-card-view">
+                  <CardView
+                    cardId={trailBeat.rewardCardId}
+                    compact
+                    flippable={false}
+                  />
+                </div>
+                <p className="hint">{rewardCardRole(trailBeat.newlyCleared)}</p>
                 {(() => {
                   try {
-                    const c = getCard(trailBeat.rewardCardId!);
-                    const art = cardArtUrl(c);
                     return (
-                      <>
-                        {art ? (
-                          <div
-                            className="trail-beat-art"
-                            style={{ backgroundImage: `url("${art}")` }}
-                            aria-hidden
-                          />
-                        ) : null}
-                        <p className="trail-beat-card-name">{c.name}</p>
-                        <p className="hint">{rewardCardRole(trailBeat.newlyCleared)}</p>
-                        <p className="campaign-preview-story">{c.text}</p>
-                      </>
+                      <p className="campaign-preview-story">
+                        {getCard(trailBeat.rewardCardId!).text}
+                      </p>
                     );
                   } catch {
-                    return (
-                      <p className="hint">Карта добавлена в руку тропы.</p>
-                    );
+                    return null;
                   }
                 })()}
               </div>

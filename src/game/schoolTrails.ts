@@ -658,6 +658,8 @@ export function prepareSchoolTrailBattle(
   // Как в основной игре: своя школа каждый ход, чужие через ход.
   next.enemy.oracleSkillLoadout = [];
   next.enemy.equalManaGrowth = false;
+  // Не тасовать учебную могилу в колоду (могильщик / пустая колода витрины).
+  next.enemy.preserveGraveyard = true;
   next.enemy.oracleActiveUsedThisTurn = false;
   next.enemy.oracleSkillUsed = {};
   next.enemy.graveyard = [...(step.graveyard ?? [])];
