@@ -7872,8 +7872,8 @@ html.is-hand-dragging .oracle-folio {
   background: linear-gradient(145deg, #ffe566, #b8860b);
 }
 .oracle-path-flag.school-nature .oracle-path-flag-cloth {
-  /* не красный (сливается) — ярко-бирюзовый на зелени */
-  background: linear-gradient(145deg, #18ffff, #00838f);
+  /* красный на зелени + обводка */
+  background: linear-gradient(145deg, #ff5252, #b71c1c);
 }
 .oracle-path-flag.school-water .oracle-path-flag-cloth {
   /* зелёный на синей воде */
