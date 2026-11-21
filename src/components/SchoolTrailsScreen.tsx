@@ -344,18 +344,63 @@ export function SchoolTrailsScreen({
     }
   };
 
+  const applyFlagPct = (fd: FlagDrag, clientX: number, clientY: number) => {
+    const pct = clientToPct(clientX, clientY);
+    const cur = layoutRef.current;
+    if (fd.kind === "finale") {
+      persistLayout({ ...cur, finale: pct });
+    } else {
+      const list = cur.schools[fd.faction].map((p, i) =>
+        i === fd.stepIndex ? pct : p,
+      );
+      persistLayout({
+        ...cur,
+        schools: { ...cur.schools, [fd.faction]: list },
+      });
+    }
+  };
+
   const startFlagDrag = (
     e: React.PointerEvent,
-    target: FlagDrag,
+    target: Omit<FlagDrag, "pointerId">,
   ) => {
     if (!editFlags) return;
     e.stopPropagation();
     e.preventDefault();
-    flagDragRef.current = target;
+    const pointerId = e.pointerId;
+    const fd = { ...target, pointerId } as FlagDrag;
+    flagDragRef.current = fd;
     dragRef.current = null;
     pinchRef.current = null;
+    pointersRef.current.clear();
     suppressClickRef.current = false;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+
+    const originX = e.clientX;
+    const originY = e.clientY;
+    let moved = false;
+
+    const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      const dx = ev.clientX - originX;
+      const dy = ev.clientY - originY;
+      if (!moved && dx * dx + dy * dy > 16) {
+        moved = true;
+        suppressClickRef.current = true;
+      }
+      if (moved) applyFlagPct(fd, ev.clientX, ev.clientY);
+    };
+    const onUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      flagDragRef.current = null;
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    // Сразу чуть сдвинуть под палец — видно, что схватили
+    applyFlagPct(fd, e.clientX, e.clientY);
   };
 
   const openPreview = (next: Preview) => {
@@ -497,12 +542,16 @@ export function SchoolTrailsScreen({
                       kind: "step",
                       faction,
                       stepIndex,
-                      pointerId: e.pointerId,
                     })
                   }
-                  onClick={() =>
-                    openPreview({ kind: "step", faction, stepIndex })
-                  }
+                  onClick={(e) => {
+                    if (editFlags) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      return;
+                    }
+                    openPreview({ kind: "step", faction, stepIndex });
+                  }}
                 >
                   <span className="oracle-path-flag-pole" aria-hidden />
                   <span className="oracle-path-flag-cloth" aria-hidden>
@@ -535,9 +584,16 @@ export function SchoolTrailsScreen({
                   : "Сначала заверши любую тропу (5/5)"
             }
             onPointerDown={(e) =>
-              startFlagDrag(e, { kind: "finale", pointerId: e.pointerId })
+              startFlagDrag(e, { kind: "finale" })
             }
-            onClick={() => openPreview({ kind: "finale" })}
+            onClick={(e) => {
+              if (editFlags) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+              }
+              openPreview({ kind: "finale" });
+            }}
           >
             <span className="oracle-path-flag-pole" aria-hidden />
             <span className="oracle-path-flag-cloth" aria-hidden>

@@ -7584,12 +7584,22 @@ html.is-hand-dragging .oracle-folio {
   touch-action: none;
   opacity: 1 !important;
   filter: none !important;
-  z-index: 5;
+  z-index: 8;
+  pointer-events: auto;
 }
 
 .oracle-path-flag.is-editable:active {
   cursor: grabbing;
-  z-index: 6;
+  z-index: 9;
+}
+
+.school-trails-screen.is-flag-edit .oracle-path-map-wrap {
+  /* флажки сверху, карта не перехватывает жест */
+}
+
+.school-trails-screen.is-flag-edit .oracle-path-flag.is-editable .oracle-path-flag-cloth,
+.school-trails-screen.is-flag-edit .oracle-path-flag.is-editable .oracle-path-flag-pole {
+  pointer-events: none;
 }
 
 .menu-audio-dock.splash-settings {
