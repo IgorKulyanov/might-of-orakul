@@ -76,7 +76,7 @@ export function manaCostTotal(cost: ManaCost): number {
 }
 
 /** Сброс кэша браузера/CDN после замены JPG (бампай при новых артах). */
-const CARD_ART_VER = "20261121n6";
+const CARD_ART_VER = "20261121n9";
 
 export function cardArtUrl(card: CardDef): string {
   const art = card.art ?? `${card.id}.png`;
@@ -101,6 +101,15 @@ export function cardArtStyle(card: CardDef): {
     basilisk: {
       backgroundPosition: "68% top",
       backgroundSize: "auto 100%",
+    },
+    // Квадрат с запасом сверху — cover 38% всё равно подрезал макушки.
+    neutral_fighter: {
+      backgroundPosition: "center top",
+      backgroundSize: "cover",
+    },
+    neutral_wall: {
+      backgroundPosition: "center top",
+      backgroundSize: "cover",
     },
   };
   if (forced[card.id]) return forced[card.id];
