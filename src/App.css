@@ -1185,14 +1185,6 @@ button {
   background-position: 68% top !important;
 }
 
-/* Нейтралы-стартеры: широкие сцены — contain, без обрезки по бокам */
-.card[data-card="neutral_fighter"] .card-art,
-.card[data-card="neutral_wall"] .card-art,
-.card[data-card="neutral_archer"] .card-art {
-  background-size: contain !important;
-  background-position: center center !important;
-}
-
 .effect-marks {
   flex: 1 0 100%;
   display: flex;
