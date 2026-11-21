@@ -8,12 +8,11 @@ import type { Faction } from "./types";
 
 export const STARTER_DECK_SIZE = 4;
 
-/** До выбора школы: 3 нейтрала + мана. */
+/** До выбора школы: только 3 нейтрала (без «доп. маны» в руке). */
 export const NEUTRAL_STARTER_IDS = [
   "neutral_fighter",
   "neutral_wall",
   "neutral_archer",
-  "hero_mana",
 ] as const;
 
 export const NEUTRAL_CREATURE_IDS = [
@@ -22,7 +21,7 @@ export const NEUTRAL_CREATURE_IDS = [
   "neutral_archer",
 ] as const;
 
-/** Золото за сдачу одного нейтрала при выборе школы. */
+/** @deprecated Нейтралы больше не конвертим в золото — остаются в колоде. */
 export const NEUTRAL_CONVERT_GOLD = 15;
 
 function build(parts: string[]): string[] {

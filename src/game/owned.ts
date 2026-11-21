@@ -55,7 +55,6 @@ import {
   starterUnlockIdsForFaction,
 } from "./progression";
 import {
-  NEUTRAL_CONVERT_GOLD,
   NEUTRAL_CREATURE_IDS,
   NEUTRAL_STARTER_IDS,
   neutralStarterCollection,
@@ -260,13 +259,17 @@ function withNeutralOnboardingDefaults(parsed: OwnedState): OwnedState {
       ...unlockedFromCollection(collection),
     ]),
   ];
+  // Убрать старую «доп. ману» из руки искателя.
+  delete collection.hero_mana;
+  const unlockedNoMana = unlocked.filter((id) => id !== "hero_mana");
   let starter = normalizeDeck(
-    parsed.decks?.starter?.length
+    (parsed.decks?.starter?.length
       ? parsed.decks.starter
-      : neutralStarterDeck(),
+      : neutralStarterDeck()
+    ).filter((id) => id !== "hero_mana"),
     collection,
   );
-  if (starter.length < MIN_DECK_SIZE) {
+  if (starter.length < NEUTRAL_STARTER_IDS.length) {
     starter = normalizeDeck(neutralStarterDeck(), collection);
   }
   const progress = normalizeProgress({
@@ -274,7 +277,7 @@ function withNeutralOnboardingDefaults(parsed: OwnedState): OwnedState {
     xp: parsed.xp,
   });
   return migrateCardUpgrades({
-    unlocked,
+    unlocked: unlockedNoMana,
     collection,
     decks: { starter },
     activeDeckId: "starter",
@@ -295,6 +298,7 @@ function withNeutralOnboardingDefaults(parsed: OwnedState): OwnedState {
     shopTierShardCatchUp: parsed.shopTierShardCatchUp,
     schoolTrailCleared: parsed.schoolTrailCleared,
     schoolTrailWins: parsed.schoolTrailWins,
+    schoolTrailDrafts: parsed.schoolTrailDrafts,
   });
 }
 
@@ -372,6 +376,7 @@ function withDefaults(parsed: OwnedState): OwnedState {
     shopTierShardCatchUp: parsed.shopTierShardCatchUp,
     schoolTrailCleared: parsed.schoolTrailCleared,
     schoolTrailWins: parsed.schoolTrailWins,
+    schoolTrailDrafts: parsed.schoolTrailDrafts,
   });
   return applySkillStateToOwned(base, getHero(heroId).faction);
 }
@@ -441,6 +446,7 @@ function freshOwned(_heroId = "hero_life"): OwnedState {
     xp: 0,
     schoolTrailCleared: {},
     schoolTrailWins: 0,
+    schoolTrailDrafts: {},
   });
 }
 
@@ -884,30 +890,61 @@ export function beginWithHero(
 
   const home = hero.faction;
 
-  // Конверт нейтралов в золото (не тащим 1/10 в PvP).
-  let convertGold = 0;
-  const strippedCollection = { ...(owned.collection ?? {}) };
+  // Нейтралы остаются — вокруг них собирается рука. В мир уходит черновик выбранной школы.
+  const rawDraft = owned.schoolTrailDrafts?.[home];
+  const draft = Array.isArray(rawDraft)
+    ? rawDraft.map(String).filter(Boolean)
+    : [];
+  if (draft.length < 1 && !hasOwnedProgress(owned)) {
+    return {
+      owned,
+      ok: false,
+      reason: "Сначала пройди тропу этой школы до конца (5 боёв)",
+    };
+  }
+
+  let collection: Record<string, number> = {
+    ...neutralStarterCollection(),
+    ...(owned.collection ?? {}),
+  };
+  delete collection.hero_mana;
   for (const id of NEUTRAL_CREATURE_IDS) {
-    const n = Math.max(0, Math.floor(Number(strippedCollection[id]) || 0));
-    if (n > 0) {
-      convertGold += n * NEUTRAL_CONVERT_GOLD;
-      delete strippedCollection[id];
+    if ((collection[id] ?? 0) < 1) collection[id] = 1;
+  }
+  for (const id of draft) {
+    if ((collection[id] ?? 0) < 1) collection[id] = 1;
+  }
+  // Если черновик пуст (редкий restore) — докинуть стартовые карты школы без вытеснения нейтралов.
+  if (draft.length < 1) {
+    for (const [id, n] of Object.entries(starterCollectionForFaction(home))) {
+      if (id === "hero_mana") continue;
+      collection[id] = Math.max(collection[id] ?? 0, n);
     }
   }
-  const strippedUnlocked = (owned.unlocked ?? []).filter(
-    (id) =>
-      !(NEUTRAL_CREATURE_IDS as readonly string[]).includes(id),
+
+  const unlocked = [
+    ...new Set([
+      ...NEUTRAL_CREATURE_IDS,
+      ...draft,
+      ...(owned.unlocked ?? []).filter((id) => id !== "hero_mana"),
+      ...unlockedFromCollection(collection),
+    ]),
+  ];
+
+  const deckIds = normalizeDeck(
+    [...NEUTRAL_CREATURE_IDS, ...(draft.length ? draft : starterDeckForFaction(home).filter((id) => id !== "hero_mana"))],
+    collection,
   );
 
   let state: OwnedState = {
     ...owned,
     homeFaction: home,
-    collection: strippedCollection,
-    unlocked: strippedUnlocked,
-    gold: Math.min(
-      5_000_000,
-      (owned.gold ?? 0) + convertGold,
-    ),
+    collection,
+    unlocked,
+    decks: { ...(owned.decks ?? {}), starter: deckIds },
+    activeDeckId: "starter",
+    // Черновики других школ не уносим в мир.
+    schoolTrailDrafts: { [home]: draft },
   };
 
   if (hero.tier === "epic") {
@@ -939,17 +976,6 @@ export function beginWithHero(
     };
   }
 
-  // Онбординг с чистого листа. Если уже есть прогресс (восстановление) — не сносить.
-  if (!hasOwnedProgress(owned)) {
-    state = {
-      ...state,
-      unlocked: starterIds(heroId),
-      collection: starterCollectionForFaction(home),
-      purchased: [],
-      decks: { starter: [] },
-      activeDeckId: "starter",
-    };
-  }
   // Сначала ставим целевого героя: иначе homeFactionOf цепляется за старый
   // hero_life и setHero отклоняет новую школу.
   const next = setHero({ ...state, heroId }, heroId);

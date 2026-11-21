@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { SCHOOL_COLOR } from "../game/cards";
+import { getCard, SCHOOL_COLOR } from "../game/cards";
 import {
   BASE_HEROES,
   epicPowerPreview,
@@ -7,6 +7,11 @@ import {
   ORACLE_EPIC_LORE,
 } from "../game/heroes";
 import { beginWithHero } from "../game/owned";
+import {
+  finishedSchoolTrails,
+  schoolTrailDraft,
+  schoolTrailTitle,
+} from "../game/schoolTrails";
 import type { Faction, OwnedState } from "../game/types";
 import { SchoolBadge } from "./GameIcon";
 
@@ -26,14 +31,29 @@ const FACTION_ORDER: Faction[] = [
   "nature",
 ];
 
+function cardName(id: string): string {
+  try {
+    return getCard(id).name;
+  } catch {
+    return id;
+  }
+}
+
 export function OnboardingScreen({
   owned,
   initialName = "",
   afterTrails = false,
   onComplete,
 }: Props) {
+  const finished = finishedSchoolTrails(owned);
+  const allowed =
+    afterTrails && finished.length > 0 ? finished : FACTION_ORDER;
+  const defaultHero =
+    BASE_HEROES.find((h) => h.faction === allowed[0])?.id ?? "hero_life";
   const [heroId, setHeroId] = useState(
-    owned.heroId && owned.homeFaction ? owned.heroId : "hero_life",
+    owned.heroId && owned.homeFaction && allowed.includes(owned.homeFaction)
+      ? owned.heroId
+      : defaultHero,
   );
   const [name, setName] = useState(initialName);
   const [busy, setBusy] = useState(false);
@@ -41,7 +61,10 @@ export function OnboardingScreen({
 
   const bases = FACTION_ORDER.map(
     (f) => BASE_HEROES.find((h) => h.faction === f)!,
-  );
+  ).filter((h) => allowed.includes(h.faction));
+
+  const selected = bases.find((h) => h.id === heroId) ?? bases[0];
+  const draft = selected ? schoolTrailDraft(owned, selected.faction) : [];
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -50,11 +73,15 @@ export function OnboardingScreen({
       setError("Имя от 2 символов");
       return;
     }
+    if (!selected) {
+      setError("Сначала пройди тропу школы");
+      return;
+    }
 
     setBusy(true);
     setError(null);
     try {
-      const res = beginWithHero(owned, heroId);
+      const res = beginWithHero(owned, selected.id);
       if (!res.ok) {
         setError(res.reason ?? "Не вышло");
         setBusy(false);
@@ -74,7 +101,7 @@ export function OnboardingScreen({
       </header>
       <p className="hint hero-screen-hint">
         {afterTrails
-          ? "Ты уже видел школы в бою. Выбери одну — потом сменить нельзя. Эпик купишь позже в кабинете."
+          ? "В мир уйдут твои три нейтрала + мини-колода выбранной школы. Другие тропы останутся воспоминанием. Эпик купишь позже в кабинете."
           : "Выбери одну из пяти школ — потом сменить нельзя. Эпик купишь позже в кабинете."}
       </p>
 
@@ -83,6 +110,7 @@ export function OnboardingScreen({
           {bases.map((h) => {
             const color = SCHOOL_COLOR[h.faction];
             const on = heroId === h.id;
+            const pathDraft = schoolTrailDraft(owned, h.faction);
             return (
               <button
                 key={h.id}
@@ -103,7 +131,13 @@ export function OnboardingScreen({
                 <strong className="onboard-pick-name">{h.name}</strong>
                 <span className="onboard-pick-school">
                   <SchoolBadge school={h.faction} size={14} />
+                  {schoolTrailTitle(h.faction)}
                 </span>
+                {pathDraft.length ? (
+                  <p className="onboard-epic-later">
+                    Мини-колода: {pathDraft.map(cardName).join(", ")}
+                  </p>
+                ) : null}
                 <p className="onboard-epic-later">
                   <span className="onboard-epic-later-label">Позже эпик</span>
                   {ORACLE_EPIC_LORE[h.faction]}
@@ -113,6 +147,12 @@ export function OnboardingScreen({
             );
           })}
         </div>
+
+        {draft.length ? (
+          <p className="hint school-trails-hint">
+            С собой в мир: нейтралы + {draft.map(cardName).join(", ")}
+          </p>
+        ) : null}
 
         <div className="onboard-name-row">
           <label className="onboard-name">
@@ -129,12 +169,11 @@ export function OnboardingScreen({
           <button
             type="submit"
             className="primary large onboard-ready"
-            disabled={busy}
+            disabled={busy || !selected}
           >
-            {busy ? "…" : "Готово"}
+            {busy ? "…" : "В мир"}
           </button>
         </div>
-
         {error && <p className="auth-error">{error}</p>}
       </form>
     </div>

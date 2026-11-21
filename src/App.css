@@ -7575,6 +7575,13 @@ html.is-hand-dragging .oracle-folio {
   color: var(--gold, #e8c547);
 }
 
+.school-trail-draft {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  opacity: 0.88;
+}
+
 .school-trails-grid {
   display: grid;
   gap: 0.85rem;

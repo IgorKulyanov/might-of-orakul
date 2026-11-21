@@ -1,14 +1,51 @@
 /**
  * Тропы вкуса школ — онбординг до выбора homeFaction.
  * Враг: фиксированный стол без колоды. Основной takeAiStep бота не меняем.
+ * Награды школ изолированы: в мир уходит только одна мини-колода + оракул.
  */
 import type { BattleState, Faction, OwnedState } from "./types";
 import type { CardUpgradeLevel } from "./cardUpgrades";
+import { getCard } from "./cards";
 import { getHero } from "./heroes";
 import { seedBoardCreature } from "./engine";
 
-export const SCHOOL_TRAIL_WINS_TO_PICK = 6;
+/** Выбор школы — после полной тропы (5 побед на одной школе). */
+export const SCHOOL_TRAIL_WINS_TO_PICK = 5;
 export const SCHOOL_TRAIL_STEPS = 5;
+
+/** Награды тропы: бой 1 — карта, бой 3 — магия, бой 5 — юнит школы. */
+export type SchoolTrailReward = {
+  afterCleared: number;
+  cardId: string;
+};
+
+export const SCHOOL_TRAIL_REWARDS: Record<Faction, SchoolTrailReward[]> = {
+  death: [
+    { afterCleared: 1, cardId: "skeleton" },
+    { afterCleared: 3, cardId: "poison" },
+    { afterCleared: 5, cardId: "zombie" },
+  ],
+  nature: [
+    { afterCleared: 1, cardId: "spider" },
+    { afterCleared: 3, cardId: "slow_foe" },
+    { afterCleared: 5, cardId: "elf" },
+  ],
+  water: [
+    { afterCleared: 1, cardId: "aquilite" },
+    { afterCleared: 3, cardId: "ice_trap" },
+    { afterCleared: 5, cardId: "water_spirit" },
+  ],
+  life: [
+    { afterCleared: 1, cardId: "crossbowman" },
+    { afterCleared: 3, cardId: "life_root" },
+    { afterCleared: 5, cardId: "tank" },
+  ],
+  hell: [
+    { afterCleared: 1, cardId: "fire_lizard" },
+    { afterCleared: 3, cardId: "strike" },
+    { afterCleared: 5, cardId: "fire_gopnik" },
+  ],
+};
 
 export const SCHOOL_TRAIL_FACTIONS: Faction[] = [
   "death",
@@ -234,18 +271,58 @@ export function schoolTrailWinsTotal(owned: OwnedState): number {
   return Math.max(0, Math.floor(Number(owned.schoolTrailWins) || 0));
 }
 
+export function schoolTrailDraft(
+  owned: OwnedState,
+  faction: Faction,
+): string[] {
+  const list = owned.schoolTrailDrafts?.[faction];
+  return Array.isArray(list) ? list.map(String) : [];
+}
+
+export function schoolTrailRewardForClear(
+  faction: Faction,
+  cleared: number,
+): SchoolTrailReward | null {
+  return (
+    SCHOOL_TRAIL_REWARDS[faction]?.find((r) => r.afterCleared === cleared) ??
+    null
+  );
+}
+
+/** Школа полностью пройдена (5/5) — её мини-колоду можно забрать в мир. */
+export function schoolTrailComplete(
+  owned: OwnedState,
+  faction: Faction,
+): boolean {
+  return schoolTrailCleared(owned, faction) >= SCHOOL_TRAIL_STEPS;
+}
+
+export function finishedSchoolTrails(owned: OwnedState): Faction[] {
+  return SCHOOL_TRAIL_FACTIONS.filter((f) => schoolTrailComplete(owned, f));
+}
+
 export function canPickSchool(owned: OwnedState): boolean {
-  return schoolTrailWinsTotal(owned) >= SCHOOL_TRAIL_WINS_TO_PICK;
+  return finishedSchoolTrails(owned).length > 0;
 }
 
 export function applySchoolTrailWin(
   owned: OwnedState,
   faction: Faction,
-): { owned: OwnedState; step: SchoolTrailStep; newlyCleared: number } {
+): {
+  owned: OwnedState;
+  step: SchoolTrailStep;
+  newlyCleared: number;
+  rewardCardId: string | null;
+} {
   const before = schoolTrailCleared(owned, faction);
   const step = schoolTrailStep(faction, before);
   if (!step) {
-    return { owned, step: SCHOOL_TRAIL_SCRIPTS[faction][0]!, newlyCleared: before };
+    return {
+      owned,
+      step: SCHOOL_TRAIL_SCRIPTS[faction][0]!,
+      newlyCleared: before,
+      rewardCardId: null,
+    };
   }
   const newlyCleared = Math.min(SCHOOL_TRAIL_STEPS, before + 1);
   const cleared = {
@@ -253,15 +330,46 @@ export function applySchoolTrailWin(
     [faction]: newlyCleared,
   };
   const wins = schoolTrailWinsTotal(owned) + 1;
+  const reward = schoolTrailRewardForClear(faction, newlyCleared);
+  const prevDraft = schoolTrailDraft(owned, faction);
+  const nextDraft =
+    reward && !prevDraft.includes(reward.cardId)
+      ? [...prevDraft, reward.cardId]
+      : prevDraft;
   return {
     owned: {
       ...owned,
       schoolTrailCleared: cleared,
       schoolTrailWins: wins,
+      schoolTrailDrafts: {
+        ...(owned.schoolTrailDrafts ?? {}),
+        [faction]: nextDraft,
+      },
     },
     step,
     newlyCleared,
+    rewardCardId: reward?.cardId ?? null,
   };
+}
+
+export function rewardGiftLine(
+  faction: Faction,
+  newlyCleared: number,
+  rewardCardId: string | null,
+  wowHint?: string,
+): string {
+  if (rewardCardId) {
+    try {
+      const name = getCard(rewardCardId).name;
+      return `Награда тропы: «${name}» (только для этой школы, пока не выберешь оракула)`;
+    } catch {
+      return `Награда тропы получена (${newlyCleared}/5)`;
+    }
+  }
+  return (
+    wowHint ??
+    `Шаг ${newlyCleared}/5 на тропе «${schoolTrailTitle(faction)}»`
+  );
 }
 
 /** Герой-оболочка врага той же школы (арт/мана), без скиллов. */
@@ -270,7 +378,9 @@ export function schoolTrailEnemyHeroId(faction: Faction): string {
 }
 
 /**
- * Подготовка боя тропы: стол, могила, пустая рука/колода врага, мана игроку на все школы.
+ * Подготовка боя тропы: стол, могила, пустая рука/колода врага.
+ * Без «жирной» стартовой маны и без скилла маны — только по 1 life/death/nature
+ * (стоимость трёх нейтралов), без карты «доп. мана» в колоде.
  */
 export function prepareSchoolTrailBattle(
   state: BattleState,
@@ -303,11 +413,13 @@ export function prepareSchoolTrailBattle(
     next.enemy.slots[i] = seedBoardCreature(cardId, up, next.rules);
   });
 
-  // Игроку мана всех школ — нейтралы стоят life/death/nature
-  for (const f of SCHOOL_TRAIL_FACTIONS) {
-    next.you.mana[f] = Math.max(next.you.mana[f] ?? 0, 2);
+  // Мана под трёх нейтралов (life/death/nature), без плюсов «на всё».
+  for (const f of ["life", "death", "nature"] as Faction[]) {
+    next.you.mana[f] = Math.max(next.you.mana[f] ?? 0, 1);
   }
-  next.you.oracleSkillLoadout = ["life_school_mana"];
+  next.you.oracleSkillLoadout = [];
+  next.you.oracleSkillUsed = {};
+  next.you.oracleActiveUsedThisTurn = false;
 
   next.aiLevel = Math.max(next.aiLevel ?? 1, 8);
   next.log = [

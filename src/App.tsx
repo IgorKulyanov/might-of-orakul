@@ -67,6 +67,7 @@ import {
 import {
   applySchoolTrailWin,
   prepareSchoolTrailBattle,
+  rewardGiftLine,
   schoolTrailEnemyHeroId,
   schoolTrailEnemyUpgrades,
   schoolTrailStep,
@@ -552,6 +553,10 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
     schoolTrailCleared: {
       ...(serverOwned?.schoolTrailCleared ?? {}),
       ...(local.schoolTrailCleared ?? {}),
+    },
+    schoolTrailDrafts: {
+      ...(serverOwned?.schoolTrailDrafts ?? {}),
+      ...(local.schoolTrailDrafts ?? {}),
     },
   };
   let next = homeFaction
@@ -1318,9 +1323,12 @@ export default function App() {
         gainedLevels: 0,
         goldReward: 0,
         diamondReward: 0,
-        giftLine:
-          step?.wowHint ??
-          `Шаг ${applied.newlyCleared}/5 на тропе. Побед: ${applied.owned.schoolTrailWins ?? 0}`,
+        giftLine: rewardGiftLine(
+          fight.faction,
+          applied.newlyCleared,
+          applied.rewardCardId,
+          step?.wowHint,
+        ),
       };
     }
     const isCampaign = screenRef.current === "battle_campaign";

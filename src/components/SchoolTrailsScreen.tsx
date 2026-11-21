@@ -1,14 +1,14 @@
 import {
   SCHOOL_TRAIL_FACTIONS,
+  SCHOOL_TRAIL_REWARDS,
   SCHOOL_TRAIL_STEPS,
-  SCHOOL_TRAIL_WINS_TO_PICK,
   canPickSchool,
   schoolTrailCleared,
+  schoolTrailDraft,
   schoolTrailStep,
   schoolTrailTitle,
-  schoolTrailWinsTotal,
 } from "../game/schoolTrails";
-import { SCHOOL_COLOR } from "../game/cards";
+import { getCard, SCHOOL_COLOR } from "../game/cards";
 import type { Faction, OwnedState } from "../game/types";
 import { SchoolBadge } from "./GameIcon";
 import { MenuAudioDock } from "./MenuAudioDock";
@@ -25,6 +25,14 @@ type Props = {
   onSaveName?: (name: string) => void;
 };
 
+function cardName(id: string): string {
+  try {
+    return getCard(id).name;
+  } catch {
+    return id;
+  }
+}
+
 export function SchoolTrailsScreen({
   owned,
   displayName,
@@ -33,7 +41,6 @@ export function SchoolTrailsScreen({
   onBack,
   asTutorial = false,
 }: Props) {
-  const wins = schoolTrailWinsTotal(owned);
   const ready = canPickSchool(owned);
 
   return (
@@ -50,14 +57,13 @@ export function SchoolTrailsScreen({
       <p className="hint school-trails-hint">
         {displayName ? `${displayName}, ` : ""}
         {asTutorial
-          ? "короткие бои пяти школ — почувствуй вкус силы. Враг только юниты на столе, без колоды. Потом выберешь свою школу и откроется весь мир."
-          : "короткие тропы пяти школ — враг только юниты на столе, без колоды."}
+          ? "три нейтрала с тобой. На каждой тропе копишь мини-колоду школы — в мир уйдёт только одна, вместе с оракулом. Школы не смешиваются."
+          : "награды троп изолированы: в мир заберёшь одну школу + нейтралов."}
       </p>
       <p className="school-trails-progress">
-        Побед на тропах: {wins}
         {ready
-          ? " — уже можно уверенно выбрать школу"
-          : ` · совет: попробуй ~${SCHOOL_TRAIL_WINS_TO_PICK}, но выбрать можно раньше`}
+          ? "Есть завершённая тропа — можно выбрать оракула и унести её мини-колоду"
+          : "Пройди любую тропу до конца (5 боёв), чтобы выбрать школу"}
       </p>
 
       <div className="school-trails-grid">
@@ -68,7 +74,11 @@ export function SchoolTrailsScreen({
             faction,
             done ? SCHOOL_TRAIL_STEPS - 1 : cleared,
           );
+          const draft = schoolTrailDraft(owned, faction);
           const color = SCHOOL_COLOR[faction];
+          const rewardHints = SCHOOL_TRAIL_REWARDS[faction]
+            .map((r) => `${r.afterCleared}: ${cardName(r.cardId)}`)
+            .join(" · ");
           return (
             <div
               key={faction}
@@ -85,10 +95,16 @@ export function SchoolTrailsScreen({
               {step && (
                 <p className="school-trail-lesson">
                   {done
-                    ? "Тропа пройдена."
+                    ? "Тропа пройдена — мини-колода готова к выбору."
                     : `Дальше: ${step.foeName}. ${step.lesson}`}
                 </p>
               )}
+              <p className="school-trail-draft hint">
+                Награды: {rewardHints}
+                {draft.length
+                  ? ` · сейчас: ${draft.map(cardName).join(", ")}`
+                  : ""}
+              </p>
               <button
                 type="button"
                 className="primary"
@@ -103,10 +119,15 @@ export function SchoolTrailsScreen({
       </div>
 
       <div className="school-trails-footer">
-        <button type="button" className="primary large" onClick={onPickSchool}>
+        <button
+          type="button"
+          className="primary large"
+          onClick={onPickSchool}
+          disabled={!ready}
+        >
           {ready
-            ? "Какая сила отозвалась? — выбрать школу"
-            : "Выбрать школу"}
+            ? "Выбрать оракула и унести одну мини-колоду"
+            : "Сначала заверши хотя бы одну тропу"}
         </button>
       </div>
     </div>
