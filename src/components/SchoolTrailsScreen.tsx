@@ -17,6 +17,7 @@ type Props = {
   displayName: string;
   onPlayTrail: (faction: Faction, stepIndex: number) => void;
   onPickSchool: () => void;
+  onBack?: () => void;
   onSaveName?: (name: string) => void;
 };
 
@@ -25,6 +26,7 @@ export function SchoolTrailsScreen({
   displayName,
   onPlayTrail,
   onPickSchool,
+  onBack,
 }: Props) {
   const wins = schoolTrailWinsTotal(owned);
   const ready = canPickSchool(owned);
@@ -32,18 +34,23 @@ export function SchoolTrailsScreen({
   return (
     <div className="school-trails-screen">
       <header className="page-bar">
-        <h1>Тропы школ</h1>
+        {onBack ? (
+          <button type="button" className="ghost" onClick={onBack}>
+            ← Меню
+          </button>
+        ) : null}
+        <h1>Путь оракула</h1>
       </header>
       <p className="hint school-trails-hint">
         {displayName ? `${displayName}, ` : ""}
-        ты ещё не выбрал школу. Пройди тропы — почувствуй вкус каждой силы.
-        Враг на тропе: только юниты на столе, без колоды.
+        короткие тропы пяти школ — враг только юниты на столе, без колоды.
+        Можно выйти в меню в любой момент.
       </p>
       <p className="school-trails-progress">
-        Побед на тропах: {wins} / {SCHOOL_TRAIL_WINS_TO_PICK}
+        Побед на тропах: {wins}
         {ready
-          ? " — можно выбрать школу"
-          : ` (ещё ${Math.max(0, SCHOOL_TRAIL_WINS_TO_PICK - wins)})`}
+          ? " — уже хватает, чтобы уверенно выбрать школу"
+          : ` · совет: попробуй ~${SCHOOL_TRAIL_WINS_TO_PICK}, но выбрать можно раньше`}
       </p>
 
       <div className="school-trails-grid">
@@ -84,15 +91,10 @@ export function SchoolTrailsScreen({
       </div>
 
       <div className="school-trails-footer">
-        <button
-          type="button"
-          className="primary large"
-          disabled={!ready}
-          onClick={onPickSchool}
-        >
+        <button type="button" className="primary large" onClick={onPickSchool}>
           {ready
             ? "Какая сила отозвалась? — выбрать школу"
-            : `Сначала ${SCHOOL_TRAIL_WINS_TO_PICK} побед на тропах`}
+            : "Выбрать школу"}
         </button>
       </div>
     </div>

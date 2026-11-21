@@ -18,6 +18,7 @@ import { DevSandbox } from "./components/DevSandbox";
 import { HeroSelect } from "./components/HeroSelect";
 import { MultiMenu } from "./components/MultiMenu";
 import { OnboardingScreen } from "./components/OnboardingScreen";
+import { NameOnboarding } from "./components/NameOnboarding";
 import { SchoolTrailsScreen } from "./components/SchoolTrailsScreen";
 import { HubTutorial } from "./components/HubTutorial";
 import { SplashMenu } from "./components/SplashMenu";
@@ -173,15 +174,11 @@ function richerDecks(
   return out;
 }
 
-/** Аккаунт ещё не прошёл создание оракула/ника. */
+/** Нужен только ник. Школа — позже через «Путь оракула», не стена на входе. */
 function accountNeedsOnboarding(user: ApiUser): boolean {
-  // Школа выбрана — онбординг не нужен. Голый hero_life без homeFaction = после wipe.
-  if (user.owned?.homeFaction) return false;
-  const hero = user.heroId || user.owned?.heroId || null;
-  if (hero && hero !== "hero_life" && user.displayName) return false;
-  if (user.needsOnboarding) return true;
+  if (user.displayName && user.displayName.trim().length >= 2) return false;
+  if (user.needsOnboarding && !user.displayName) return true;
   if (!user.displayName) return true;
-  if (!user.owned?.homeFaction) return true;
   return false;
 }
 
@@ -1234,6 +1231,15 @@ export default function App() {
     setScreen("menu");
   };
 
+  const finishNameOnly = async (displayName: string) => {
+    const t = token ?? getToken();
+    if (!t) throw new Error("Нет сессии");
+    const { user: me } = await apiUpdateMe(t, { displayName });
+    updateCachedUser(me);
+    setUser(me);
+    setScreen("menu");
+  };
+
   const finishOnboarding = async (
     displayName: string,
     nextOwned: OwnedState,
@@ -1250,6 +1256,7 @@ export default function App() {
     });
     updateCachedUser(me);
     setUser(me);
+    setScreen("menu");
   };
 
   const onBattleEnd = (won: boolean) => {
@@ -1525,57 +1532,72 @@ export default function App() {
     );
   }
 
-  // Школа = homeFaction. Сначала тропы вкуса, потом явный выбор школы.
-  if (!owned.homeFaction) {
-    if (screen === "battle_school_trail" && trailFight) {
-      const foeHero = schoolTrailEnemyHeroId(trailFight.faction);
-      return (
-        <Battle
-          key={`trail-${trailFight.faction}-${trailFight.step}`}
-          yourDeck={battleDeck(owned)}
-          enemyDeck={[]}
-          yourHeroId="hero_life"
-          enemyHeroId={foeHero}
-          yourName={user.displayName ?? user.login ?? "Искатель"}
-          yourLevel={1}
-          enemyLevel={8}
-          enemyCardUpgrades={schoolTrailEnemyUpgrades(
-            trailFight.faction,
-            trailFight.step,
-          )}
-          oracleSkills={[]}
-          enemyOracleSkills={[]}
-          prepareBattle={(s) =>
-            prepareSchoolTrailBattle(s, trailFight.faction, trailFight.step)
-          }
-          allowRematch
-          rematchLabel="Ещё раз"
-          exitPolicy="free"
-          resultExitLabel={() => "К тропам"}
-          onExit={() => {
-            setTrailFight(null);
-            setScreen("school_trails");
-          }}
-          onBattleEnd={onBattleEnd}
-        />
-      );
-    }
+  // Только ник обязателен. Школа — через «Путь оракула» с главного меню.
+  if (accountNeedsOnboarding(user)) {
+    return (
+      <NameOnboarding
+        initialName={user.displayName ?? ""}
+        onComplete={finishNameOnly}
+      />
+    );
+  }
 
-    if (screen === "school_pick") {
-      return (
-        <OnboardingScreen
-          owned={owned}
-          initialName={user.displayName ?? ""}
-          afterTrails
-          onComplete={finishOnboarding}
-        />
-      );
-    }
+  const hero = getHero(activeHeroId(owned));
+  const displayName = user.displayName ?? user.login ?? "Игрок";
+  const level = playerLevel(owned);
+  const foeLevel = botLevelNear(level);
 
+  if (screen === "battle_school_trail" && trailFight) {
+    const foeHero = schoolTrailEnemyHeroId(trailFight.faction);
+    return (
+      <Battle
+        key={`trail-${trailFight.faction}-${trailFight.step}`}
+        yourDeck={battleDeck(owned)}
+        enemyDeck={[]}
+        yourHeroId={activeHeroId(owned)}
+        enemyHeroId={foeHero}
+        yourName={displayName}
+        yourLevel={level}
+        enemyLevel={8}
+        enemyCardUpgrades={schoolTrailEnemyUpgrades(
+          trailFight.faction,
+          trailFight.step,
+        )}
+        oracleSkills={owned.homeFaction ? owned.oracleSkillLoadout : []}
+        enemyOracleSkills={[]}
+        prepareBattle={(s) =>
+          prepareSchoolTrailBattle(s, trailFight.faction, trailFight.step)
+        }
+        allowRematch
+        rematchLabel="Ещё раз"
+        exitPolicy="free"
+        resultExitLabel={() => "К пути"}
+        onExit={() => {
+          setTrailFight(null);
+          setScreen("school_trails");
+        }}
+        onBattleEnd={onBattleEnd}
+      />
+    );
+  }
+
+  if (screen === "school_pick") {
+    return (
+      <OnboardingScreen
+        owned={owned}
+        initialName={displayName}
+        afterTrails
+        onComplete={finishOnboarding}
+      />
+    );
+  }
+
+  if (screen === "school_trails") {
     return (
       <SchoolTrailsScreen
         owned={owned}
-        displayName={user.displayName ?? user.login ?? ""}
+        displayName={displayName}
+        onBack={() => setScreen("menu")}
         onPlayTrail={(faction, stepIndex) => {
           unlockSfx();
           void startBattleMusic();
@@ -1586,11 +1608,6 @@ export default function App() {
       />
     );
   }
-
-  const hero = getHero(activeHeroId(owned));
-  const displayName = user.displayName ?? user.login ?? "Игрок";
-  const level = playerLevel(owned);
-  const foeLevel = botLevelNear(level);
 
   if (screen === "battle_dev" && devSetup) {
     const resolved = resolveDevBattle(devSetup);
@@ -2020,7 +2037,7 @@ export default function App() {
   return (
     <>
       <SplashMenu
-        heroName={hero.name}
+        heroName={owned.homeFaction ? hero.name : "Искатель"}
         displayName={displayName}
         gold={owned.gold ?? 0}
         diamonds={owned.diamonds ?? 0}
@@ -2030,6 +2047,10 @@ export default function App() {
           setScreen("campaign");
         }}
         onArena={() => {
+          if (!owned.homeFaction) {
+            window.alert("Арена — после выбора школы.");
+            return;
+          }
           setArena(refreshArenaDay(arenaRef.current));
           setScreen("arena");
         }}
@@ -2037,6 +2058,7 @@ export default function App() {
         onCabinet={() => setScreen("cabinet")}
         onCollection={() => setScreen("collection")}
         onDailies={() => setScreen("dailies")}
+        onOraclePath={() => setScreen("school_trails")}
         onDev={() => setScreen("dev")}
         onEnableDev={() => {
           setDevToolsEnabled(true);

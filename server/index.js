@@ -405,15 +405,8 @@ function publicUser(u) {
     email: maskEmail(u.email),
     emailVerified: verified,
     needsEmailVerify: Boolean(u.email) && !verified,
-    // Школа = homeFaction. Голый hero_life без школы — ещё онбординг (после wipe).
-    needsOnboarding: !(
-      sanitizeDisplayName(u.displayName) &&
-      (u.owned?.homeFaction ||
-        (u.heroId && u.heroId !== "hero_life") ||
-        (u.owned?.heroId &&
-          u.owned.heroId !== "hero_life" &&
-          u.owned?.homeFaction))
-    ),
+    // Только ник. Школу берут позже через «Путь оракула» с главного меню.
+    needsOnboarding: !sanitizeDisplayName(u.displayName),
     lastLoginAt: u.lastLoginAt ?? null,
     dormant: Boolean(u.dormant),
     pendingResetCampaign: Boolean(u.pendingResetCampaign),

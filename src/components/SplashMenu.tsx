@@ -46,6 +46,8 @@ type Props = {
   onCabinet: () => void;
   onCollection: () => void;
   onDailies: () => void;
+  /** Тропы вкуса школ (онбординг / витрина). */
+  onOraclePath?: () => void;
   onDev?: () => void;
   /** Секрет: 7 кликов по названию игры включает тест-меню. */
   onEnableDev?: () => void;
@@ -69,6 +71,7 @@ export function SplashMenu({
   onCabinet,
   onCollection,
   onDailies,
+  onOraclePath,
   onDev,
   onEnableDev,
   showDev,
@@ -82,6 +85,7 @@ export function SplashMenu({
   onMailUser,
   initialMailUnread = 0,
 }: Props) {
+  const seeker = !owned.homeFaction;
   const [index, setIndex] = useState(0);
   const [panel, setPanel] = useState<Panel>("root");
   const brandClicks = useRef(0);
@@ -324,22 +328,42 @@ export function SplashMenu({
         </h1>
         <p className="splash-tag">
           <strong>{displayName}</strong>
-          {" · оракул "}
-          {heroName}
+          {seeker ? " · искатель" : ` · оракул ${heroName}`}
         </p>
         <div className="splash-actions" data-panel={panel}>
           {panel === "root" ? (
             <>
-              <button type="button" className="primary large" onClick={onMulti}>
+              <button
+                type="button"
+                className={seeker ? "ghost large" : "primary large"}
+                onClick={() => {
+                  if (seeker) {
+                    window.alert(
+                      "Дуэли откроются после выбора школы.",
+                    );
+                    return;
+                  }
+                  onMulti();
+                }}
+              >
                 Дуэль · найти соперника
               </button>
               <button
                 type="button"
-                className="ghost large"
+                className={seeker ? "primary large" : "ghost large"}
                 onClick={() => setPanel("solo")}
               >
                 Одиночная кампания
               </button>
+              {onOraclePath ? (
+                <button
+                  type="button"
+                  className="ghost large splash-oracle-path"
+                  onClick={onOraclePath}
+                >
+                  Путь оракула
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="ghost large"
@@ -352,7 +376,13 @@ export function SplashMenu({
                 type="button"
                 className="ghost large"
                 data-tut="hub-shop"
-                onClick={onCollection}
+                onClick={() => {
+                  if (seeker) {
+                    window.alert("Магазин — после выбора школы.");
+                    return;
+                  }
+                  onCollection();
+                }}
               >
                 Магазин / колода
               </button>

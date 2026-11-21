@@ -7438,6 +7438,13 @@ html.is-hand-dragging .oracle-folio {
   line-height: 1.45;
 }
 
+/* Тихий вход в тропы: не primary, не первая кнопка. */
+.splash-actions .splash-oracle-path {
+  opacity: 0.92;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
 .school-trails-progress {
   text-align: center;
   font-weight: 600;
