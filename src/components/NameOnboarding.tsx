@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from "react";
+import { MenuAudioDock } from "./MenuAudioDock";
 
 type Props = {
   initialName?: string;
   onComplete: (displayName: string) => void | Promise<void>;
 };
 
-/** Только ник. Дальше — обучение «Путь оракула» (хаб ещё закрыт). */
+/** Только ник. Дальше — пролог → «Путь оракула». */
 export function NameOnboarding({ initialName = "", onComplete }: Props) {
   const [name, setName] = useState(initialName);
   const [busy, setBusy] = useState(false);
@@ -32,9 +33,10 @@ export function NameOnboarding({ initialName = "", onComplete }: Props) {
     <div className="onboard-screen">
       <header className="page-bar">
         <h1>Как тебя зовут?</h1>
+        <MenuAudioDock className="school-trails-audio" />
       </header>
       <p className="hint hero-screen-hint">
-        Ник — и короткое обучение: попробуешь школы, потом выберешь свою.
+        Ник — дальше короткий пролог и обучение школ.
       </p>
       <form className="onboard-form" onSubmit={submit}>
         <div className="onboard-name-row">

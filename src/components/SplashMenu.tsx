@@ -48,6 +48,8 @@ type Props = {
   onDailies: () => void;
   /** Тропы вкуса школ (онбординг / витрина). */
   onOraclePath?: () => void;
+  /** Пересмотреть пролог. */
+  onRewatchPrologue?: () => void;
   onDev?: () => void;
   /** Секрет: 7 кликов по названию игры включает тест-меню. */
   onEnableDev?: () => void;
@@ -72,6 +74,7 @@ export function SplashMenu({
   onCollection,
   onDailies,
   onOraclePath,
+  onRewatchPrologue,
   onDev,
   onEnableDev,
   showDev,
@@ -301,6 +304,20 @@ export function SplashMenu({
                   }}
                 />
               </div>
+              {onRewatchPrologue ? (
+                <button
+                  type="button"
+                  className="splash-audio-btn ghost"
+                  role="menuitem"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSettingsOpen(false);
+                    onRewatchPrologue();
+                  }}
+                >
+                  Смотреть пролог
+                </button>
+              ) : null}
             </div>
           ) : null}
         </div>

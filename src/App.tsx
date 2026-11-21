@@ -19,9 +19,11 @@ import { HeroSelect } from "./components/HeroSelect";
 import { MultiMenu } from "./components/MultiMenu";
 import { OnboardingScreen } from "./components/OnboardingScreen";
 import { NameOnboarding } from "./components/NameOnboarding";
+import { PrologueScreen } from "./components/PrologueScreen";
 import { SchoolTrailsScreen } from "./components/SchoolTrailsScreen";
 import { HubTutorial } from "./components/HubTutorial";
 import { SplashMenu } from "./components/SplashMenu";
+import { hasSeenPrologue, markPrologueSeen } from "./game/prologue";
 import {
   hasSeenHubTutorial,
   HUB_TUTORIAL_TIPS,
@@ -154,7 +156,8 @@ type Screen =
   | "multi"
   | "dailies"
   | "school_trails"
-  | "school_pick";
+  | "school_pick"
+  | "prologue";
 
 function richerDecks(
   a: OwnedState["decks"] | undefined,
@@ -1218,8 +1221,14 @@ export default function App() {
         /* offline */
       }
     })();
-    // Искатель → обучение; со школой — хаб. Заставка позже встанет перед тропами.
-    setScreen(u.owned?.homeFaction ? "menu" : "school_trails");
+    // Со школой — хаб. Искатель: пролог (если ещё не видел) или сразу путь.
+    if (u.owned?.homeFaction) {
+      setScreen("menu");
+    } else if (u.displayName && !hasSeenPrologue(u.login || u.displayName)) {
+      setScreen("prologue");
+    } else {
+      setScreen("school_trails");
+    }
   };
 
   const logout = () => {
@@ -1238,8 +1247,13 @@ export default function App() {
     const { user: me } = await apiUpdateMe(t, { displayName });
     updateCachedUser(me);
     setUser(me);
-    // Скоро: заставка → сюда. Пока сразу в обучение «Путь оракула».
-    setScreen("school_trails");
+    // Логин → ник → пролог → путь.
+    setScreen("prologue");
+  };
+
+  const finishPrologue = (login: string, after: "trails" | "menu") => {
+    markPrologueSeen(login);
+    setScreen(after === "menu" ? "menu" : "school_trails");
   };
 
   const finishOnboarding = async (
@@ -1549,6 +1563,30 @@ export default function App() {
   const level = playerLevel(owned);
   const foeLevel = botLevelNear(level);
   const seeker = !owned.homeFaction;
+  const loginKey = user.login || displayName;
+
+  // Пролог: первый раз после ника, или пересмотр из хаба.
+  if (screen === "prologue") {
+    return (
+      <PrologueScreen
+        displayName={displayName}
+        rewatch={!seeker || hasSeenPrologue(loginKey)}
+        onDone={() =>
+          finishPrologue(loginKey, seeker ? "trails" : "menu")
+        }
+      />
+    );
+  }
+
+  // Искатель ещё не видел пролог — сначала он (не хаб).
+  if (seeker && !hasSeenPrologue(loginKey) && screen !== "battle_school_trail") {
+    return (
+      <PrologueScreen
+        displayName={displayName}
+        onDone={() => finishPrologue(loginKey, "trails")}
+      />
+    );
+  }
 
   // Искатель: не пускаем шариться по меню. Тропы / выбор школы / бой тропы.
   if (seeker) {
@@ -2125,6 +2163,7 @@ export default function App() {
         onCollection={() => setScreen("collection")}
         onDailies={() => setScreen("dailies")}
         onOraclePath={() => setScreen("school_trails")}
+        onRewatchPrologue={() => setScreen("prologue")}
         onDev={() => setScreen("dev")}
         onEnableDev={() => {
           setDevToolsEnabled(true);

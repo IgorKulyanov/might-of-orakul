@@ -11,6 +11,7 @@ import {
 import { SCHOOL_COLOR } from "../game/cards";
 import type { Faction, OwnedState } from "../game/types";
 import { SchoolBadge } from "./GameIcon";
+import { MenuAudioDock } from "./MenuAudioDock";
 
 type Props = {
   owned: OwnedState;
@@ -44,6 +45,7 @@ export function SchoolTrailsScreen({
           </button>
         ) : null}
         <h1>{asTutorial ? "Обучение · Путь оракула" : "Путь оракула"}</h1>
+        <MenuAudioDock className="school-trails-audio" />
       </header>
       <p className="hint school-trails-hint">
         {displayName ? `${displayName}, ` : ""}
