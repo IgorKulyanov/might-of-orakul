@@ -264,9 +264,13 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
   const serverHasProgress =
     Boolean(user.owned?.homeFaction) ||
     hasOwnedProgress(user.owned as OwnedState);
-  // Любой wipe: пока на сервере нет школы/прогресса — чистый лист.
-  // Нельзя поднимать старый локальный/бэкап (ПК и телефон откатывали wipe).
-  if (user.pendingWipeOwned || (wipeId > 0 && !serverHasProgress)) {
+  // Любой wipe: чистый лист. Даже если сервер уже снова «толстый»
+  // (старый клиент успел залить сейв) — новый wipeId важнее локали/бэкапа.
+  if (
+    user.pendingWipeOwned ||
+    (wipeId > 0 && wipeId > wipeSeen) ||
+    (wipeId > 0 && !serverHasProgress)
+  ) {
     return forceBlankFromServerWipe(user);
   }
   // Wipe уже применён на сервере, тут ещё старый сейв — выкинуть локальное.

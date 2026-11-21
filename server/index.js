@@ -1132,10 +1132,26 @@ app.put(
           if (h) user.heroId = h;
         }
         if (body.owned && typeof body.owned === "object" && !wiping) {
-          user.owned = sanitizeOwned(body.owned, user.owned);
-          if (user.owned?.heroId) {
-            const h = sanitizeHeroId(user.owned.heroId);
-            if (h) user.heroId = h;
+          const prev = user.owned && typeof user.owned === "object" ? user.owned : null;
+          const prevBlank =
+            !prev?.homeFaction && (Number(prev?.level) || 1) <= 1;
+          const incoming = body.owned;
+          const incomingFat =
+            Boolean(incoming?.homeFaction) &&
+            (Number(incoming?.level) || 1) > 2;
+          // После wipe клиент со старым localStorage снова слал ур.17 — блок.
+          const wipeId = Math.max(0, Math.floor(Number(user.ownedWipeId) || 0));
+          if (wipeId > 0 && prevBlank && incomingFat) {
+            console.warn(
+              "[orakul] blocked post-wipe progress restore via PUT /api/me",
+              user.login,
+            );
+          } else {
+            user.owned = sanitizeOwned(body.owned, user.owned);
+            if (user.owned?.heroId) {
+              const h = sanitizeHeroId(user.owned.heroId);
+              if (h) user.heroId = h;
+            }
           }
         }
         if (body.clearPendingWipeOwned) {
