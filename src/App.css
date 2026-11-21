@@ -7530,8 +7530,7 @@ html.is-hand-dragging .oracle-folio {
 }
 
 .auth-screen,
-.onboard-screen,
-.school-trails-screen {
+.onboard-screen {
   position: relative;
   isolation: isolate;
   min-height: 100vh;
@@ -7541,10 +7540,12 @@ html.is-hand-dragging .oracle-folio {
 }
 
 .school-trails-hint {
-  max-width: 40rem;
-  margin: 0.5rem auto 0.75rem;
+  max-width: 42rem;
+  margin: 0.2rem auto 0.35rem;
   text-align: center;
-  line-height: 1.45;
+  line-height: 1.35;
+  font-size: 0.88rem;
+  padding: 0 0.5rem;
 }
 
 .school-trails-screen .page-bar .school-trails-audio {
@@ -7685,21 +7686,36 @@ html.is-hand-dragging .oracle-folio {
 }
 
 .school-trails-screen {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
-  padding-bottom: 0.75rem;
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
+  max-height: 100dvh;
+  padding: 0.35rem 0.4rem 0.4rem;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.school-trails-screen .page-bar {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.15rem 0.25rem;
 }
 
 .oracle-path-map-wrap {
   position: relative;
   z-index: 1;
   flex: 1 1 auto;
-  margin: 0.25rem auto 0.75rem;
-  width: min(calc(100% - 0.5rem), min(72vh, calc(100dvh - 14rem)));
+  margin: 0.15rem auto;
+  width: min(100%, calc(100dvh - 7.5rem));
+  height: min(100%, calc(100dvh - 7.5rem));
+  max-width: min(96vw, 920px);
+  max-height: calc(100dvh - 7.5rem);
   aspect-ratio: 1 / 1;
-  max-height: min(72vh, calc(100dvh - 14rem));
-  min-height: 280px;
-  border-radius: 12px;
+  border-radius: 10px;
   overflow: hidden;
   border: 2px solid color-mix(in srgb, var(--gold, #e8c547) 45%, transparent);
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
@@ -7710,7 +7726,7 @@ html.is-hand-dragging .oracle-folio {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   object-position: center;
   user-select: none;
   pointer-events: none;
@@ -7719,11 +7735,12 @@ html.is-hand-dragging .oracle-folio {
 .oracle-path-flag {
   position: absolute;
   z-index: 3;
-  width: 1.55rem;
-  height: 2.05rem;
+  width: clamp(1.15rem, 3.6vw, 1.55rem);
+  height: clamp(1.5rem, 4.8vw, 2.05rem);
   margin: 0;
   padding: 0;
-  transform: translate(-50%, -85%);
+  /* Точка якоря у основания древка — не улетает за верх/низ карты */
+  transform: translate(-50%, -100%);
   border: none;
   background: transparent;
   cursor: pointer;
@@ -7797,7 +7814,7 @@ html.is-hand-dragging .oracle-folio {
 }
 
 .oracle-path-flag.is-fightable:hover {
-  transform: translate(-50%, -85%) scale(1.14);
+  transform: translate(-50%, -100%) scale(1.12);
   filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.65)) brightness(1.08);
 }
 
@@ -7814,9 +7831,45 @@ html.is-hand-dragging .oracle-folio {
 .school-trails-footer {
   display: flex;
   justify-content: center;
-  margin: 0.35rem auto 0.75rem;
+  margin: 0.2rem auto 0;
   max-width: 960px;
+  width: 100%;
   flex: 0 0 auto;
+  padding: 0 0.35rem;
+}
+
+.school-trails-footer .primary.large {
+  width: min(100%, 28rem);
+  padding: 0.65rem 1rem;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 640px) {
+  .school-trails-hint {
+    font-size: 0.78rem;
+    margin: 0.1rem auto 0.2rem;
+    line-height: 1.3;
+  }
+
+  .oracle-path-map-wrap {
+    width: min(100%, calc(100dvh - 8.75rem));
+    height: min(100%, calc(100dvh - 8.75rem));
+    max-height: calc(100dvh - 8.75rem);
+    margin: 0.1rem auto;
+  }
+
+  .oracle-path-flag-pole {
+    height: 0.95rem;
+  }
+
+  .oracle-path-flag-cloth {
+    width: 1.05rem;
+    height: 0.78rem;
+  }
+
+  .oracle-path-flag-cloth em {
+    font-size: 0.55rem;
+  }
 }
 
 .multi-room-code {

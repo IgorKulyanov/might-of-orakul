@@ -77,10 +77,9 @@ export function SchoolTrailsScreen({
         <MenuAudioDock className="school-trails-audio" />
       </header>
       <p className="hint school-trails-hint">
-        {displayName ? `${displayName}, ` : ""}
-        на карте — пять земель. В каждой пять флажков: первый открыт, дальше
-        серые. История на флажке, заключение после победы. ★ в центре — выбор
-        школы, когда пройдёшь любую тропу до конца.
+        {displayName ? `${displayName}: ` : ""}
+        5 земель × 5 флажков. Первый открыт, дальше серые. ★ — выбор школы
+        после любой полной тропы.
       </p>
 
       <div className="oracle-path-map-wrap">
