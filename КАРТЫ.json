@@ -2388,8 +2388,7 @@
       "gender": "male",
       "unitLevel": 1,
       "priceGold": 0,
-      "priceDiamonds": 0,
-      "artFocus": "center top"
+      "priceDiamonds": 0
     },
     {
       "id": "neutral_wall",
@@ -2407,8 +2406,7 @@
       "gender": "male",
       "unitLevel": 1,
       "priceGold": 0,
-      "priceDiamonds": 0,
-      "artFocus": "center top"
+      "priceDiamonds": 0
     },
     {
       "id": "neutral_archer",

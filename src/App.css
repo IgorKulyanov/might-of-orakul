@@ -1185,11 +1185,6 @@ button {
   background-position: 68% top !important;
 }
 
-.card[data-card="neutral_fighter"] .card-art,
-.card[data-card="neutral_wall"] .card-art {
-  background-position: center top !important;
-}
-
 .effect-marks {
   flex: 1 0 100%;
   display: flex;
