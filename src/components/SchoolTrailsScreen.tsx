@@ -1,15 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   SCHOOL_TRAIL_FACTIONS,
-  SCHOOL_TRAIL_FINALE_POS,
-  SCHOOL_TRAIL_FLAG_POS,
   SCHOOL_TRAIL_REWARDS,
   SCHOOL_TRAIL_STEPS,
   canPickSchool,
+  clearSchoolTrailFlagLayout,
+  defaultSchoolTrailFlagLayout,
+  formatSchoolTrailFlagLayoutTs,
+  loadSchoolTrailFlagLayout,
+  saveSchoolTrailFlagLayout,
   schoolTrailCleared,
   schoolTrailDraft,
   schoolTrailStep,
   schoolTrailTitle,
+  type FlagXY,
+  type SchoolTrailFlagLayout,
 } from "../game/schoolTrails";
 import { getCard } from "../game/cards";
 import type { Faction, OwnedState } from "../game/types";
@@ -20,9 +25,7 @@ type Props = {
   displayName: string;
   onPlayTrail: (faction: Faction, stepIndex: number) => void;
   onPickSchool: () => void;
-  /** Повторный заход из хаба — можно назад в меню. */
   onBack?: () => void;
-  /** Первый проход: без выхода в меню, тон «обучение». */
   asTutorial?: boolean;
   onSaveName?: (name: string) => void;
 };
@@ -57,6 +60,10 @@ type PinchState = {
   midY: number;
 };
 
+type FlagDrag =
+  | { kind: "step"; faction: Faction; stepIndex: number; pointerId: number }
+  | { kind: "finale"; pointerId: number };
+
 const MAP_MIN_SCALE = 0.55;
 const MAP_MAX_SCALE = 2.8;
 
@@ -64,6 +71,10 @@ function dist2(a: { x: number; y: number }, b: { x: number; y: number }) {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
   return Math.hypot(dx, dy);
+}
+
+function clampPct(n: number) {
+  return Math.max(2, Math.min(98, Math.round(n * 10) / 10));
 }
 
 export function SchoolTrailsScreen({
@@ -78,16 +89,29 @@ export function SchoolTrailsScreen({
   const [preview, setPreview] = useState<Preview | null>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
+  const [editFlags, setEditFlags] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.location.hash === "#ora-flags",
+  );
+  const [layout, setLayout] = useState<SchoolTrailFlagLayout>(() =>
+    loadSchoolTrailFlagLayout(),
+  );
+  const [copied, setCopied] = useState(false);
+
   const viewportRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<PanDrag | null>(null);
   const pinchRef = useRef<PinchState | null>(null);
+  const flagDragRef = useRef<FlagDrag | null>(null);
   const pointersRef = useRef(new Map<number, { x: number; y: number }>());
   const panRef = useRef(pan);
   const scaleRef = useRef(scale);
+  const layoutRef = useRef(layout);
   const suppressClickRef = useRef(false);
   panRef.current = pan;
   scaleRef.current = scale;
+  layoutRef.current = layout;
 
   const clampPan = useCallback((x: number, y: number, s = scaleRef.current) => {
     const vp = viewportRef.current;
@@ -120,13 +144,17 @@ export function SchoolTrailsScreen({
     const map = mapRef.current;
     const img = map?.querySelector("img");
     img?.addEventListener("load", centerMap);
+    const onHash = () => {
+      if (window.location.hash === "#ora-flags") setEditFlags(true);
+    };
+    window.addEventListener("hashchange", onHash);
     return () => {
       window.removeEventListener("resize", onResize);
       img?.removeEventListener("load", centerMap);
+      window.removeEventListener("hashchange", onHash);
     };
   }, [centerMap]);
 
-  // Ctrl+колесо / тачпад-пинч — без passive, иначе preventDefault не сработает
   useEffect(() => {
     const el = viewportRef.current;
     if (!el) return;
@@ -158,6 +186,21 @@ export function SchoolTrailsScreen({
     return () => el.removeEventListener("wheel", wheel);
   }, [clampPan]);
 
+  const persistLayout = (next: SchoolTrailFlagLayout) => {
+    layoutRef.current = next;
+    setLayout(next);
+    saveSchoolTrailFlagLayout(next);
+  };
+
+  const clientToPct = (clientX: number, clientY: number): FlagXY => {
+    const map = mapRef.current?.getBoundingClientRect();
+    if (!map || map.width < 1 || map.height < 1) return { x: 50, y: 50 };
+    return {
+      x: clampPct(((clientX - map.left) / map.width) * 100),
+      y: clampPct(((clientY - map.top) / map.height) * 100),
+    };
+  };
+
   const beginPinch = () => {
     const pts = [...pointersRef.current.values()];
     if (pts.length < 2) return;
@@ -175,11 +218,13 @@ export function SchoolTrailsScreen({
       midY,
     };
     dragRef.current = null;
+    flagDragRef.current = null;
     suppressClickRef.current = true;
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0 && e.pointerType === "mouse") return;
+    if (flagDragRef.current) return;
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     viewportRef.current?.setPointerCapture(e.pointerId);
 
@@ -200,6 +245,25 @@ export function SchoolTrailsScreen({
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
+    const fd = flagDragRef.current;
+    if (fd && fd.pointerId === e.pointerId) {
+      const pct = clientToPct(e.clientX, e.clientY);
+      const cur = layoutRef.current;
+      if (fd.kind === "finale") {
+        persistLayout({ ...cur, finale: pct });
+      } else {
+        const list = cur.schools[fd.faction].map((p, i) =>
+          i === fd.stepIndex ? pct : p,
+        );
+        persistLayout({
+          ...cur,
+          schools: { ...cur.schools, [fd.faction]: list },
+        });
+      }
+      suppressClickRef.current = true;
+      return;
+    }
+
     if (!pointersRef.current.has(e.pointerId)) return;
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
@@ -218,7 +282,6 @@ export function SchoolTrailsScreen({
         MAP_MAX_SCALE,
         Math.max(MAP_MIN_SCALE, pinch.startScale * ratio),
       );
-      // Зум вокруг точки между пальцами
       const worldX = (pinch.midX - pinch.startPanX) / pinch.startScale;
       const worldY = (pinch.midY - pinch.startPanY) / pinch.startScale;
       const nextPan = clampPan(
@@ -249,6 +312,9 @@ export function SchoolTrailsScreen({
   };
 
   const endDrag = (e: React.PointerEvent) => {
+    if (flagDragRef.current?.pointerId === e.pointerId) {
+      flagDragRef.current = null;
+    }
     pointersRef.current.delete(e.pointerId);
     try {
       viewportRef.current?.releasePointerCapture(e.pointerId);
@@ -278,12 +344,44 @@ export function SchoolTrailsScreen({
     }
   };
 
+  const startFlagDrag = (
+    e: React.PointerEvent,
+    target: FlagDrag,
+  ) => {
+    if (!editFlags) return;
+    e.stopPropagation();
+    e.preventDefault();
+    flagDragRef.current = target;
+    dragRef.current = null;
+    pinchRef.current = null;
+    suppressClickRef.current = false;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
   const openPreview = (next: Preview) => {
+    if (editFlags) return;
     if (suppressClickRef.current) {
       suppressClickRef.current = false;
       return;
     }
     setPreview(next);
+  };
+
+  const copyLayout = async () => {
+    const text = formatSchoolTrailFlagLayoutTs(layout);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.prompt("Скопируй раскладку:", text);
+    }
+  };
+
+  const resetLayout = () => {
+    clearSchoolTrailFlagLayout();
+    const fresh = defaultSchoolTrailFlagLayout();
+    persistLayout(fresh);
   };
 
   const previewStep =
@@ -302,7 +400,9 @@ export function SchoolTrailsScreen({
     preview?.kind === "step" && preview.stepIndex < previewCleared;
 
   return (
-    <div className={`school-trails-screen${asTutorial ? " is-tutorial" : ""}`}>
+    <div
+      className={`school-trails-screen${asTutorial ? " is-tutorial" : ""}${editFlags ? " is-flag-edit" : ""}`}
+    >
       <header className="page-bar">
         {onBack && !asTutorial ? (
           <button type="button" className="ghost" onClick={onBack}>
@@ -310,12 +410,35 @@ export function SchoolTrailsScreen({
           </button>
         ) : null}
         <h1>{asTutorial ? "Обучение · Путь оракула" : "Путь оракула"}</h1>
+        <button
+          type="button"
+          className={`ghost school-trails-flag-edit-btn${editFlags ? " is-on" : ""}`}
+          onClick={() => setEditFlags((v) => !v)}
+          title="Расставить флажки на карте"
+        >
+          {editFlags ? "Готово" : "Флажки"}
+        </button>
         <MenuAudioDock className="school-trails-audio" />
       </header>
       <p className="hint school-trails-hint">
-        {displayName ? `${displayName}: ` : ""}
-        5×5 флажков. Двигай одним пальцем, щипок — масштаб. ★ — выбор школы.
+        {editFlags
+          ? "Режим расстановки: тяни флажки пальцем/мышью. Позиции пишутся сразу. «Код» — скопировать в schoolTrails.ts."
+          : `${displayName ? `${displayName}: ` : ""}5×5 флажков. Двигай карту, щипок — масштаб. ★ — выбор школы.`}
       </p>
+
+      {editFlags ? (
+        <div className="school-trails-flag-edit-bar">
+          <button type="button" className="ghost" onClick={copyLayout}>
+            {copied ? "Скопировано" : "Код"}
+          </button>
+          <button type="button" className="ghost" onClick={resetLayout}>
+            Сброс
+          </button>
+          <span className="hint">
+            ★ {layout.finale.x}/{layout.finale.y}
+          </span>
+        </div>
+      ) : null}
 
       <div
         className="oracle-path-map-viewport"
@@ -341,18 +464,20 @@ export function SchoolTrailsScreen({
 
           {SCHOOL_TRAIL_FACTIONS.map((faction) => {
             const cleared = schoolTrailCleared(owned, faction);
-            const positions = SCHOOL_TRAIL_FLAG_POS[faction];
+            const positions = layout.schools[faction];
             return positions.map((pos, stepIndex) => {
               const done = stepIndex < cleared;
               const current =
                 stepIndex === cleared && cleared < SCHOOL_TRAIL_STEPS;
-              const locked = !done && !current;
+              const locked = !editFlags && !done && !current;
               const cls = [
                 "oracle-path-flag",
                 `school-${faction}`,
+                editFlags ? "is-editable" : "",
                 done ? "is-cleared" : "",
                 locked ? "is-locked" : "",
-                current ? "is-current is-fightable" : "",
+                !editFlags && (current || false) ? "is-current is-fightable" : "",
+                editFlags ? "is-current" : "",
               ]
                 .filter(Boolean)
                 .join(" ");
@@ -362,7 +487,19 @@ export function SchoolTrailsScreen({
                   type="button"
                   className={cls}
                   style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-                  title={`${schoolTrailTitle(faction)} · ${stepIndex + 1}/${SCHOOL_TRAIL_STEPS}`}
+                  title={
+                    editFlags
+                      ? `${schoolTrailTitle(faction)} ${stepIndex + 1} · ${pos.x}/${pos.y}`
+                      : `${schoolTrailTitle(faction)} · ${stepIndex + 1}/${SCHOOL_TRAIL_STEPS}`
+                  }
+                  onPointerDown={(e) =>
+                    startFlagDrag(e, {
+                      kind: "step",
+                      faction,
+                      stepIndex,
+                      pointerId: e.pointerId,
+                    })
+                  }
                   onClick={() =>
                     openPreview({ kind: "step", faction, stepIndex })
                   }
@@ -380,16 +517,25 @@ export function SchoolTrailsScreen({
             type="button"
             className={[
               "oracle-path-flag is-finale",
-              ready ? "is-current is-fightable" : "is-locked",
-            ].join(" ")}
+              editFlags ? "is-editable is-current" : "",
+              !editFlags && ready ? "is-current is-fightable" : "",
+              !editFlags && !ready ? "is-locked" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
             style={{
-              left: `${SCHOOL_TRAIL_FINALE_POS.x}%`,
-              top: `${SCHOOL_TRAIL_FINALE_POS.y}%`,
+              left: `${layout.finale.x}%`,
+              top: `${layout.finale.y}%`,
             }}
             title={
-              ready
-                ? "Сердце мира — выбрать оракула"
-                : "Сначала заверши любую тропу (5/5)"
+              editFlags
+                ? `Сердце мира · ${layout.finale.x}/${layout.finale.y}`
+                : ready
+                  ? "Сердце мира — выбрать оракула"
+                  : "Сначала заверши любую тропу (5/5)"
+            }
+            onPointerDown={(e) =>
+              startFlagDrag(e, { kind: "finale", pointerId: e.pointerId })
             }
             onClick={() => openPreview({ kind: "finale" })}
           >

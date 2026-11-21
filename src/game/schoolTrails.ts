@@ -104,6 +104,107 @@ export const SCHOOL_TRAIL_FLAG_POS: Record<
 /** Финальный флажок «Сердце мира» — выбор оракула после любой полной тропы. */
 export const SCHOOL_TRAIL_FINALE_POS = { x: 50, y: 54 };
 
+export type FlagXY = { x: number; y: number };
+
+export type SchoolTrailFlagLayout = {
+  schools: Record<Faction, FlagXY[]>;
+  finale: FlagXY;
+};
+
+const FLAG_LAYOUT_KEY = "orakul-school-trail-flags-v1";
+
+function cloneFlagPos(p: FlagXY): FlagXY {
+  return { x: p.x, y: p.y };
+}
+
+/** Заводская раскладка из кода. */
+export function defaultSchoolTrailFlagLayout(): SchoolTrailFlagLayout {
+  const schools = {} as Record<Faction, FlagXY[]>;
+  for (const f of SCHOOL_TRAIL_FACTIONS) {
+    schools[f] = SCHOOL_TRAIL_FLAG_POS[f].map(cloneFlagPos);
+  }
+  return { schools, finale: cloneFlagPos(SCHOOL_TRAIL_FINALE_POS) };
+}
+
+function normalizeLayout(
+  raw: Partial<SchoolTrailFlagLayout> | null | undefined,
+): SchoolTrailFlagLayout {
+  const base = defaultSchoolTrailFlagLayout();
+  if (!raw || typeof raw !== "object") return base;
+  for (const f of SCHOOL_TRAIL_FACTIONS) {
+    const list = raw.schools?.[f];
+    if (!Array.isArray(list) || list.length !== SCHOOL_TRAIL_STEPS) continue;
+    base.schools[f] = list.map((p, i) => ({
+      x: Math.max(0, Math.min(100, Number(p?.x) || base.schools[f][i]!.x)),
+      y: Math.max(0, Math.min(100, Number(p?.y) || base.schools[f][i]!.y)),
+    }));
+  }
+  if (raw.finale && typeof raw.finale === "object") {
+    base.finale = {
+      x: Math.max(0, Math.min(100, Number(raw.finale.x) || base.finale.x)),
+      y: Math.max(0, Math.min(100, Number(raw.finale.y) || base.finale.y)),
+    };
+  }
+  return base;
+}
+
+export function loadSchoolTrailFlagLayout(): SchoolTrailFlagLayout {
+  try {
+    const raw = localStorage.getItem(FLAG_LAYOUT_KEY);
+    if (!raw) return defaultSchoolTrailFlagLayout();
+    return normalizeLayout(JSON.parse(raw) as Partial<SchoolTrailFlagLayout>);
+  } catch {
+    return defaultSchoolTrailFlagLayout();
+  }
+}
+
+export function saveSchoolTrailFlagLayout(layout: SchoolTrailFlagLayout): void {
+  try {
+    localStorage.setItem(
+      FLAG_LAYOUT_KEY,
+      JSON.stringify(normalizeLayout(layout)),
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+export function clearSchoolTrailFlagLayout(): void {
+  try {
+    localStorage.removeItem(FLAG_LAYOUT_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Текст для вставки в schoolTrails.ts после ручной расстановки. */
+export function formatSchoolTrailFlagLayoutTs(
+  layout: SchoolTrailFlagLayout,
+): string {
+  const L = normalizeLayout(layout);
+  const lines: string[] = [
+    "export const SCHOOL_TRAIL_FLAG_POS: Record<",
+    "  Faction,",
+    "  Array<{ x: number; y: number }>",
+    "> = {",
+  ];
+  for (const f of SCHOOL_TRAIL_FACTIONS) {
+    lines.push(`  ${f}: [`);
+    for (const p of L.schools[f]) {
+      lines.push(
+        `    { x: ${Math.round(p.x * 10) / 10}, y: ${Math.round(p.y * 10) / 10} },`,
+      );
+    }
+    lines.push("  ],");
+  }
+  lines.push("};");
+  lines.push("");
+  lines.push(
+    `export const SCHOOL_TRAIL_FINALE_POS = { x: ${Math.round(L.finale.x * 10) / 10}, y: ${Math.round(L.finale.y * 10) / 10} };`,
+  );
+  return lines.join("\n");
+}
+
 export type SchoolTrailStep = {
   /** Юниты на столе врага (слоты слева направо, null = пусто). */
   slots: (string | null)[];
