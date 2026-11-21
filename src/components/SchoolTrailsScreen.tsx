@@ -60,9 +60,11 @@ type PinchState = {
   midY: number;
 };
 
-type FlagDrag =
-  | { kind: "step"; faction: Faction; stepIndex: number; pointerId: number }
-  | { kind: "finale"; pointerId: number };
+type FlagDragTarget =
+  | { kind: "step"; faction: Faction; stepIndex: number }
+  | { kind: "finale" };
+
+type FlagDrag = FlagDragTarget & { pointerId: number };
 
 const MAP_MIN_SCALE = 0.55;
 const MAP_MAX_SCALE = 2.8;
@@ -360,15 +362,12 @@ export function SchoolTrailsScreen({
     }
   };
 
-  const startFlagDrag = (
-    e: React.PointerEvent,
-    target: Omit<FlagDrag, "pointerId">,
-  ) => {
+  const startFlagDrag = (e: React.PointerEvent, target: FlagDragTarget) => {
     if (!editFlags) return;
     e.stopPropagation();
     e.preventDefault();
     const pointerId = e.pointerId;
-    const fd = { ...target, pointerId } as FlagDrag;
+    const fd: FlagDrag = { ...target, pointerId };
     flagDragRef.current = fd;
     dragRef.current = null;
     pinchRef.current = null;
