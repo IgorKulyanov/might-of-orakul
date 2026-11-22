@@ -62,6 +62,7 @@ import {
   cerberusCenterMul,
   clawfiendTideAlways,
   elfDoubleShot,
+  creatureFaceStats,
   entUsesBoardHp,
   entUsesNatureBoardHp,
   fireGolemSplashBurn,
@@ -378,6 +379,7 @@ function syncBoardAuras(p: PlayerState, log: string[]): void {
   syncHornetPack(p, log);
   syncWaterTide(p, log);
   syncAquiliteAura(p, log);
+  syncEntRoots(p.slots, log);
 }
 
 /**
@@ -446,6 +448,7 @@ function tickPoison(
     if (s.health <= 0) {
       log.unshift(`${getCard(s.cardId).name} погибает от яда (−${dmg})`);
       removeIfDead(p, i, log, state);
+      syncEntRoots(p.slots, log);
     } else if (timed) {
       const kept: typeof s.statuses = s.statuses.filter(
         (st) => st.type !== "poison",
@@ -492,6 +495,7 @@ function tickPoison(
       );
     }
   }
+  syncEntRoots(p.slots, log);
 }
 
 function applyPoisonStatus(
@@ -766,6 +770,8 @@ function dealToCreature(
       `⚔ Прокол щита: ${dealt} по ${getCard(def.cardId).name}`,
     );
   }
+  // Энт: живые корни — урон/хил природе сразу двигает HP энта.
+  if (allySlots) syncEntRoots(allySlots, log);
   return dealt;
 }
 
@@ -3366,9 +3372,7 @@ export function playCard(
       const catalogHp = Math.max(1, card.health ?? 1);
       me.natureSummonHpTotal = (me.natureSummonHpTotal ?? 0) + catalogHp;
     }
-    if (cardId === "ent") {
-      applyEntRootsHp(me, spawned, next.log);
-    }
+    // Энт: корни синхронизируются в syncBoardAuras (живой бонд).
     if (cardId === "spider" && spiderShieldOnPlay(up)) {
       spawned.statuses = spawned.statuses.filter((st) => st.type !== "shield");
       spawned.statuses.push({ type: "shield", amount: 3 });
@@ -6938,9 +6942,7 @@ export function takeAiStep(
       me.natureSummonHpTotal =
         (me.natureSummonHpTotal ?? 0) + Math.max(1, card.health ?? 1);
     }
-    if (id === "ent") {
-      applyEntRootsHp(me, spawned, next.log);
-    }
+    // Энт: корни в syncBoardAuras.
     if (id === "spider" && spiderShieldOnPlay(up)) {
       spawned.statuses = spawned.statuses.filter((st) => st.type !== "shield");
       spawned.statuses.push({ type: "shield", amount: 3 });
@@ -7863,67 +7865,70 @@ export function playGuardianBond(
 
 export { castOracleSkill, hurtOracle } from "./oracleSkillCombat";
 
-/**
- * Энт: HP от корней при выставлении.
- * L1 — сумма каталожных HP природы, выставленной этим героем;
- * L2 — сумма текущих HP природы на столе (без себя);
- * L3 — сумма HP всех своих на столе (без себя).
- */
-export function applyEntRootsHp(
-  owner: PlayerState,
-  ent: CreatureInstance,
-  log?: string[],
-): void {
-  if (ent.cardId !== "ent") return;
-  const up = hostUpgradeLevel(ent, "ent");
-  let hp = Math.max(1, ent.baseHealth);
-  if (entUsesBoardHp(up)) {
-    let sum = 0;
-    for (const u of owner.slots) {
-      if (!u || u.uid === ent.uid) continue;
-      sum += Math.max(0, u.health);
-    }
-    hp = Math.max(1, sum || ent.baseHealth);
-  } else if (entUsesNatureBoardHp(up)) {
-    let sum = 0;
-    for (const u of owner.slots) {
-      if (!u || u.uid === ent.uid) continue;
-      if (getCard(u.cardId).school !== "nature") continue;
-      sum += Math.max(0, u.health);
-    }
-    hp = Math.max(1, sum || ent.baseHealth);
-  } else {
-    hp = Math.max(1, owner.natureSummonHpTotal ?? ent.baseHealth);
-  }
-  ent.baseHealth = hp;
-  ent.health = hp;
-  if (log) {
-    log.unshift(`${getCard("ent").name}: корни → ${hp} HP`);
-  }
+/** Каталожные HP энта «свои» (лицо карты на уровне) — без вклада корней. */
+function entOwnCatalogHp(ent: CreatureInstance): number {
+  const lv = hostUpgradeLevel(ent, "ent");
+  return Math.max(1, creatureFaceStats("ent", lv).hp);
 }
 
 /**
- * После сида стола тропы: учесть природу в natureSummonHpTotal и пересчитать энтов.
+ * Энт — живые корни:
+ * L1 — своя база + текущие HP природы на столе (без себя);
+ * L2 — сумма текущих HP природы на столе (без себя);
+ * L3 — сумма HP всех своих на столе (без себя).
+ * Дельта бонда сразу двигает health (яд/удар по пауку → энт −N).
  */
+export function syncEntRoots(slots: Slot[], log?: string[]): void {
+  for (const ent of slots) {
+    if (!ent || ent.cardId !== "ent") continue;
+    const up = hostUpgradeLevel(ent, "ent");
+    const own = entOwnCatalogHp(ent);
+    let bond = own;
+    if (entUsesBoardHp(up)) {
+      let sum = 0;
+      for (const u of slots) {
+        if (!u || u.uid === ent.uid) continue;
+        sum += Math.max(0, u.health);
+      }
+      bond = Math.max(1, sum || own);
+    } else if (entUsesNatureBoardHp(up)) {
+      let sum = 0;
+      for (const u of slots) {
+        if (!u || u.uid === ent.uid) continue;
+        if (getCard(u.cardId).school !== "nature") continue;
+        sum += Math.max(0, u.health);
+      }
+      bond = Math.max(1, sum || own);
+    } else {
+      let sum = 0;
+      for (const u of slots) {
+        if (!u || u.uid === ent.uid) continue;
+        if (getCard(u.cardId).school !== "nature") continue;
+        sum += Math.max(0, u.health);
+      }
+      bond = Math.max(1, own + sum);
+    }
+    const prev = ent.rootsBond ?? ent.baseHealth;
+    const delta = bond - prev;
+    ent.rootsBond = bond;
+    ent.baseHealth = bond;
+    if (delta !== 0) {
+      ent.health = Math.max(0, ent.health + delta);
+      if (log) {
+        log.unshift(
+          `${getCard("ent").name}: корни ${delta > 0 ? "+" : ""}${delta} → ${ent.health}/${bond} HP`,
+        );
+      }
+    }
+  }
+}
+
+/** После сида стола тропы — сразу натянуть корни энта. */
 export function finalizeSeededBoardRoots(
   owner: PlayerState,
   log?: string[],
 ): void {
-  let natureSum = 0;
-  for (const u of owner.slots) {
-    if (!u) continue;
-    const c = getCard(u.cardId);
-    if (c.school === "nature") {
-      natureSum += Math.max(1, c.health ?? 1);
-    }
-  }
-  owner.natureSummonHpTotal = Math.max(
-    owner.natureSummonHpTotal ?? 0,
-    natureSum,
-  );
-  for (const u of owner.slots) {
-    if (u?.cardId === "ent") applyEntRootsHp(owner, u, log);
-  }
+  syncEntRoots(owner.slots, log);
 }
 
 /** Публичный спавн юнита (тропы вкуса / песочница). */

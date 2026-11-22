@@ -356,6 +356,11 @@ export interface CreatureInstance {
   arbiterVerdictUsed?: boolean;
   /** Разбойник: счётчик своих ходов на поле (для кражи маны). */
   rogueTurns?: number;
+  /**
+   * Энт: текущий «бонд» корней (своя база + HP природы на столе и т.п.).
+   * При изменении бонда health сдвигается на ту же дельту.
+   */
+  rootsBond?: number;
 }
 
 export type Slot = CreatureInstance | null;

@@ -310,13 +310,11 @@ export const SCHOOL_TRAIL_SCRIPTS: Record<Faction, SchoolTrailStep[]> = {
       upgradeLevel: U,
     },
     {
-      // Пауки на столе → энт ур.2 берёт HP с природы; ещё паук в руке.
-      slots: ["spider", "ent", "spider", null, null],
-      hand: ["spider"],
+      slots: [null, "ent", null, null, null],
+      hand: ["spider", "spider", "spider"],
       foeName: "Страж рощи",
-      lesson: "Энт ур.2: жизни = сумма природы на столе. Пауки ядят — приоритет.",
+      lesson: "Энт ур.1 (2/10): вышел паук — энт +HP паука; ударили паука — энт теряет столько же.",
       wowHint: "Природа давит числом. Выбери её — копи на рощу.",
-      upgradeLevel: U,
     },
   ],
   water: [
