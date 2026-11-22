@@ -357,10 +357,9 @@ export const SCHOOL_TRAIL_SCRIPTS: Record<Faction, SchoolTrailStep[]> = {
       lesson: "Один копейщик. Спокойная разминка — без стены и мага.",
     },
     {
-      slots: ["tank", null, null, null, null],
-      hand: ["tank", "tank"],
+      slots: ["tank", "tank", null, null, null],
       foeName: "Щит ордена",
-      lesson: "Один танк на столе и ещё два в руке. Снял стену — встаёт новая.",
+      lesson: "Две стены на столе. В них впустую не бей — копи ману и обходи.",
     },
     {
       slots: ["tank", "mage", null, null, null],
