@@ -298,12 +298,12 @@ export const SCHOOL_TRAIL_SCRIPTS: Record<Faction, SchoolTrailStep[]> = {
       wowHint: "Эльф — лучник Природы. Такие карты в лавке рощи.",
     },
     {
-      // Ур.1: без flex — воины из руки (клеп выкладкой).
+      // Одна матка + её каст (flex с ур.2). Без руки — только призыв умением.
       slots: [null, "hornet_queen", null, null, null],
-      hand: ["hornet_warrior", "hornet_warrior", "hornet_warrior"],
       foeName: "Матка шершней",
-      lesson: "Матка ур.1: воины из руки. Убей её, пока рой не забил стол.",
+      lesson: "Одна матка: бьёт или клепает шершня-воина за ману. Убей, пока рой не вырос.",
       wowHint: "Матка собирает рой. Такие карты — в лавке Природы.",
+      upgradeLevel: U,
     },
     {
       slots: [null, "ent", null, null, null],
