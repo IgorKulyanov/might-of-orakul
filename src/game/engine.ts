@@ -3367,31 +3367,7 @@ export function playCard(
       me.natureSummonHpTotal = (me.natureSummonHpTotal ?? 0) + catalogHp;
     }
     if (cardId === "ent") {
-      let hp = Math.max(1, spawned.baseHealth);
-      if (entUsesBoardHp(up)) {
-        let sum = 0;
-        for (const u of me.slots) {
-          if (!u || u.uid === spawned.uid) continue;
-          sum += Math.max(0, u.health);
-        }
-        hp = Math.max(1, sum || spawned.baseHealth);
-      } else if (entUsesNatureBoardHp(up)) {
-        let sum = 0;
-        for (const u of me.slots) {
-          if (!u || u.uid === spawned.uid) continue;
-          if (getCard(u.cardId).school !== "nature") continue;
-          sum += Math.max(0, u.health);
-        }
-        hp = Math.max(1, sum || spawned.baseHealth);
-      } else {
-        hp = Math.max(1, me.natureSummonHpTotal ?? spawned.baseHealth);
-      }
-      spawned.baseHealth = hp;
-      spawned.health = hp;
-      next.log = [
-        `${card.name}: корни → ${hp} HP`,
-        ...next.log,
-      ].slice(0, 10);
+      applyEntRootsHp(me, spawned, next.log);
     }
     if (cardId === "spider" && spiderShieldOnPlay(up)) {
       spawned.statuses = spawned.statuses.filter((st) => st.type !== "shield");
@@ -6963,27 +6939,7 @@ export function takeAiStep(
         (me.natureSummonHpTotal ?? 0) + Math.max(1, card.health ?? 1);
     }
     if (id === "ent") {
-      let hp = Math.max(1, spawned.baseHealth);
-      if (entUsesBoardHp(up)) {
-        let sum = 0;
-        for (const u of me.slots) {
-          if (!u || u.uid === spawned.uid) continue;
-          sum += Math.max(0, u.health);
-        }
-        hp = Math.max(1, sum || spawned.baseHealth);
-      } else if (entUsesNatureBoardHp(up)) {
-        let sum = 0;
-        for (const u of me.slots) {
-          if (!u || u.uid === spawned.uid) continue;
-          if (getCard(u.cardId).school !== "nature") continue;
-          sum += Math.max(0, u.health);
-        }
-        hp = Math.max(1, sum || spawned.baseHealth);
-      } else {
-        hp = Math.max(1, me.natureSummonHpTotal ?? spawned.baseHealth);
-      }
-      spawned.baseHealth = hp;
-      spawned.health = hp;
+      applyEntRootsHp(me, spawned, next.log);
     }
     if (id === "spider" && spiderShieldOnPlay(up)) {
       spawned.statuses = spawned.statuses.filter((st) => st.type !== "shield");
@@ -7906,6 +7862,69 @@ export function playGuardianBond(
 }
 
 export { castOracleSkill, hurtOracle } from "./oracleSkillCombat";
+
+/**
+ * Энт: HP от корней при выставлении.
+ * L1 — сумма каталожных HP природы, выставленной этим героем;
+ * L2 — сумма текущих HP природы на столе (без себя);
+ * L3 — сумма HP всех своих на столе (без себя).
+ */
+export function applyEntRootsHp(
+  owner: PlayerState,
+  ent: CreatureInstance,
+  log?: string[],
+): void {
+  if (ent.cardId !== "ent") return;
+  const up = hostUpgradeLevel(ent, "ent");
+  let hp = Math.max(1, ent.baseHealth);
+  if (entUsesBoardHp(up)) {
+    let sum = 0;
+    for (const u of owner.slots) {
+      if (!u || u.uid === ent.uid) continue;
+      sum += Math.max(0, u.health);
+    }
+    hp = Math.max(1, sum || ent.baseHealth);
+  } else if (entUsesNatureBoardHp(up)) {
+    let sum = 0;
+    for (const u of owner.slots) {
+      if (!u || u.uid === ent.uid) continue;
+      if (getCard(u.cardId).school !== "nature") continue;
+      sum += Math.max(0, u.health);
+    }
+    hp = Math.max(1, sum || ent.baseHealth);
+  } else {
+    hp = Math.max(1, owner.natureSummonHpTotal ?? ent.baseHealth);
+  }
+  ent.baseHealth = hp;
+  ent.health = hp;
+  if (log) {
+    log.unshift(`${getCard("ent").name}: корни → ${hp} HP`);
+  }
+}
+
+/**
+ * После сида стола тропы: учесть природу в natureSummonHpTotal и пересчитать энтов.
+ */
+export function finalizeSeededBoardRoots(
+  owner: PlayerState,
+  log?: string[],
+): void {
+  let natureSum = 0;
+  for (const u of owner.slots) {
+    if (!u) continue;
+    const c = getCard(u.cardId);
+    if (c.school === "nature") {
+      natureSum += Math.max(1, c.health ?? 1);
+    }
+  }
+  owner.natureSummonHpTotal = Math.max(
+    owner.natureSummonHpTotal ?? 0,
+    natureSum,
+  );
+  for (const u of owner.slots) {
+    if (u?.cardId === "ent") applyEntRootsHp(owner, u, log);
+  }
+}
 
 /** Публичный спавн юнита (тропы вкуса / песочница). */
 export function seedBoardCreature(

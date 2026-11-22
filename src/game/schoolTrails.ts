@@ -8,7 +8,11 @@ import type { BattleState, Faction, OwnedState } from "./types";
 import type { CardUpgradeLevel } from "./cardUpgrades";
 import { getCard } from "./cards";
 import { getHero } from "./heroes";
-import { MAX_HAND_SIZE, seedBoardCreature } from "./engine";
+import {
+  finalizeSeededBoardRoots,
+  MAX_HAND_SIZE,
+  seedBoardCreature,
+} from "./engine";
 import { NEUTRAL_STARTER_IDS } from "./starterDecks";
 
 /** Выбор школы — после полной тропы (5 побед на одной школе). */
@@ -306,11 +310,13 @@ export const SCHOOL_TRAIL_SCRIPTS: Record<Faction, SchoolTrailStep[]> = {
       upgradeLevel: U,
     },
     {
-      slots: [null, "ent", null, null, null],
-      hand: ["spider", "spider", "spider"],
+      // Пауки на столе → энт ур.2 берёт HP с природы; ещё паук в руке.
+      slots: ["spider", "ent", "spider", null, null],
+      hand: ["spider"],
       foeName: "Страж рощи",
-      lesson: "Энт держит линию; пауки из руки — яд и давление.",
+      lesson: "Энт ур.2: жизни = сумма природы на столе. Пауки ядят — приоритет.",
       wowHint: "Природа давит числом. Выбери её — копи на рощу.",
+      upgradeLevel: U,
     },
   ],
   water: [
@@ -713,6 +719,8 @@ export function prepareSchoolTrailBattle(
     if (!cardId || i < 0 || i > 4) return;
     next.enemy.slots[i] = seedBoardCreature(cardId, up, next.rules);
   });
+  // Энт на сиде иначе остаётся с каталожными HP без формулы корней.
+  finalizeSeededBoardRoots(next.enemy, next.log);
 
   // Прокачка и для карт из руки/колоды (не только стол).
   const ups: Record<string, number> = { ...(next.enemyCardUpgrades ?? {}) };
