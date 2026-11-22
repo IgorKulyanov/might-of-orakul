@@ -391,9 +391,9 @@ export const SCHOOL_TRAIL_SCRIPTS: Record<Faction, SchoolTrailStep[]> = {
     },
     {
       slots: ["fire_lizard", "fire_lizard", null, null, null],
-      hand: ["fire_lizard", "fire_lizard"],
+      hand: ["fire_lizard"],
       foeName: "Пара пепла",
-      lesson: "Два ящера на столе и ещё два в руке. Снял — снова жгут.",
+      lesson: "Два ящера на столе, ещё один в руке. Снял — снова жгут.",
     },
     {
       slots: [null, "succubus", null, null, null],
