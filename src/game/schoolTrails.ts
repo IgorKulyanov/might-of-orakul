@@ -375,9 +375,10 @@ export const SCHOOL_TRAIL_SCRIPTS: Record<Faction, SchoolTrailStep[]> = {
       upgradeLevel: U,
     },
     {
-      slots: ["tank", "angel", "crossbowman", null, null],
+      slots: [null, "angel", null, null, null],
+      hand: ["spearman"],
       foeName: "Страж света",
-      lesson: "Пик: стена, хил, стрелок. Удержание, не гонка.",
+      lesson: "Ангел на столе, копейщик в руке. Сними хил, пока не вышел копьё.",
       wowHint: "Жизнь не сваливается. Орден ждёт твоего голоса.",
       upgradeLevel: U,
     },
