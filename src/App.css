@@ -8224,35 +8224,31 @@ html.is-hand-dragging .oracle-folio {
 }
 
 /*
-  Середина: не полоска contain и не fullscreen cover.
-  Окно ~90% экрана, ролик cover внутри окна.
+  Окно ровно 16:9 под ролик — весь кадр с углами, без cover-обрезки.
 */
 .school-grad-stage {
   position: relative;
-  width: min(80vw, 1020px);
-  height: min(73vh, 73dvh, 595px);
-  min-width: min(80vw, 280px);
-  min-height: min(42vh, 255px);
+  width: min(80vw, calc(73dvh * 16 / 9), 1020px);
+  aspect-ratio: 16 / 9;
+  height: auto;
   max-width: 1020px;
-  max-height: 595px;
-  aspect-ratio: auto;
+  max-height: min(73dvh, 595px);
   border-radius: 10px;
   overflow: hidden;
   background: #000;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
   transition:
     width 0.85s ease,
-    height 0.85s ease,
     max-width 0.85s ease,
     max-height 0.85s ease;
 }
 
 .school-grad-stage.is-ended {
   width: min(90vw, 520px);
-  height: min(88dvh, 820px);
-  min-height: 0;
+  aspect-ratio: 3 / 4;
+  height: auto;
   max-width: 520px;
-  max-height: 820px;
+  max-height: min(88dvh, 820px);
 }
 
 .school-grad-video {
@@ -8260,7 +8256,7 @@ html.is-hand-dragging .oracle-folio {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center center;
   background: #000;
   opacity: 1;
