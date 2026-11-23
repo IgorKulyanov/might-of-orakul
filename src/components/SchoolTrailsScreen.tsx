@@ -507,6 +507,18 @@ export function SchoolTrailsScreen({
             Сброс троп
           </button>
         ) : null}
+        <button
+          type="button"
+          className="ghost school-trails-flag6-preview-btn"
+          title="Посмотреть церемонию флага 6 (видео)"
+          onClick={() => {
+            setPreview(null);
+            setVideoEnded(false);
+            setFinaleShow("plaque");
+          }}
+        >
+          Флаг 6
+        </button>
         <MenuAudioDock className="school-trails-audio" />
       </header>
       <p className="hint school-trails-hint">
@@ -900,9 +912,11 @@ export function SchoolTrailsScreen({
             <p className="campaign-preview-eyebrow">Флаг 6</p>
             <h2>Награда за прохождение всех 5 троп магии!</h2>
             <p className="campaign-preview-story">
-              {grandClaimed
-                ? "Награда уже получена. Можно снова посмотреть церемонию или выбрать оракула."
-                : `За полный путь школы: ${SCHOOL_TRAIL_GRAND_GOLD} золота и ${SCHOOL_TRAIL_GRAND_DIAMONDS} алмазов. Можно выбрать любого оракула из пяти школ.`}
+              {!allDone
+                ? "Предпросмотр церемонии. Награда 500 золота / 25 алмазов выдаётся только после всех 5 троп."
+                : grandClaimed
+                  ? "Награда уже получена. Можно снова посмотреть церемонию или выбрать оракула."
+                  : `За полный путь школы: ${SCHOOL_TRAIL_GRAND_GOLD} золота и ${SCHOOL_TRAIL_GRAND_DIAMONDS} алмазов. Можно выбрать любого оракула из пяти школ.`}
             </p>
             <p className="hint school-trails-pick-warn">
               Внимание: выбранного оракула потом сменить нельзя.
@@ -912,7 +926,7 @@ export function SchoolTrailsScreen({
                 type="button"
                 className="primary large"
                 onClick={() => {
-                  if (!grandClaimed) onClaimGrandReward?.();
+                  if (allDone && !grandClaimed) onClaimGrandReward?.();
                   setVideoEnded(false);
                   setFinaleShow("video");
                 }}
@@ -963,10 +977,10 @@ export function SchoolTrailsScreen({
                   className="primary large school-grad-cta"
                   onClick={() => {
                     setFinaleShow(null);
-                    onPickSchool();
+                    if (ready) onPickSchool();
                   }}
                 >
-                  Выбрать оракула
+                  {ready ? "Выбрать оракула" : "Закрыть"}
                 </button>
               </div>
             ) : (

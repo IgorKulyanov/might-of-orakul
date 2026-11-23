@@ -7804,6 +7804,12 @@ html.is-hand-dragging .oracle-folio {
   color: #c45c5c;
 }
 
+.school-trails-flag6-preview-btn {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.55rem;
+  color: #e8c547;
+}
+
 .school-trails-flag-edit-btn.is-on {
   color: #1a120c;
   background: var(--gold, #e8c547);
