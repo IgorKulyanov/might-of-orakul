@@ -531,7 +531,7 @@ export function claimSchoolTrailGrandReward(owned: OwnedState): OwnedState {
 }
 
 export const SCHOOL_GRADUATION_VIDEO = "/trails/school-graduation.mp4?v=vert2";
-export const SCHOOL_GRADUATION_FRAME = "/trails/school-frame.png";
+export const SCHOOL_GRADUATION_FRAME = "/trails/school-frame.png?v=vert2";
 
 export function applySchoolTrailWin(
   owned: OwnedState,
