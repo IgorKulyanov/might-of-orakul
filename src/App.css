@@ -8223,70 +8223,49 @@ html.is-hand-dragging .oracle-folio {
   background: rgba(0, 0, 0, 0.9);
 }
 
-/*
-  Окно ровно 16:9 под ролик — весь кадр с углами, без cover-обрезки.
-*/
+/* Ролик: ширина окна, высота сама по пропорциям файла — ничего не режем. */
 .school-grad-stage {
   position: relative;
-  width: min(80vw, calc(73dvh * 16 / 9), 1020px);
-  aspect-ratio: 16 / 9;
-  height: auto;
+  width: min(80vw, 1020px);
   max-width: 1020px;
-  max-height: min(73dvh, 595px);
+  height: auto;
   border-radius: 10px;
-  overflow: hidden;
+  overflow: visible;
   background: #000;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
-  transition:
-    width 0.85s ease,
-    max-width 0.85s ease,
-    max-height 0.85s ease;
 }
 
 .school-grad-stage.is-ended {
   width: min(90vw, 520px);
-  aspect-ratio: 3 / 4;
-  height: auto;
   max-width: 520px;
-  max-height: min(88dvh, 820px);
+  overflow: hidden;
 }
 
 .school-grad-video {
-  position: absolute;
-  inset: 0;
+  display: block;
   width: 100%;
-  height: 100%;
+  height: auto;
+  max-height: min(73dvh, 595px);
   object-fit: contain;
-  object-position: center center;
   background: #000;
-  opacity: 1;
-  transition: opacity 1.1s ease;
-  z-index: 1;
+  border-radius: 10px;
 }
 
-.school-grad-stage.is-ended .school-grad-video {
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* PNG-рамка вплавляется поверх финального кадра ролика. */
-.school-grad-frame {
-  position: absolute;
-  inset: 0;
+.school-grad-finale {
+  position: relative;
   width: 100%;
-  height: 100%;
+  line-height: 0;
+}
+
+.school-grad-frame {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(88dvh, 820px);
   object-fit: contain;
   pointer-events: none;
-  z-index: 2;
-  opacity: 0;
-  transition: opacity 1.25s ease;
 }
 
-.school-grad-stage.is-ended .school-grad-frame {
-  opacity: 1;
-}
-
-/* Текст только в чёрном окне рамки — без отдельной «таблички» поверх ролика. */
 .school-grad-end {
   position: absolute;
   left: 50%;
@@ -8302,13 +8281,7 @@ html.is-hand-dragging .oracle-folio {
   padding: 0.35rem 0.2rem;
   text-align: center;
   background: transparent;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.85s ease 0.55s;
-}
-
-.school-grad-stage.is-ended .school-grad-end {
-  opacity: 1;
+  line-height: normal;
   pointer-events: auto;
 }
 

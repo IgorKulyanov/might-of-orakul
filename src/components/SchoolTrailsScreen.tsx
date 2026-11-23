@@ -954,50 +954,56 @@ export function SchoolTrailsScreen({
             <div
               className={`school-grad-stage${videoEnded ? " is-ended" : ""}`}
             >
-              {/* На весь экран (cover). В конце PNG-рамка вплавляется. */}
-              <video
-                className="school-grad-video"
-                src={SCHOOL_GRADUATION_VIDEO}
-                autoPlay
-                playsInline
-                onEnded={() => setVideoEnded(true)}
-              />
-              <img
-                className="school-grad-frame"
-                src={SCHOOL_GRADUATION_FRAME}
-                alt=""
-                draggable={false}
-              />
-              <div className="school-grad-end" aria-hidden={!videoEnded}>
-                <p className="school-grad-title">Поздравляем</p>
-                <p className="school-grad-body">
-                  Вы прошли всю школу магии.
-                  <br />
-                  Ваша награда — {SCHOOL_TRAIL_GRAND_GOLD} золота и{" "}
-                  {SCHOOL_TRAIL_GRAND_DIAMONDS} алмазов.
-                  <br />
-                  Вы можете выбрать любого оракула!
-                </p>
-                <button
-                  type="button"
-                  className="primary large school-grad-cta"
-                  onClick={() => {
-                    setFinaleShow(null);
-                    if (ready) onPickSchool();
-                  }}
-                >
-                  {ready ? "Выбрать оракула" : "Закрыть"}
-                </button>
-              </div>
               {!videoEnded ? (
-                <button
-                  type="button"
-                  className="ghost school-grad-skip"
-                  onClick={() => setVideoEnded(true)}
-                >
-                  К финалу
-                </button>
-              ) : null}
+                <>
+                  {/* Нативные пропорции ролика — без cover/absolute-обрезки. */}
+                  <video
+                    className="school-grad-video"
+                    src={SCHOOL_GRADUATION_VIDEO}
+                    autoPlay
+                    playsInline
+                    controls={false}
+                    onEnded={() => setVideoEnded(true)}
+                  />
+                  <button
+                    type="button"
+                    className="ghost school-grad-skip"
+                    onClick={() => setVideoEnded(true)}
+                  >
+                    К финалу
+                  </button>
+                </>
+              ) : (
+                <div className="school-grad-finale">
+                  <img
+                    className="school-grad-frame"
+                    src={SCHOOL_GRADUATION_FRAME}
+                    alt=""
+                    draggable={false}
+                  />
+                  <div className="school-grad-end">
+                    <p className="school-grad-title">Поздравляем</p>
+                    <p className="school-grad-body">
+                      Вы прошли всю школу магии.
+                      <br />
+                      Ваша награда — {SCHOOL_TRAIL_GRAND_GOLD} золота и{" "}
+                      {SCHOOL_TRAIL_GRAND_DIAMONDS} алмазов.
+                      <br />
+                      Вы можете выбрать любого оракула!
+                    </p>
+                    <button
+                      type="button"
+                      className="primary large school-grad-cta"
+                      onClick={() => {
+                        setFinaleShow(null);
+                        if (ready) onPickSchool();
+                      }}
+                    >
+                      {ready ? "Выбрать оракула" : "Закрыть"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>,
           document.body,
