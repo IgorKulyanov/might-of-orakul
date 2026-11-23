@@ -12,6 +12,7 @@ import { GameIcon, SchoolBadge } from "./GameIcon";
 import { ManaBar } from "./ManaBar";
 import {
   PATTERN_LABEL,
+  SCHOOL_COLOR,
   cardArtUrl,
   creatureGender,
   formatManaCost,
@@ -118,7 +119,7 @@ import { getSkill } from "../game/oracleSkills";
 import { trackSpellCastsForDailies } from "../game/dailies";
 import { trackLifetimeSpellCasts } from "../game/lifetimeQuests";
 import { type PvpAction } from "../game/pvpProtocol";
-import type { BattleState, CreatureInstance } from "../game/types";
+import type { BattleState, CreatureInstance, Faction } from "../game/types";
 import { SkillIcon } from "./SkillIcon";
 
 function upgradeLvFor(
@@ -759,6 +760,8 @@ function BoardCard({
   poisonBurst,
   impact,
   playIn,
+  summonCast,
+  summonSchool,
   heal,
   dying,
   onClick,
@@ -776,6 +779,9 @@ function BoardCard({
   /** Эффект на цели: слэш / стрела / огонь / магия / яд / вода / разряд. */
   impact?: FxImpact | null;
   playIn?: boolean;
+  /** Кастер призыва: сияние школы вверх. */
+  summonCast?: boolean;
+  summonSchool?: Faction | null;
   heal?: boolean;
   dying?: boolean;
   onClick: () => void;
@@ -834,6 +840,8 @@ function BoardCard({
     poisoned || impact === "poison" || poisonBurst || lingerPoison;
   const showBurn = burning || impact === "burn" || lingerBurn;
   const spriteKind = impactToSprite(impact);
+  const glowSchool = summonSchool ?? null;
+  const glowColor = glowSchool ? SCHOOL_COLOR[glowSchool] : undefined;
   return (
     <div
       className={[
@@ -855,11 +863,16 @@ function BoardCard({
         impact === "arrow" ? "is-arrow-hit" : "",
         impact === "slash" ? "is-slash-hit" : "",
         playIn ? "is-play-in" : "",
+        summonCast ? "is-summon-caster" : "",
+        glowSchool ? schoolTone(glowSchool) : "",
         heal ? "is-heal" : "",
         dying ? "is-dying" : "",
       ]
         .filter(Boolean)
         .join(" ")}
+      style={
+        glowColor ? { ["--summon" as string]: glowColor } : undefined
+      }
     >
       <CardView
         cardId={creature.cardId}
@@ -2176,9 +2189,10 @@ export function Battle({
             fromSlot: from,
             toSlot: i,
             cardId: "aquilite",
+            summonCast: true,
           },
           (s) => summonAquiliteWithTriton(s, from, i),
-          900,
+          1000,
           { kind: "summonAquilite", fromSlot: from, toSlot: i },
         );
       });
@@ -2200,9 +2214,10 @@ export function Battle({
             fromSlot: from,
             toSlot: i,
             cardId: "skeleton",
+            summonCast: true,
           },
           (s) => summonSkeletonWithNecro(s, from, i),
-          900,
+          1000,
           { kind: "summonSkeleton", fromSlot: from, toSlot: i },
         );
       });
@@ -2224,9 +2239,10 @@ export function Battle({
             fromSlot: from,
             toSlot: i,
             cardId: "hornet_warrior",
+            summonCast: true,
           },
           (s) => summonHornetWithQueen(s, from, i),
-          900,
+          1000,
           { kind: "summonHornet", fromSlot: from, toSlot: i },
         );
       });
@@ -2256,9 +2272,10 @@ export function Battle({
             fromSlot: from,
             toSlot: i,
             cardId: gyId ?? "skeleton",
+            summonCast: true,
           },
           (s) => reviveWithGravedigger(s, from, i, gyIdx),
-          900,
+          1000,
           {
             kind: "reviveGravedigger",
             fromSlot: from,
@@ -3173,11 +3190,38 @@ export function Battle({
     return kind;
   };
 
+  const playLandingSlots = (side: "you" | "enemy"): number[] => {
+    if (!fx || fx.kind !== "play" || fx.side !== side) return [];
+    const out: number[] = [];
+    if (fx.toSlot != null) out.push(fx.toSlot);
+    if (fx.hitSlots) {
+      for (const s of fx.hitSlots) {
+        if (!out.includes(s)) out.push(s);
+      }
+    }
+    return out;
+  };
+
+  const summonSchoolOf = (side: "you" | "enemy"): Faction | null => {
+    if (!fx || fx.kind !== "play" || fx.side !== side) return null;
+    return fx.school ?? null;
+  };
+
+  /** Призыв умением или выход из руки — не перемещение валькирии. */
+  const isSummonPlayFx = (side: "you" | "enemy") =>
+    !!fx &&
+    fx.kind === "play" &&
+    fx.side === side &&
+    (!!fx.summonCast || fx.fromSlot == null);
+
   const yourFx = (slot: number) => {
     const attacking =
       fx?.side === "you" && fx.kind === "lunge" && fx.fromSlot === slot;
     const motion = fx?.motion ?? "melee";
     const impact = impactOnTarget(slot, "you");
+    const landing = playLandingSlots("you");
+    const school = summonSchoolOf("you");
+    const summonPlay = isSummonPlayFx("you");
     return {
       lunge: !!attacking && motion === "melee",
       nod: !!attacking && motion !== "melee",
@@ -3191,7 +3235,13 @@ export function Battle({
         false,
       poisonBurst: impact === "poison",
       impact,
-      playIn: fx?.side === "you" && fx.kind === "play" && fx.toSlot === slot,
+      playIn: summonPlay && landing.includes(slot),
+      summonCast:
+        !!fx?.summonCast &&
+        fx.side === "you" &&
+        fx.fromSlot === slot,
+      summonSchool: school,
+      summonTarget: summonPlay && landing.includes(slot),
       heal:
         fx?.side === "you" &&
         fx.kind === "heal" &&
@@ -3204,6 +3254,9 @@ export function Battle({
       fx?.side === "enemy" && fx.kind === "lunge" && fx.fromSlot === slot;
     const motion = fx?.motion ?? "melee";
     const impact = impactOnTarget(slot, "enemy");
+    const landing = playLandingSlots("enemy");
+    const school = summonSchoolOf("enemy");
+    const summonPlay = isSummonPlayFx("enemy");
     return {
       lunge: !!attacking && motion === "melee",
       nod: !!attacking && motion !== "melee",
@@ -3215,7 +3268,13 @@ export function Battle({
         false,
       poisonBurst: impact === "poison",
       impact,
-      playIn: fx?.side === "enemy" && fx.kind === "play" && fx.toSlot === slot,
+      playIn: summonPlay && landing.includes(slot),
+      summonCast:
+        !!fx?.summonCast &&
+        fx.side === "enemy" &&
+        fx.fromSlot === slot,
+      summonSchool: school,
+      summonTarget: summonPlay && landing.includes(slot),
       heal:
         fx?.side === "enemy" &&
         fx.kind === "heal" &&
@@ -3709,15 +3768,31 @@ export function Battle({
                   const ghost = !s
                     ? dying.find((g) => g.side === "enemy" && g.slot === i)
                     : undefined;
+                  const summonGlow =
+                    anim.summonTarget && anim.summonSchool
+                      ? anim.summonSchool
+                      : null;
                   return (
                     <div
                       key={`eslot-${i}`}
-                      className={`board-slot ${
+                      className={[
+                        "board-slot",
                         handDrag?.magnet?.side === "enemy" &&
                         handDrag.magnet.slot === i
                           ? "is-magnet"
-                          : ""
-                      }`}
+                          : "",
+                        summonGlow ? "is-summon-target" : "",
+                        summonGlow ? schoolTone(summonGlow) : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      style={
+                        summonGlow
+                          ? {
+                              ["--summon" as string]: SCHOOL_COLOR[summonGlow],
+                            }
+                          : undefined
+                      }
                       data-board-drop={`enemy:${i}`}
                     >
                       {s ? (
@@ -3766,7 +3841,13 @@ export function Battle({
                           hit={anim.hit}
                           poisonBurst={anim.poisonBurst}
                           impact={anim.impact}
-                          playIn={false}
+                          playIn={anim.playIn}
+                          summonCast={anim.summonCast}
+                          summonSchool={
+                            anim.summonCast || anim.playIn
+                              ? anim.summonSchool
+                              : null
+                          }
                           heal={anim.heal}
                           onClick={() => onEnemySlot(i)}
                         />
@@ -3793,6 +3874,7 @@ export function Battle({
                               state.selectedSlot != null &&
                               attackTargets.has("hero"))
                           }
+                          summonSchool={summonGlow}
                           onClick={() => onEnemySlot(i)}
                         />
                       )}
@@ -3847,18 +3929,34 @@ export function Battle({
                   const ghost = !s
                     ? dying.find((g) => g.side === "you" && g.slot === i)
                     : undefined;
+                  const summonGlow =
+                    anim.summonTarget && anim.summonSchool
+                      ? anim.summonSchool
+                      : null;
                   return (
                     <div
                       key={`yslot-${i}`}
-                      className={`board-slot ${
+                      className={[
+                        "board-slot",
                         handDrag?.magnet?.side === "you" &&
                         handDrag.magnet.slot === i
                           ? "is-magnet"
-                          : ""
-                      }`}
+                          : "",
+                        summonGlow ? "is-summon-target" : "",
+                        summonGlow ? schoolTone(summonGlow) : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      style={
+                        summonGlow
+                          ? {
+                              ["--summon" as string]: SCHOOL_COLOR[summonGlow],
+                            }
+                          : undefined
+                      }
                       data-board-drop={`you:${i}`}
-            >
-              {s ? (
+                    >
+                      {s ? (
                         <BoardCard
                           key={s.uid}
                           creature={s}
@@ -3895,7 +3993,13 @@ export function Battle({
                           hit={anim.hit}
                           poisonBurst={anim.poisonBurst}
                           impact={anim.impact}
-                          playIn={false}
+                          playIn={anim.playIn}
+                          summonCast={anim.summonCast}
+                          summonSchool={
+                            anim.summonCast || anim.playIn
+                              ? anim.summonSchool
+                              : null
+                          }
                           heal={anim.heal}
                           onClick={() => onYourSlot(i)}
                         />
@@ -3923,10 +4027,11 @@ export function Battle({
                             (!busy && hornetQueenReady) ||
                             (!busy && graveReviveReady)
                           }
+                          summonSchool={summonGlow}
                           onClick={() => onYourSlot(i)}
                         />
                       )}
-                  </div>
+                    </div>
                   );
                 })}
                   </div>

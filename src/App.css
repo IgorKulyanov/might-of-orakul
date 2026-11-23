@@ -3031,7 +3031,140 @@ button {
 }
 
 .board-card-wrap.is-play-in {
-  animation: none;
+  animation: summon-appear 0.55s ease-out both;
+}
+
+.board-card-wrap.is-summon-caster {
+  z-index: 6;
+  animation: summon-caster-pulse 0.85s ease-out both;
+}
+
+.board-card-wrap.is-summon-caster::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 52%;
+  width: 34%;
+  height: 95%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 8;
+  border-radius: 40% 40% 20% 20%;
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--summon, #52b788) 85%, transparent) 0%,
+    color-mix(in srgb, var(--summon, #52b788) 35%, transparent) 55%,
+    transparent 100%
+  );
+  filter: blur(5px);
+  opacity: 0.95;
+  animation: summon-pillar 0.75s ease-out both;
+}
+
+.board-slot.is-summon-target {
+  z-index: 5;
+}
+
+.board-slot.is-summon-target::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 14px;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(
+    ellipse at 50% 55%,
+    color-mix(in srgb, var(--summon, #52b788) 55%, transparent) 0%,
+    color-mix(in srgb, var(--summon, #52b788) 18%, transparent) 55%,
+    transparent 75%
+  );
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--summon, #52b788) 70%, transparent),
+    0 0 22px color-mix(in srgb, var(--summon, #52b788) 55%, transparent),
+    inset 0 0 16px color-mix(in srgb, var(--summon, #52b788) 35%, transparent);
+  animation: summon-slot-pulse 0.9s ease-out both;
+}
+
+.card.empty-slot.is-summon-glow {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--summon, #52b788) 85%, #fff 10%);
+  background: color-mix(in srgb, var(--summon, #52b788) 28%, rgba(0, 0, 0, 0.25));
+  color: color-mix(in srgb, var(--summon, #52b788) 70%, #fff 30%);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--summon, #52b788) 55%, transparent),
+    0 0 20px color-mix(in srgb, var(--summon, #52b788) 45%, transparent),
+    inset 0 0 14px color-mix(in srgb, var(--summon, #52b788) 30%, transparent);
+  animation: summon-slot-pulse 0.9s ease-out both;
+}
+
+@keyframes summon-appear {
+  0% {
+    opacity: 0;
+    transform: scale(0.78);
+    filter: brightness(1.85);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--summon, #52b788) 80%, transparent);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1.05);
+    filter: brightness(1.35);
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--summon, #52b788) 65%, transparent),
+      0 0 26px color-mix(in srgb, var(--summon, #52b788) 55%, transparent);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: brightness(1);
+    box-shadow: none;
+  }
+}
+
+@keyframes summon-caster-pulse {
+  0% {
+    filter: brightness(1);
+    box-shadow: none;
+  }
+  35% {
+    filter: brightness(1.35);
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--summon, #52b788) 70%, transparent),
+      0 0 22px color-mix(in srgb, var(--summon, #52b788) 50%, transparent);
+  }
+  100% {
+    filter: brightness(1);
+    box-shadow: none;
+  }
+}
+
+@keyframes summon-pillar {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scaleY(0.35);
+  }
+  40% {
+    opacity: 1;
+    transform: translateX(-50%) scaleY(1.05);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scaleY(1.15);
+  }
+}
+
+@keyframes summon-slot-pulse {
+  0% {
+    opacity: 0.35;
+    transform: scale(0.92);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+  100% {
+    opacity: 0.75;
+    transform: scale(1);
+  }
 }
 
 .board-card-wrap.is-heal {

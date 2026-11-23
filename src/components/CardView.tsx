@@ -30,6 +30,7 @@ import { patternGlyphForCard } from "../game/rangedStyle";
 import type {
   AttackPattern,
   CardDef,
+  Faction,
   ManaCost,
   StatusEffect,
 } from "../game/types";
@@ -571,16 +572,27 @@ export function CardView({
 export function EmptySlot({
   label = "+",
   highlight,
+  summonSchool,
   onClick,
 }: {
   label?: string;
   highlight?: boolean;
+  /** Свечение школы перед появлением призванного существа. */
+  summonSchool?: Faction | null;
   onClick?: () => void;
 }) {
+  const glow = summonSchool ? SCHOOL_COLOR[summonSchool] : undefined;
   return (
     <button
       type="button"
-      className={`card empty-slot ${highlight ? "targetable" : ""}`}
+      className={[
+        "card empty-slot",
+        highlight ? "targetable" : "",
+        glow ? "is-summon-glow" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      style={glow ? { ["--summon" as string]: glow } : undefined}
       onClick={onClick}
     >
       <span>{label}</span>

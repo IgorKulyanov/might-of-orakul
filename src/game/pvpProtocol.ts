@@ -14,6 +14,7 @@ import {
   playCard,
   playGuardianBond,
   playMarionette,
+  recentGraveCreatures,
   reviveWithGravedigger,
   shieldWithPaladin,
   sleepWithMermaid,
@@ -385,15 +386,48 @@ export function fxForPvpAction(
         vfx: "burn",
       });
     case "summonAquilite":
-    case "summonSkeleton":
-    case "summonHornet":
-    case "reviveGravedigger":
       return normalizeBattleFx({
         side: "you",
         kind: "play",
         fromSlot: action.fromSlot,
         toSlot: action.toSlot,
+        cardId: "aquilite",
+        summonCast: true,
       });
+    case "summonSkeleton":
+      return normalizeBattleFx({
+        side: "you",
+        kind: "play",
+        fromSlot: action.fromSlot,
+        toSlot: action.toSlot,
+        cardId: "skeleton",
+        summonCast: true,
+      });
+    case "summonHornet":
+      return normalizeBattleFx({
+        side: "you",
+        kind: "play",
+        fromSlot: action.fromSlot,
+        toSlot: action.toSlot,
+        cardId: "hornet_warrior",
+        summonCast: true,
+      });
+    case "reviveGravedigger": {
+      const digger = viewedAsYou.you.slots[action.fromSlot];
+      const gy = digger
+        ? recentGraveCreatures(viewedAsYou.you.graveyard, 5).find(
+            (e) => e.index === action.graveIndex,
+          )
+        : undefined;
+      return normalizeBattleFx({
+        side: "you",
+        kind: "play",
+        fromSlot: action.fromSlot,
+        toSlot: action.toSlot,
+        cardId: gy?.cardId,
+        summonCast: true,
+      });
+    }
     case "marionette":
       return enrichSpellFx(
         {

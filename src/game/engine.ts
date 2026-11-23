@@ -5171,6 +5171,11 @@ export type BattleFx = {
   /** Для kind=spell / удара: тема эффекта. */
   vfx?: BattleFxVfx;
   school?: Faction;
+  /**
+   * Призыв умением (королева / некро / тритон / могильщик):
+   * сияние школы на кастере + на слоте появления.
+   */
+  summonCast?: boolean;
 };
 
 export function attackMotionFor(cardId: string): BattleFxMotion {
@@ -7190,7 +7195,9 @@ export function takeAiStep(
           kind: "play",
           fromSlot: i,
           toSlot: flex.toSlot,
+          hitSlots: slots.length > 1 ? slots : undefined,
           cardId: flex.cardId,
+          summonCast: true,
         },
       };
     }
@@ -7245,6 +7252,7 @@ export function takeAiStep(
           fromSlot: i,
           toSlot: flex.toSlot,
           cardId,
+          summonCast: true,
         },
       };
     }
