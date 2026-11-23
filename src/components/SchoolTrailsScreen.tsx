@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  SCHOOL_GRADUATION_FRAME,
+  SCHOOL_GRADUATION_VIDEO,
   SCHOOL_TRAIL_FACTIONS,
+  SCHOOL_TRAIL_GRAND_DIAMONDS,
+  SCHOOL_TRAIL_GRAND_GOLD,
   SCHOOL_TRAIL_STEPS,
+  allSchoolTrailsComplete,
   canPickSchool,
   clearSchoolTrailFlagLayout,
   defaultSchoolTrailFlagLayout,
@@ -37,6 +42,8 @@ type Props = {
   onDismissTrailBeat?: () => void;
   /** Временно: сбросить флажки троп для баланса/тестов. */
   onResetTrails?: () => void;
+  /** Выдать гранд-награду за все 5 троп (один раз) и синк. */
+  onClaimGrandReward?: () => void;
 };
 
 function cardName(id: string): string {
@@ -98,8 +105,16 @@ export function SchoolTrailsScreen({
   trailBeat = null,
   onDismissTrailBeat,
   onResetTrails,
+  onClaimGrandReward,
 }: Props) {
   const ready = canPickSchool(owned);
+  const allDone = allSchoolTrailsComplete(owned);
+  const grandClaimed = Boolean(owned.schoolTrailGrandRewardClaimed);
+  /** 6-й флаг: сначала табличка, потом видео+рамка. */
+  const [finaleShow, setFinaleShow] = useState<null | "plaque" | "video">(
+    null,
+  );
+  const [videoEnded, setVideoEnded] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
@@ -599,8 +614,8 @@ export function SchoolTrailsScreen({
             className={[
               "oracle-path-flag is-finale",
               editFlags ? "is-editable is-current" : "",
-              !editFlags && ready ? "is-current is-fightable" : "",
-              !editFlags && !ready ? "is-locked" : "",
+              !editFlags && allDone ? "is-current is-fightable" : "",
+              !editFlags && !allDone ? "is-locked" : "",
             ]
               .filter(Boolean)
               .join(" ")}
@@ -610,10 +625,10 @@ export function SchoolTrailsScreen({
             }}
             title={
               editFlags
-                ? `Сердце мира · ${layout.finale.x}/${layout.finale.y}`
-                : ready
-                  ? "Сердце мира — выбрать оракула"
-                  : "Сначала заверши любую тропу (5/5)"
+                ? `Флаг 6 · ${layout.finale.x}/${layout.finale.y}`
+                : allDone
+                  ? "Флаг 6 — награда за все 5 троп магии"
+                  : "Флаг 6 откроется, когда пройдешь все 5 троп (5/5 каждая)"
             }
             onPointerDown={(e) => {
               e.stopPropagation();
@@ -625,12 +640,18 @@ export function SchoolTrailsScreen({
                 e.preventDefault();
                 return;
               }
-              onFlagActivate({ kind: "finale" });
+              if (!allDone) {
+                onFlagActivate({ kind: "finale" });
+                return;
+              }
+              setPreview(null);
+              setVideoEnded(false);
+              setFinaleShow("plaque");
             }}
           >
             <span className="oracle-path-flag-pole" aria-hidden />
             <span className="oracle-path-flag-cloth" aria-hidden>
-              <em>★</em>
+              <em>6</em>
             </span>
           </button>
         </div>
@@ -644,9 +665,15 @@ export function SchoolTrailsScreen({
           disabled={!ready}
         >
           {ready
-            ? "Выбрать оракула и унести одну мини-колоду"
-            : "Сначала заверши хотя бы одну тропу"}
+            ? allDone
+              ? "Выбрать оракула — открыты все школы"
+              : "Выбрать оракула пройденной школы"
+            : "Сначала заверши хотя бы одну тропу (5/5)"}
         </button>
+        <p className="hint school-trails-pick-warn">
+          Оракула потом сменить нельзя. Доступны только школы, где тропа пройдена
+          до конца.
+        </p>
       </div>
 
       {trailBeat ? (
@@ -661,10 +688,19 @@ export function SchoolTrailsScreen({
               {trailBeat.newlyCleared}/{SCHOOL_TRAIL_STEPS}
             </p>
             <h2>
-              {trailBeat.rewardCardId
-                ? `Теперь у тебя «${cardName(trailBeat.rewardCardId)}»`
-                : `Флаг ${trailBeat.newlyCleared} взят`}
+              {trailBeat.newlyCleared >= SCHOOL_TRAIL_STEPS
+                ? `Школа «${schoolTrailTitle(trailBeat.faction)}» пройдена!`
+                : trailBeat.rewardCardId
+                  ? `Теперь у тебя «${cardName(trailBeat.rewardCardId)}»`
+                  : `Флаг ${trailBeat.newlyCleared} взят`}
             </h2>
+            {trailBeat.newlyCleared >= SCHOOL_TRAIL_STEPS ? (
+              <p className="campaign-preview-story">
+                Поздравляем с окончанием этой школы магии. Теперь можно выбрать
+                оракула школы «{schoolTrailTitle(trailBeat.faction)}». Оракула
+                потом сменить нельзя.
+              </p>
+            ) : null}
             {trailBeat.rewardCardId ? (
               <div className="trail-beat-card">
                 <div className="trail-beat-card-view">
@@ -813,7 +849,7 @@ export function SchoolTrailsScreen({
         </div>
       )}
 
-      {preview?.kind === "finale" && !trailBeat && (
+      {preview?.kind === "finale" && !trailBeat && !finaleShow && (
         <div
           className="overlay campaign-preview-overlay"
           onClick={() => setPreview(null)}
@@ -823,26 +859,27 @@ export function SchoolTrailsScreen({
             className="campaign-preview-panel"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
-            aria-label="Сердце мира"
+            aria-label="Флаг 6"
           >
-            <p className="campaign-preview-eyebrow">Финал пути</p>
-            <h2>Сердце мира</h2>
+            <p className="campaign-preview-eyebrow">Флаг 6</p>
+            <h2>Все пять троп магии</h2>
             <p className="campaign-preview-story">
-              {ready
-                ? "Пять земель сомкнулись вокруг тебя. Пора выбрать оракула и унести в мир одну мини-колоду школы."
-                : "Здесь сходятся все земли. Флажок откроется, когда любая тропа будет пройдена до конца (5 из 5)."}
+              {allDone
+                ? "Пять школ пройдены. Здесь — награда за полный путь."
+                : "Этот флаг откроется только когда все 5 троп будут пройдены до конца (5/5 каждая). Оракула пройденной школы можно выбрать кнопкой внизу раньше."}
             </p>
             <div className="campaign-preview-actions">
-              {ready ? (
+              {allDone ? (
                 <button
                   type="button"
                   className="primary large"
                   onClick={() => {
                     setPreview(null);
-                    onPickSchool();
+                    setVideoEnded(false);
+                    setFinaleShow("plaque");
                   }}
                 >
-                  Выбрать оракула
+                  Открыть награду
                 </button>
               ) : null}
               <button
@@ -853,6 +890,94 @@ export function SchoolTrailsScreen({
                 Закрыть
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {finaleShow === "plaque" && !trailBeat && (
+        <div className="overlay campaign-preview-overlay" role="dialog">
+          <div className="campaign-preview-panel school-grand-plaque">
+            <p className="campaign-preview-eyebrow">Флаг 6</p>
+            <h2>Награда за прохождение всех 5 троп магии!</h2>
+            <p className="campaign-preview-story">
+              {grandClaimed
+                ? "Награда уже получена. Можно снова посмотреть церемонию или выбрать оракула."
+                : `За полный путь школы: ${SCHOOL_TRAIL_GRAND_GOLD} золота и ${SCHOOL_TRAIL_GRAND_DIAMONDS} алмазов. Можно выбрать любого оракула из пяти школ.`}
+            </p>
+            <p className="hint school-trails-pick-warn">
+              Внимание: выбранного оракула потом сменить нельзя.
+            </p>
+            <div className="campaign-preview-actions">
+              <button
+                type="button"
+                className="primary large"
+                onClick={() => {
+                  if (!grandClaimed) onClaimGrandReward?.();
+                  setVideoEnded(false);
+                  setFinaleShow("video");
+                }}
+              >
+                Смотреть
+              </button>
+              <button
+                type="button"
+                className="ghost large"
+                onClick={() => setFinaleShow(null)}
+              >
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {finaleShow === "video" && !trailBeat && (
+        <div className="overlay school-grad-overlay" role="dialog">
+          <div className="school-grad-stage">
+            <video
+              className="school-grad-video"
+              src={SCHOOL_GRADUATION_VIDEO}
+              autoPlay
+              playsInline
+              onEnded={() => setVideoEnded(true)}
+            />
+            <img
+              className="school-grad-frame"
+              src={SCHOOL_GRADUATION_FRAME}
+              alt=""
+              draggable={false}
+            />
+            {videoEnded ? (
+              <div className="school-grad-end">
+                <p className="school-grad-title">Поздравляем</p>
+                <p className="school-grad-body">
+                  Вы прошли всю школу магии.
+                  <br />
+                  Ваша награда — {SCHOOL_TRAIL_GRAND_GOLD} золота и{" "}
+                  {SCHOOL_TRAIL_GRAND_DIAMONDS} алмазов.
+                  <br />
+                  Вы можете выбрать любого оракула!
+                </p>
+                <button
+                  type="button"
+                  className="primary large school-grad-cta"
+                  onClick={() => {
+                    setFinaleShow(null);
+                    onPickSchool();
+                  }}
+                >
+                  Выбрать оракула
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="ghost school-grad-skip"
+                onClick={() => setVideoEnded(true)}
+              >
+                Дальше
+              </button>
+            )}
           </div>
         </div>
       )}

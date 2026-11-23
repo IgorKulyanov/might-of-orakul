@@ -8176,7 +8176,9 @@ html.is-hand-dragging .oracle-folio {
 
 .school-trails-footer {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
   margin: 0.2rem auto 0;
   max-width: 960px;
   width: 100%;
@@ -8188,6 +8190,105 @@ html.is-hand-dragging .oracle-folio {
   width: min(100%, 28rem);
   padding: 0.65rem 1rem;
   font-size: 0.95rem;
+}
+
+.school-trails-pick-warn,
+.onboard-oracle-lock-warn {
+  color: #e8b86a;
+  font-weight: 600;
+  text-align: center;
+  max-width: 36rem;
+  margin: 0.15rem auto;
+}
+
+.school-grand-plaque h2 {
+  font-family: var(--display-ornate), var(--display);
+  letter-spacing: 0.04em;
+}
+
+.school-grad-overlay {
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 0.75rem;
+  background: rgba(4, 6, 12, 0.88);
+}
+
+.school-grad-stage {
+  position: relative;
+  width: min(92vw, 420px);
+  aspect-ratio: 3 / 4;
+  max-height: min(88vh, 720px);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.65);
+}
+
+.school-grad-video {
+  position: absolute;
+  inset: 8% 10% 10% 10%;
+  width: auto;
+  height: auto;
+  max-width: 80%;
+  max-height: 80%;
+  margin: auto;
+  object-fit: contain;
+  background: #000;
+}
+
+.school-grad-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.school-grad-end {
+  position: absolute;
+  inset: 14% 12% 12% 12%;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem 0.85rem;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.school-grad-title {
+  margin: 0;
+  font-family: var(--display-ornate), var(--display);
+  font-size: clamp(1.35rem, 5vw, 1.85rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f0d78c;
+  text-shadow: 0 0 18px rgba(232, 196, 80, 0.45);
+}
+
+.school-grad-body {
+  margin: 0;
+  font-family: var(--display), serif;
+  font-size: clamp(0.88rem, 3.2vw, 1.05rem);
+  line-height: 1.45;
+  color: #f4e8c8;
+}
+
+.school-grad-cta {
+  margin-top: 0.35rem;
+  min-width: 12rem;
+}
+
+.school-grad-skip {
+  position: absolute;
+  right: 0.65rem;
+  bottom: 0.65rem;
+  z-index: 4;
+  font-size: 0.85rem;
 }
 
 @media (max-width: 640px) {

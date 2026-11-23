@@ -299,6 +299,7 @@ function withNeutralOnboardingDefaults(parsed: OwnedState): OwnedState {
     schoolTrailCleared: parsed.schoolTrailCleared,
     schoolTrailWins: parsed.schoolTrailWins,
     schoolTrailDrafts: parsed.schoolTrailDrafts,
+    schoolTrailGrandRewardClaimed: parsed.schoolTrailGrandRewardClaimed,
   });
 }
 
@@ -377,6 +378,7 @@ function withDefaults(parsed: OwnedState): OwnedState {
     schoolTrailCleared: parsed.schoolTrailCleared,
     schoolTrailWins: parsed.schoolTrailWins,
     schoolTrailDrafts: parsed.schoolTrailDrafts,
+    schoolTrailGrandRewardClaimed: parsed.schoolTrailGrandRewardClaimed,
   });
   return applySkillStateToOwned(base, getHero(heroId).faction);
 }

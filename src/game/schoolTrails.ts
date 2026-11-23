@@ -495,6 +495,7 @@ export function resetSchoolTrailProgress(owned: OwnedState): OwnedState {
     schoolTrailCleared: {},
     schoolTrailWins: 0,
     schoolTrailDrafts: {},
+    schoolTrailGrandRewardClaimed: false,
   };
 }
 
@@ -502,9 +503,35 @@ export function finishedSchoolTrails(owned: OwnedState): Faction[] {
   return SCHOOL_TRAIL_FACTIONS.filter((f) => schoolTrailComplete(owned, f));
 }
 
+/** Хотя бы одна тропа 5/5 — можно выбрать оракула этой школы. */
 export function canPickSchool(owned: OwnedState): boolean {
   return finishedSchoolTrails(owned).length > 0;
 }
+
+export const SCHOOL_TRAIL_GRAND_GOLD = 500;
+export const SCHOOL_TRAIL_GRAND_DIAMONDS = 25;
+
+/** Все 5 школ пройдены — открыт 6-й флаг и гранд-награда. */
+export function allSchoolTrailsComplete(owned: OwnedState): boolean {
+  return finishedSchoolTrails(owned).length >= SCHOOL_TRAIL_FACTIONS.length;
+}
+
+/** Выдать 500 зол. + 25 алмазов один раз за полный путь. */
+export function claimSchoolTrailGrandReward(owned: OwnedState): OwnedState {
+  if (owned.schoolTrailGrandRewardClaimed) return owned;
+  if (!allSchoolTrailsComplete(owned)) return owned;
+  return {
+    ...owned,
+    gold: Math.max(0, Math.floor(Number(owned.gold) || 0)) + SCHOOL_TRAIL_GRAND_GOLD,
+    diamonds:
+      Math.max(0, Math.floor(Number(owned.diamonds) || 0)) +
+      SCHOOL_TRAIL_GRAND_DIAMONDS,
+    schoolTrailGrandRewardClaimed: true,
+  };
+}
+
+export const SCHOOL_GRADUATION_VIDEO = "/trails/school-graduation.mp4";
+export const SCHOOL_GRADUATION_FRAME = "/trails/school-frame.png";
 
 export function applySchoolTrailWin(
   owned: OwnedState,

@@ -66,6 +66,7 @@ import {
 } from "./game/campaign";
 import {
   applySchoolTrailWin,
+  claimSchoolTrailGrandReward,
   prepareSchoolTrailBattle,
   resetSchoolTrailProgress,
   rewardGiftLine,
@@ -564,6 +565,10 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
       ...(serverOwned?.schoolTrailDrafts ?? {}),
       ...(local.schoolTrailDrafts ?? {}),
     },
+    schoolTrailGrandRewardClaimed: Boolean(
+      local.schoolTrailGrandRewardClaimed ||
+        serverOwned?.schoolTrailGrandRewardClaimed,
+    ),
   };
   let next = homeFaction
     ? applySkillStateToOwned(setHero(merged, heroId), homeFaction)
@@ -1669,14 +1674,10 @@ export default function App() {
       );
     }
 
-    const resetTrailsForDev = () => {
-      const next = resetSchoolTrailProgress(ownedRef.current);
+    const persistOwnedPatch = (next: OwnedState) => {
       saveOwned(next);
       setOwned(next);
       ownedRef.current = next;
-      trailBeatRef.current = null;
-      setTrailBeat(null);
-      setTrailFight(null);
       const t = token ?? getToken();
       if (t) {
         void apiUpdateMe(t, { owned: next }).then(({ user: me }) => {
@@ -1684,6 +1685,18 @@ export default function App() {
           setUser(me);
         });
       }
+    };
+
+    const resetTrailsForDev = () => {
+      const next = resetSchoolTrailProgress(ownedRef.current);
+      trailBeatRef.current = null;
+      setTrailBeat(null);
+      setTrailFight(null);
+      persistOwnedPatch(next);
+    };
+
+    const claimGrandReward = () => {
+      persistOwnedPatch(claimSchoolTrailGrandReward(ownedRef.current));
     };
 
     return (
@@ -1697,6 +1710,7 @@ export default function App() {
           setTrailBeat(null);
         }}
         onResetTrails={resetTrailsForDev}
+        onClaimGrandReward={claimGrandReward}
         onPlayTrail={(faction, stepIndex) => {
           if (trailBeatRef.current) return;
           unlockSfx();
@@ -1778,12 +1792,25 @@ export default function App() {
         }}
         onResetTrails={() => {
           const next = resetSchoolTrailProgress(ownedRef.current);
-          saveOwned(next);
-          setOwned(next);
-          ownedRef.current = next;
           trailBeatRef.current = null;
           setTrailBeat(null);
           setTrailFight(null);
+          saveOwned(next);
+          setOwned(next);
+          ownedRef.current = next;
+          const t = token ?? getToken();
+          if (t) {
+            void apiUpdateMe(t, { owned: next }).then(({ user: me }) => {
+              updateCachedUser(me);
+              setUser(me);
+            });
+          }
+        }}
+        onClaimGrandReward={() => {
+          const next = claimSchoolTrailGrandReward(ownedRef.current);
+          saveOwned(next);
+          setOwned(next);
+          ownedRef.current = next;
           const t = token ?? getToken();
           if (t) {
             void apiUpdateMe(t, { owned: next }).then(({ user: me }) => {

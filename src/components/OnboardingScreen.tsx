@@ -101,9 +101,14 @@ export function OnboardingScreen({
       </header>
       <p className="hint hero-screen-hint">
         {afterTrails
-          ? "В мир уйдут твои три нейтрала + мини-колода выбранной школы. Другие тропы останутся воспоминанием. Эпик купишь позже в кабинете."
+          ? "В мир уйдут три нейтрала + мини-колода выбранной школы. Доступны только школы, где тропа пройдена 5/5. Эпик купишь позже в кабинете."
           : "Выбери одну из пяти школ — потом сменить нельзя. Эпик купишь позже в кабинете."}
       </p>
+      {afterTrails ? (
+        <p className="hint school-trails-pick-warn onboard-oracle-lock-warn">
+          Важно: оракула после выбора сменить нельзя. Выбирай школу осознанно.
+        </p>
+      ) : null}
 
       <form className="onboard-form" onSubmit={submit}>
         <div className="onboard-oracle-grid onboard-oracle-grid-base">

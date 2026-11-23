@@ -574,4 +574,6 @@ export interface OwnedState {
    * В мир уходит только выбранная школа + нейтралы.
    */
   schoolTrailDrafts?: Partial<Record<Faction, string[]>>;
+  /** Награда 500 зол. / 25 алмазов за все 5 троп уже выдана. */
+  schoolTrailGrandRewardClaimed?: boolean;
 }
