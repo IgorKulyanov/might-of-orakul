@@ -8237,11 +8237,13 @@ html.is-hand-dragging .oracle-folio {
 }
 
 .school-grad-stage.is-ended {
-  width: min(92vw, 420px);
-  max-width: 420px;
-  border-radius: 10px;
+  /* Тот же бокс, что и у видео */
+  width: min(100vw, calc(100dvh * 9 / 16));
+  max-width: 100vw;
+  max-height: 100dvh;
+  border-radius: 0;
   overflow: hidden;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+  box-shadow: none;
 }
 
 .school-grad-video {
@@ -8257,15 +8259,20 @@ html.is-hand-dragging .oracle-folio {
 .school-grad-finale {
   position: relative;
   width: 100%;
+  aspect-ratio: 9 / 16;
+  max-height: 100dvh;
   line-height: 0;
+  background: #000;
 }
 
 .school-grad-frame {
   display: block;
   width: 100%;
-  height: auto;
-  max-height: min(88dvh, 820px);
-  object-fit: contain;
+  height: 100%;
+  max-height: 100dvh;
+  aspect-ratio: 9 / 16;
+  object-fit: cover;
+  object-position: center;
   pointer-events: none;
 }
 
