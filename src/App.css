@@ -8224,13 +8224,14 @@ html.is-hand-dragging .oracle-folio {
 }
 
 /*
-  Крупно + весь кадр: ширина почти на экран, высота только из 16:9.
-  Без max-height:595 — из‑за него ролик снова схлопывался.
+  Fallback, если fullscreen запрещён: максимально большой 16:9 contain.
+  На телефоне без fullscreen горизонтальный ролик физически узкий —
+  поэтому в JS жмём requestFullscreen.
 */
 .school-grad-stage {
   position: relative;
-  width: min(96vw, 1360px, calc(88dvh * 16 / 9));
-  max-width: 1360px;
+  width: min(98vw, 1600px, calc(92dvh * 16 / 9));
+  max-width: 1600px;
   height: auto;
   border-radius: 10px;
   overflow: visible;
@@ -8252,6 +8253,15 @@ html.is-hand-dragging .oracle-folio {
   object-fit: contain;
   background: #000;
   border-radius: 10px;
+}
+
+.school-grad-video:fullscreen,
+.school-grad-video:-webkit-full-screen {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  border-radius: 0;
 }
 
 .school-grad-finale {
