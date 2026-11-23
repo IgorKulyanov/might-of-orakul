@@ -956,49 +956,13 @@ export function SchoolTrailsScreen({
             >
               {!videoEnded ? (
                 <>
-                  {/*
-                    Горизонтальный ролик на телефоне всегда «полоска», если не fullscreen.
-                    Открываем нативный fullscreen — весь кадр крупно, углы на месте.
-                  */}
                   <video
                     className="school-grad-video"
                     src={SCHOOL_GRADUATION_VIDEO}
                     autoPlay
                     playsInline
-                    controls
-                    controlsList="nodownload noplaybackrate"
-                    onLoadedData={(e) => {
-                      const v = e.currentTarget;
-                      const anyV = v as HTMLVideoElement & {
-                        webkitEnterFullscreen?: () => void;
-                        webkitDisplayingFullscreen?: boolean;
-                      };
-                      const req =
-                        v.requestFullscreen?.bind(v) ||
-                        (
-                          v as HTMLVideoElement & {
-                            webkitRequestFullscreen?: () => void;
-                          }
-                        ).webkitRequestFullscreen?.bind(v);
-                      void (async () => {
-                        try {
-                          if (req) await req();
-                          else anyV.webkitEnterFullscreen?.();
-                        } catch {
-                          /* браузер запретил — останется крупный contain */
-                        }
-                      })();
-                    }}
-                    onEnded={() => {
-                      try {
-                        if (document.fullscreenElement) {
-                          void document.exitFullscreen();
-                        }
-                      } catch {
-                        /* ignore */
-                      }
-                      setVideoEnded(true);
-                    }}
+                    controls={false}
+                    onEnded={() => setVideoEnded(true)}
                   />
                   <button
                     type="button"
