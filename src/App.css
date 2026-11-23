@@ -8223,11 +8223,14 @@ html.is-hand-dragging .oracle-folio {
   background: rgba(0, 0, 0, 0.9);
 }
 
-/* Ролик: ширина окна, высота сама по пропорциям файла — ничего не режем. */
+/*
+  Крупно + весь кадр: ширина почти на экран, высота только из 16:9.
+  Без max-height:595 — из‑за него ролик снова схлопывался.
+*/
 .school-grad-stage {
   position: relative;
-  width: min(80vw, 1020px);
-  max-width: 1020px;
+  width: min(96vw, 1360px, calc(88dvh * 16 / 9));
+  max-width: 1360px;
   height: auto;
   border-radius: 10px;
   overflow: visible;
@@ -8236,8 +8239,8 @@ html.is-hand-dragging .oracle-folio {
 }
 
 .school-grad-stage.is-ended {
-  width: min(90vw, 520px);
-  max-width: 520px;
+  width: min(92vw, 540px);
+  max-width: 540px;
   overflow: hidden;
 }
 
@@ -8245,7 +8248,7 @@ html.is-hand-dragging .oracle-folio {
   display: block;
   width: 100%;
   height: auto;
-  max-height: min(73dvh, 595px);
+  max-height: none;
   object-fit: contain;
   background: #000;
   border-radius: 10px;
