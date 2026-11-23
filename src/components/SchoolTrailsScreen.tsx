@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  SCHOOL_GRADUATION_FRAME,
+  SCHOOL_GRADUATION_MUSIC,
   SCHOOL_GRADUATION_VIDEO,
   SCHOOL_TRAIL_FACTIONS,
   SCHOOL_TRAIL_GRAND_DIAMONDS,
@@ -27,6 +27,12 @@ import {
 } from "../game/schoolTrails";
 import { getCard } from "../game/cards";
 import type { Faction, OwnedState } from "../game/types";
+import {
+  getMusicVolume,
+  isMusicMuted,
+  startMenuMusic,
+  stopMenuMusic,
+} from "../game/sfx";
 import { CardView } from "./CardView";
 import { MenuAudioDock } from "./MenuAudioDock";
 
@@ -111,11 +117,10 @@ export function SchoolTrailsScreen({
   const ready = canPickSchool(owned);
   const allDone = allSchoolTrailsComplete(owned);
   const grandClaimed = Boolean(owned.schoolTrailGrandRewardClaimed);
-  /** 6-й флаг: сначала табличка, потом видео+рамка. */
+  /** 6-й флаг: сначала табличка, потом видео → сразу выбор оракула. */
   const [finaleShow, setFinaleShow] = useState<null | "plaque" | "video">(
     null,
   );
-  const [videoEnded, setVideoEnded] = useState(false);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
@@ -142,6 +147,31 @@ export function SchoolTrailsScreen({
   panRef.current = pan;
   scaleRef.current = scale;
   layoutRef.current = layout;
+
+  const finishCeremony = useCallback(() => {
+    setFinaleShow(null);
+    if (ready) onPickSchool();
+  }, [ready, onPickSchool]);
+
+  useEffect(() => {
+    if (finaleShow !== "video") return;
+    if (isMusicMuted()) return;
+    stopMenuMusic();
+    const track = new Audio(SCHOOL_GRADUATION_MUSIC);
+    track.preload = "auto";
+    track.volume = getMusicVolume();
+    void track.play().catch(() => {});
+    return () => {
+      try {
+        track.pause();
+        track.removeAttribute("src");
+        track.load();
+      } catch {
+        /* ignore */
+      }
+      void startMenuMusic();
+    };
+  }, [finaleShow]);
 
   const clampPan = useCallback((x: number, y: number, s = scaleRef.current) => {
     const vp = viewportRef.current;
@@ -929,7 +959,6 @@ export function SchoolTrailsScreen({
                 className="primary large"
                 onClick={() => {
                   if (allDone && !grandClaimed) onClaimGrandReward?.();
-                  setVideoEnded(false);
                   setFinaleShow("video");
                 }}
               >
@@ -951,58 +980,23 @@ export function SchoolTrailsScreen({
         !trailBeat &&
         createPortal(
           <div className="school-grad-overlay" role="dialog">
-            <div
-              className={`school-grad-stage${videoEnded ? " is-ended" : ""}`}
-            >
-              {!videoEnded ? (
-                <>
-                  <video
-                    className="school-grad-video"
-                    src={SCHOOL_GRADUATION_VIDEO}
-                    autoPlay
-                    playsInline
-                    controls={false}
-                    onEnded={() => setVideoEnded(true)}
-                  />
-                  <button
-                    type="button"
-                    className="ghost school-grad-skip"
-                    onClick={() => setVideoEnded(true)}
-                  >
-                    К финалу
-                  </button>
-                </>
-              ) : (
-                <div className="school-grad-finale">
-                  <img
-                    className="school-grad-frame"
-                    src={SCHOOL_GRADUATION_FRAME}
-                    alt=""
-                    draggable={false}
-                  />
-                  <div className="school-grad-end">
-                    <p className="school-grad-title">Поздравляем</p>
-                    <p className="school-grad-body">
-                      Вы прошли всю школу магии.
-                      <br />
-                      Ваша награда — {SCHOOL_TRAIL_GRAND_GOLD} золота и{" "}
-                      {SCHOOL_TRAIL_GRAND_DIAMONDS} алмазов.
-                      <br />
-                      Вы можете выбрать любого оракула!
-                    </p>
-                    <button
-                      type="button"
-                      className="primary large school-grad-cta"
-                      onClick={() => {
-                        setFinaleShow(null);
-                        if (ready) onPickSchool();
-                      }}
-                    >
-                      {ready ? "Выбрать оракула" : "Закрыть"}
-                    </button>
-                  </div>
-                </div>
-              )}
+            <div className="school-grad-stage">
+              <video
+                className="school-grad-video"
+                src={SCHOOL_GRADUATION_VIDEO}
+                autoPlay
+                playsInline
+                muted={false}
+                controls={false}
+                onEnded={finishCeremony}
+              />
+              <button
+                type="button"
+                className="ghost school-grad-skip"
+                onClick={finishCeremony}
+              >
+                {ready ? "К оракулу" : "Закрыть"}
+              </button>
             </div>
           </div>,
           document.body,
