@@ -8229,12 +8229,12 @@ html.is-hand-dragging .oracle-folio {
 */
 .school-grad-stage {
   position: relative;
-  width: min(94vw, 1200px);
-  height: min(86vh, 86dvh, 700px);
-  min-width: min(94vw, 320px);
-  min-height: min(50vh, 300px);
-  max-width: 1200px;
-  max-height: 700px;
+  width: min(80vw, 1020px);
+  height: min(73vh, 73dvh, 595px);
+  min-width: min(80vw, 280px);
+  min-height: min(42vh, 255px);
+  max-width: 1020px;
+  max-height: 595px;
   aspect-ratio: auto;
   border-radius: 10px;
   overflow: hidden;
