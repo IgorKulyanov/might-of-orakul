@@ -8213,33 +8213,38 @@ html.is-hand-dragging .oracle-folio {
 }
 
 .school-grad-overlay {
-  z-index: 80;
+  z-index: 240;
   display: grid;
   place-items: center;
-  padding: 0.35rem;
-  background: rgba(4, 6, 12, 0.94);
+  padding: 0;
+  background: #000;
 }
 
-/* Сначала 16:9 ролик почти на весь экран; в конце — вертикальная рамка. */
+/* Ролик на весь экран — без потолка 960/1400. */
 .school-grad-stage {
   position: relative;
-  width: min(98vw, 1400px);
-  aspect-ratio: 16 / 9;
-  max-height: min(94vh, 900px);
-  border-radius: 4px;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  aspect-ratio: auto;
+  border-radius: 0;
   overflow: hidden;
   background: #000;
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.65);
+  box-shadow: none;
   transition:
-    width 0.9s ease,
-    aspect-ratio 0.9s ease,
-    max-height 0.9s ease;
+    width 0.85s ease,
+    height 0.85s ease,
+    max-width 0.85s ease,
+    max-height 0.85s ease;
 }
 
 .school-grad-stage.is-ended {
-  width: min(96vw, 560px);
-  aspect-ratio: 3 / 4;
-  max-height: min(94vh, 920px);
+  width: min(100vw, 620px);
+  height: min(100dvh, 960px);
+  max-width: 620px;
+  max-height: 960px;
 }
 
 .school-grad-video {

@@ -514,7 +514,8 @@ export function SchoolTrailsScreen({
           onClick={() => {
             setPreview(null);
             setVideoEnded(false);
-            setFinaleShow("plaque");
+            if (allDone && !grandClaimed) onClaimGrandReward?.();
+            setFinaleShow("video");
           }}
         >
           Флаг 6
