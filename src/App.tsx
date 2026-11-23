@@ -631,7 +631,10 @@ async function applyServerAdminFlags(
   }
   if (Object.keys(patch).length === 0) return user;
   try {
-    const { user: synced } = await apiUpdateMe(token, patch);
+    const { user: synced } = await apiUpdateMe(token, patch, {
+      timeoutMs: 3500,
+      retries: 1,
+    });
     return synced;
   } catch {
     return user;
@@ -967,6 +970,19 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
 
+    // Сервер/сеть лежат — не держим «Загрузка…» минутами (CF→VPS).
+    const bootFailSafe = window.setTimeout(() => {
+      if (cancelled) return;
+      const existing = getToken();
+      const cached = getCachedUser();
+      if (existing && cached) {
+        setToken(existing);
+        setUser(cached);
+        setOwned(loadOwned());
+      }
+      setBoot(false);
+    }, 5000);
+
     async function bootSession() {
       const tg = detectTelegramUser();
       if (tg) {
@@ -987,6 +1003,7 @@ export default function App() {
           );
           setUser(flagged);
           setOwned(mergeOwnedFromServer(flagged));
+          window.clearTimeout(bootFailSafe);
           setBoot(false);
           return;
         } catch {
@@ -996,11 +1013,18 @@ export default function App() {
 
       const existing = getToken();
       if (!existing) {
-        if (!cancelled) setBoot(false);
+        if (!cancelled) {
+          window.clearTimeout(bootFailSafe);
+          setBoot(false);
+        }
         return;
       }
       try {
-        const { user: me } = await apiMe(existing);
+        // Быстрый бут: одна короткая попытка, без долгого синка owned.
+        const { user: me } = await apiMe(existing, {
+          timeoutMs: 3500,
+          retries: 1,
+        });
         if (cancelled) return;
         setToken(existing);
         const flagged = await applyServerAdminFlags(
@@ -1011,25 +1035,7 @@ export default function App() {
         );
         updateCachedUser(flagged);
         setUser(flagged);
-        {
-          const next = mergeOwnedFromServer(flagged);
-          setOwned(next);
-          // Пустой онбординг на сервер не пушим — иначе затирало школу/золото.
-          if (next.homeFaction) {
-            try {
-              const { user: synced } = await apiUpdateMe(existing, {
-                owned: next,
-                heroId: next.heroId,
-              });
-              if (!cancelled) {
-                updateCachedUser(synced);
-                setUser(synced);
-              }
-            } catch {
-              /* offline */
-            }
-          }
-        }
+        setOwned(mergeOwnedFromServer(flagged));
       } catch (e) {
         const status =
           e && typeof e === "object" && "status" in e
@@ -1058,13 +1064,17 @@ export default function App() {
           }
         }
       } finally {
-        if (!cancelled) setBoot(false);
+        if (!cancelled) {
+          window.clearTimeout(bootFailSafe);
+          setBoot(false);
+        }
       }
     }
 
     void bootSession();
     return () => {
       cancelled = true;
+      window.clearTimeout(bootFailSafe);
     };
   }, []);
 

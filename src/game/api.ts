@@ -112,11 +112,38 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+function isTransientNetworkError(e: unknown): boolean {
+  if (e instanceof TypeError) return true;
+  if (
+    typeof DOMException !== "undefined" &&
+    e instanceof DOMException &&
+    (e.name === "AbortError" || e.name === "TimeoutError")
+  ) {
+    return true;
+  }
+  if (!(e instanceof Error)) return false;
+  return /Failed to fetch|NetworkError|Load failed|Network request failed|aborted|timed out|TimeoutError|signal timed out/i.test(
+    e.message,
+  );
+}
+
 async function request<T>(
   path: string,
-  opts: RequestInit & { token?: string | null } = {},
+  opts: RequestInit & {
+    token?: string | null;
+    /** Ждём ответ не дольше (по умолчанию 5с). */
+    timeoutMs?: number;
+    /** Попыток всего (по умолчанию 2). */
+    retries?: number;
+  } = {},
 ): Promise<T> {
-  const { token, headers, ...rest } = opts;
+  const {
+    token,
+    headers,
+    timeoutMs = 5000,
+    retries = 2,
+    ...rest
+  } = opts;
   const init: RequestInit = {
     ...rest,
     headers: {
@@ -128,10 +155,19 @@ async function request<T>(
   };
 
   const base = getApiBase();
+  const attempts = Math.max(1, Math.min(4, Math.floor(retries)));
   let lastErr: unknown;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
     try {
-      const res = await fetch(`${base}${path}`, init);
+      const timed =
+        typeof AbortSignal !== "undefined" &&
+        typeof AbortSignal.timeout === "function"
+          ? AbortSignal.timeout(timeoutMs)
+          : undefined;
+      const res = await fetch(`${base}${path}`, {
+        ...init,
+        signal: init.signal ?? timed,
+      });
       const data = (await res.json().catch(() => ({}))) as T & {
         error?: string;
         code?: string;
@@ -150,8 +186,8 @@ async function request<T>(
           err.login = String((data as { login?: string }).login);
         }
         // 502 от прокси — ещё раз
-        if (res.status >= 502 && attempt < 2) {
-          await sleep(400 * (attempt + 1));
+        if (res.status >= 502 && attempt < attempts - 1) {
+          await sleep(300 * (attempt + 1));
           continue;
         }
         throw err;
@@ -159,17 +195,9 @@ async function request<T>(
       return data;
     } catch (e) {
       lastErr = e;
-      if (
-        e instanceof Error &&
-        !(e instanceof TypeError) &&
-        !/Failed to fetch|NetworkError|Load failed|Network request failed/i.test(
-          e.message,
-        )
-      ) {
-        throw e;
-      }
-      if (attempt < 2) {
-        await sleep(400 * (attempt + 1));
+      if (!isTransientNetworkError(e)) throw e;
+      if (attempt < attempts - 1) {
+        await sleep(300 * (attempt + 1));
         continue;
       }
     }
@@ -230,11 +258,20 @@ export function apiTelegramAuth(payload: {
   return request<AuthResponse>("/api/telegram-auth", {
     method: "POST",
     body: JSON.stringify(payload),
+    timeoutMs: 4000,
+    retries: 1,
   });
 }
 
-export function apiMe(token: string) {
-  return request<{ user: ApiUser }>("/api/me", { token });
+export function apiMe(
+  token: string,
+  opts?: { timeoutMs?: number; retries?: number },
+) {
+  return request<{ user: ApiUser }>("/api/me", {
+    token,
+    timeoutMs: opts?.timeoutMs ?? 5000,
+    retries: opts?.retries ?? 2,
+  });
 }
 
 export function apiUpdateMe(
@@ -252,11 +289,14 @@ export function apiUpdateMe(
       bannedUntil: number;
     };
   },
+  opts?: { timeoutMs?: number; retries?: number },
 ) {
   return request<{ user: ApiUser }>("/api/me", {
     method: "PUT",
     token,
     body: JSON.stringify(body),
+    timeoutMs: opts?.timeoutMs ?? 5000,
+    retries: opts?.retries ?? 2,
   });
 }
 
