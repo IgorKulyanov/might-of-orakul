@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   SCHOOL_GRADUATION_FRAME,
   SCHOOL_GRADUATION_VIDEO,
@@ -946,58 +947,61 @@ export function SchoolTrailsScreen({
         </div>
       )}
 
-      {finaleShow === "video" && !trailBeat && (
-        <div className="overlay school-grad-overlay" role="dialog">
-          <div
-            className={`school-grad-stage${videoEnded ? " is-ended" : ""}`}
-          >
-            {/* Ролик до своей финальной рамки; PNG потом вплавляется поверх того же кадра. */}
-            <video
-              className="school-grad-video"
-              src={SCHOOL_GRADUATION_VIDEO}
-              autoPlay
-              playsInline
-              onEnded={() => setVideoEnded(true)}
-            />
-            <img
-              className="school-grad-frame"
-              src={SCHOOL_GRADUATION_FRAME}
-              alt=""
-              draggable={false}
-            />
-            <div className="school-grad-end" aria-hidden={!videoEnded}>
-              <p className="school-grad-title">Поздравляем</p>
-              <p className="school-grad-body">
-                Вы прошли всю школу магии.
-                <br />
-                Ваша награда — {SCHOOL_TRAIL_GRAND_GOLD} золота и{" "}
-                {SCHOOL_TRAIL_GRAND_DIAMONDS} алмазов.
-                <br />
-                Вы можете выбрать любого оракула!
-              </p>
-              <button
-                type="button"
-                className="primary large school-grad-cta"
-                onClick={() => {
-                  setFinaleShow(null);
-                  if (ready) onPickSchool();
-                }}
-              >
-                {ready ? "Выбрать оракула" : "Закрыть"}
-              </button>
+      {finaleShow === "video" &&
+        !trailBeat &&
+        createPortal(
+          <div className="school-grad-overlay" role="dialog">
+            <div
+              className={`school-grad-stage${videoEnded ? " is-ended" : ""}`}
+            >
+              {/* На весь экран (cover). В конце PNG-рамка вплавляется. */}
+              <video
+                className="school-grad-video"
+                src={SCHOOL_GRADUATION_VIDEO}
+                autoPlay
+                playsInline
+                onEnded={() => setVideoEnded(true)}
+              />
+              <img
+                className="school-grad-frame"
+                src={SCHOOL_GRADUATION_FRAME}
+                alt=""
+                draggable={false}
+              />
+              <div className="school-grad-end" aria-hidden={!videoEnded}>
+                <p className="school-grad-title">Поздравляем</p>
+                <p className="school-grad-body">
+                  Вы прошли всю школу магии.
+                  <br />
+                  Ваша награда — {SCHOOL_TRAIL_GRAND_GOLD} золота и{" "}
+                  {SCHOOL_TRAIL_GRAND_DIAMONDS} алмазов.
+                  <br />
+                  Вы можете выбрать любого оракула!
+                </p>
+                <button
+                  type="button"
+                  className="primary large school-grad-cta"
+                  onClick={() => {
+                    setFinaleShow(null);
+                    if (ready) onPickSchool();
+                  }}
+                >
+                  {ready ? "Выбрать оракула" : "Закрыть"}
+                </button>
+              </div>
+              {!videoEnded ? (
+                <button
+                  type="button"
+                  className="ghost school-grad-skip"
+                  onClick={() => setVideoEnded(true)}
+                >
+                  К финалу
+                </button>
+              ) : null}
             </div>
-            {!videoEnded ? (
-              <button
-                type="button"
-                className="ghost school-grad-skip"
-                onClick={() => setVideoEnded(true)}
-              >
-                К финалу
-              </button>
-            ) : null}
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
