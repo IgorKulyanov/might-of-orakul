@@ -8218,37 +8218,40 @@ html.is-hand-dragging .oracle-folio {
   z-index: 9999;
   display: grid;
   place-items: center;
-  padding: 0.5rem;
+  padding: 0;
   margin: 0;
-  background: rgba(0, 0, 0, 0.9);
+  background: #000;
 }
 
-/* Без fullscreen/поворота: весь кадр 16:9, максимально широко на экране. */
+/* Вертикальное 9:16 на весь экран телефона, без fullscreen/поворота. */
 .school-grad-stage {
   position: relative;
-  width: min(96vw, 1280px);
-  max-width: 1280px;
+  width: min(100vw, calc(100dvh * 9 / 16));
+  max-width: 100vw;
+  max-height: 100dvh;
   height: auto;
-  border-radius: 10px;
-  overflow: visible;
+  border-radius: 0;
+  overflow: hidden;
   background: #000;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+  box-shadow: none;
 }
 
 .school-grad-stage.is-ended {
-  width: min(92vw, 540px);
-  max-width: 540px;
+  width: min(92vw, 420px);
+  max-width: 420px;
+  border-radius: 10px;
   overflow: hidden;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
 }
 
 .school-grad-video {
   display: block;
   width: 100%;
   height: auto;
-  max-height: none;
-  object-fit: contain;
+  max-height: 100dvh;
+  aspect-ratio: 9 / 16;
+  object-fit: cover;
   background: #000;
-  border-radius: 10px;
 }
 
 .school-grad-finale {
