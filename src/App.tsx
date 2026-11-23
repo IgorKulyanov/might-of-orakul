@@ -970,21 +970,21 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
 
-    // Сервер/сеть лежат — не держим «Загрузка…» минутами (CF→VPS).
-    const bootFailSafe = window.setTimeout(() => {
-      if (cancelled) return;
+    async function bootSession() {
+      const tg = detectTelegramUser();
       const existing = getToken();
       const cached = getCachedUser();
+
+      // Сразу в UI из кэша — не ждём VPS/CF. Сервер догоняем фоном.
       if (existing && cached) {
         setToken(existing);
         setUser(cached);
         setOwned(loadOwned());
+        setBoot(false);
+      } else if (!tg) {
+        setBoot(false);
       }
-      setBoot(false);
-    }, 5000);
 
-    async function bootSession() {
-      const tg = detectTelegramUser();
       if (tg) {
         try {
           const res = await apiTelegramAuth({
@@ -1003,26 +1003,19 @@ export default function App() {
           );
           setUser(flagged);
           setOwned(mergeOwnedFromServer(flagged));
-          window.clearTimeout(bootFailSafe);
           setBoot(false);
           return;
         } catch {
-          /* fall through */
+          if (!cancelled) setBoot(false);
+          /* fall through to token refresh */
         }
       }
 
-      const existing = getToken();
-      if (!existing) {
-        if (!cancelled) {
-          window.clearTimeout(bootFailSafe);
-          setBoot(false);
-        }
-        return;
-      }
+      if (!existing) return;
+
       try {
-        // Быстрый бут: одна короткая попытка, без долгого синка owned.
         const { user: me } = await apiMe(existing, {
-          timeoutMs: 3500,
+          timeoutMs: 4000,
           retries: 1,
         });
         if (cancelled) return;
@@ -1048,33 +1041,16 @@ export default function App() {
             setToken(null);
             setUser(null);
           }
-        } else {
-          // Сеть/сервер лежит — оставляем кэш только для одиночки.
-          const cached = getCachedUser();
-          if (!cancelled) {
-            if (cached) {
-              setToken(existing);
-              setUser(cached);
-              setOwned(loadOwned());
-            } else {
-              clearSession();
-              setToken(null);
-              setUser(null);
-            }
-          }
         }
+        // Иначе кэш уже на экране — ничего не сбрасываем.
       } finally {
-        if (!cancelled) {
-          window.clearTimeout(bootFailSafe);
-          setBoot(false);
-        }
+        if (!cancelled) setBoot(false);
       }
     }
 
     void bootSession();
     return () => {
       cancelled = true;
-      window.clearTimeout(bootFailSafe);
     };
   }, []);
 
