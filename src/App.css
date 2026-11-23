@@ -8216,17 +8216,17 @@ html.is-hand-dragging .oracle-folio {
   z-index: 80;
   display: grid;
   place-items: center;
-  padding: 0.75rem;
-  background: rgba(4, 6, 12, 0.92);
+  padding: 0.35rem;
+  background: rgba(4, 6, 12, 0.94);
 }
 
-/* Сначала 16:9 ролик; в конце сцена тянется под вертикальную рамку. */
+/* Сначала 16:9 ролик почти на весь экран; в конце — вертикальная рамка. */
 .school-grad-stage {
   position: relative;
-  width: min(94vw, 960px);
+  width: min(98vw, 1400px);
   aspect-ratio: 16 / 9;
-  max-height: min(86vh, 640px);
-  border-radius: 6px;
+  max-height: min(94vh, 900px);
+  border-radius: 4px;
   overflow: hidden;
   background: #000;
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.65);
@@ -8237,9 +8237,9 @@ html.is-hand-dragging .oracle-folio {
 }
 
 .school-grad-stage.is-ended {
-  width: min(92vw, 420px);
+  width: min(96vw, 560px);
   aspect-ratio: 3 / 4;
-  max-height: min(88vh, 740px);
+  max-height: min(94vh, 920px);
 }
 
 .school-grad-video {
