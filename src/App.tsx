@@ -67,6 +67,7 @@ import {
 import {
   applySchoolTrailWin,
   prepareSchoolTrailBattle,
+  resetSchoolTrailProgress,
   rewardGiftLine,
   schoolTrailBattleDeck,
   schoolTrailDraft,
@@ -1668,6 +1669,23 @@ export default function App() {
       );
     }
 
+    const resetTrailsForDev = () => {
+      const next = resetSchoolTrailProgress(ownedRef.current);
+      saveOwned(next);
+      setOwned(next);
+      ownedRef.current = next;
+      trailBeatRef.current = null;
+      setTrailBeat(null);
+      setTrailFight(null);
+      const t = token ?? getToken();
+      if (t) {
+        void apiUpdateMe(t, { owned: next }).then(({ user: me }) => {
+          updateCachedUser(me);
+          setUser(me);
+        });
+      }
+    };
+
     return (
       <SchoolTrailsScreen
         owned={owned}
@@ -1678,6 +1696,7 @@ export default function App() {
           trailBeatRef.current = null;
           setTrailBeat(null);
         }}
+        onResetTrails={resetTrailsForDev}
         onPlayTrail={(faction, stepIndex) => {
           if (trailBeatRef.current) return;
           unlockSfx();
@@ -1756,6 +1775,22 @@ export default function App() {
         onDismissTrailBeat={() => {
           trailBeatRef.current = null;
           setTrailBeat(null);
+        }}
+        onResetTrails={() => {
+          const next = resetSchoolTrailProgress(ownedRef.current);
+          saveOwned(next);
+          setOwned(next);
+          ownedRef.current = next;
+          trailBeatRef.current = null;
+          setTrailBeat(null);
+          setTrailFight(null);
+          const t = token ?? getToken();
+          if (t) {
+            void apiUpdateMe(t, { owned: next }).then(({ user: me }) => {
+              updateCachedUser(me);
+              setUser(me);
+            });
+          }
         }}
         onPlayTrail={(faction, stepIndex) => {
           if (trailBeatRef.current) return;

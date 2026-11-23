@@ -7794,9 +7794,14 @@ html.is-hand-dragging .oracle-folio {
   margin-left: auto;
 }
 
-.school-trails-flag-edit-btn {
+.school-trails-flag-edit-btn,
+.school-trails-reset-btn {
   font-size: 0.85rem;
   padding: 0.25rem 0.55rem;
+}
+
+.school-trails-reset-btn {
+  color: #c45c5c;
 }
 
 .school-trails-flag-edit-btn.is-on {

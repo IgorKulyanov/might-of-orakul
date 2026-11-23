@@ -488,6 +488,16 @@ export function schoolTrailComplete(
   return schoolTrailCleared(owned, faction) >= SCHOOL_TRAIL_STEPS;
 }
 
+/** Сброс прогресса троп (флажки / черновики) — без вайпа аккаунта и коллекции. */
+export function resetSchoolTrailProgress(owned: OwnedState): OwnedState {
+  return {
+    ...owned,
+    schoolTrailCleared: {},
+    schoolTrailWins: 0,
+    schoolTrailDrafts: {},
+  };
+}
+
 export function finishedSchoolTrails(owned: OwnedState): Faction[] {
   return SCHOOL_TRAIL_FACTIONS.filter((f) => schoolTrailComplete(owned, f));
 }

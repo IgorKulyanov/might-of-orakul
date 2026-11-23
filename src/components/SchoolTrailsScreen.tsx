@@ -35,6 +35,8 @@ type Props = {
   /** Обязательная пауза после победы — пока не закроешь, бой не начать. */
   trailBeat?: SchoolTrailBeat | null;
   onDismissTrailBeat?: () => void;
+  /** Временно: сбросить флажки троп для баланса/тестов. */
+  onResetTrails?: () => void;
 };
 
 function cardName(id: string): string {
@@ -95,6 +97,7 @@ export function SchoolTrailsScreen({
   asTutorial = false,
   trailBeat = null,
   onDismissTrailBeat,
+  onResetTrails,
 }: Props) {
   const ready = canPickSchool(owned);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -470,6 +473,25 @@ export function SchoolTrailsScreen({
         >
           {editFlags ? "Готово" : "Флажки"}
         </button>
+        {onResetTrails ? (
+          <button
+            type="button"
+            className="ghost school-trails-reset-btn"
+            title="Сбросить прогресс всех троп (флажки и мини-колоды)"
+            onClick={() => {
+              if (
+                window.confirm(
+                  "Сбросить все тропы? Флажки и мини-колоды обнулятся. Аккаунт и коллекция останутся.",
+                )
+              ) {
+                onResetTrails();
+                setPreview(null);
+              }
+            }}
+          >
+            Сброс троп
+          </button>
+        ) : null}
         <MenuAudioDock className="school-trails-audio" />
       </header>
       <p className="hint school-trails-hint">
