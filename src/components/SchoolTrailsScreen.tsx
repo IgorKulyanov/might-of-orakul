@@ -148,30 +148,52 @@ export function SchoolTrailsScreen({
   scaleRef.current = scale;
   layoutRef.current = layout;
 
-  const finishCeremony = useCallback(() => {
-    setFinaleShow(null);
-    if (ready) onPickSchool();
-  }, [ready, onPickSchool]);
+  const ceremonyAudioRef = useRef<HTMLAudioElement | null>(null);
+  const ceremonyVideoRef = useRef<HTMLVideoElement | null>(null);
 
-  useEffect(() => {
-    if (finaleShow !== "video") return;
-    if (isMusicMuted()) return;
+  const stopCeremonyAudio = useCallback(() => {
+    const track = ceremonyAudioRef.current;
+    ceremonyAudioRef.current = null;
+    if (!track) return;
+    try {
+      track.pause();
+      track.removeAttribute("src");
+      track.load();
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const startCeremonyAudio = useCallback(() => {
+    stopCeremonyAudio();
     stopMenuMusic();
     const track = new Audio(SCHOOL_GRADUATION_MUSIC);
     track.preload = "auto";
-    track.volume = getMusicVolume();
+    // Церемония — всегда со звуком (меню может быть «выкл»).
+    track.volume = Math.max(0.55, getMusicVolume() || 0.7);
+    ceremonyAudioRef.current = track;
     void track.play().catch(() => {});
+  }, [stopCeremonyAudio]);
+
+  const finishCeremony = useCallback(() => {
+    stopCeremonyAudio();
+    setFinaleShow(null);
+    if (!isMusicMuted()) void startMenuMusic();
+    if (ready) onPickSchool();
+  }, [ready, onPickSchool, stopCeremonyAudio]);
+
+  useEffect(() => {
+    if (finaleShow !== "video") return;
+    const video = ceremonyVideoRef.current;
+    if (video) {
+      video.muted = true;
+      video.playsInline = true;
+      void video.play().catch(() => {});
+    }
     return () => {
-      try {
-        track.pause();
-        track.removeAttribute("src");
-        track.load();
-      } catch {
-        /* ignore */
-      }
-      void startMenuMusic();
+      stopCeremonyAudio();
     };
-  }, [finaleShow]);
+  }, [finaleShow, stopCeremonyAudio]);
 
   const clampPan = useCallback((x: number, y: number, s = scaleRef.current) => {
     const vp = viewportRef.current;
@@ -959,6 +981,7 @@ export function SchoolTrailsScreen({
                 className="primary large"
                 onClick={() => {
                   if (allDone && !grandClaimed) onClaimGrandReward?.();
+                  startCeremonyAudio();
                   setFinaleShow("video");
                 }}
               >
@@ -982,13 +1005,20 @@ export function SchoolTrailsScreen({
           <div className="school-grad-overlay" role="dialog">
             <div className="school-grad-stage">
               <video
+                ref={ceremonyVideoRef}
                 className="school-grad-video"
                 src={SCHOOL_GRADUATION_VIDEO}
                 autoPlay
                 playsInline
-                muted={false}
+                muted
+                preload="auto"
                 controls={false}
                 onEnded={finishCeremony}
+                onLoadedData={(e) => {
+                  const v = e.currentTarget;
+                  v.muted = true;
+                  void v.play().catch(() => {});
+                }}
               />
               <button
                 type="button"

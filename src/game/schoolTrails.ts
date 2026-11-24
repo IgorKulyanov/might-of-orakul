@@ -530,10 +530,10 @@ export function claimSchoolTrailGrandReward(owned: OwnedState): OwnedState {
   };
 }
 
-export const SCHOOL_GRADUATION_VIDEO = "/trails/school-graduation.mp4?v=t2";
+export const SCHOOL_GRADUATION_VIDEO = "/trails/school-graduation.mp4?v=t3";
 export const SCHOOL_GRADUATION_FRAME = "/trails/school-frame.png?v=vert2";
 /** Музыка церемонии Flag 6 (все школы пройдены). */
-export const SCHOOL_GRADUATION_MUSIC = "/trails/schools-complete.mp3";
+export const SCHOOL_GRADUATION_MUSIC = "/sfx/schools-complete.mp3?v=1";
 
 export function applySchoolTrailWin(
   owned: OwnedState,
