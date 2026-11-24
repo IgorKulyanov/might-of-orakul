@@ -440,6 +440,79 @@ export function schoolTrailTitle(faction: Faction): string {
   return names[faction];
 }
 
+/** Родительный падеж школы: «сила школы Воды». */
+export function schoolTrailPowerName(faction: Faction): string {
+  const names: Record<Faction, string> = {
+    death: "Смерти",
+    nature: "Природы",
+    water: "Воды",
+    life: "Жизни",
+    hell: "Ада",
+  };
+  return names[faction];
+}
+
+/** Вступление перед 1-м флагом тропы. */
+export const SCHOOL_TRAIL_INTRO_ART: Record<Faction, string> = {
+  death: "/trails/intro/death.jpg",
+  nature: "/trails/intro/nature.jpg",
+  water: "/trails/intro/water.jpg",
+  life: "/trails/intro/life.jpg",
+  hell: "/trails/intro/hell.jpg",
+};
+
+export const SCHOOL_TRAIL_THREE_CARDS_ART = "/trails/intro/three-cards.jpg";
+
+export function schoolTrailIntroArt(faction: Faction): string {
+  return SCHOOL_TRAIL_INTRO_ART[faction];
+}
+
+const TRAIL_INTRO_SEEN_KEY = "orakul-trail-intro-seen-v1";
+
+export function hasSeenTrailIntro(faction: Faction): boolean {
+  try {
+    const raw = localStorage.getItem(TRAIL_INTRO_SEEN_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw) as Partial<Record<Faction, boolean>>;
+    return Boolean(parsed?.[faction]);
+  } catch {
+    return false;
+  }
+}
+
+export function markTrailIntroSeen(faction: Faction): void {
+  try {
+    const raw = localStorage.getItem(TRAIL_INTRO_SEEN_KEY);
+    const parsed =
+      raw && typeof raw === "string"
+        ? (JSON.parse(raw) as Partial<Record<Faction, boolean>>)
+        : {};
+    parsed[faction] = true;
+    localStorage.setItem(TRAIL_INTRO_SEEN_KEY, JSON.stringify(parsed));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function clearTrailIntroSeen(): void {
+  try {
+    localStorage.removeItem(TRAIL_INTRO_SEEN_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Показывать вступление только при первом входе на 1-й флаг тропы. */
+export function shouldShowTrailIntro(
+  owned: OwnedState,
+  faction: Faction,
+  stepIndex: number,
+): boolean {
+  if (stepIndex !== 0) return false;
+  if (schoolTrailCleared(owned, faction) > 0) return false;
+  return !hasSeenTrailIntro(faction);
+}
+
 export function schoolTrailStep(
   faction: Faction,
   stepIndex: number,

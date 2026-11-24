@@ -74,11 +74,15 @@ import {
   schoolTrailDraft,
   schoolTrailEnemyHeroId,
   schoolTrailEnemyUpgrades,
+  clearTrailIntroSeen,
+  markTrailIntroSeen,
   schoolTrailStep,
+  shouldShowTrailIntro,
   trailVictoryLead,
   trailVictoryTitle,
   type SchoolTrailBeat,
 } from "./game/schoolTrails";
+import { TrailIntroScreen } from "./components/TrailIntroScreen";
 import {
   apiMe,
   apiPaymentOrder,
@@ -166,6 +170,7 @@ type Screen =
   | "dailies"
   | "school_trails"
   | "school_pick"
+  | "trail_intro"
   | "prologue";
 
 function richerDecks(
@@ -754,6 +759,12 @@ export default function App() {
   const [botSeed, setBotSeed] = useState(() => freshBotSeed());
   /** Текущий бой тропы вкуса (онбординг). id стабилен — иначе смена draft на победе ремаунтит Battle. */
   const [trailFight, setTrailFight] = useState<{
+    faction: Faction;
+    step: number;
+    id: string;
+  } | null>(null);
+  /** Вступление перед 1-м флагом — бой стартует после слайдов. */
+  const [pendingTrailFight, setPendingTrailFight] = useState<{
     faction: Faction;
     step: number;
     id: string;
@@ -1775,6 +1786,8 @@ export default function App() {
       trailBeatRef.current = null;
       setTrailBeat(null);
       setTrailFight(null);
+      setPendingTrailFight(null);
+      clearTrailIntroSeen();
       persistOwnedPatch(next);
     };
 
@@ -1796,16 +1809,39 @@ export default function App() {
         onClaimGrandReward={claimGrandReward}
         onPlayTrail={(faction, stepIndex) => {
           if (trailBeatRef.current) return;
-          unlockSfx();
-          void startBattleMusic();
-          setTrailFight({
+          const fight = {
             faction,
             step: stepIndex,
             id: `trail-${faction}-${stepIndex}-${Date.now()}`,
-          });
+          };
+          if (shouldShowTrailIntro(ownedRef.current, faction, stepIndex)) {
+            setPendingTrailFight(fight);
+            setScreen("trail_intro");
+            return;
+          }
+          unlockSfx();
+          void startBattleMusic();
+          setTrailFight(fight);
           setScreen("battle_school_trail");
         }}
         onPickSchool={() => setScreen("school_pick")}
+      />
+    );
+  }
+
+  if (screen === "trail_intro" && pendingTrailFight) {
+    return (
+      <TrailIntroScreen
+        faction={pendingTrailFight.faction}
+        onDone={() => {
+          markTrailIntroSeen(pendingTrailFight.faction);
+          const fight = pendingTrailFight;
+          setPendingTrailFight(null);
+          unlockSfx();
+          void startBattleMusic();
+          setTrailFight(fight);
+          setScreen("battle_school_trail");
+        }}
       />
     );
   }
@@ -1879,6 +1915,8 @@ export default function App() {
           trailBeatRef.current = null;
           setTrailBeat(null);
           setTrailFight(null);
+          setPendingTrailFight(null);
+          clearTrailIntroSeen();
           saveOwned(next);
           setOwned(next);
           ownedRef.current = next;
@@ -1905,13 +1943,19 @@ export default function App() {
         }}
         onPlayTrail={(faction, stepIndex) => {
           if (trailBeatRef.current) return;
-          unlockSfx();
-          void startBattleMusic();
-          setTrailFight({
+          const fight = {
             faction,
             step: stepIndex,
             id: `trail-${faction}-${stepIndex}-${Date.now()}`,
-          });
+          };
+          if (shouldShowTrailIntro(ownedRef.current, faction, stepIndex)) {
+            setPendingTrailFight(fight);
+            setScreen("trail_intro");
+            return;
+          }
+          unlockSfx();
+          void startBattleMusic();
+          setTrailFight(fight);
           setScreen("battle_school_trail");
         }}
         onPickSchool={() => setScreen("school_pick")}

@@ -7879,6 +7879,15 @@ html.is-hand-dragging .oracle-folio {
   opacity: 0.85;
 }
 
+.trail-intro-stage {
+  background-position: center center;
+  background-size: cover;
+}
+
+.trail-intro-screen .prologue-copy {
+  max-width: 28rem;
+}
+
 .prologue-stage {
   min-height: 100vh;
   min-height: 100dvh;
