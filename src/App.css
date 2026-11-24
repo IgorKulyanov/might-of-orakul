@@ -3447,23 +3447,22 @@ button {
 }
 
 /*
- * ПК: бой — колонка по центру (не ультраширокий раздутый стол).
- * cover внутри колонки ≈ 9:16 → арт не «растянут», рука не обрезается.
+ * ПК: бой шире телефонной колонки, но не на весь ультраширокий.
  * Телефон (≤720) не трогаем.
  */
 @media (min-width: 721px) {
   .battle {
-    width: min(100vw, 40rem);
+    width: min(96vw, 58rem);
     margin-inline: auto;
     background-size: cover;
     background-position: center center;
-    --board-card-w: 100px;
-    --board-card-h: 150px;
-    --hand-card-w: 80px;
-    --hand-card-h: 120px;
-    --linger-card-w: 58px;
-    --linger-card-h: 87px;
-    --battle-footer-h: 138px;
+    --board-card-w: 112px;
+    --board-card-h: 168px;
+    --hand-card-w: 88px;
+    --hand-card-h: 132px;
+    --linger-card-w: 68px;
+    --linger-card-h: 102px;
+    --battle-footer-h: 148px;
   }
 
   .board-lane > .row-label {
