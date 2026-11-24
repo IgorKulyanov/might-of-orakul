@@ -618,41 +618,45 @@ export function hasSchoolTrailProgress(owned: OwnedState | null | undefined): bo
 }
 
 /**
- * Ложный homeFaction: merge вывел школу из hero_life, хотя оракула ещё не выбирали.
- * Возвращает сейв без homeFaction (тропы сохраняются).
+ * Ложный homeFaction: merge вывел школу из hero_life / не из выбора оракула.
+ * Законный выбор: тропа ЭТОЙ школы 5/5 + черновик карт школы.
  */
 export function stripAccidentalHomeFaction(owned: OwnedState): OwnedState {
   if (!owned.homeFaction) return owned;
+
+  const home = owned.homeFaction;
   const heroId = owned.heroId ?? "hero_life";
   const level = Math.max(1, Math.floor(Number(owned.level) || 1));
   const purchased = owned.purchased?.length ?? 0;
   const epics = (owned.unlockedHeroes ?? []).some((id) => /_epic$/i.test(id));
-  if (level > 2 || purchased > 0 || epics) return owned;
-
-  const col = owned.collection ?? {};
-  const colIds = Object.keys(col).filter((id) => (Number(col[id]) || 0) > 0);
-  const neutralOnly = colIds.every(
-    (id) =>
-      (NEUTRAL_STARTER_IDS as readonly string[]).includes(id) ||
-      id === "hero_mana",
+  const clearedHome = Math.max(
+    0,
+    Math.floor(Number(owned.schoolTrailCleared?.[home]) || 0),
   );
-  const draft = owned.schoolTrailDrafts?.[owned.homeFaction];
-  const hasSchoolCards =
-    Array.isArray(draft) &&
-    draft.some((id) => (Number(col[String(id)]) || 0) > 0);
+  const draft = owned.schoolTrailDrafts?.[home];
+  const hasDraft = Array.isArray(draft) && draft.length > 0;
 
-  // Типичный ложный кейс: life + hero_life + только нейтралы / без карт школы в кейсе.
-  const accidental =
-    !hasSchoolCards &&
-    (neutralOnly || colIds.length === 0) &&
-    (heroId === "hero_life" || owned.homeFaction === "life");
+  // Явно законный выбор оракула после тропы.
+  if (clearedHome >= 5 && hasDraft) return owned;
 
-  if (!accidental) return owned;
-  return {
-    ...owned,
-    homeFaction: undefined,
-    heroId: "hero_life",
-  };
+  // Уже глубоко в мире — не трогаем.
+  if (level > 3 || purchased > 0 || epics) return owned;
+
+  // Ложный кейс (в т.ч. после бага merge → life из hero_life).
+  // Даже если тропы уже сброшены — life+hero_life на ур.1 без покупок = искатель.
+  if (
+    hasSchoolTrailProgress(owned) ||
+    (home === "life" && heroId === "hero_life") ||
+    clearedHome < 5
+  ) {
+    return {
+      ...owned,
+      homeFaction: undefined,
+      heroId: "hero_life",
+    };
+  }
+
+  return owned;
 }
 
 export function hasOwnedProgress(owned: OwnedState): boolean {

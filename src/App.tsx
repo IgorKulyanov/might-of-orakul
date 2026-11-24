@@ -1107,19 +1107,29 @@ export default function App() {
   // Вернуть на тропы, если прошлый баг ложно проставил homeFaction.
   useEffect(() => {
     if (boot || !token || !user) return;
-    const fixed = stripAccidentalHomeFaction(ownedRef.current);
-    if (fixed === ownedRef.current || fixed.homeFaction) return;
-    saveOwned(fixed);
-    setOwned(fixed);
-    ownedRef.current = fixed;
-    setScreen("school_trails");
-    void apiUpdateMe(token, { owned: fixed })
-      .then(({ user: me }) => {
-        updateCachedUser(me);
-        setUser(me);
-      })
-      .catch(() => {});
-  }, [boot, token, user?.login]);
+    const cur = ownedRef.current;
+    const fixed = stripAccidentalHomeFaction(cur);
+    if (fixed.homeFaction) return;
+    if (cur.homeFaction) {
+      saveOwned(fixed);
+      setOwned(fixed);
+      ownedRef.current = fixed;
+      void apiUpdateMe(token, { owned: fixed })
+        .then(({ user: me }) => {
+          updateCachedUser(me);
+          setUser(me);
+        })
+        .catch(() => {});
+    }
+    setScreen((s) =>
+      s === "battle_school_trail" ||
+      s === "trail_intro" ||
+      s === "school_pick" ||
+      s === "prologue"
+        ? s
+        : "school_trails",
+    );
+  }, [boot, token, user?.login, owned.homeFaction]);
 
   // Музыку не автозапускаем: тихий вход. Боевой трек — только если уже включили в ⚙.
   useEffect(() => {
