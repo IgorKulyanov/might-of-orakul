@@ -164,19 +164,28 @@ export function SchoolTrailsScreen({
     }
   }, []);
 
-  const startCeremonyAudio = useCallback(() => {
+  /** Жест «Смотреть»: глушим меню, крутим video со звуком + запасной mp3. */
+  const startCeremonyPlayback = useCallback(() => {
     stopCeremonyAudio();
     stopMenuMusic();
+    const vol = Math.max(0.55, getMusicVolume() || 0.7);
     const track = new Audio(SCHOOL_GRADUATION_MUSIC);
     track.preload = "auto";
-    // Церемония — всегда со звуком (меню может быть «выкл»).
-    track.volume = Math.max(0.55, getMusicVolume() || 0.7);
+    track.volume = vol;
     ceremonyAudioRef.current = track;
     void track.play().catch(() => {});
   }, [stopCeremonyAudio]);
 
   const finishCeremony = useCallback(() => {
     stopCeremonyAudio();
+    const video = ceremonyVideoRef.current;
+    if (video) {
+      try {
+        video.pause();
+      } catch {
+        /* ignore */
+      }
+    }
     setFinaleShow(null);
     if (!isMusicMuted()) void startMenuMusic();
     if (ready) onPickSchool();
@@ -186,9 +195,14 @@ export function SchoolTrailsScreen({
     if (finaleShow !== "video") return;
     const video = ceremonyVideoRef.current;
     if (video) {
-      video.muted = true;
+      video.muted = false;
+      video.volume = Math.max(0.55, getMusicVolume() || 0.7);
       video.playsInline = true;
-      void video.play().catch(() => {});
+      void video.play().catch(() => {
+        // Автоплей со звуком режется — пробуем muted + отдельный mp3 уже играет.
+        video.muted = true;
+        void video.play().catch(() => {});
+      });
     }
     return () => {
       stopCeremonyAudio();
@@ -566,8 +580,8 @@ export function SchoolTrailsScreen({
           title="Посмотреть церемонию флага 6 (видео)"
           onClick={() => {
             setPreview(null);
-            setVideoEnded(false);
             if (allDone && !grandClaimed) onClaimGrandReward?.();
+            startCeremonyPlayback();
             setFinaleShow("video");
           }}
         >
@@ -711,7 +725,6 @@ export function SchoolTrailsScreen({
                 return;
               }
               setPreview(null);
-              setVideoEnded(false);
               setFinaleShow("plaque");
             }}
           >
@@ -941,7 +954,6 @@ export function SchoolTrailsScreen({
                   className="primary large"
                   onClick={() => {
                     setPreview(null);
-                    setVideoEnded(false);
                     setFinaleShow("plaque");
                   }}
                 >
@@ -981,7 +993,7 @@ export function SchoolTrailsScreen({
                 className="primary large"
                 onClick={() => {
                   if (allDone && !grandClaimed) onClaimGrandReward?.();
-                  startCeremonyAudio();
+                  startCeremonyPlayback();
                   setFinaleShow("video");
                 }}
               >
@@ -1010,14 +1022,17 @@ export function SchoolTrailsScreen({
                 src={SCHOOL_GRADUATION_VIDEO}
                 autoPlay
                 playsInline
-                muted
                 preload="auto"
                 controls={false}
                 onEnded={finishCeremony}
                 onLoadedData={(e) => {
                   const v = e.currentTarget;
-                  v.muted = true;
-                  void v.play().catch(() => {});
+                  v.muted = false;
+                  v.volume = Math.max(0.55, getMusicVolume() || 0.7);
+                  void v.play().catch(() => {
+                    v.muted = true;
+                    void v.play().catch(() => {});
+                  });
                 }}
               />
               <button
