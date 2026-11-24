@@ -8156,13 +8156,55 @@ html.is-hand-dragging .oracle-folio {
   animation: oracle-path-flag-pulse 1.8s ease-in-out infinite;
 }
 
+.oracle-path-flag.is-finale {
+  width: 2.6rem;
+  height: 3.1rem;
+  z-index: 7;
+  filter: drop-shadow(0 0 10px rgba(255, 60, 90, 0.65))
+    drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
+}
+
+.oracle-path-flag.is-finale .oracle-path-flag-pole {
+  width: 0.28rem;
+  height: 1.65rem;
+  background: linear-gradient(180deg, #ffe082, #8d6e00);
+}
+
 .oracle-path-flag.is-finale .oracle-path-flag-cloth {
+  width: 2.05rem;
+  height: 1.45rem;
   background: linear-gradient(145deg, #ffffff, #ff1744);
+  box-shadow:
+    0 0 0 2px #0a0a0a,
+    0 0 0 4px rgba(255, 255, 255, 0.95),
+    0 0 16px rgba(255, 23, 68, 0.85);
+  animation: oracle-path-flag6-pulse 1.6s ease-in-out infinite;
+}
+
+.oracle-path-flag.is-finale .oracle-path-flag-cloth em {
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
 }
 
 .oracle-path-flag.is-finale.is-locked .oracle-path-flag-cloth {
-  background: linear-gradient(145deg, #9e9e9e, #424242);
-  filter: brightness(0.55);
+  background: linear-gradient(145deg, #cfd8dc, #546e7a);
+  filter: brightness(0.85);
+  animation: none;
+  box-shadow:
+    0 0 0 2px #0a0a0a,
+    0 0 0 3px rgba(255, 255, 255, 0.75);
+}
+
+@keyframes oracle-path-flag6-pulse {
+  0%,
+  100% {
+    filter: brightness(1);
+    transform: translateX(-15%) scale(1);
+  }
+  50% {
+    filter: brightness(1.2);
+    transform: translateX(-15%) scale(1.06);
+  }
 }
 
 .oracle-path-flag.is-fightable:hover {
@@ -8354,6 +8396,24 @@ html.is-hand-dragging .oracle-folio {
 
   .oracle-path-flag-cloth em {
     font-size: 0.55rem;
+  }
+
+  .oracle-path-flag.is-finale {
+    width: 2.35rem;
+    height: 2.85rem;
+  }
+
+  .oracle-path-flag.is-finale .oracle-path-flag-pole {
+    height: 1.45rem;
+  }
+
+  .oracle-path-flag.is-finale .oracle-path-flag-cloth {
+    width: 1.85rem;
+    height: 1.3rem;
+  }
+
+  .oracle-path-flag.is-finale .oracle-path-flag-cloth em {
+    font-size: 0.85rem;
   }
 }
 

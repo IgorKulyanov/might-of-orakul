@@ -597,8 +597,30 @@ export function clearActiveOwned(): OwnedState {
 }
 
 /** Есть ли у локального сейва реальный прогресс (не свежий онбординг). */
+/** Есть ли прогресс троп школ (даже до выбора оракула). */
+export function hasSchoolTrailProgress(owned: OwnedState | null | undefined): boolean {
+  if (!owned) return false;
+  if (Math.floor(Number(owned.schoolTrailWins) || 0) > 0) return true;
+  if (owned.schoolTrailGrandRewardClaimed) return true;
+  const cleared = owned.schoolTrailCleared;
+  if (cleared && typeof cleared === "object") {
+    for (const n of Object.values(cleared)) {
+      if (Math.floor(Number(n) || 0) > 0) return true;
+    }
+  }
+  const drafts = owned.schoolTrailDrafts;
+  if (drafts && typeof drafts === "object") {
+    for (const list of Object.values(drafts)) {
+      if (Array.isArray(list) && list.length > 0) return true;
+    }
+  }
+  return false;
+}
+
 export function hasOwnedProgress(owned: OwnedState): boolean {
-  // До выбора школы — всегда «чистый лист», даже со стартовой колодой life.
+  // Тропы вкуса — уже прогресс, иначе релогин/merge сносит флаги.
+  if (hasSchoolTrailProgress(owned)) return true;
+  // До выбора школы — «чистый лист», даже со стартовой колодой life.
   if (
     !owned.homeFaction &&
     (owned.heroId ?? "hero_life") === "hero_life" &&

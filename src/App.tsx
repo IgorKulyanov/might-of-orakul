@@ -103,6 +103,7 @@ import {
   clearActiveOwned,
   clearOwnedBackup,
   hasOwnedProgress,
+  hasSchoolTrailProgress,
   loadOwned,
   loadOwnedBackup,
   playerLevel,
@@ -266,6 +267,42 @@ function mergeUpgradeMaps(
   return out;
 }
 
+/** Тропы: берём max по школе — иначе старый локальный 0/2 затирает серверные 5. */
+function mergeTrailClearedMaps(
+  a?: Partial<Record<Faction, number>> | null,
+  b?: Partial<Record<Faction, number>> | null,
+): Partial<Record<Faction, number>> {
+  const out: Partial<Record<Faction, number>> = {};
+  for (const src of [a, b]) {
+    if (!src || typeof src !== "object") continue;
+    for (const [k, v] of Object.entries(src)) {
+      const n = Math.max(0, Math.min(5, Math.floor(Number(v) || 0)));
+      if (!n) continue;
+      const f = k as Faction;
+      out[f] = Math.max(out[f] ?? 0, n);
+    }
+  }
+  return out;
+}
+
+function mergeTrailDraftMaps(
+  a?: Partial<Record<Faction, string[]>> | null,
+  b?: Partial<Record<Faction, string[]>> | null,
+): Partial<Record<Faction, string[]>> {
+  const out: Partial<Record<Faction, string[]>> = {};
+  const keys = new Set([
+    ...Object.keys(a ?? {}),
+    ...Object.keys(b ?? {}),
+  ]);
+  for (const k of keys) {
+    const f = k as Faction;
+    out[f] = [
+      ...new Set([...(a?.[f] ?? []), ...(b?.[f] ?? [])].map(String)),
+    ];
+  }
+  return out;
+}
+
 function mergeOwnedFromServer(user: ApiUser): OwnedState {
   const wipeId = Math.max(0, Math.floor(Number(user.ownedWipeId) || 0));
   const wipeSeen = user.login ? readWipeSeen(user.login) : 0;
@@ -357,6 +394,22 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
             ],
             homeFaction: localRaw.homeFaction ?? backup.homeFaction,
             heroId: localRaw.heroId ?? backup.heroId,
+            schoolTrailCleared: mergeTrailClearedMaps(
+              backup.schoolTrailCleared,
+              localRaw.schoolTrailCleared,
+            ),
+            schoolTrailWins: Math.max(
+              Math.floor(Number(backup.schoolTrailWins) || 0),
+              Math.floor(Number(localRaw.schoolTrailWins) || 0),
+            ),
+            schoolTrailDrafts: mergeTrailDraftMaps(
+              backup.schoolTrailDrafts,
+              localRaw.schoolTrailDrafts,
+            ),
+            schoolTrailGrandRewardClaimed: Boolean(
+              backup.schoolTrailGrandRewardClaimed ||
+                localRaw.schoolTrailGrandRewardClaimed,
+            ),
           }
         : localRaw;
   const serverOwned = user.owned;
@@ -415,11 +468,41 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
         ? getHeroSafeFaction(localHero)
         : undefined));
   if (!homeFaction) {
-    // Не сносим тропы вкуса: подтягиваем нейтральный сейв с локальным прогрессом.
+    // Не сносим тропы вкуса: сливаем локаль + сервер (max по школам).
     const localOnboard = loadOwned();
-    if (!localOnboard.homeFaction) {
-      saveOwned(localOnboard);
-      return localOnboard;
+    const trailOwned: OwnedState = {
+      ...(!localOnboard.homeFaction ? localOnboard : blankOnboardingOwned()),
+      schoolTrailCleared: mergeTrailClearedMaps(
+        localOnboard.schoolTrailCleared,
+        serverOwned?.schoolTrailCleared,
+      ),
+      schoolTrailWins: Math.max(
+        Math.floor(Number(localOnboard.schoolTrailWins) || 0),
+        Math.floor(Number(serverOwned?.schoolTrailWins) || 0),
+      ),
+      schoolTrailDrafts: mergeTrailDraftMaps(
+        localOnboard.schoolTrailDrafts,
+        serverOwned?.schoolTrailDrafts,
+      ),
+      schoolTrailGrandRewardClaimed: Boolean(
+        localOnboard.schoolTrailGrandRewardClaimed ||
+          serverOwned?.schoolTrailGrandRewardClaimed,
+      ),
+    };
+    if (!trailOwned.homeFaction || hasSchoolTrailProgress(trailOwned)) {
+      const next = !trailOwned.homeFaction
+        ? trailOwned
+        : {
+            ...blankOnboardingOwned(),
+            schoolTrailCleared: trailOwned.schoolTrailCleared,
+            schoolTrailWins: trailOwned.schoolTrailWins,
+            schoolTrailDrafts: trailOwned.schoolTrailDrafts,
+            schoolTrailGrandRewardClaimed:
+              trailOwned.schoolTrailGrandRewardClaimed,
+          };
+      saveOwned(next);
+      if (user.login) backupOwnedForLogin(user.login, next);
+      return next;
     }
     return blankOnboardingOwned();
   }
@@ -557,14 +640,14 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
       Math.floor(Number(local.schoolTrailWins) || 0),
       Math.floor(Number(serverOwned?.schoolTrailWins) || 0),
     ),
-    schoolTrailCleared: {
-      ...(serverOwned?.schoolTrailCleared ?? {}),
-      ...(local.schoolTrailCleared ?? {}),
-    },
-    schoolTrailDrafts: {
-      ...(serverOwned?.schoolTrailDrafts ?? {}),
-      ...(local.schoolTrailDrafts ?? {}),
-    },
+    schoolTrailCleared: mergeTrailClearedMaps(
+      local.schoolTrailCleared,
+      serverOwned?.schoolTrailCleared,
+    ),
+    schoolTrailDrafts: mergeTrailDraftMaps(
+      local.schoolTrailDrafts,
+      serverOwned?.schoolTrailDrafts,
+    ),
     schoolTrailGrandRewardClaimed: Boolean(
       local.schoolTrailGrandRewardClaimed ||
         serverOwned?.schoolTrailGrandRewardClaimed,
@@ -1774,6 +1857,7 @@ export default function App() {
         owned={owned}
         initialName={displayName}
         afterTrails
+        onBack={() => setScreen("school_trails")}
         onComplete={finishOnboarding}
       />
     );

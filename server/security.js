@@ -271,6 +271,59 @@ export function sanitizeOwned(raw, prev) {
     }
   }
 
+  // Тропы школ: max по школе — пустой/старый клиент не откатывает 5/5.
+  {
+    const prevCleared =
+      base.schoolTrailCleared && typeof base.schoolTrailCleared === "object"
+        ? base.schoolTrailCleared
+        : {};
+    const nextCleared =
+      next.schoolTrailCleared && typeof next.schoolTrailCleared === "object"
+        ? next.schoolTrailCleared
+        : {};
+    const cleared = {};
+    for (const src of [prevCleared, nextCleared]) {
+      for (const [k, v] of Object.entries(src)) {
+        const n = Math.max(0, Math.min(5, Math.floor(Number(v) || 0)));
+        if (!n) continue;
+        const id = String(k).slice(0, 24);
+        cleared[id] = Math.max(cleared[id] || 0, n);
+      }
+    }
+    next.schoolTrailCleared = cleared;
+    next.schoolTrailWins = Math.max(
+      Math.floor(Number(base.schoolTrailWins) || 0),
+      Math.floor(Number(next.schoolTrailWins) || 0),
+    );
+    const prevDrafts =
+      base.schoolTrailDrafts && typeof base.schoolTrailDrafts === "object"
+        ? base.schoolTrailDrafts
+        : {};
+    const nextDrafts =
+      next.schoolTrailDrafts && typeof next.schoolTrailDrafts === "object"
+        ? next.schoolTrailDrafts
+        : {};
+    const draftKeys = new Set([
+      ...Object.keys(prevDrafts),
+      ...Object.keys(nextDrafts),
+    ]);
+    const drafts = {};
+    for (const k of draftKeys) {
+      const id = String(k).slice(0, 24);
+      drafts[id] = [
+        ...new Set(
+          [...(prevDrafts[k] || []), ...(nextDrafts[k] || [])]
+            .map((c) => String(c).slice(0, 64))
+            .filter(Boolean),
+        ),
+      ].slice(0, 12);
+    }
+    next.schoolTrailDrafts = drafts;
+    next.schoolTrailGrandRewardClaimed = Boolean(
+      base.schoolTrailGrandRewardClaimed || next.schoolTrailGrandRewardClaimed,
+    );
+  }
+
   // Клиент после ложного онбординга шлёт «чистый лист» — не затирать прогресс.
   const prevHome = base.homeFaction;
   const nextHome = next.homeFaction;
@@ -283,12 +336,20 @@ export function sanitizeOwned(raw, prev) {
     (s, n) => s + (Math.floor(Number(n)) || 0),
     0,
   );
+  const prevTrailN = Object.values(
+    base.schoolTrailCleared && typeof base.schoolTrailCleared === "object"
+      ? base.schoolTrailCleared
+      : {},
+  ).reduce((s, n) => s + (Math.floor(Number(n)) || 0), 0);
   const looksFresh =
     !nextHome &&
     (Number(next.level) || 1) <= 1 &&
     nextColN === 0 &&
     !(Array.isArray(next.purchased) && next.purchased.length);
-  if ((prevHome || prevColN >= 4 || (Number(base.level) || 1) > 1) && looksFresh) {
+  if (
+    (prevHome || prevColN >= 4 || (Number(base.level) || 1) > 1 || prevTrailN > 0) &&
+    looksFresh
+  ) {
     console.warn(
       "[orakul] blocked wipe of progressed owned via PUT /api/me",
     );
@@ -303,6 +364,10 @@ export function sanitizeOwned(raw, prev) {
     next.xp = base.xp;
     next.gold = base.gold;
     next.diamonds = base.diamonds;
+    next.schoolTrailCleared = base.schoolTrailCleared;
+    next.schoolTrailWins = base.schoolTrailWins;
+    next.schoolTrailDrafts = base.schoolTrailDrafts;
+    next.schoolTrailGrandRewardClaimed = base.schoolTrailGrandRewardClaimed;
   }
 
   const clamped = clampOwnedShopGains(base, next);

@@ -20,6 +20,8 @@ type Props = {
   initialName?: string;
   /** После троп вкуса — другой заголовок/текст. */
   afterTrails?: boolean;
+  /** Вернуться на карту троп (только afterTrails). */
+  onBack?: () => void;
   onComplete: (displayName: string, nextOwned: OwnedState) => void | Promise<void>;
 };
 
@@ -43,6 +45,7 @@ export function OnboardingScreen({
   owned,
   initialName = "",
   afterTrails = false,
+  onBack,
   onComplete,
 }: Props) {
   const finished = finishedSchoolTrails(owned);
@@ -97,7 +100,15 @@ export function OnboardingScreen({
   return (
     <div className="onboard-screen">
       <header className="page-bar">
+        {afterTrails && onBack ? (
+          <button type="button" className="ghost" onClick={onBack}>
+            ← К тропам
+          </button>
+        ) : (
+          <span />
+        )}
         <h1>{afterTrails ? "Какая сила отозвалась?" : "Создание оракула"}</h1>
+        <span />
       </header>
       <p className="hint hero-screen-hint">
         {afterTrails
