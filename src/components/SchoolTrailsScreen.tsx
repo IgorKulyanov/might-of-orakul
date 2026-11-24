@@ -15,11 +15,9 @@ import {
   loadSchoolTrailFlagLayout,
   saveSchoolTrailFlagLayout,
   schoolTrailCleared,
-  schoolTrailDraft,
-  schoolTrailFoeLine,
-  schoolTrailRewardForClear,
   schoolTrailStep,
   schoolTrailTitle,
+  shouldShowTrailIntro,
   type FlagXY,
   type SchoolTrailBeat,
   type SchoolTrailFlagLayout,
@@ -50,6 +48,9 @@ type Props = {
   onResetTrails?: () => void;
   /** Выдать гранд-награду за все 5 троп (один раз) и синк. */
   onClaimGrandReward?: () => void;
+  /** После интро — сразу открыть карточку боя (до старта). */
+  openFightConfirm?: { faction: Faction; stepIndex: number } | null;
+  onOpenFightConfirmConsumed?: () => void;
 };
 
 function cardName(id: string): string {
@@ -112,6 +113,8 @@ export function SchoolTrailsScreen({
   onDismissTrailBeat,
   onResetTrails,
   onClaimGrandReward,
+  openFightConfirm = null,
+  onOpenFightConfirmConsumed,
 }: Props) {
   const ready = canPickSchool(owned);
   const allDone = allSchoolTrailsComplete(owned);
@@ -537,8 +540,31 @@ export function SchoolTrailsScreen({
   const onFlagActivate = (next: Preview) => {
     if (editFlags || trailBeat) return;
     suppressClickRef.current = false;
+    // Первый флаг: сначала приветственные слайды, табличка — после них
+    if (next.kind === "step") {
+      const cleared = schoolTrailCleared(owned, next.faction);
+      const fightable =
+        next.stepIndex === cleared && cleared < SCHOOL_TRAIL_STEPS;
+      if (
+        fightable &&
+        shouldShowTrailIntro(owned, next.faction, next.stepIndex)
+      ) {
+        onPlayTrail(next.faction, next.stepIndex);
+        return;
+      }
+    }
     setPreview(next);
   };
+
+  useEffect(() => {
+    if (!openFightConfirm) return;
+    setPreview({
+      kind: "step",
+      faction: openFightConfirm.faction,
+      stepIndex: openFightConfirm.stepIndex,
+    });
+    onOpenFightConfirmConsumed?.();
+  }, [openFightConfirm, onOpenFightConfirmConsumed]);
 
   const copyLayout = async () => {
     const text = formatSchoolTrailFlagLayoutTs(layout);
@@ -569,8 +595,6 @@ export function SchoolTrailsScreen({
     preview?.kind === "step" &&
     preview.stepIndex === previewCleared &&
     previewCleared < SCHOOL_TRAIL_STEPS;
-  const previewDone =
-    preview?.kind === "step" && preview.stepIndex < previewCleared;
 
   return (
     <div
@@ -844,77 +868,16 @@ export function SchoolTrailsScreen({
           role="presentation"
         >
           <div
-            className="campaign-preview-panel"
+            className="campaign-preview-panel trail-fight-card"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
-            aria-label="Флажок тропы"
+            aria-label="Бой тропы"
           >
             <p className="campaign-preview-eyebrow">
-              {schoolTrailTitle(preview.faction)} · флажок{" "}
-              {preview.stepIndex + 1}/{SCHOOL_TRAIL_STEPS}
+              {schoolTrailTitle(preview.faction)} {preview.stepIndex + 1}/
+              {SCHOOL_TRAIL_STEPS}
             </p>
             <h2>{previewStep.foeName}</h2>
-            <p className="campaign-preview-story">
-              {previewStep.lesson || "История этого флажка ещё пишется."}
-            </p>
-            <p className="hint">
-              Враг на столе: {schoolTrailFoeLine(previewStep)}
-            </p>
-            {previewDone && previewStep.wowHint ? (
-              <p className="campaign-preview-outro">
-                <strong>Заключение:</strong> {previewStep.wowHint}
-              </p>
-            ) : null}
-            {!previewDone && !previewFightable ? (
-              <p className="hint">Сначала пройди предыдущий флажок этой земли.</p>
-            ) : null}
-            {previewFightable ? (
-              <>
-                {(() => {
-                  const nextReward = schoolTrailRewardForClear(
-                    preview.faction,
-                    preview.stepIndex + 1,
-                  );
-                  const draft = schoolTrailDraft(owned, preview.faction);
-                  return (
-                    <>
-                      {nextReward ? (
-                        <p className="campaign-preview-outro">
-                          <strong>После победы получишь:</strong> «
-                          {cardName(nextReward.cardId)}» — будет в руке на
-                          следующих боях этой тропы.
-                        </p>
-                      ) : (
-                        <p className="hint">
-                          Этот флаг без новой карты — но открывает финал тропы.
-                        </p>
-                      )}
-                      {draft.length ? (
-                        <p className="hint">
-                          Уже в руке тропы:{" "}
-                          {draft.map(cardName).join(" · ")}
-                        </p>
-                      ) : (
-                        <p className="hint">
-                          Пока только нейтралы. Победы наполняют руку школы.
-                        </p>
-                      )}
-                      <p className="hint">
-                        Накал: флаг {preview.stepIndex + 1}/
-                        {SCHOOL_TRAIL_STEPS}
-                        {preview.stepIndex === 0
-                          ? " — разминка"
-                          : preview.stepIndex === 2
-                            ? " — витрина школы"
-                            : preview.stepIndex >= 4
-                              ? " — пик тропы"
-                              : " — давление растёт"}
-                      </p>
-                    </>
-                  );
-                })()}
-              </>
-            ) : null}
             <div className="campaign-preview-actions">
               {previewFightable ? (
                 <button
@@ -925,7 +888,7 @@ export function SchoolTrailsScreen({
                     onPlayTrail(preview.faction, preview.stepIndex);
                   }}
                 >
-                  Принять бой
+                  В бой
                 </button>
               ) : null}
               <button
@@ -933,7 +896,7 @@ export function SchoolTrailsScreen({
                 className="ghost large"
                 onClick={() => setPreview(null)}
               >
-                Закрыть
+                Выход
               </button>
             </div>
           </div>

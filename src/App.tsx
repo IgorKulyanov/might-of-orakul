@@ -814,11 +814,16 @@ export default function App() {
     step: number;
     id: string;
   } | null>(null);
-  /** Вступление перед 1-м флагом — бой стартует после слайдов. */
+  /** Вступление перед 1-м флагом — после слайдов открывается карточка «В бой». */
   const [pendingTrailFight, setPendingTrailFight] = useState<{
     faction: Faction;
     step: number;
     id: string;
+  } | null>(null);
+  /** После интро — открыть короткую карточку боя на карте. */
+  const [trailFightConfirm, setTrailFightConfirm] = useState<{
+    faction: Faction;
+    step: number;
   } | null>(null);
   /** Пауза после победы на тропе — пока открыта, следующий бой нельзя. */
   const [trailBeat, setTrailBeat] = useState<SchoolTrailBeat | null>(null);
@@ -1795,10 +1800,11 @@ export default function App() {
             markTrailIntroSeen(pendingTrailFight.faction);
             const fight = pendingTrailFight;
             setPendingTrailFight(null);
-            unlockSfx();
-            void startBattleMusic();
-            setTrailFight(fight);
-            setScreen("battle_school_trail");
+            setTrailFightConfirm({
+              faction: fight.faction,
+              step: fight.step,
+            });
+            setScreen("school_trails");
           }}
         />
       );
@@ -1876,6 +1882,7 @@ export default function App() {
       setTrailBeat(null);
       setTrailFight(null);
       setPendingTrailFight(null);
+      setTrailFightConfirm(null);
       clearTrailIntroSeen();
       persistOwnedPatch(next);
     };
@@ -1890,6 +1897,15 @@ export default function App() {
         displayName={displayName}
         asTutorial
         trailBeat={trailBeat}
+        openFightConfirm={
+          trailFightConfirm
+            ? {
+                faction: trailFightConfirm.faction,
+                stepIndex: trailFightConfirm.step,
+              }
+            : null
+        }
+        onOpenFightConfirmConsumed={() => setTrailFightConfirm(null)}
         onDismissTrailBeat={() => {
           trailBeatRef.current = null;
           setTrailBeat(null);
@@ -1926,10 +1942,11 @@ export default function App() {
           markTrailIntroSeen(pendingTrailFight.faction);
           const fight = pendingTrailFight;
           setPendingTrailFight(null);
-          unlockSfx();
-          void startBattleMusic();
-          setTrailFight(fight);
-          setScreen("battle_school_trail");
+          setTrailFightConfirm({
+            faction: fight.faction,
+            step: fight.step,
+          });
+          setScreen("school_trails");
         }}
       />
     );
@@ -1999,12 +2016,22 @@ export default function App() {
           trailBeatRef.current = null;
           setTrailBeat(null);
         }}
+        openFightConfirm={
+          trailFightConfirm
+            ? {
+                faction: trailFightConfirm.faction,
+                stepIndex: trailFightConfirm.step,
+              }
+            : null
+        }
+        onOpenFightConfirmConsumed={() => setTrailFightConfirm(null)}
         onResetTrails={() => {
           const next = resetSchoolTrailProgress(ownedRef.current);
           trailBeatRef.current = null;
           setTrailBeat(null);
           setTrailFight(null);
           setPendingTrailFight(null);
+          setTrailFightConfirm(null);
           clearTrailIntroSeen();
           saveOwned(next);
           setOwned(next);
