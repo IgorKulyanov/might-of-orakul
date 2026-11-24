@@ -7781,6 +7781,23 @@ html.is-hand-dragging .oracle-folio {
   overflow: hidden;
 }
 
+.onboard-page-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.onboard-back-trails {
+  flex: 0 0 auto;
+  font-size: 1rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid rgba(232, 197, 71, 0.55);
+  color: #ffe6a0;
+  background: rgba(232, 197, 71, 0.12);
+}
+
 .school-trails-hint {
   max-width: 42rem;
   margin: 0.2rem auto 0.35rem;
