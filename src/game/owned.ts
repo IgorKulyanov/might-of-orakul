@@ -617,6 +617,44 @@ export function hasSchoolTrailProgress(owned: OwnedState | null | undefined): bo
   return false;
 }
 
+/**
+ * Ложный homeFaction: merge вывел школу из hero_life, хотя оракула ещё не выбирали.
+ * Возвращает сейв без homeFaction (тропы сохраняются).
+ */
+export function stripAccidentalHomeFaction(owned: OwnedState): OwnedState {
+  if (!owned.homeFaction) return owned;
+  const heroId = owned.heroId ?? "hero_life";
+  const level = Math.max(1, Math.floor(Number(owned.level) || 1));
+  const purchased = owned.purchased?.length ?? 0;
+  const epics = (owned.unlockedHeroes ?? []).some((id) => /_epic$/i.test(id));
+  if (level > 2 || purchased > 0 || epics) return owned;
+
+  const col = owned.collection ?? {};
+  const colIds = Object.keys(col).filter((id) => (Number(col[id]) || 0) > 0);
+  const neutralOnly = colIds.every(
+    (id) =>
+      (NEUTRAL_STARTER_IDS as readonly string[]).includes(id) ||
+      id === "hero_mana",
+  );
+  const draft = owned.schoolTrailDrafts?.[owned.homeFaction];
+  const hasSchoolCards =
+    Array.isArray(draft) &&
+    draft.some((id) => (Number(col[String(id)]) || 0) > 0);
+
+  // Типичный ложный кейс: life + hero_life + только нейтралы / без карт школы в кейсе.
+  const accidental =
+    !hasSchoolCards &&
+    (neutralOnly || colIds.length === 0) &&
+    (heroId === "hero_life" || owned.homeFaction === "life");
+
+  if (!accidental) return owned;
+  return {
+    ...owned,
+    homeFaction: undefined,
+    heroId: "hero_life",
+  };
+}
+
 export function hasOwnedProgress(owned: OwnedState): boolean {
   // Тропы вкуса — уже прогресс, иначе релогин/merge сносит флаги.
   if (hasSchoolTrailProgress(owned)) return true;

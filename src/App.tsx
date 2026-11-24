@@ -113,6 +113,7 @@ import {
   playerLevel,
   saveOwned,
   setHero,
+  stripAccidentalHomeFaction,
 } from "./game/owned";
 import { catchUpShopTierShardsIfNeeded } from "./game/cardUpgrades";
 import { applySkillStateToOwned } from "./game/oracleSkills";
@@ -274,11 +275,10 @@ function mergeUpgradeMaps(
 
 /** Тропы: берём max по школе — иначе старый локальный 0/2 затирает серверные 5. */
 function mergeTrailClearedMaps(
-  a?: Partial<Record<Faction, number>> | null,
-  b?: Partial<Record<Faction, number>> | null,
+  ...maps: Array<Partial<Record<Faction, number>> | null | undefined>
 ): Partial<Record<Faction, number>> {
   const out: Partial<Record<Faction, number>> = {};
-  for (const src of [a, b]) {
+  for (const src of maps) {
     if (!src || typeof src !== "object") continue;
     for (const [k, v] of Object.entries(src)) {
       const n = Math.max(0, Math.min(5, Math.floor(Number(v) || 0)));
@@ -291,21 +291,34 @@ function mergeTrailClearedMaps(
 }
 
 function mergeTrailDraftMaps(
-  a?: Partial<Record<Faction, string[]>> | null,
-  b?: Partial<Record<Faction, string[]>> | null,
+  ...maps: Array<Partial<Record<Faction, string[]>> | null | undefined>
 ): Partial<Record<Faction, string[]>> {
   const out: Partial<Record<Faction, string[]>> = {};
-  const keys = new Set([
-    ...Object.keys(a ?? {}),
-    ...Object.keys(b ?? {}),
-  ]);
+  const keys = new Set<string>();
+  for (const src of maps) {
+    if (!src || typeof src !== "object") continue;
+    for (const k of Object.keys(src)) keys.add(k);
+  }
   for (const k of keys) {
     const f = k as Faction;
-    out[f] = [
-      ...new Set([...(a?.[f] ?? []), ...(b?.[f] ?? [])].map(String)),
-    ];
+    const ids: string[] = [];
+    for (const src of maps) {
+      if (!src || typeof src !== "object") continue;
+      for (const id of src[f] ?? []) ids.push(String(id));
+    }
+    out[f] = [...new Set(ids)];
   }
   return out;
+}
+
+/** Не выводить школу из дефолтного hero_life. */
+function explicitHomeFaction(
+  owned: OwnedState | null | undefined,
+  heroId: string | null | undefined,
+): Faction | undefined {
+  if (owned?.homeFaction) return owned.homeFaction;
+  if (heroId && heroId !== "hero_life") return getHeroSafeFaction(heroId);
+  return undefined;
 }
 
 function mergeOwnedFromServer(user: ApiUser): OwnedState {
@@ -343,16 +356,59 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
   // Новый/пустой аккаунт: не тянуть чужой локальный сейв с этого ПК
   // и не угадывать школу по hero_life по умолчанию.
   if (accountNeedsOnboarding(user)) {
-    // Сервер уже знает школу — не сбрасывать в blank (это возвращало 500 зол.).
-    if (user.owned?.homeFaction || hasOwnedProgress(user.owned as OwnedState)) {
+    // Только ЯВНЫЙ homeFaction — иначе fallthrough выводил «life» из hero_life
+    // и кидал искателя с троп в основное меню.
+    if (user.owned?.homeFaction) {
       /* fall through to normal merge */
+    } else if (
+      hasSchoolTrailProgress(user.owned as OwnedState) ||
+      hasSchoolTrailProgress(localRaw) ||
+      hasSchoolTrailProgress(backup)
+    ) {
+      const trailBase = !localRaw.homeFaction
+        ? localRaw
+        : backup && !backup.homeFaction
+          ? backup
+          : blankOnboardingOwned();
+      const next = stripAccidentalHomeFaction({
+        ...trailBase,
+        homeFaction: undefined,
+        heroId: "hero_life",
+        schoolTrailCleared: mergeTrailClearedMaps(
+          trailBase.schoolTrailCleared,
+          user.owned?.schoolTrailCleared,
+          backup?.schoolTrailCleared,
+          localRaw.schoolTrailCleared,
+        ),
+        schoolTrailWins: Math.max(
+          Math.floor(Number(trailBase.schoolTrailWins) || 0),
+          Math.floor(Number(user.owned?.schoolTrailWins) || 0),
+          Math.floor(Number(backup?.schoolTrailWins) || 0),
+          Math.floor(Number(localRaw.schoolTrailWins) || 0),
+        ),
+        schoolTrailDrafts: mergeTrailDraftMaps(
+          trailBase.schoolTrailDrafts,
+          user.owned?.schoolTrailDrafts,
+          backup?.schoolTrailDrafts,
+          localRaw.schoolTrailDrafts,
+        ),
+        schoolTrailGrandRewardClaimed: Boolean(
+          trailBase.schoolTrailGrandRewardClaimed ||
+            user.owned?.schoolTrailGrandRewardClaimed ||
+            backup?.schoolTrailGrandRewardClaimed ||
+            localRaw.schoolTrailGrandRewardClaimed,
+        ),
+      });
+      saveOwned(next);
+      if (user.login) backupOwnedForLogin(user.login, next);
+      return next;
     } else if (
       // Только если аккаунт НИКОГДА не вайпили — иначе wipe снова «оживёт».
       wipeId <= 0 &&
       backup?.homeFaction &&
       hasOwnedProgress(backup)
     ) {
-      const restored = { ...backup };
+      const restored = stripAccidentalHomeFaction({ ...backup });
       saveOwned(restored);
       return restored;
     } else if (
@@ -360,8 +416,9 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
       localRaw.homeFaction &&
       hasOwnedProgress(localRaw)
     ) {
-      saveOwned(localRaw);
-      return localRaw;
+      const restored = stripAccidentalHomeFaction(localRaw);
+      saveOwned(restored);
+      return restored;
     } else {
       return blankOnboardingOwned();
     }
@@ -461,17 +518,12 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
       heroId = serverHero;
     }
   }
-  // homeFaction только явный (свой/сервер) — НЕ выводить из hero_life по умолчанию
+  // homeFaction только явный — НЕ выводить из hero_life (это кидало искателя в меню).
   const homeFaction = serverLeads
-    ? (serverOwned?.homeFaction ??
-      (serverHero ? getHeroSafeFaction(serverHero) : undefined) ??
-      local.homeFaction)
-    : (local.homeFaction ??
-      serverOwned?.homeFaction ??
-      (serverHero ? getHeroSafeFaction(serverHero) : undefined) ??
-      (localHero && localHero !== "hero_life"
-        ? getHeroSafeFaction(localHero)
-        : undefined));
+    ? (explicitHomeFaction(serverOwned, serverHero) ??
+      explicitHomeFaction(local, localHero))
+    : (explicitHomeFaction(local, localHero) ??
+      explicitHomeFaction(serverOwned, serverHero));
   if (!homeFaction) {
     // Не сносим тропы вкуса: сливаем локаль + сервер (max по школам).
     const localOnboard = loadOwned();
@@ -661,6 +713,7 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
   let next = homeFaction
     ? applySkillStateToOwned(setHero(merged, heroId), homeFaction)
     : merged;
+  next = stripAccidentalHomeFaction(next);
   // Уже на 15+ без осколков нового тира — разовый догон (старый дроп их топил).
   next = catchUpShopTierShardsIfNeeded(next).owned;
   saveOwned(next);
@@ -1050,6 +1103,23 @@ export default function App() {
       document.removeEventListener("visibilitychange", onVis);
     };
   }, [boot, token, screen]);
+
+  // Вернуть на тропы, если прошлый баг ложно проставил homeFaction.
+  useEffect(() => {
+    if (boot || !token || !user) return;
+    const fixed = stripAccidentalHomeFaction(ownedRef.current);
+    if (fixed === ownedRef.current || fixed.homeFaction) return;
+    saveOwned(fixed);
+    setOwned(fixed);
+    ownedRef.current = fixed;
+    setScreen("school_trails");
+    void apiUpdateMe(token, { owned: fixed })
+      .then(({ user: me }) => {
+        updateCachedUser(me);
+        setUser(me);
+      })
+      .catch(() => {});
+  }, [boot, token, user?.login]);
 
   // Музыку не автозапускаем: тихий вход. Боевой трек — только если уже включили в ⚙.
   useEffect(() => {
@@ -1684,11 +1754,12 @@ export default function App() {
     );
   }
 
-  const hero = getHero(activeHeroId(owned));
+  const liveOwned = stripAccidentalHomeFaction(owned);
+  const hero = getHero(activeHeroId(liveOwned));
   const displayName = user.displayName ?? user.login ?? "Игрок";
-  const level = playerLevel(owned);
+  const level = playerLevel(liveOwned);
   const foeLevel = botLevelNear(level);
-  const seeker = !owned.homeFaction;
+  const seeker = !liveOwned.homeFaction;
   const loginKey = user.login || displayName;
 
   // Пролог: первый раз после ника, или пересмотр из хаба.
@@ -1705,7 +1776,12 @@ export default function App() {
   }
 
   // Искатель ещё не видел пролог — сначала он (не хаб).
-  if (seeker && !hasSeenPrologue(loginKey) && screen !== "battle_school_trail") {
+  if (
+    seeker &&
+    !hasSeenPrologue(loginKey) &&
+    screen !== "battle_school_trail" &&
+    screen !== "trail_intro"
+  ) {
     return (
       <PrologueScreen
         displayName={displayName}
@@ -1716,6 +1792,23 @@ export default function App() {
 
   // Искатель: не пускаем шариться по меню. Тропы / выбор школы / бой тропы.
   if (seeker) {
+    if (screen === "trail_intro" && pendingTrailFight) {
+      return (
+        <TrailIntroScreen
+          faction={pendingTrailFight.faction}
+          onDone={() => {
+            markTrailIntroSeen(pendingTrailFight.faction);
+            const fight = pendingTrailFight;
+            setPendingTrailFight(null);
+            unlockSfx();
+            void startBattleMusic();
+            setTrailFight(fight);
+            setScreen("battle_school_trail");
+          }}
+        />
+      );
+    }
+
     if (screen === "battle_school_trail" && trailFight) {
       const foeHero = schoolTrailEnemyHeroId(trailFight.faction);
       const trailDraft = schoolTrailDraft(owned, trailFight.faction);
