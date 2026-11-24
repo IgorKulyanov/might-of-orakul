@@ -222,33 +222,70 @@ export function SchoolTrailsScreen({
     };
   }, []);
 
-  const centerMap = useCallback(() => {
+  /** На ПК — жёстко вписать 3:4 карту целиком в viewport (без обрезки сверху). */
+  const fitAndCenterMap = useCallback(() => {
     const vp = viewportRef.current;
     const map = mapRef.current;
     if (!vp || !map) return;
+
+    const desktop = window.matchMedia("(min-width: 641px)").matches;
+    if (desktop) {
+      const avW = vp.clientWidth;
+      const avH = vp.clientHeight;
+      if (avW > 0 && avH > 0) {
+        let w = Math.min(720, avW, avH * 0.75);
+        let h = w * (4 / 3);
+        if (h > avH) {
+          h = avH;
+          w = h * 0.75;
+        }
+        map.style.width = `${Math.floor(w)}px`;
+        map.style.height = `${Math.floor(h)}px`;
+        map.style.maxWidth = "none";
+        map.style.aspectRatio = "auto";
+      }
+      scaleRef.current = 1;
+      panRef.current = { x: 0, y: 0 };
+      setScale(1);
+      setPan({ x: 0, y: 0 });
+      return;
+    }
+
+    map.style.width = "";
+    map.style.height = "";
+    map.style.maxWidth = "";
+    map.style.aspectRatio = "";
     const s = scaleRef.current;
     const minX = Math.min(0, vp.clientWidth - map.offsetWidth * s);
     const minY = Math.min(0, vp.clientHeight - map.offsetHeight * s);
-    setPan({ x: minX / 2, y: minY / 2 });
+    const next = { x: minX / 2, y: minY / 2 };
+    panRef.current = next;
+    setPan(next);
   }, []);
 
   useEffect(() => {
-    centerMap();
-    const onResize = () => centerMap();
+    fitAndCenterMap();
+    const onResize = () => fitAndCenterMap();
     window.addEventListener("resize", onResize);
     const map = mapRef.current;
     const img = map?.querySelector("img");
-    img?.addEventListener("load", centerMap);
+    img?.addEventListener("load", fitAndCenterMap);
     const onHash = () => {
       if (window.location.hash === "#ora-flags") setEditFlags(true);
     };
     window.addEventListener("hashchange", onHash);
+    const ro =
+      typeof ResizeObserver !== "undefined" && viewportRef.current
+        ? new ResizeObserver(() => fitAndCenterMap())
+        : null;
+    if (viewportRef.current && ro) ro.observe(viewportRef.current);
     return () => {
       window.removeEventListener("resize", onResize);
-      img?.removeEventListener("load", centerMap);
+      img?.removeEventListener("load", fitAndCenterMap);
       window.removeEventListener("hashchange", onHash);
+      ro?.disconnect();
     };
-  }, [centerMap]);
+  }, [fitAndCenterMap]);
 
   useEffect(() => {
     const el = viewportRef.current;

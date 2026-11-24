@@ -8467,8 +8467,13 @@ html.is-hand-dragging .oracle-folio {
     align-items: center;
   }
 
+  /* Размер на ПК задаёт fitAndCenterMap (inline width/height), CSS — запасной */
   .oracle-path-map-wrap {
-    width: min(720px, calc((100dvh - 7rem) * 0.75), 92vw);
+    width: auto;
+    height: 100%;
+    max-width: min(720px, 100%);
+    max-height: 100%;
+    aspect-ratio: 3 / 4;
   }
 }
 
