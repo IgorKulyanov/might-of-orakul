@@ -43,6 +43,7 @@ body,
 
 body:has(.battle) {
   overflow: hidden;
+  background: #07060a;
 }
 
 button {
@@ -3446,29 +3447,41 @@ button {
 }
 
 /*
- * Столы 9:16. На ПК cover раздувает стол на весь широкий монитор.
- * contain — стол целиком; HUD/поле той же ширины, что и картинка.
+ * ПК: бой — колонка по центру (не ультраширокий раздутый стол).
+ * cover внутри колонки ≈ 9:16 → арт не «растянут», рука не обрезается.
  * Телефон (≤720) не трогаем.
  */
 @media (min-width: 721px) {
   .battle {
-    background-size: contain;
+    width: min(100vw, 40rem);
+    margin-inline: auto;
+    background-size: cover;
     background-position: center center;
+    --board-card-w: 100px;
+    --board-card-h: 150px;
+    --hand-card-w: 80px;
+    --hand-card-h: 120px;
+    --linger-card-w: 58px;
+    --linger-card-h: 87px;
+    --battle-footer-h: 138px;
   }
 
   .board-lane > .row-label {
     text-align: center;
   }
 
-  /* Ширина = contain-стол 9:16 в высоту окна (без растяжки) */
   .battle-hint-row,
   .battle-footer,
   .board-shell,
   .board,
   .battle-bar {
-    width: min(100%, calc((100dvh - 0.65rem) * 9 / 16));
+    width: 100%;
     max-width: 100%;
-    margin-inline: auto;
+    margin-inline: 0;
+  }
+
+  .battle .board {
+    overflow-x: hidden;
   }
 }
 
