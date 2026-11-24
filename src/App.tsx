@@ -69,14 +69,12 @@ import {
   claimSchoolTrailGrandReward,
   prepareSchoolTrailBattle,
   resetSchoolTrailProgress,
-  rewardGiftLine,
   schoolTrailBattleDeck,
   schoolTrailDraft,
   schoolTrailEnemyHeroId,
   schoolTrailEnemyUpgrades,
   clearTrailIntroSeen,
   markTrailIntroSeen,
-  schoolTrailStep,
   shouldShowTrailIntro,
   trailVictoryLead,
   trailVictoryTitle,
@@ -1481,20 +1479,13 @@ export default function App() {
           giftLine: "Попробуй ещё раз — тропа ждёт",
         };
       }
-      const step = schoolTrailStep(fight.faction, fight.step);
       const applied = applySchoolTrailWin(ownedRef.current, fight.faction);
       saveOwned(applied.owned);
       setOwned(applied.owned);
       ownedRef.current = applied.owned;
-      const beat: SchoolTrailBeat = {
-        faction: fight.faction,
-        newlyCleared: applied.newlyCleared,
-        rewardCardId: applied.rewardCardId,
-        foeName: step?.foeName ?? applied.step.foeName,
-        wowHint: step?.wowHint ?? applied.step.wowHint,
-      };
-      trailBeatRef.current = beat;
-      setTrailBeat(beat);
+      // Награда только на слайде после боя — без второй «поясниловки» на карте.
+      trailBeatRef.current = null;
+      setTrailBeat(null);
       const t = token ?? getToken();
       if (t) {
         void apiUpdateMe(t, { owned: applied.owned }).then(({ user: me }) => {
@@ -1509,7 +1500,7 @@ export default function App() {
         goldReward: 0,
         diamondReward: 0,
         celebration: true,
-        resultEyebrow: `Путь оракула · флаг ${applied.newlyCleared}/5`,
+        resultEyebrow: `Флаг ${applied.newlyCleared}/5`,
         resultTitle: trailVictoryTitle(
           applied.newlyCleared,
           applied.rewardCardId,
@@ -1518,14 +1509,8 @@ export default function App() {
           fight.faction,
           applied.newlyCleared,
           applied.rewardCardId,
-          step?.wowHint,
         ),
-        giftLine: rewardGiftLine(
-          fight.faction,
-          applied.newlyCleared,
-          applied.rewardCardId,
-          step?.wowHint,
-        ),
+        giftLine: null,
         rewardCardId: applied.rewardCardId,
       };
     }

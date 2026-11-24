@@ -62,6 +62,8 @@ type Props = {
   manaCostOverride?: ManaCost;
   /** Уровень прокачки карты (1…3) — бейдж на арте. */
   upgradeLevel?: 1 | 2 | 3 | null;
+  /** Скрыть роспись ур.1–3 (бой / применение заклинания). */
+  hideUpgradePlan?: boolean;
   /** Сразу открыть описание (книга оракула и т.п.). */
   autoOpenDesc?: boolean;
   onDescClose?: () => void;
@@ -96,6 +98,7 @@ export function CardView({
   flippable = true,
   manaCostOverride,
   upgradeLevel = null,
+  hideUpgradePlan = false,
   autoOpenDesc = false,
   onDescClose,
   onClick,
@@ -471,71 +474,82 @@ export function CardView({
                     )}
                   </p>
                   {c.text ? <p className="card-desc-text">{c.text}</p> : null}
-                  {(() => {
-                    const plan = upgradePlanFor(c.id);
-                    const cur =
-                      upgradeLevel != null && upgradeLevel >= 1
-                        ? upgradeLevel
-                        : 1;
-                    const tone =
-                      cur >= 3 ? "is-lv-3" : cur === 2 ? "is-lv-2" : "is-lv-1";
-                    if (!plan) return null;
-                    const face = creatureFaceStats(c.id, cur);
-                    const skill = syncPlanStatNumbers(
-                      upgradePlanBody(c.id, cur),
-                      face.atk,
-                      face.hp,
-                    );
-                    if (!skill) return null;
-                    return (
-                      <p className={`card-desc-level ${tone}`}>
-                        <span className="card-desc-level-line">
-                          Ур.{cur} — {skill}
-                        </span>
-                      </p>
-                    );
-                  })()}
-                  {(() => {
-                    const plan = upgradePlanFor(c.id);
-                    if (!plan) return null;
-                    const cur =
-                      upgradeLevel != null && upgradeLevel >= 1
-                        ? upgradeLevel
-                        : 1;
-                    return (
-                      <ul className="card-desc-upgrade-list" aria-label="Уровни">
-                        {(
-                          [
-                            [1, plan.l1],
-                            [2, plan.l2],
-                            [3, plan.l3],
-                          ] as const
-                        ).map(([lv, text]) => {
-                          const face = creatureFaceStats(c.id, lv);
-                          const synced = syncPlanStatNumbers(
-                            text,
-                            face.atk,
-                            face.hp,
-                          );
-                          return (
-                            <li
-                              key={lv}
-                              className={`card-desc-upgrade-item is-lv-${lv}${
-                                cur === lv ? " is-current" : ""
-                              }`}
-                            >
-                              <span className="card-desc-upgrade-lv">
-                                Ур.{lv}
-                              </span>
-                              <span className="card-desc-upgrade-txt">
-                                {synced}
-                              </span>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    );
-                  })()}
+                  {!hideUpgradePlan
+                    ? (() => {
+                        const plan = upgradePlanFor(c.id);
+                        const cur =
+                          upgradeLevel != null && upgradeLevel >= 1
+                            ? upgradeLevel
+                            : 1;
+                        const tone =
+                          cur >= 3
+                            ? "is-lv-3"
+                            : cur === 2
+                              ? "is-lv-2"
+                              : "is-lv-1";
+                        if (!plan) return null;
+                        const face = creatureFaceStats(c.id, cur);
+                        const skill = syncPlanStatNumbers(
+                          upgradePlanBody(c.id, cur),
+                          face.atk,
+                          face.hp,
+                        );
+                        if (!skill) return null;
+                        return (
+                          <p className={`card-desc-level ${tone}`}>
+                            <span className="card-desc-level-line">
+                              Ур.{cur} — {skill}
+                            </span>
+                          </p>
+                        );
+                      })()
+                    : null}
+                  {!hideUpgradePlan
+                    ? (() => {
+                        const plan = upgradePlanFor(c.id);
+                        if (!plan) return null;
+                        const cur =
+                          upgradeLevel != null && upgradeLevel >= 1
+                            ? upgradeLevel
+                            : 1;
+                        return (
+                          <ul
+                            className="card-desc-upgrade-list"
+                            aria-label="Уровни"
+                          >
+                            {(
+                              [
+                                [1, plan.l1],
+                                [2, plan.l2],
+                                [3, plan.l3],
+                              ] as const
+                            ).map(([lv, text]) => {
+                              const face = creatureFaceStats(c.id, lv);
+                              const synced = syncPlanStatNumbers(
+                                text,
+                                face.atk,
+                                face.hp,
+                              );
+                              return (
+                                <li
+                                  key={lv}
+                                  className={`card-desc-upgrade-item is-lv-${lv}${
+                                    cur === lv ? " is-current" : ""
+                                  }`}
+                                >
+                                  <span className="card-desc-upgrade-lv">
+                                    Ур.{lv}
+                                  </span>
+                                  <span className="card-desc-upgrade-txt">
+                                    {synced}
+                                  </span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        );
+                      })()
+                    : null}
                   {marks.length > 0 && (
                     <ul className="card-desc-effects">
                       {marks.map((m) => (

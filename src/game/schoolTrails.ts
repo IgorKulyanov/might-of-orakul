@@ -440,6 +440,18 @@ export function schoolTrailTitle(faction: Faction): string {
   return names[faction];
 }
 
+/** Винительный: «Добро пожаловать на Тропу Природы». */
+export function schoolTrailTitleAccusative(faction: Faction): string {
+  const names: Record<Faction, string> = {
+    death: "Тропу Смерти",
+    nature: "Тропу Природы",
+    water: "Тропу Воды",
+    life: "Тропу Жизни",
+    hell: "Тропу Ада",
+  };
+  return names[faction];
+}
+
 /** Родительный падеж школы: «сила школы Воды». */
 export function schoolTrailPowerName(faction: Faction): string {
   const names: Record<Faction, string> = {
@@ -656,40 +668,24 @@ export function applySchoolTrailWin(
   };
 }
 
-export function rewardCardRole(newlyCleared: number): string {
-  if (newlyCleared === 1) {
-    return "доп. мана школы — в руке на следующем флаге";
-  }
-  if (newlyCleared === 2) {
-    return "первый юнит школы — бери в бой сразу";
-  }
-  if (newlyCleared === 3) {
-    return "магия школы — без неё дальше тяжело";
-  }
-  if (newlyCleared === 4) {
-    return "второй юнит — к 5-му флагу мини-колода школы полная";
-  }
-  return "в мини-колоду этой школы";
+export function rewardCardRole(_newlyCleared: number): string {
+  return "";
 }
 
 export function rewardGiftLine(
-  faction: Faction,
-  newlyCleared: number,
+  _faction: Faction,
+  _newlyCleared: number,
   rewardCardId: string | null,
-  wowHint?: string,
+  _wowHint?: string,
 ): string {
   if (rewardCardId) {
     try {
-      const name = getCard(rewardCardId).name;
-      return `Теперь у тебя «${name}» — ${rewardCardRole(newlyCleared)}`;
+      return getCard(rewardCardId).name;
     } catch {
-      return `Теперь у тебя новая карта тропы (${newlyCleared}/5)`;
+      return "новую карту";
     }
   }
-  return (
-    wowHint ??
-    `Флаг ${newlyCleared}/5 на тропе «${schoolTrailTitle(faction)}». Вернись на карту — следующий рубеж ждёт.`
-  );
+  return "";
 }
 
 /** Заголовок экрана победы тропы. */
@@ -697,42 +693,28 @@ export function trailVictoryTitle(
   newlyCleared: number,
   rewardCardId: string | null,
 ): string {
-  if (rewardCardId) {
-    try {
-      return `Теперь у тебя «${getCard(rewardCardId).name}»`;
-    } catch {
-      return "Новая карта тропы";
-    }
-  }
-  if (newlyCleared >= SCHOOL_TRAIL_STEPS) return "Тропа пройдена";
-  return `Флаг ${newlyCleared} из ${SCHOOL_TRAIL_STEPS}`;
+  if (rewardCardId) return "Поздравляем!";
+  if (newlyCleared >= SCHOOL_TRAIL_STEPS) return "Тропа пройдена!";
+  return `Флаг ${newlyCleared}/${SCHOOL_TRAIL_STEPS}`;
 }
 
 export function trailVictoryLead(
-  faction: Faction,
+  _faction: Faction,
   newlyCleared: number,
   rewardCardId: string | null,
-  wowHint?: string,
+  _wowHint?: string,
 ): string {
-  const trail = schoolTrailTitle(faction);
   if (rewardCardId) {
     try {
-      const name = getCard(rewardCardId).name;
-      return `«${name}» уже в твоей руке на следующих боях «${trail}». Вернись на карту, переведи дух — и бери следующий флажок.`;
+      return `Вы получаете карту «${getCard(rewardCardId).name}»`;
     } catch {
-      /* fallthrough */
+      return "Вы получаете карту";
     }
   }
   if (newlyCleared >= SCHOOL_TRAIL_STEPS) {
-    return (
-      wowHint ??
-      `«${trail}» закрыта. Можно выбрать оракула в сердце мира или пройти другую землю.`
-    );
+    return "Школа пройдена. Можно выбрать оракула.";
   }
-  return (
-    wowHint ??
-    `Рубеж взят (${newlyCleared}/${SCHOOL_TRAIL_STEPS}). На карте уже открыт следующий флажок — с более жёстким составом.`
-  );
+  return "";
 }
 
 function cardNamesLine(ids: (string | null | undefined)[]): string {

@@ -900,6 +900,7 @@ function BoardCard({
             ? defaultUpgradeLevel(creature.cardId)
             : null)
         }
+        hideUpgradePlan
         flippable
         onClick={onClick}
       />
@@ -4416,6 +4417,7 @@ export function Battle({
                     selected={!busy && state.selectedHand === i}
                     manaCostOverride={battleManaCost(state, id)}
                     upgradeLevel={upgradeLvFor(state, "you", id)}
+                    hideUpgradePlan
                   />
                 </div>
               );
@@ -4504,7 +4506,12 @@ export function Battle({
           }}
           aria-hidden
         >
-          <CardView cardId={handDrag.cardId} compact flippable={false} />
+          <CardView
+            cardId={handDrag.cardId}
+            compact
+            flippable={false}
+            hideUpgradePlan
+          />
         </div>
       ) : null}
 
@@ -4515,8 +4522,12 @@ export function Battle({
           <div className="spell-reveal-label">
             {fx.side === "enemy" ? "Враг колдует" : "Ты колдуешь"}
           </div>
-          <CardView cardId={fx.cardId} compact flippable={false} />
-          <p className="spell-reveal-text">{tryGetCard(fx.cardId)!.text}</p>
+          <CardView
+            cardId={fx.cardId}
+            compact
+            flippable={false}
+            hideUpgradePlan
+          />
         </div>
       )}
 
@@ -4593,12 +4604,8 @@ export function Battle({
                       cardId={reward.rewardCardId}
                       compact
                       flippable={false}
+                      hideUpgradePlan
                     />
-                    {reward.giftLine ? (
-                      <p className="battle-reward-card-caption">
-                        {reward.giftLine}
-                      </p>
-                    ) : null}
                   </div>
                 ) : reward.giftLine ? (
                   <div className="battle-reward-chip gift">

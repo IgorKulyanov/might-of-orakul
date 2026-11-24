@@ -14,7 +14,6 @@ import {
   formatSchoolTrailFlagLayoutTs,
   loadSchoolTrailFlagLayout,
   saveSchoolTrailFlagLayout,
-  rewardCardRole,
   schoolTrailCleared,
   schoolTrailDraft,
   schoolTrailFoeLine,
@@ -766,59 +765,35 @@ export function SchoolTrailsScreen({
               {schoolTrailTitle(trailBeat.faction)} · пауза · флаг{" "}
               {trailBeat.newlyCleared}/{SCHOOL_TRAIL_STEPS}
             </p>
-            <h2>
-              {trailBeat.newlyCleared >= SCHOOL_TRAIL_STEPS
-                ? `Школа «${schoolTrailTitle(trailBeat.faction)}» пройдена!`
-                : trailBeat.rewardCardId
-                  ? `Теперь у тебя «${cardName(trailBeat.rewardCardId)}»`
-                  : `Флаг ${trailBeat.newlyCleared} взят`}
-            </h2>
-            {trailBeat.newlyCleared >= SCHOOL_TRAIL_STEPS ? (
-              <p className="campaign-preview-story">
-                Поздравляем с окончанием этой школы магии. Теперь можно выбрать
-                оракула школы «{schoolTrailTitle(trailBeat.faction)}». Оракула
-                потом сменить нельзя.
-              </p>
-            ) : null}
+            <h2>Поздравляем!</h2>
             {trailBeat.rewardCardId ? (
               <div className="trail-beat-card">
+                <p className="campaign-preview-story">
+                  Вы получаете карту «{cardName(trailBeat.rewardCardId)}»
+                </p>
                 <div className="trail-beat-card-view">
                   <CardView
                     cardId={trailBeat.rewardCardId}
                     compact
                     flippable={false}
+                    hideUpgradePlan
                   />
                 </div>
-                <p className="hint">{rewardCardRole(trailBeat.newlyCleared)}</p>
-                {(() => {
-                  try {
-                    return (
-                      <p className="campaign-preview-story">
-                        {getCard(trailBeat.rewardCardId!).text}
-                      </p>
-                    );
-                  } catch {
-                    return null;
-                  }
-                })()}
               </div>
             ) : (
               <p className="campaign-preview-story">
-                {trailBeat.wowHint ||
-                  "Рубеж пройден. Переведи дух — следующий флаг ждёт на карте."}
+                {trailBeat.newlyCleared >= SCHOOL_TRAIL_STEPS
+                  ? "Школа пройдена."
+                  : `Флаг ${trailBeat.newlyCleared} взят.`}
               </p>
             )}
-            <p className="hint">
-              Свергнут: {trailBeat.foeName}. Следующий бой — только когда сам
-              откроешь следующий флажок.
-            </p>
             <div className="campaign-preview-actions">
               <button
                 type="button"
                 className="primary large"
                 onClick={() => onDismissTrailBeat?.()}
               >
-                На карту — перевести дух
+                Забрать награду
               </button>
             </div>
           </div>

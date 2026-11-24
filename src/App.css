@@ -7882,10 +7882,27 @@ html.is-hand-dragging .oracle-folio {
 .trail-intro-stage {
   background-position: center center;
   background-size: cover;
+  cursor: pointer;
 }
 
-.trail-intro-screen .prologue-copy {
+.trail-intro-veil {
+  background: linear-gradient(
+    180deg,
+    rgba(8, 10, 14, 0.15) 0%,
+    rgba(8, 10, 14, 0.35) 55%,
+    rgba(8, 10, 14, 0.88) 100%
+  ) !important;
+}
+
+.trail-intro-screen .prologue-copy,
+.trail-intro-copy {
   max-width: 28rem;
+}
+
+.trail-intro-eyebrow {
+  margin: 0.5rem 0 0;
+  opacity: 0.75;
+  text-align: center;
 }
 
 .prologue-stage {
