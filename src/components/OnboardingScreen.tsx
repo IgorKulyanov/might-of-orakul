@@ -99,10 +99,14 @@ export function OnboardingScreen({
 
   return (
     <div className="onboard-screen">
-      <header className="page-bar">
+      <header className="page-bar onboard-page-bar">
         {afterTrails && onBack ? (
-          <button type="button" className="ghost" onClick={onBack}>
-            ← К тропам
+          <button
+            type="button"
+            className="ghost large onboard-back-trails"
+            onClick={onBack}
+          >
+            ← Назад к тропам
           </button>
         ) : (
           <span />

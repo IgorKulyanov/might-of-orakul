@@ -1851,6 +1851,7 @@ export default function App() {
           owned={owned}
           initialName={displayName}
           afterTrails
+          onBack={() => setScreen("school_trails")}
           onComplete={finishOnboarding}
         />
       );
