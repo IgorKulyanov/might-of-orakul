@@ -501,26 +501,51 @@ export function schoolTrailFinaleBody(faction: Faction): string {
   );
 }
 
-/** Финальная заставка после 5/5 тропы школы. */
-export const SCHOOL_TRAIL_FINALE_ART: Record<Faction, string> = {
-  death: "/trails/finale/death.png?v=1",
-  nature: "/trails/finale/nature.png?v=1",
-  water: "/trails/finale/water.png?v=1",
-  life: "/trails/finale/life.png?v=1",
-  hell: "/trails/finale/hell.png?v=1",
-};
+const TRAIL_FINALE_SEEN_KEY = "orakul-trail-finale-seen-v1";
 
-export function schoolTrailFinaleArt(faction: Faction): string {
-  return SCHOOL_TRAIL_FINALE_ART[faction];
+export function hasSeenTrailFinale(faction: Faction): boolean {
+  try {
+    const raw = localStorage.getItem(TRAIL_FINALE_SEEN_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw) as Partial<Record<Faction, boolean>>;
+    return Boolean(parsed?.[faction]);
+  } catch {
+    return false;
+  }
 }
 
-export function schoolTrailFinaleBody(faction: Faction): string {
-  const power = schoolTrailPowerName(faction);
-  return (
-    `Вы достойны стать оракулом школы ${power}. ` +
-    `Вам будет доступна одна дополнительная мана ${power} за ход ` +
-    `и набор уникальных умений с ростом уровня Оракула.`
-  );
+export function markTrailFinaleSeen(faction: Faction): void {
+  try {
+    const raw = localStorage.getItem(TRAIL_FINALE_SEEN_KEY);
+    const parsed =
+      raw && typeof raw === "string"
+        ? (JSON.parse(raw) as Partial<Record<Faction, boolean>>)
+        : {};
+    parsed[faction] = true;
+    localStorage.setItem(TRAIL_FINALE_SEEN_KEY, JSON.stringify(parsed));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function clearTrailFinaleSeen(): void {
+  try {
+    localStorage.removeItem(TRAIL_FINALE_SEEN_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Первая пройденная школа без показанной заставки — или null. */
+export function pendingUnseenTrailFinale(
+  owned: OwnedState,
+): Faction | null {
+  for (const faction of SCHOOL_TRAIL_FACTIONS) {
+    if (schoolTrailComplete(owned, faction) && !hasSeenTrailFinale(faction)) {
+      return faction;
+    }
+  }
+  return null;
 }
 
 const TRAIL_INTRO_SEEN_KEY = "orakul-trail-intro-seen-v1";

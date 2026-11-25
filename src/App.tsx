@@ -73,8 +73,11 @@ import {
   schoolTrailDraft,
   schoolTrailEnemyHeroId,
   schoolTrailEnemyUpgrades,
+  clearTrailFinaleSeen,
   clearTrailIntroSeen,
+  markTrailFinaleSeen,
   markTrailIntroSeen,
+  pendingUnseenTrailFinale,
   SCHOOL_TRAIL_STEPS,
   shouldShowTrailIntro,
   trailVictoryLead,
@@ -817,6 +820,8 @@ export default function App() {
     step: number;
     id: string;
   } | null>(null);
+  const trailFightRef = useRef(trailFight);
+  trailFightRef.current = trailFight;
   /** Вступление перед 1-м флагом — после слайдов открывается карточка «В бой». */
   const [pendingTrailFight, setPendingTrailFight] = useState<{
     faction: Faction;
@@ -833,6 +838,42 @@ export default function App() {
     null,
   );
   const pendingTrailFinaleRef = useRef<Faction | null>(null);
+
+  const openTrailFinale = (faction: Faction) => {
+    pendingTrailFinaleRef.current = faction;
+    setPendingTrailFinale(faction);
+    setScreen("trail_finale");
+  };
+
+  const clearTrailFinale = () => {
+    pendingTrailFinaleRef.current = null;
+    setPendingTrailFinale(null);
+  };
+
+  /** Выход из боя тропы → финал школы (если 5/5), иначе карта. */
+  const leaveSchoolTrailBattle = () => {
+    setTrailFight(null);
+    const finale = pendingTrailFinaleRef.current;
+    if (finale) {
+      openTrailFinale(finale);
+      return;
+    }
+    setScreen("school_trails");
+  };
+
+  // 5/5 уже есть, а заставку не видели — показать при входе на карту троп
+  useEffect(() => {
+    if (boot) return;
+    if (screen !== "school_trails") return;
+    if (pendingTrailFinaleRef.current) {
+      setPendingTrailFinale(pendingTrailFinaleRef.current);
+      setScreen("trail_finale");
+      return;
+    }
+    const unseen = pendingUnseenTrailFinale(ownedRef.current);
+    if (unseen) openTrailFinale(unseen);
+  }, [boot, screen, owned.schoolTrailCleared]);
+
   /** Пауза после победы на тропе — пока открыта, следующий бой нельзя. */
   const [trailBeat, setTrailBeat] = useState<SchoolTrailBeat | null>(null);
   const trailBeatRef = useRef<SchoolTrailBeat | null>(null);
@@ -1482,7 +1523,7 @@ export default function App() {
     }
     // Тропы вкуса: без XP/лута, только прогресс шага
     if (screenRef.current === "battle_school_trail") {
-      const fight = trailFight;
+      const fight = trailFightRef.current;
       if (!won || !fight) {
         return {
           won: false,
@@ -1500,7 +1541,11 @@ export default function App() {
       // Награда только на слайде после боя — без второй «поясниловки» на карте.
       trailBeatRef.current = null;
       setTrailBeat(null);
-      if (applied.newlyCleared >= SCHOOL_TRAIL_STEPS) {
+      // 5-й флаг (step 0..4) или cleared дошёл до 5 — заставка после «Забрать награду»
+      if (
+        fight.step >= SCHOOL_TRAIL_STEPS - 1 ||
+        applied.newlyCleared >= SCHOOL_TRAIL_STEPS
+      ) {
         pendingTrailFinaleRef.current = fight.faction;
         setPendingTrailFinale(fight.faction);
       }
@@ -1829,8 +1874,8 @@ export default function App() {
         <TrailFinaleScreen
           faction={pendingTrailFinale}
           onDone={() => {
-            pendingTrailFinaleRef.current = null;
-            setPendingTrailFinale(null);
+            markTrailFinaleSeen(pendingTrailFinale);
+            clearTrailFinale();
             setScreen("school_trails");
           }}
         />
@@ -1869,15 +1914,7 @@ export default function App() {
           resultExitLabel={(won) =>
             won ? "Забрать награду" : "На карту"
           }
-          onExit={() => {
-            setTrailFight(null);
-            if (pendingTrailFinaleRef.current) {
-              setPendingTrailFinale(pendingTrailFinaleRef.current);
-              setScreen("trail_finale");
-              return;
-            }
-            setScreen("school_trails");
-          }}
+          onExit={leaveSchoolTrailBattle}
           onBattleEnd={onBattleEnd}
         />
       );
@@ -1915,9 +1952,9 @@ export default function App() {
       setTrailFight(null);
       setPendingTrailFight(null);
       setTrailFightConfirm(null);
-      pendingTrailFinaleRef.current = null;
-      setPendingTrailFinale(null);
+      clearTrailFinale();
       clearTrailIntroSeen();
+      clearTrailFinaleSeen();
       persistOwnedPatch(next);
     };
 
@@ -1991,8 +2028,8 @@ export default function App() {
       <TrailFinaleScreen
         faction={pendingTrailFinale}
         onDone={() => {
-          pendingTrailFinaleRef.current = null;
-          setPendingTrailFinale(null);
+          markTrailFinaleSeen(pendingTrailFinale);
+          clearTrailFinale();
           setScreen("school_trails");
         }}
       />
@@ -2031,15 +2068,7 @@ export default function App() {
         resultExitLabel={(won) =>
           won ? "Забрать награду" : "На карту"
         }
-        onExit={() => {
-          setTrailFight(null);
-          if (pendingTrailFinaleRef.current) {
-            setPendingTrailFinale(pendingTrailFinaleRef.current);
-            setScreen("trail_finale");
-            return;
-          }
-          setScreen("school_trails");
-        }}
+        onExit={leaveSchoolTrailBattle}
         onBattleEnd={onBattleEnd}
       />
     );
@@ -2084,9 +2113,9 @@ export default function App() {
           setTrailFight(null);
           setPendingTrailFight(null);
           setTrailFightConfirm(null);
-          pendingTrailFinaleRef.current = null;
-          setPendingTrailFinale(null);
+          clearTrailFinale();
           clearTrailIntroSeen();
+          clearTrailFinaleSeen();
           saveOwned(next);
           setOwned(next);
           ownedRef.current = next;
