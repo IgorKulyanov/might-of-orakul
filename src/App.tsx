@@ -324,42 +324,20 @@ function explicitHomeFaction(
   return undefined;
 }
 
-function seekerOwnedFromTrails(
-  serverOwned: OwnedState | null | undefined,
-  localOwned: OwnedState | null | undefined,
-): OwnedState {
-  const blank = blankOnboardingOwned();
-  return {
-    ...blank,
-    homeFaction: undefined,
-    heroId: "hero_life",
-    schoolTrailCleared: mergeTrailClearedMaps(
-      localOwned?.schoolTrailCleared,
-      serverOwned?.schoolTrailCleared,
-    ),
-    schoolTrailWins: Math.max(
-      Math.floor(Number(localOwned?.schoolTrailWins) || 0),
-      Math.floor(Number(serverOwned?.schoolTrailWins) || 0),
-    ),
-    schoolTrailDrafts: mergeTrailDraftMaps(
-      localOwned?.schoolTrailDrafts,
-      serverOwned?.schoolTrailDrafts,
-    ),
-    schoolTrailGrandRewardClaimed: Boolean(
-      localOwned?.schoolTrailGrandRewardClaimed ||
-        serverOwned?.schoolTrailGrandRewardClaimed,
-    ),
-    gold: Math.max(
-      Math.floor(Number(blank.gold) || 0),
-      Math.floor(Number(serverOwned?.gold) || 0),
-      Math.floor(Number(localOwned?.gold) || 0),
-    ),
-    diamonds: Math.max(
-      Math.floor(Number(blank.diamonds) || 0),
-      Math.floor(Number(serverOwned?.diamonds) || 0),
-      Math.floor(Number(localOwned?.diamonds) || 0),
-    ),
-  };
+/** Админ «В тропы школ»: чистый искатель, мир с нуля (логин/ник на сервере). */
+function freshSeekerAfterBackToTrails(user: ApiUser): OwnedState {
+  if (user.login) clearOwnedBackup(user.login);
+  clearActiveOwned();
+  clearTrailIntroSeen();
+  clearTrailFinaleSeen();
+  const next = blankOnboardingOwned();
+  saveOwned(next);
+  if (user.login) {
+    backupOwnedForLogin(user.login, next);
+    const wipeId = Math.max(0, Math.floor(Number(user.ownedWipeId) || 0));
+    if (wipeId > 0) writeWipeSeen(user.login, wipeId);
+  }
+  return next;
 }
 
 function mergeOwnedFromServer(user: ApiUser): OwnedState {
@@ -369,16 +347,9 @@ function mergeOwnedFromServer(user: ApiUser): OwnedState {
     Boolean(user.owned?.homeFaction) ||
     hasOwnedProgress(user.owned as OwnedState);
 
-  // Админ вернул в тропы: локальный «В мир» сносим, флаги троп оставляем.
+  // Админ вернул в школы: мир/тропы/оракул обнулены, логин остаётся.
   if (user.pendingBackToTrails) {
-    const local = loadOwned();
-    const next = seekerOwnedFromTrails(user.owned as OwnedState, local);
-    saveOwned(next);
-    if (user.login) {
-      backupOwnedForLogin(user.login, next);
-      if (wipeId > 0) writeWipeSeen(user.login, wipeId);
-    }
-    return next;
+    return freshSeekerAfterBackToTrails(user);
   }
 
   // Любой wipe: чистый лист. Даже если сервер уже снова «толстый»
@@ -794,13 +765,24 @@ async function applyServerAdminFlags(
   const serverBlank =
     !user.owned?.homeFaction &&
     !(user.owned && hasOwnedProgress(user.owned as OwnedState));
-  // Админ: назад в тропы (без полного wipe).
+  // Админ: назад в школы — мир с нуля, ник/логин на сервере.
   if (user.pendingBackToTrails) {
-    const local = loadOwned();
-    const next = seekerOwnedFromTrails(user.owned as OwnedState, local);
-    saveOwned(next);
-    if (user.login) backupOwnedForLogin(user.login, next);
+    freshSeekerAfterBackToTrails(user);
+    setCampaignState(resetCampaignProgress());
+    setArenaState?.(resetArenaProgress());
+    try {
+      for (const k of Object.keys(localStorage)) {
+        if (
+          /^(orakul-arena|orakul-dailies|orakul-campaign|orakul-trail-)/i.test(k)
+        ) {
+          localStorage.removeItem(k);
+        }
+      }
+    } catch {
+      /* ignore */
+    }
     patch.clearPendingBackToTrails = true;
+    patch.clearPendingResetCampaign = true;
   } else if (
     user.pendingWipeOwned ||
     (wipeId > 0 && wipeId > wipeSeen && serverBlank)

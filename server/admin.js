@@ -444,8 +444,9 @@ export function mountAdminRoutes(app, deps) {
   );
 
   /**
-   * Снять выбор оракула («В мир») и вернуть в тропы школ.
-   * Прогресс троп (флаги/черновики) сохраняется.
+   * Вернуть в школы: логин/пароль/ник остаются.
+   * Мир обнуляется (уровень, оракул, апгрейды, осколки, кейс, тропы) —
+   * как будто только вошёл и попал на путь школ.
    */
   app.post(
     "/api/admin/back-to-trails",
@@ -466,23 +467,40 @@ export function mountAdminRoutes(app, deps) {
           const user = findUser(db, login);
           if (!user) return { missing: true };
           pushOwnedSnapshot(user, "before-back-to-trails");
-          const prev = user.owned && typeof user.owned === "object" ? user.owned : {};
-          const next = { ...prev };
-          delete next.homeFaction;
-          next.heroId = "hero_life";
-          // Тропы оставляем как были
-          user.owned = next;
+          // Чистый искатель: без школы/мира. Логин, пароль, displayName — не трогаем.
+          user.owned = {
+            unlocked: [],
+            collection: {},
+            decks: { starter: [] },
+            activeDeckId: "starter",
+            gold: 500,
+            diamonds: 25,
+            level: 1,
+            xp: 0,
+            purchased: [],
+            unlockedHeroes: [],
+            cardUpgrades: {},
+            cardShards: {},
+            oracleSkillsOwned: [],
+            oracleSkillLoadout: [],
+            schoolTrailCleared: {},
+            schoolTrailWins: 0,
+            schoolTrailDrafts: {},
+            schoolTrailGrandRewardClaimed: false,
+          };
           user.heroId = null;
+          user.pendingGrants = { gold: 0, diamonds: 0, cards: [] };
           user.pendingWipeOwned = false;
           user.pendingBackToTrails = true;
+          user.pendingResetCampaign = true;
           user.ownedWipeId =
             Math.max(0, Math.floor(Number(user.ownedWipeId) || 0)) + 1;
           persistLiveDb();
           return {
             login: user.login,
             displayName: user.displayName ?? null,
-            homeFaction: next.homeFaction ?? null,
-            cleared: next.schoolTrailCleared ?? {},
+            homeFaction: null,
+            level: 1,
             ownedWipeId: user.ownedWipeId,
           };
         });
@@ -492,7 +510,7 @@ export function mountAdminRoutes(app, deps) {
         }
         res.json({
           ok: true,
-          message: `Снова искатель: ${result.login} — обновить страницу. Тропы сохранены.`,
+          message: `«${result.login}» снова искатель с нуля (ник/логин сохранены). Мир обнулён — обновить страницу.`,
           ...result,
         });
       } catch (e) {
