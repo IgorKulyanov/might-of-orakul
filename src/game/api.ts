@@ -78,6 +78,8 @@ export type ApiUser = {
   dormant?: boolean;
   pendingResetCampaign?: boolean;
   pendingWipeOwned?: boolean;
+  /** Админ: снять «В мир», вернуть на тропы школ (прогресс троп сохранить). */
+  pendingBackToTrails?: boolean;
   /** Увеличивается при каждом полном wipe — клиент сбрасывает локальный сейв. */
   ownedWipeId?: number;
   pendingClearPvpBan?: boolean;
@@ -282,6 +284,7 @@ export function apiUpdateMe(
     owned?: OwnedState;
     clearPendingResetCampaign?: boolean;
     clearPendingWipeOwned?: boolean;
+    clearPendingBackToTrails?: boolean;
     clearPendingClearPvpBan?: boolean;
     pvpFlee?: {
       day: string;
@@ -668,6 +671,17 @@ export function apiAdminResetCampaign(adminKey: string, login: string) {
 export function apiAdminWipeOwned(adminKey: string, login: string) {
   return adminRequest<{ ok: boolean; message: string }>(
     "/api/admin/wipe-owned",
+    {
+      method: "POST",
+      adminKey,
+      body: JSON.stringify({ login }),
+    },
+  );
+}
+
+export function apiAdminBackToTrails(adminKey: string, login: string) {
+  return adminRequest<{ ok: boolean; message: string }>(
+    "/api/admin/back-to-trails",
     {
       method: "POST",
       adminKey,

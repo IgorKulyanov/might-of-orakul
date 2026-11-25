@@ -324,12 +324,63 @@ function explicitHomeFaction(
   return undefined;
 }
 
+function seekerOwnedFromTrails(
+  serverOwned: OwnedState | null | undefined,
+  localOwned: OwnedState | null | undefined,
+): OwnedState {
+  const blank = blankOnboardingOwned();
+  return {
+    ...blank,
+    homeFaction: undefined,
+    heroId: "hero_life",
+    schoolTrailCleared: mergeTrailClearedMaps(
+      localOwned?.schoolTrailCleared,
+      serverOwned?.schoolTrailCleared,
+    ),
+    schoolTrailWins: Math.max(
+      Math.floor(Number(localOwned?.schoolTrailWins) || 0),
+      Math.floor(Number(serverOwned?.schoolTrailWins) || 0),
+    ),
+    schoolTrailDrafts: mergeTrailDraftMaps(
+      localOwned?.schoolTrailDrafts,
+      serverOwned?.schoolTrailDrafts,
+    ),
+    schoolTrailGrandRewardClaimed: Boolean(
+      localOwned?.schoolTrailGrandRewardClaimed ||
+        serverOwned?.schoolTrailGrandRewardClaimed,
+    ),
+    gold: Math.max(
+      Math.floor(Number(blank.gold) || 0),
+      Math.floor(Number(serverOwned?.gold) || 0),
+      Math.floor(Number(localOwned?.gold) || 0),
+    ),
+    diamonds: Math.max(
+      Math.floor(Number(blank.diamonds) || 0),
+      Math.floor(Number(serverOwned?.diamonds) || 0),
+      Math.floor(Number(localOwned?.diamonds) || 0),
+    ),
+  };
+}
+
 function mergeOwnedFromServer(user: ApiUser): OwnedState {
   const wipeId = Math.max(0, Math.floor(Number(user.ownedWipeId) || 0));
   const wipeSeen = user.login ? readWipeSeen(user.login) : 0;
   const serverHasProgress =
     Boolean(user.owned?.homeFaction) ||
     hasOwnedProgress(user.owned as OwnedState);
+
+  // Админ вернул в тропы: локальный «В мир» сносим, флаги троп оставляем.
+  if (user.pendingBackToTrails) {
+    const local = loadOwned();
+    const next = seekerOwnedFromTrails(user.owned as OwnedState, local);
+    saveOwned(next);
+    if (user.login) {
+      backupOwnedForLogin(user.login, next);
+      if (wipeId > 0) writeWipeSeen(user.login, wipeId);
+    }
+    return next;
+  }
+
   // Любой wipe: чистый лист. Даже если сервер уже снова «толстый»
   // (старый клиент успел залить сейв) — новый wipeId важнее локали/бэкапа.
   if (
@@ -743,8 +794,17 @@ async function applyServerAdminFlags(
   const serverBlank =
     !user.owned?.homeFaction &&
     !(user.owned && hasOwnedProgress(user.owned as OwnedState));
-  // pendingWipe ИЛИ уже очищенный сервер при новом wipeId — снести локальное на этом устройстве.
-  if (user.pendingWipeOwned || (wipeId > 0 && wipeId > wipeSeen && serverBlank)) {
+  // Админ: назад в тропы (без полного wipe).
+  if (user.pendingBackToTrails) {
+    const local = loadOwned();
+    const next = seekerOwnedFromTrails(user.owned as OwnedState, local);
+    saveOwned(next);
+    if (user.login) backupOwnedForLogin(user.login, next);
+    patch.clearPendingBackToTrails = true;
+  } else if (
+    user.pendingWipeOwned ||
+    (wipeId > 0 && wipeId > wipeSeen && serverBlank)
+  ) {
     // wipeSeen пишем только в forceBlank/merge — иначе Math.max вернёт ур.
     clearActiveOwned();
     if (user.login) clearOwnedBackup(user.login);

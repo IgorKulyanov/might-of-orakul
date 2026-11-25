@@ -443,6 +443,65 @@ export function mountAdminRoutes(app, deps) {
     },
   );
 
+  /**
+   * Снять выбор оракула («В мир») и вернуть в тропы школ.
+   * Прогресс троп (флаги/черновики) сохраняется.
+   */
+  app.post(
+    "/api/admin/back-to-trails",
+    adminAuth,
+    rateLimitMiddleware({
+      name: "admin-back-to-trails",
+      maxN: 30,
+      windowMs: 60_000,
+    }),
+    async (req, res) => {
+      try {
+        const login = String(req.body?.login || "").trim();
+        if (!login) {
+          res.status(400).json({ error: "Укажи логин" });
+          return;
+        }
+        const result = await withDb((db) => {
+          const user = findUser(db, login);
+          if (!user) return { missing: true };
+          pushOwnedSnapshot(user, "before-back-to-trails");
+          const prev = user.owned && typeof user.owned === "object" ? user.owned : {};
+          const next = { ...prev };
+          delete next.homeFaction;
+          next.heroId = "hero_life";
+          // Тропы оставляем как были
+          user.owned = next;
+          user.heroId = null;
+          user.pendingWipeOwned = false;
+          user.pendingBackToTrails = true;
+          user.ownedWipeId =
+            Math.max(0, Math.floor(Number(user.ownedWipeId) || 0)) + 1;
+          persistLiveDb();
+          return {
+            login: user.login,
+            displayName: user.displayName ?? null,
+            homeFaction: next.homeFaction ?? null,
+            cleared: next.schoolTrailCleared ?? {},
+            ownedWipeId: user.ownedWipeId,
+          };
+        });
+        if (result.missing) {
+          res.status(404).json({ error: "Игрок не найден" });
+          return;
+        }
+        res.json({
+          ok: true,
+          message: `Снова искатель: ${result.login} — обновить страницу. Тропы сохранены.`,
+          ...result,
+        });
+      } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: "Не удалось вернуть в тропы" });
+      }
+    },
+  );
+
   /** Откат прогресса из серверного снимка (после wipe / сбоя). */
   app.post(
     "/api/admin/restore-owned",

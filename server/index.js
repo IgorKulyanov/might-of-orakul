@@ -411,6 +411,7 @@ function publicUser(u) {
     dormant: Boolean(u.dormant),
     pendingResetCampaign: Boolean(u.pendingResetCampaign),
     pendingWipeOwned: Boolean(u.pendingWipeOwned),
+    pendingBackToTrails: Boolean(u.pendingBackToTrails),
     ownedWipeId: Math.max(0, Math.floor(Number(u.ownedWipeId) || 0)),
     pendingClearPvpBan: Boolean(u.pendingClearPvpBan),
     pvpFlee: u.pvpFlee
@@ -1152,6 +1153,9 @@ app.put(
           user.heroId = null;
           // На всякий случай не оставляем старый ник после wipe.
           if (!user.owned?.homeFaction) user.displayName = null;
+        }
+        if (body.clearPendingBackToTrails) {
+          user.pendingBackToTrails = false;
         }
         if (body.clearPendingResetCampaign) {
           user.pendingResetCampaign = false;
