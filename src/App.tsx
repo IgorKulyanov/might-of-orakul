@@ -28,6 +28,7 @@ import {
   hasSeenPrologue,
   markPrologueSeen,
 } from "./game/prologue";
+import { resetBattleTutorial } from "./game/battleTutorial";
 import {
   hasSeenHubTutorial,
   HUB_TUTORIAL_TIPS,
@@ -337,6 +338,8 @@ function freshSeekerAfterBackToTrails(user: ApiUser): OwnedState {
   // Две заставки пролога снова с нуля (не выкидывать искателя сразу на карту).
   if (user.login) clearPrologueSeen(user.login);
   if (user.displayName) clearPrologueSeen(user.displayName);
+  // Обучение бою — снова на первом бое тропы.
+  resetBattleTutorial();
   const next = blankOnboardingOwned();
   saveOwned(next);
   if (user.login) {
@@ -780,7 +783,7 @@ async function applyServerAdminFlags(
     try {
       for (const k of Object.keys(localStorage)) {
         if (
-          /^(orakul-arena|orakul-dailies|orakul-campaign|orakul-trail-|orakul-prologue-seen:)/i.test(
+          /^(orakul-arena|orakul-dailies|orakul-campaign|orakul-trail-|orakul-prologue-seen:|orakul_battle_tutorial)/i.test(
             k,
           )
         ) {
@@ -1980,6 +1983,7 @@ export default function App() {
               trailDraft,
             )
           }
+          enableBattleTutorial
           allowRematch={false}
           exitPolicy="free"
           resultExitLabel={(won) =>
@@ -2134,6 +2138,7 @@ export default function App() {
             trailDraft,
           )
         }
+        enableBattleTutorial
         allowRematch={false}
         exitPolicy="free"
         resultExitLabel={(won) =>

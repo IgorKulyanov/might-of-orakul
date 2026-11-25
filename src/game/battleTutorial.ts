@@ -1,4 +1,11 @@
-const STORAGE_KEY = "orakul_battle_tutorial_v2";
+const STORAGE_KEY = "orakul_battle_tutorial_v3";
+const LEGACY_KEYS = [
+  "orakul_battle_tutorial_v1",
+  "orakul_battle_tutorial_v2",
+];
+
+/** Fallback, если localStorage не пишет. */
+const seenMemory = { value: false };
 
 export type BattleTutorialTip = {
   id: string;
@@ -8,85 +15,103 @@ export type BattleTutorialTip = {
   body: string;
 };
 
-/** Первый бой: по одному шагу, со стрелкой на нужное место. */
+/**
+ * Первый бой на тропе школы — один раз на аккаунт, любая школа.
+ * Дальше не повторяем.
+ */
 export const BATTLE_TUTORIAL_TIPS: BattleTutorialTip[] = [
   {
     id: "you-oracle",
     target: "you-oracle",
     title: "Твой оракул",
-    body: "Это ты. Картинка героя внизу — твой оракул. Если его жизни закончатся — ты проиграл.",
-  },
-  {
-    id: "you-hp",
-    target: "you-hp",
-    title: "Жизни",
-    body: "Вот твои HP. Враг бьёт сюда, когда линия свободна или лучником. Следи за числом.",
-  },
-  {
-    id: "you-mana",
-    target: "you-mana",
-    title: "Мана",
-    body: "Цветные фишки — мана школ. Своя школа растёт каждый твой ход. Карта тратит ману того цвета, что на ней написан.",
+    body: "Внизу — ты. Если жизни оракула упадут до нуля — бой проигран. Береги его.",
   },
   {
     id: "enemy-oracle",
     target: "enemy-oracle",
     title: "Враг",
-    body: "Сверху — оракул соперника. Цель дуэли: снять его HP до нуля.",
+    body: "Сверху — оракул соперника. Цель боя: снять его жизни раньше, чем он снимет твои.",
+  },
+  {
+    id: "you-mana",
+    target: "you-mana",
+    title: "Мана",
+    body: "Цветные фишки — мана школ. Каждый твой ход своя школа подрастает. Карта тратит ману того цвета, что на ней.",
   },
   {
     id: "board",
     target: "your-board",
     title: "Поле",
-    body: "Сюда ставишь существ — в пустую клетку со знаком +. До пяти карт в ряд.",
+    body: "Сюда ставишь существ — в пустую клетку. До пяти карт в ряд. Они бьют и прикрывают оракула.",
   },
   {
     id: "hand",
     target: "hand",
     title: "Рука",
-    body: "Карты внизу — твоя рука. Кликни карту, потом клетку (существо) или цель (заклинание).",
+    body: "Карты внизу — рука. Кликни карту, потом клетку (существо) или цель (заклинание).",
   },
   {
-    id: "card-cost",
+    id: "card-stats",
     target: "hand-card",
-    title: "Цена карты",
-    body: "Слева сверху на карте — сколько маны нужно. Числа у существа — атака / жизни.",
+    title: "Числа на карте",
+    body: "Слева сверху — цена в мане. У существа справа: атака / жизни. Значок ⚔ или 🏹 — тип удара.",
+  },
+  {
+    id: "card-read",
+    target: "card-flip",
+    title: "Открыть карту",
+    body: "Жми кнопку ↻ на карте — откроется большое окно со всеми свойствами и текстом способности. Так изучай незнакомые карты.",
+  },
+  {
+    id: "melee",
+    target: "your-board",
+    title: "Ближний бой",
+    body: "⚔ Ближники бьют напротив — в ту же колонку. Если перед ними стоит враг, бьют его; если ряд пуст — могут достать до оракула.",
+  },
+  {
+    id: "ranged",
+    target: "your-board",
+    title: "Дальний бой",
+    body: "🏹 Лучники бьют на любую клетку поля или прямо в оракула. Их не останавливает «стена» в своей колонке — цель выбираешь сам.",
   },
   {
     id: "attack",
     target: "your-board",
-    title: "Удар",
-    body: "Существо с зелёной рамкой готово бить: кликни его, потом красную цель. Лучник бьёт любую клетку или героя.",
+    title: "Как ударить",
+    body: "Существо с зелёной рамкой готово: кликни его, потом красную цель. Один удар за ход с карты (если способность не говорит иначе).",
   },
   {
     id: "end-turn",
     target: "end-turn",
     title: "Конец хода",
-    body: "Сходил — жми «Конец хода». Ход перейдёт врагу, потом снова тебе: мана подрастёт и добор карты.",
+    body: "Сходил — жми «Конец хода». Ход врагу, потом снова тебе: мана подрастёт и добор карты.",
   },
 ];
 
 export function hasSeenBattleTutorial(): boolean {
+  if (seenMemory.value) return true;
   try {
     return localStorage.getItem(STORAGE_KEY) === "1";
   } catch {
-    return true;
+    return seenMemory.value;
   }
 }
 
 export function markBattleTutorialSeen(): void {
+  seenMemory.value = true;
   try {
     localStorage.setItem(STORAGE_KEY, "1");
   } catch {
-    /* private mode */
+    /* private mode — память сессии уже отмечена */
   }
 }
 
-/** Для QA / сброса. */
+/** Для QA / сброса / админ «в тропы школ». */
 export function resetBattleTutorial(): void {
+  seenMemory.value = false;
   try {
     localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem("orakul_battle_tutorial_v1");
+    for (const k of LEGACY_KEYS) localStorage.removeItem(k);
   } catch {
     /* ignore */
   }

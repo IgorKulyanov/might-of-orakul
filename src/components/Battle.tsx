@@ -230,6 +230,11 @@ type Props = {
   onBattleEnd?: (won: boolean) => BattleEndInfo | void;
   /** Перед поражением из‑за выхода (тропа/арена). */
   onForfeitExit?: () => void;
+  /**
+   * Обучение бою — только первый бой тропы школ (один раз на аккаунт).
+   * В PvP / хабе / арене не включаем.
+   */
+  enableBattleTutorial?: boolean;
 };
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -982,6 +987,7 @@ export function Battle({
   onExit,
   onBattleEnd,
   onForfeitExit,
+  enableBattleTutorial = false,
 }: Props) {
   const bootBattle = () => {
     if (externalState) return externalState;
@@ -1190,9 +1196,9 @@ export function Battle({
       clearHandDragLock();
     };
   }, []);
-  /** Подсказки первого боя — в PvP не мешаем дуэли. */
+  /** Подсказки первого боя на тропе школы — один раз, любая школа. */
   const [tutorialStep, setTutorialStep] = useState<number | null>(() =>
-    network || hasSeenBattleTutorial() ? null : 0,
+    network || !enableBattleTutorial || hasSeenBattleTutorial() ? null : 0,
   );
   const [tutorialSpot, setTutorialSpot] = useState<{
     top: number;
@@ -1455,10 +1461,14 @@ export function Battle({
       let el = document.querySelector(
         `[data-tut="${tip.target}"]`,
       ) as HTMLElement | null;
-      if (!el && tip.target === "hand-card") {
-        el = document.querySelector(
-          `[data-tut="hand"]`,
-        ) as HTMLElement | null;
+      if (!el && (tip.target === "hand-card" || tip.target === "card-flip")) {
+        el =
+          (document.querySelector(
+            `[data-tut="hand-card"]`,
+          ) as HTMLElement | null) ||
+          (document.querySelector(
+            `[data-tut="hand"]`,
+          ) as HTMLElement | null);
       }
       if (!el) {
         setTutorialSpot(null);
@@ -4434,6 +4444,7 @@ export function Battle({
                     manaCostOverride={battleManaCost(state, id)}
                     upgradeLevel={upgradeLvFor(state, "you", id)}
                     hideUpgradePlan
+                    tutFlip={i === 0 ? "card-flip" : undefined}
                   />
                 </div>
               );
@@ -4715,8 +4726,8 @@ export function Battle({
           const tip = BATTLE_TUTORIAL_TIPS[tutorialStep]!;
           const vw = typeof window !== "undefined" ? window.innerWidth : 800;
           const vh = typeof window !== "undefined" ? window.innerHeight : 600;
-          const cardW = Math.min(360, vw - 24);
-          const cardH = 210;
+          const cardW = Math.min(400, vw - 24);
+          const cardH = 240;
           const gap = 36;
           let cardTop = vh / 2 - cardH / 2;
           let cardLeft = (vw - cardW) / 2;

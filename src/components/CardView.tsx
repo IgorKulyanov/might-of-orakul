@@ -68,6 +68,8 @@ type Props = {
   autoOpenDesc?: boolean;
   onDescClose?: () => void;
   onClick?: () => void;
+  /** data-tut на кнопке ↻ — для обучения «открыть карту». */
+  tutFlip?: string;
 };
 
 type EffectMark = {
@@ -102,6 +104,7 @@ export function CardView({
   autoOpenDesc = false,
   onDescClose,
   onClick,
+  tutFlip,
 }: Props) {
   const c = card ?? (cardId ? getCard(cardId) : null);
   const [showDesc, setShowDesc] = useState(autoOpenDesc);
@@ -405,6 +408,7 @@ export function CardView({
             title="Изучить свойства"
             aria-label={`Описание: ${c.name}`}
             draggable={false}
+            data-tut={tutFlip || undefined}
             onMouseDown={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={openDesc}
