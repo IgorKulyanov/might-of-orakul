@@ -7913,6 +7913,11 @@ html.is-hand-dragging .oracle-folio {
   max-width: 28rem;
 }
 
+.trail-finale-screen .prologue-title {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 .trail-intro-eyebrow {
   margin: 0.5rem 0 0;
   opacity: 0.75;

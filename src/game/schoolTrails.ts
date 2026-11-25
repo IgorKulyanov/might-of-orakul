@@ -479,6 +479,50 @@ export function schoolTrailIntroArt(faction: Faction): string {
   return SCHOOL_TRAIL_INTRO_ART[faction];
 }
 
+/** Финальная заставка после 5/5 тропы школы. */
+export const SCHOOL_TRAIL_FINALE_ART: Record<Faction, string> = {
+  death: "/trails/finale/death.png?v=1",
+  nature: "/trails/finale/nature.png?v=1",
+  water: "/trails/finale/water.png?v=1",
+  life: "/trails/finale/life.png?v=1",
+  hell: "/trails/finale/hell.png?v=1",
+};
+
+export function schoolTrailFinaleArt(faction: Faction): string {
+  return SCHOOL_TRAIL_FINALE_ART[faction];
+}
+
+export function schoolTrailFinaleBody(faction: Faction): string {
+  const power = schoolTrailPowerName(faction);
+  return (
+    `Вы достойны стать оракулом школы ${power}. ` +
+    `Вам будет доступна одна дополнительная мана ${power} за ход ` +
+    `и набор уникальных умений с ростом уровня Оракула.`
+  );
+}
+
+/** Финальная заставка после 5/5 тропы школы. */
+export const SCHOOL_TRAIL_FINALE_ART: Record<Faction, string> = {
+  death: "/trails/finale/death.png?v=1",
+  nature: "/trails/finale/nature.png?v=1",
+  water: "/trails/finale/water.png?v=1",
+  life: "/trails/finale/life.png?v=1",
+  hell: "/trails/finale/hell.png?v=1",
+};
+
+export function schoolTrailFinaleArt(faction: Faction): string {
+  return SCHOOL_TRAIL_FINALE_ART[faction];
+}
+
+export function schoolTrailFinaleBody(faction: Faction): string {
+  const power = schoolTrailPowerName(faction);
+  return (
+    `Вы достойны стать оракулом школы ${power}. ` +
+    `Вам будет доступна одна дополнительная мана ${power} за ход ` +
+    `и набор уникальных умений с ростом уровня Оракула.`
+  );
+}
+
 const TRAIL_INTRO_SEEN_KEY = "orakul-trail-intro-seen-v1";
 
 export function hasSeenTrailIntro(faction: Faction): boolean {
