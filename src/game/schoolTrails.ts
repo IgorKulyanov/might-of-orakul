@@ -237,6 +237,8 @@ export type SchoolTrailStep = {
   wowHint?: string;
   /** Уровень апгрейда юнитов врага (flex с ур.2). */
   upgradeLevel?: CardUpgradeLevel;
+  /** Перекрытия уровня по cardId (напр. копейщик ур.1 при общем U). */
+  upgradeOverrides?: Partial<Record<string, CardUpgradeLevel>>;
 };
 
 const U: CardUpgradeLevel = 2; // flex-абилки
@@ -357,16 +359,19 @@ export const SCHOOL_TRAIL_SCRIPTS: Record<Faction, SchoolTrailStep[]> = {
       lesson: "Один копейщик. Спокойная разминка — без стены и мага.",
     },
     {
-      slots: ["tank", "tank", null, null, null],
+      slots: ["tank", "tank", "spearman", null, null],
       foeName: "Щит ордена",
-      lesson: "Две стены на столе. В них впустую не бей — копи ману и обходи.",
+      lesson:
+        "Две стены и копейщик. В танки впустую не бей — копи ману и обходи.",
     },
     {
-      slots: ["tank", "mage", null, null, null],
+      slots: ["tank", "mage", "spearman", null, null],
       foeName: "Маг ордена",
-      lesson: "Витрина: маг лечит стену. Бить только танк — вечный бой.",
+      lesson:
+        "Витрина: маг лечит стену, копьё давит. Бить только танк — вечный бой.",
       wowHint: "Маг лечит своих. Такие якоря — в лавке Жизни.",
       upgradeLevel: U,
+      upgradeOverrides: { spearman: 1 },
     },
     {
       slots: ["paladin", "crossbowman", null, null, null],
@@ -848,6 +853,8 @@ export function prepareSchoolTrailBattle(
   if (!step) return state;
   const next = structuredClone(state) as BattleState;
   const up: CardUpgradeLevel = step.upgradeLevel ?? 1;
+  const unitUp = (cardId: string): CardUpgradeLevel =>
+    (step.upgradeOverrides?.[cardId] ?? up) as CardUpgradeLevel;
 
   next.enemy.name = step.foeName;
   // Рука тропы = ровно то, что в скрипте. Без добора и без рецикла могилы.
@@ -880,7 +887,11 @@ export function prepareSchoolTrailBattle(
 
   step.slots.forEach((cardId, i) => {
     if (!cardId || i < 0 || i > 4) return;
-    next.enemy.slots[i] = seedBoardCreature(cardId, up, next.rules);
+    next.enemy.slots[i] = seedBoardCreature(
+      cardId,
+      unitUp(cardId),
+      next.rules,
+    );
   });
   // Энт на сиде иначе остаётся с каталожными HP без формулы корней.
   finalizeSeededBoardRoots(next.enemy, next.log);
@@ -892,7 +903,7 @@ export function prepareSchoolTrailBattle(
     ...(step.hand ?? []),
     ...(step.deck ?? []),
   ]) {
-    if (id) ups[id] = Math.max(ups[id] ?? 1, up);
+    if (id) ups[id] = Math.max(ups[id] ?? 1, unitUp(id));
   }
   next.enemyCardUpgrades = ups;
 
@@ -962,7 +973,7 @@ export function schoolTrailEnemyUpgrades(
     ...(step.hand ?? []),
     ...(step.deck ?? []),
   ]) {
-    if (id) out[id] = up;
+    if (id) out[id] = step.upgradeOverrides?.[id] ?? up;
   }
   return out;
 }
