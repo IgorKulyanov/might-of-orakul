@@ -360,19 +360,15 @@ export const SCHOOL_TRAIL_SCRIPTS: Record<Faction, SchoolTrailStep[]> = {
     },
     {
       slots: ["tank", "tank", null, null, null],
-      hand: ["spearman"],
       foeName: "Щит ордена",
-      lesson:
-        "Две стены на столе, копейщик в руке. В танки впустую не бей — копи ману.",
+      lesson: "Две стены на столе. В них впустую не бей — копи ману и обходи.",
     },
     {
-      slots: ["tank", "mage", "spearman", null, null],
+      slots: ["tank", "mage", null, null, null],
       foeName: "Маг ордена",
-      lesson:
-        "Витрина: маг лечит стену, копьё давит. Бить только танк — вечный бой.",
+      lesson: "Витрина: маг лечит стену. Бить только танк — вечный бой.",
       wowHint: "Маг лечит своих. Такие якоря — в лавке Жизни.",
       upgradeLevel: U,
-      upgradeOverrides: { spearman: 1 },
     },
     {
       slots: ["paladin", "crossbowman", null, null, null],
