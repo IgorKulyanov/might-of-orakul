@@ -156,6 +156,8 @@ type BattleEndInfo = {
   resultTitle?: string | null;
   resultLead?: string | null;
   celebration?: boolean;
+  /** Не показывать табличку победы — сразу onExit (финал тропы школы). */
+  skipResultToExit?: boolean;
 };
 
 type Props = {
@@ -1222,6 +1224,8 @@ export function Battle({
   remoteFxRef.current = remoteFx;
   const onBattleEndRef = useRef(onBattleEnd);
   onBattleEndRef.current = onBattleEnd;
+  const onExitRef = useRef(onExit);
+  onExitRef.current = onExit;
 
   useEffect(() => {
     battleMountedRef.current = true;
@@ -1489,6 +1493,7 @@ export function Battle({
     // PvP: оверлей по server winner; ended желателен, но не обязателен.
     rewarded.current = true;
     const won = state.winner === "you";
+    let skipToExit = false;
     try {
       const spells = spellsCastRef.current;
       if (spells > 0) {
@@ -1496,9 +1501,20 @@ export function Battle({
         trackLifetimeSpellCasts(spells);
       }
       const info = onBattleEndRef.current?.(won);
-      if (info) setReward(info);
+      if (info?.skipResultToExit) {
+        skipToExit = true;
+      } else if (info) {
+        setReward(info);
+      }
     } catch {
       /* награды не должны блокировать табличку */
+    }
+    if (skipToExit) {
+      if (won) sfxWin();
+      else sfxLose();
+      const go = window.setTimeout(() => onExitRef.current(), 700);
+      void fadeOutBattleMusic(500);
+      return () => window.clearTimeout(go);
     }
     let shown = false;
     const reveal = () => {

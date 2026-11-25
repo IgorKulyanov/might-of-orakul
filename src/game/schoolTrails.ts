@@ -757,13 +757,13 @@ export function rewardGiftLine(
   return "";
 }
 
-/** Заголовок экрана победы тропы. */
+/** Заголовок экрана победы тропы. Текст 5/5 — на отдельной заставке с артом. */
 export function trailVictoryTitle(
   newlyCleared: number,
   rewardCardId: string | null,
 ): string {
   if (rewardCardId) return "Поздравляем!";
-  if (newlyCleared >= SCHOOL_TRAIL_STEPS) return "Тропа пройдена!";
+  if (newlyCleared >= SCHOOL_TRAIL_STEPS) return "Победа";
   return `Флаг ${newlyCleared}/${SCHOOL_TRAIL_STEPS}`;
 }
 
@@ -773,15 +773,16 @@ export function trailVictoryLead(
   rewardCardId: string | null,
   _wowHint?: string,
 ): string {
+  if (newlyCleared >= SCHOOL_TRAIL_STEPS) {
+    // Полный текст — на TrailFinaleScreen, не дублируем здесь
+    return "";
+  }
   if (rewardCardId) {
     try {
       return `Вы получаете карту «${getCard(rewardCardId).name}»`;
     } catch {
       return "Вы получаете карту";
     }
-  }
-  if (newlyCleared >= SCHOOL_TRAIL_STEPS) {
-    return "Школа пройдена. Можно выбрать оракула.";
   }
   return "";
 }

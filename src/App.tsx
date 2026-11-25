@@ -77,7 +77,6 @@ import {
   clearTrailIntroSeen,
   markTrailFinaleSeen,
   markTrailIntroSeen,
-  pendingUnseenTrailFinale,
   SCHOOL_TRAIL_STEPS,
   shouldShowTrailIntro,
   trailVictoryLead,
@@ -861,19 +860,6 @@ export default function App() {
     setScreen("school_trails");
   };
 
-  // 5/5 уже есть, а заставку не видели — показать при входе на карту троп
-  useEffect(() => {
-    if (boot) return;
-    if (screen !== "school_trails") return;
-    if (pendingTrailFinaleRef.current) {
-      setPendingTrailFinale(pendingTrailFinaleRef.current);
-      setScreen("trail_finale");
-      return;
-    }
-    const unseen = pendingUnseenTrailFinale(ownedRef.current);
-    if (unseen) openTrailFinale(unseen);
-  }, [boot, screen, owned.schoolTrailCleared]);
-
   /** Пауза после победы на тропе — пока открыта, следующий бой нельзя. */
   const [trailBeat, setTrailBeat] = useState<SchoolTrailBeat | null>(null);
   const trailBeatRef = useRef<SchoolTrailBeat | null>(null);
@@ -1541,11 +1527,11 @@ export default function App() {
       // Награда только на слайде после боя — без второй «поясниловки» на карте.
       trailBeatRef.current = null;
       setTrailBeat(null);
-      // 5-й флаг (step 0..4) или cleared дошёл до 5 — заставка после «Забрать награду»
-      if (
+      // 5-й флаг — сразу заставка с артом, без промежуточной таблички
+      const schoolDone =
         fight.step >= SCHOOL_TRAIL_STEPS - 1 ||
-        applied.newlyCleared >= SCHOOL_TRAIL_STEPS
-      ) {
+        applied.newlyCleared >= SCHOOL_TRAIL_STEPS;
+      if (schoolDone) {
         pendingTrailFinaleRef.current = fight.faction;
         setPendingTrailFinale(fight.faction);
       }
@@ -1555,6 +1541,17 @@ export default function App() {
           updateCachedUser(me);
           setUser(me);
         });
+      }
+      if (schoolDone) {
+        return {
+          won: true,
+          xpGained: 0,
+          gainedLevels: 0,
+          goldReward: 0,
+          diamondReward: 0,
+          giftLine: null,
+          skipResultToExit: true,
+        };
       }
       return {
         won: true,
