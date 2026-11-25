@@ -40,7 +40,7 @@ export function clearPrologueSeen(login: string): void {
   }
 }
 
-/** Кадры-заглушки: картинки подставишь позже. */
+/** Кадры пролога перед тропами школ. */
 export type PrologueSlide = {
   title: string;
   body: string;
@@ -52,9 +52,11 @@ export const PROLOGUE_SLIDES: PrologueSlide[] = [
   {
     title: "Врата оракула",
     body: "Мир держится на пяти школах. Ты ещё искатель — без знамени и без дома.",
+    art: "/trails/prologue/slide-1.png",
   },
   {
     title: "Путь впереди",
     body: "Короткое обучение покажет вкус каждой силы. Потом выберешь школу — и откроется весь мир.",
+    art: "/trails/prologue/slide-2.png",
   },
 ];
