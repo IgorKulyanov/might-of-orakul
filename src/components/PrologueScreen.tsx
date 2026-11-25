@@ -30,7 +30,15 @@ export function PrologueScreen({ displayName, rewatch = false, onDone }: Props) 
     <div className="prologue-screen">
       <div className="prologue-top">
         <MenuAudioDock />
-        <button type="button" className="ghost prologue-skip" onClick={finish}>
+        <button
+          type="button"
+          className="ghost prologue-skip"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            finish();
+          }}
+        >
           Пропустить
         </button>
       </div>
