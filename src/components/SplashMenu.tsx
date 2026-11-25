@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { AdminPanel } from "./AdminPanel";
 import { CommunityPanel } from "./CommunityPanel";
 import { MailboxPanel } from "./MailboxPanel";
 import { OwnerBoostPanel } from "./OwnerBoostPanel";
@@ -96,7 +95,6 @@ export function SplashMenu({
   const [communityOpen, setCommunityOpen] = useState(false);
   const [mailboxOpen, setMailboxOpen] = useState(false);
   const [mailUnread, setMailUnread] = useState(initialMailUnread);
-  const [adminOpen, setAdminOpen] = useState(false);
   const [boostOpen, setBoostOpen] = useState(false);
   const [musicOff, setMusicOff] = useState(() => isMusicMuted());
   const [sfxOff, setSfxOff] = useState(() => isSfxMuted());
@@ -109,16 +107,6 @@ export function SplashMenu({
       setIndex((i) => (i + 1) % SPLASH_SLIDES.length);
     }, SLIDE_MS);
     return () => window.clearInterval(id);
-  }, []);
-
-  /** Админка без кнопки в UI: только секретный hash #ora-admin + ключ сервера. */
-  useEffect(() => {
-    const syncAdminHash = () => {
-      if (window.location.hash === "#ora-admin") setAdminOpen(true);
-    };
-    syncAdminHash();
-    window.addEventListener("hashchange", syncAdminHash);
-    return () => window.removeEventListener("hashchange", syncAdminHash);
   }, []);
 
   useEffect(() => {
@@ -463,19 +451,6 @@ export function SplashMenu({
         owned={owned}
         onApply={onOwnedChange}
         onClose={() => setBoostOpen(false)}
-      />
-      <AdminPanel
-        open={adminOpen}
-        onClose={() => {
-          setAdminOpen(false);
-          if (window.location.hash === "#ora-admin") {
-            history.replaceState(
-              null,
-              "",
-              `${window.location.pathname}${window.location.search}`,
-            );
-          }
-        }}
       />
     </div>
   );
