@@ -244,5 +244,8 @@ export function orakulArtUrl(hero: HeroDef | Faction): string {
   const epic = typeof hero !== "string" && hero.tier === "epic";
   const file = epic ? ORAKUL_EPIC_ART[faction] : ORAKUL_ART[faction];
   const url = `/cards/${["оракулы", file].map(encodeURIComponent).join("/")}`;
-  return epic ? `${url}?v=13` : url;
+  if (epic) return `${url}?v=13`;
+  // Базовый оракул жизни: камень во лбу золотой (не зелёный)
+  if (faction === "life") return `${url}?v=gold1`;
+  return url;
 }
