@@ -7,6 +7,7 @@ import {
   apiAdminPing,
   apiAdminResetCampaign,
   apiAdminWipeOwned,
+  apiAdminBackToTrails,
   apiAdminRestoreOwned,
   apiAdminSendMail,
   apiAdminStats,
@@ -250,6 +251,32 @@ export function AdminPanel({ open, onClose }: Props) {
     setBusy(true);
     try {
       const res = await apiAdminWipeOwned(key, login);
+      setStatus(res.message);
+      await refresh(key);
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "Ошибка");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doBackToTrails = async () => {
+    if (!key) return;
+    const login = actionLogin.trim();
+    if (!login) {
+      setStatus("Укажи логин");
+      return;
+    }
+    if (
+      !window.confirm(
+        `Вернуть «${login}» в тропы школ?\n\nСнимется выбор оракула («В мир»).\nПрогресс флагов/черновиков троп сохранится.\nИгрок — обновить страницу.\n\nДа — вернуть. Нет — отмена.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await apiAdminBackToTrails(key, login);
       setStatus(res.message);
       await refresh(key);
     } catch (e) {
@@ -508,6 +535,14 @@ export function AdminPanel({ open, onClose }: Props) {
                   type="button"
                   className="ghost"
                   disabled={busy || !actionLogin.trim()}
+                  onClick={() => void doBackToTrails()}
+                >
+                  В тропы школ
+                </button>
+                <button
+                  type="button"
+                  className="ghost"
+                  disabled={busy || !actionLogin.trim()}
                   onClick={() => void doWipeOwned()}
                 >
                   Полный сброс
@@ -522,8 +557,9 @@ export function AdminPanel({ open, onClose }: Props) {
                 </button>
               </div>
               <p className="hint">
-                Полный сброс сначала пишет снимок на сервер. «Откат из снимка»
-                возвращает последний сохранённый прогресс — без потери данных.
+                «В тропы школ» — снять оракула после «В мир», флаги троп
+                сохранить. Полный сброс пишет снимок; «Откат из снимка» —
+                последний сохранённый прогресс.
               </p>
             </section>
 
@@ -727,6 +763,7 @@ export function AdminPanel({ open, onClose }: Props) {
                       {u.pvpBanned ? " · бан PvP" : ""}
                       {u.pendingResetCampaign ? " · сброс тропы" : ""}
                       {u.pendingWipeOwned ? " · полный сброс" : ""}
+                      {u.pendingBackToTrails ? " · назад в тропы" : ""}
                       {u.snapshots ? ` · снимков ${u.snapshots}` : ""}
                     </strong>
                     <span className="inline-icos">

@@ -430,6 +430,7 @@ export function apiAdminUsers(adminKey: string, q?: string) {
       pvpBannedUntil?: number | null;
       pendingResetCampaign?: boolean;
       pendingWipeOwned?: boolean;
+      pendingBackToTrails?: boolean;
       snapshots?: number;
       lastSnapshotAt?: string | null;
     }>;

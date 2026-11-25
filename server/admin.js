@@ -604,6 +604,7 @@ export function mountAdminRoutes(app, deps) {
         pvpBannedUntil: banUntil > now ? banUntil : null,
         pendingResetCampaign: Boolean(u.pendingResetCampaign),
         pendingWipeOwned: Boolean(u.pendingWipeOwned),
+        pendingBackToTrails: Boolean(u.pendingBackToTrails),
         snapshots: snapshotMeta(u).length,
         lastSnapshotAt: snapshotMeta(u)[0]?.at ?? null,
       };
