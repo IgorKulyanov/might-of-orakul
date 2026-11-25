@@ -1514,7 +1514,11 @@ export default function App() {
   };
 
   const finishPrologue = (login: string, after: "trails" | "menu") => {
+    // Пишем под всеми ключами личности — иначе гейт снова ловит пролог
+    // (login vs ник / рассинхрон кэша) и кнопка «К пути оракула» «не работает».
     markPrologueSeen(login);
+    if (user?.login) markPrologueSeen(user.login);
+    if (user?.displayName) markPrologueSeen(user.displayName);
     setScreen(after === "menu" ? "menu" : "school_trails");
   };
 
@@ -1873,12 +1877,16 @@ export default function App() {
   }
 
   // Искатель ещё не видел пролог — сначала он (не хаб).
+  // Не перехватывать school_trails / school_pick: иначе после «К пути оракула»
+  // (setScreen → тропы) гейт снова показывает пролог, если mark не закрепился.
   if (
     seeker &&
     !hasSeenPrologue(loginKey) &&
     screen !== "battle_school_trail" &&
     screen !== "trail_intro" &&
-    screen !== "trail_finale"
+    screen !== "trail_finale" &&
+    screen !== "school_trails" &&
+    screen !== "school_pick"
   ) {
     return (
       <PrologueScreen

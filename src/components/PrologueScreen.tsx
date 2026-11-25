@@ -53,7 +53,15 @@ export function PrologueScreen({ displayName, rewatch = false, onDone }: Props) 
           <h1 className="prologue-title">{slide.title}</h1>
           <p className="prologue-body">{slide.body}</p>
           <div className="prologue-actions">
-            <button type="button" className="primary large" onClick={next}>
+            <button
+              type="button"
+              className="primary large"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                next();
+              }}
+            >
               {last ? (rewatch ? "Закрыть" : "К пути оракула") : "Дальше"}
             </button>
           </div>

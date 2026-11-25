@@ -7975,6 +7975,7 @@ html.is-hand-dragging .oracle-folio {
 }
 
 .prologue-stage {
+  position: relative;
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;
