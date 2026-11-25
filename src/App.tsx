@@ -23,7 +23,11 @@ import { PrologueScreen } from "./components/PrologueScreen";
 import { SchoolTrailsScreen } from "./components/SchoolTrailsScreen";
 import { HubTutorial } from "./components/HubTutorial";
 import { SplashMenu } from "./components/SplashMenu";
-import { hasSeenPrologue, markPrologueSeen } from "./game/prologue";
+import {
+  clearPrologueSeen,
+  hasSeenPrologue,
+  markPrologueSeen,
+} from "./game/prologue";
 import {
   hasSeenHubTutorial,
   HUB_TUTORIAL_TIPS,
@@ -330,6 +334,9 @@ function freshSeekerAfterBackToTrails(user: ApiUser): OwnedState {
   clearActiveOwned();
   clearTrailIntroSeen();
   clearTrailFinaleSeen();
+  // Две заставки пролога снова с нуля (не выкидывать искателя сразу на карту).
+  if (user.login) clearPrologueSeen(user.login);
+  if (user.displayName) clearPrologueSeen(user.displayName);
   const next = blankOnboardingOwned();
   saveOwned(next);
   if (user.login) {
@@ -773,7 +780,9 @@ async function applyServerAdminFlags(
     try {
       for (const k of Object.keys(localStorage)) {
         if (
-          /^(orakul-arena|orakul-dailies|orakul-campaign|orakul-trail-)/i.test(k)
+          /^(orakul-arena|orakul-dailies|orakul-campaign|orakul-trail-|orakul-prologue-seen:)/i.test(
+            k,
+          )
         ) {
           localStorage.removeItem(k);
         }
@@ -1460,6 +1469,18 @@ export default function App() {
     setSession(t, u);
     setToken(t);
     unlockSfx();
+    // Сброс «пролог видели» ДО выбора экрана — иначе две заставки пропадают.
+    if (u.pendingBackToTrails) {
+      if (u.login) clearPrologueSeen(u.login);
+      if (u.displayName) clearPrologueSeen(u.displayName);
+      try {
+        for (const k of Object.keys(localStorage)) {
+          if (/^orakul-prologue-seen:/i.test(k)) localStorage.removeItem(k);
+        }
+      } catch {
+        /* ignore */
+      }
+    }
     void (async () => {
       const flagged = await applyServerAdminFlags(t, u, setCampaign, setArena);
       setUser(flagged);
@@ -1484,7 +1505,10 @@ export default function App() {
       }
     })();
     // Со школой — хаб. Искатель: пролог (если ещё не видел) или сразу путь.
-    if (u.owned?.homeFaction) {
+    // После «в тропы школ» — снова две заставки, потом карта.
+    if (u.pendingBackToTrails) {
+      setScreen("prologue");
+    } else if (u.owned?.homeFaction) {
       setScreen("menu");
     } else if (u.displayName && !hasSeenPrologue(u.login || u.displayName)) {
       setScreen("prologue");
