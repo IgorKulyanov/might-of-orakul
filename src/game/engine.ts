@@ -184,9 +184,9 @@ export function battleManaCost(
   return cost;
 }
 
-let uidSeq = 1;
+/** Уникальный id юнита: без глобального счётчика — иначе параллельные PvP-комнаты на сервере делят uidSeq и ломают стол. */
 function uid(): string {
-  return `u${uidSeq++}`;
+  return `u${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -935,7 +935,6 @@ export function createBattle(
     enemySkills?: (string | null)[];
   },
 ): BattleState {
-  uidSeq = 1;
   const youHero = getHero(yourHeroId);
   const enemyHero = getHero(enemyHeroId);
   const youHp = orakulBattleHp(youHero.faction, yourLevel, youHero.tier);

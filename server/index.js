@@ -1129,7 +1129,7 @@ app.put(
           const prev = user.owned && typeof user.owned === "object" ? user.owned : null;
           const prevBlank =
             !prev?.homeFaction && (Number(prev?.level) || 1) <= 1;
-          const incoming = body.owned;
+          let incoming = body.owned;
           const incomingFat =
             Boolean(incoming?.homeFaction) &&
             (Number(incoming?.level) || 1) > 2;
@@ -1141,7 +1141,27 @@ app.put(
               user.login,
             );
           } else {
-            user.owned = sanitizeOwned(body.owned, user.owned);
+            // После wipe/«в тропы» не даём вернуть школу/уровень из старого кэша.
+            // Тропы (1…5 без homeFaction) — ок: искатель играет заново.
+            if (wipeId > 0 && prevBlank && incoming?.homeFaction) {
+              console.warn(
+                "[orakul] stripped post-wipe homeFaction via PUT /api/me",
+                user.login,
+              );
+              incoming = {
+                ...incoming,
+                homeFaction: null,
+                heroId: "hero_life",
+              };
+            }
+            if (
+              wipeId > 0 &&
+              prevBlank &&
+              (Number(incoming?.level) || 1) > 1
+            ) {
+              incoming = { ...incoming, level: 1, xp: 0 };
+            }
+            user.owned = sanitizeOwned(incoming, user.owned);
             if (user.owned?.heroId) {
               const h = sanitizeHeroId(user.owned.heroId);
               if (h) user.heroId = h;

@@ -636,19 +636,13 @@ export function stripAccidentalHomeFaction(owned: OwnedState): OwnedState {
   const draft = owned.schoolTrailDrafts?.[home];
   const hasDraft = Array.isArray(draft) && draft.length > 0;
 
-  // Явно законный выбор оракула после тропы.
+  // Законный выбор после тропы или уже в мире — не трогаем.
   if (clearedHome >= 5 && hasDraft) return owned;
+  if (level > 1 || purchased > 0 || epics) return owned;
+  if (hasSchoolTrailProgress(owned) && home !== "life") return owned;
 
-  // Уже глубоко в мире — не трогаем.
-  if (level > 3 || purchased > 0 || epics) return owned;
-
-  // Ложный кейс (в т.ч. после бага merge → life из hero_life).
-  // Даже если тропы уже сброшены — life+hero_life на ур.1 без покупок = искатель.
-  if (
-    hasSchoolTrailProgress(owned) ||
-    (home === "life" && heroId === "hero_life") ||
-    clearedHome < 5
-  ) {
+  // Только классический баг merge: life + hero_life на чистом ур.1 без тропы/черновика.
+  if (home === "life" && heroId === "hero_life" && clearedHome < 5 && !hasDraft) {
     return {
       ...owned,
       homeFaction: undefined,

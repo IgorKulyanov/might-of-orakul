@@ -982,9 +982,14 @@ export default function App() {
       if (pvpSettledRef.current && !finished) return;
       if (finished) pvpSettledRef.current = true;
       const seq = msg.battleSeq ?? 0;
+      // Старый снимок не разблокирует ход: только clock/state с seq >= текущего.
       if (seq > 0 && seq < pvpBattleSeqRef.current && !finished) return;
       if (seq > pvpBattleSeqRef.current) pvpBattleSeqRef.current = seq;
-      setPvpState({ ...msg.state });
+      setPvpState({
+        ...msg.state,
+        // Сервер — истина по чьему ходу; не оставляем «залипший» ход с прошлого пакета.
+        active: msg.state.active,
+      });
       if (
         msg.fx &&
         msg.fxSeq != null &&
@@ -1196,32 +1201,19 @@ export default function App() {
     };
   }, [boot, token, screen]);
 
-  // Вернуть на тропы, если прошлый баг ложно проставил homeFaction.
+  // Только классический ложный homeFaction (life/hero_life). НЕ кидать на school_trails —
+  // иначе логин/кэш выкидывал всех искателей с хаба.
   useEffect(() => {
     if (boot || !token || !user) return;
     const cur = ownedRef.current;
+    if (!cur.homeFaction) return;
     const fixed = stripAccidentalHomeFaction(cur);
-    if (fixed.homeFaction) return;
-    if (cur.homeFaction) {
+    if (fixed.homeFaction === cur.homeFaction) return;
+    if (!fixed.homeFaction) {
       saveOwned(fixed);
       setOwned(fixed);
       ownedRef.current = fixed;
-      void apiUpdateMe(token, { owned: fixed })
-        .then(({ user: me }) => {
-          updateCachedUser(me);
-          setUser(me);
-        })
-        .catch(() => {});
     }
-    setScreen((s) =>
-      s === "battle_school_trail" ||
-      s === "trail_intro" ||
-      s === "trail_finale" ||
-      s === "school_pick" ||
-      s === "prologue"
-        ? s
-        : "school_trails",
-    );
   }, [boot, token, user?.login, owned.homeFaction]);
 
   // Музыку не автозапускаем: тихий вход. Боевой трек — только если уже включили в ⚙.
@@ -1425,43 +1417,58 @@ export default function App() {
     };
   }, [boot, token]);
 
+  const persistOwnedChainRef = useRef(Promise.resolve());
   const persistOwned = async (next: OwnedState) => {
     saveOwned(next);
     setOwned(next);
+    ownedRef.current = next;
     const t = token ?? getToken();
     if (!t) return;
-    try {
-      const { user: me } = await apiUpdateMe(t, {
-        owned: next,
-        heroId: next.heroId,
-      });
-      updateCachedUser(me);
-      setUser(me);
-      // Касса с сервера: валюта + коллекция (PUT мог срезать неоплаченное)
-      if (me.owned) {
-        const synced: OwnedState = {
-          ...next,
-          gold: me.owned.gold ?? next.gold,
-          diamonds: me.owned.diamonds ?? next.diamonds,
-          collection: me.owned.collection ?? next.collection,
-          purchased: me.owned.purchased ?? next.purchased,
-          unlocked: me.owned.unlocked ?? next.unlocked,
-          unlockedHeroes: me.owned.unlockedHeroes ?? next.unlockedHeroes,
-          level: me.owned.level ?? next.level,
-          xp: me.owned.xp ?? next.xp,
-          cardShards: mergeShardMaps(next.cardShards, me.owned.cardShards),
-          cardUpgrades: mergeUpgradeMaps(
-            next.cardUpgrades,
-            me.owned.cardUpgrades,
-          ),
-        };
-        saveOwned(synced);
-        setOwned(synced);
-        if (me.login) backupOwnedForLogin(me.login, synced);
+    // Очередь: параллельные PUT не должны откатывать более новый сейв ответом старше.
+    const snap = next;
+    const run = async () => {
+      try {
+        const { user: me } = await apiUpdateMe(t, {
+          owned: snap,
+          heroId: snap.heroId,
+        });
+        updateCachedUser(me);
+        setUser(me);
+        if (me.owned) {
+          // База — актуальный локальный сейв (не устаревший snap).
+          // Школу/тропы с ответа не трогаем — иначе PUT откатит свежий прогресс.
+          const base = ownedRef.current;
+          const synced: OwnedState = {
+            ...base,
+            gold: me.owned.gold ?? base.gold,
+            diamonds: me.owned.diamonds ?? base.diamonds,
+            collection: me.owned.collection ?? base.collection,
+            purchased: me.owned.purchased ?? base.purchased,
+            unlocked: me.owned.unlocked ?? base.unlocked,
+            unlockedHeroes: me.owned.unlockedHeroes ?? base.unlockedHeroes,
+            level: me.owned.level ?? base.level,
+            xp: me.owned.xp ?? base.xp,
+            cardShards: mergeShardMaps(base.cardShards, me.owned.cardShards),
+            cardUpgrades: mergeUpgradeMaps(
+              base.cardUpgrades,
+              me.owned.cardUpgrades,
+            ),
+          };
+          saveOwned(synced);
+          setOwned(synced);
+          ownedRef.current = synced;
+          if (me.login) backupOwnedForLogin(me.login, synced);
+        }
+      } catch {
+        /* offline */
       }
-    } catch {
-      /* offline */
-    }
+    };
+    const queued = persistOwnedChainRef.current.then(run, run);
+    persistOwnedChainRef.current = queued.then(
+      () => undefined,
+      () => undefined,
+    );
+    await queued;
   };
 
   const updateOwned = (o: OwnedState) => {
@@ -1776,7 +1783,11 @@ export default function App() {
   };
 
   const leavePvp = () => {
-    const fighting = Boolean(pvpStateRef.current && !pvpStateRef.current.winner);
+    const fighting = Boolean(
+      pvpStateRef.current &&
+        !pvpStateRef.current.winner &&
+        !pvpSettledRef.current,
+    );
     if (fighting) {
       if (
         !window.confirm(

@@ -1047,6 +1047,13 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
       return;
     }
 
+    // Heartbeat: мёртвый прокси/вкладка — terminate → softDisconnect, не «вечный» онлайн.
+    const sock = ws as WebSocket & { isAlive?: boolean };
+    sock.isAlive = true;
+    sock.on("pong", () => {
+      sock.isAlive = true;
+    });
+
     /** Токен из ?token= — запасной канал, если join-пакет потерялся. */
     let queryUser: { id: string; login: string } | null = null;
     try {
@@ -1281,29 +1288,44 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           }
         }
 
+        const reclaimSeatOf = (): PvpSeat | null =>
+          room!.host?.userId === user.id
+            ? "host"
+            : room!.guest?.userId === user.id
+              ? "guest"
+              : null;
+
+        /** Новое окно забирает место — старый сокет гасим, не «уже в бою». */
+        const takeSeatSocket = (old: SeatPlayer) => {
+          if (old.ws !== ws && isWsOpen(old.ws)) {
+            try {
+              send(old.ws, {
+                type: "error",
+                message: "Вход с другого окна — этот канал закрыт",
+              });
+            } catch {
+              /* ignore */
+            }
+            try {
+              old.ws.close();
+            } catch {
+              /* ignore */
+            }
+          }
+          old.ws = ws;
+          old.online = true;
+          old.disconnectedAt = null;
+        };
+
         // Возврат в свой бой после звонка/свёртки.
         if (room.battle && !winnerSeat(room.battle)) {
-          const reclaimSeat: PvpSeat | null =
-            room.host?.userId === user.id
-              ? "host"
-              : room.guest?.userId === user.id
-                ? "guest"
-                : null;
+          const reclaimSeat = reclaimSeatOf();
           if (!reclaimSeat) {
             send(ws, { type: "error", message: "Бой в этой комнате уже идёт" });
             return;
           }
           const old = reclaimSeat === "host" ? room.host! : room.guest!;
-          if (seatOnline(old) && old.ws !== ws) {
-            send(ws, {
-              type: "error",
-              message: "Ты уже в этом бою с другого окна",
-            });
-            return;
-          }
-          old.ws = ws;
-          old.online = true;
-          old.disconnectedAt = null;
+          takeSeatSocket(old);
           bindSocketRoom(ws, code);
           if (room.turnPausedForReconnect) {
             room.turnPausedForReconnect = false;
@@ -1319,14 +1341,32 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
           }
           return;
         }
-        // После оконченного боя — чистая комната
+        // Оконченный бой: свой игрок получает финал (не сносим комнату).
+        // Чужой / реванш — только после очистки мест.
         if (room.battle && winnerSeat(room.battle)) {
+          const reclaimSeat = reclaimSeatOf();
+          if (reclaimSeat) {
+            const old = reclaimSeat === "host" ? room.host! : room.guest!;
+            takeSeatSocket(old);
+            bindSocketRoom(ws, code);
+            send(ws, battlePayload(room, reclaimSeat));
+            if (!room.endedSent) {
+              const win = winnerSeat(room.battle)!;
+              send(
+                ws,
+                endMessage(reclaimSeat, win, room.endReason ?? "combat"),
+              );
+              room.endedSent = true;
+            }
+            return;
+          }
           clearTurnTimer(room);
           room.battle = null;
           room.host = null;
           room.guest = null;
           room.timeouts = { host: 0, guest: 0 };
           room.endReason = null;
+          room.endedSent = false;
           room.turnPausedForReconnect = false;
         }
 
@@ -1343,23 +1383,11 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
 
         // Вернулся после сворачивания — забираем своё место по userId.
         if (room.host && room.host.userId === user.id) {
-          if (seatOnline(room.host) && room.host.ws !== ws) {
-            send(ws, {
-              type: "error",
-              message: "Ты уже хост этой комнаты (нужен другой аккаунт)",
-            });
-            return;
-          }
-          room.host = player;
+          takeSeatSocket(room.host);
+          room.host = { ...player, ws, online: true, disconnectedAt: null };
         } else if (room.guest && room.guest.userId === user.id) {
-          if (seatOnline(room.guest) && room.guest.ws !== ws) {
-            send(ws, {
-              type: "error",
-              message: "Ты уже в этой комнате с другого окна",
-            });
-            return;
-          }
-          room.guest = player;
+          takeSeatSocket(room.guest);
+          room.guest = { ...player, ws, online: true, disconnectedAt: null };
         } else if (!room.host) {
           room.host = player;
         } else if (!room.guest) {
@@ -1535,8 +1563,29 @@ export function attachPvp(authLookup: AuthLookup): WebSocketServer {
     });
   });
 
+  const heartbeat = setInterval(() => {
+    for (const client of wss.clients) {
+      const sock = client as WebSocket & { isAlive?: boolean };
+      if (sock.isAlive === false) {
+        try {
+          sock.terminate();
+        } catch {
+          /* ignore */
+        }
+        continue;
+      }
+      sock.isAlive = false;
+      try {
+        sock.ping();
+      } catch {
+        /* ignore */
+      }
+    }
+  }, 25_000);
+  wss.on("close", () => clearInterval(heartbeat));
+
   console.log(
-    "[orakul] PvP WebSocket /ws/pvp (secured + turn timer + matchmaking)",
+    "[orakul] PvP WebSocket /ws/pvp (secured + turn timer + matchmaking + heartbeat)",
   );
   return wss;
 }
