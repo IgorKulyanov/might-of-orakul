@@ -3170,6 +3170,7 @@ button {
 
 .board-card-wrap.is-heal {
   animation: heal-pulse 0.8s ease;
+  z-index: 8;
 }
 
 @keyframes heal-pulse {
@@ -3182,6 +3183,78 @@ button {
   }
   100% {
     box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+/* —— Хил: зелёные крестики всплывают с карты / оракула —— */
+.fx-heal-crosses {
+  position: absolute;
+  inset: -6% -4% auto;
+  height: 70%;
+  pointer-events: none;
+  z-index: 10;
+  overflow: visible;
+}
+.fx-heal-crosses.is-hero {
+  inset: 8% 10% auto;
+  height: 85%;
+}
+.fx-heal-crosses i {
+  position: absolute;
+  bottom: 4%;
+  width: 22px;
+  height: 22px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  image-rendering: pixelated;
+  opacity: 0;
+  animation: heal-cross-rise 1.15s ease-out both;
+  filter: drop-shadow(0 0 6px rgba(90, 220, 120, 0.75));
+}
+.fx-heal-crosses i:nth-child(1) {
+  left: 12%;
+  background-image: url("/fx/heal/cross_0.png");
+  animation-delay: 0s;
+}
+.fx-heal-crosses i:nth-child(2) {
+  left: 34%;
+  width: 26px;
+  height: 26px;
+  background-image: url("/fx/heal/cross_1.png");
+  animation-delay: 0.12s;
+}
+.fx-heal-crosses i:nth-child(3) {
+  left: 55%;
+  background-image: url("/fx/heal/cross_2.png");
+  animation-delay: 0.24s;
+}
+.fx-heal-crosses i:nth-child(4) {
+  left: 28%;
+  width: 20px;
+  height: 20px;
+  background-image: url("/fx/heal/cross_3.png");
+  animation-delay: 0.38s;
+}
+.fx-heal-crosses i:nth-child(5) {
+  left: 68%;
+  width: 24px;
+  height: 24px;
+  background-image: url("/fx/heal/cross_4.png");
+  animation-delay: 0.5s;
+}
+
+@keyframes heal-cross-rise {
+  0% {
+    transform: translateY(8px) scale(0.45);
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-46px) scale(1.15);
+    opacity: 0;
   }
 }
 
@@ -3634,8 +3707,12 @@ button {
     0 4px 12px rgba(0, 0, 0, 0.35);
 }
 
-.oracle-block.is-slash-hit .oracle-face {
+.oracle-block.is-slash-hit .oracle-face,
+.oracle-block.is-hit .oracle-face {
   overflow: visible;
+}
+.oracle-face .fx-heal-crosses {
+  z-index: 6;
 }
 
 .oracle-face .fx-sprite-burst {

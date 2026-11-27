@@ -5176,6 +5176,8 @@ export type BattleFx = {
    * сияние школы на кастере + на слоте появления.
    */
   summonCast?: boolean;
+  /** Вампир / лич: хил на атакующем после удара. */
+  healSelf?: boolean;
 };
 
 export function attackMotionFor(cardId: string): BattleFxMotion {
@@ -5245,7 +5247,26 @@ export function enrichSpellFx(fx: BattleFx, state: BattleState): BattleFx {
   try {
     const card = getCard(next.cardId);
     const effects = card.spellEffects ?? [];
+    const me = next.side === "you" ? state.you : state.enemy;
     const foe = next.side === "you" ? state.enemy : state.you;
+    const isHeal = effects.some(
+      (e) =>
+        e.type === "heal_hero" ||
+        e.type === "heal_unit" ||
+        e.type === "heal_all_allies",
+    );
+    if (isHeal) {
+      next.kind = "heal";
+      if (
+        !next.hitSlots?.length &&
+        effects.some((e) => e.type === "heal_all_allies")
+      ) {
+        next.hitSlots = occupiedSlots(me);
+      }
+      if (effects.some((e) => e.type === "heal_hero") && next.toSlot == null) {
+        next.hitHero = true;
+      }
+    }
     if (
       !next.hitSlots?.length &&
       effects.some(
@@ -5282,6 +5303,18 @@ export function normalizeBattleFx(fx: BattleFx): BattleFx {
     !next.vfx
   ) {
     next.vfx = "arrow";
+  }
+  if (fx.kind === "lunge" && fx.cardId && next.healSelf == null) {
+    try {
+      if (
+        hasAbility(fx.cardId, "vampire_grow") ||
+        hasAbility(fx.cardId, "lich_drain")
+      ) {
+        next.healSelf = true;
+      }
+    } catch {
+      /* ignore */
+    }
   }
   if (fx.cardId && (!next.school || fx.kind === "spell")) {
     try {

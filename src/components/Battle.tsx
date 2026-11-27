@@ -957,6 +957,16 @@ function BoardCard({
           <i />
         </span>
       ) : null}
+      {/* Хил: зелёные крестики всплывают с карты (вампир / ангел / маг / спеллы). */}
+      {heal ? (
+        <span className="fx-heal-crosses" aria-hidden>
+          <i />
+          <i />
+          <i />
+          <i />
+          <i />
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -2426,8 +2436,36 @@ export function Battle({
       return;
     }
     void runLocked(async () => {
+      const def = getSkill(skillId);
+      const isHeal = def?.icon === "heal";
+      const healAll = !!extra?.healAll;
+      const allySlots = healAll
+        ? stateRef.current.you.slots
+            .map((c, i) => (c ? i : -1))
+            .filter((i) => i >= 0)
+        : targetSlot != null
+          ? [targetSlot]
+          : [];
+      const previewFx =
+        isHeal
+          ? {
+              side: "you" as const,
+              kind: "heal" as const,
+              toSlot: targetSlot ?? undefined,
+              hitSlots: allySlots.length ? allySlots : undefined,
+              hitHero:
+                targetSlot == null &&
+                extra?.toSlot == null &&
+                !healAll,
+            }
+          : {
+              side: "you" as const,
+              kind: "spell" as const,
+              hitHero: targetSlot == null,
+              toSlot: targetSlot ?? undefined,
+            };
       await playFx(
-        { side: "you", kind: "spell", hitHero: targetSlot == null },
+        previewFx,
         (s) =>
           castOracleSkill(s, {
             skillId,
@@ -3270,9 +3308,15 @@ export function Battle({
       summonSchool: school,
       summonTarget: summonPlay && landing.includes(slot),
       heal:
-        fx?.side === "you" &&
-        fx.kind === "heal" &&
-        (fx.fromSlot === slot || fx.toSlot === slot),
+        (fx?.side === "you" &&
+          fx.kind === "heal" &&
+          (fx.fromSlot === slot ||
+            fx.toSlot === slot ||
+            !!fx.hitSlots?.includes(slot))) ||
+        (fx?.side === "you" &&
+          fx.kind === "lunge" &&
+          !!fx.healSelf &&
+          fx.fromSlot === slot),
     };
   };
 
@@ -3303,9 +3347,15 @@ export function Battle({
       summonSchool: school,
       summonTarget: summonPlay && landing.includes(slot),
       heal:
-        fx?.side === "enemy" &&
-        fx.kind === "heal" &&
-        (fx.fromSlot === slot || fx.toSlot === slot),
+        (fx?.side === "enemy" &&
+          fx.kind === "heal" &&
+          (fx.fromSlot === slot ||
+            fx.toSlot === slot ||
+            !!fx.hitSlots?.includes(slot))) ||
+        (fx?.side === "enemy" &&
+          fx.kind === "lunge" &&
+          !!fx.healSelf &&
+          fx.fromSlot === slot),
     };
   };
 
@@ -3732,6 +3782,15 @@ export function Battle({
                   kind={heroSprite}
                 />
               ) : null}
+              {enemyHeroHeal ? (
+                <span className="fx-heal-crosses is-hero" aria-hidden>
+                  <i />
+                  <i />
+                  <i />
+                  <i />
+                  <i />
+                </span>
+              ) : null}
                   </div>
             <div className="hero enemy-hero">
               <strong>
@@ -4107,6 +4166,15 @@ export function Battle({
                   key={`you-hero-${fx?.cardId}-${heroSprite}`}
                   kind={heroSprite}
                 />
+              ) : null}
+              {fx?.kind === "heal" && fx.hitHero && fx.side === "you" ? (
+                <span className="fx-heal-crosses is-hero" aria-hidden>
+                  <i />
+                  <i />
+                  <i />
+                  <i />
+                  <i />
+                </span>
               ) : null}
             </div>
             <div className="hero you-hero">

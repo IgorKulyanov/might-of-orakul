@@ -75,7 +75,8 @@ const SEQ: Record<FxSpriteKind, string[]> = {
   arcane: [1, 2, 3, 4, 5, 6, 7].map(
     (i) => `${FX_BASE}/arcane/01_Arcane_Effect_${i}.png`,
   ),
-  heal: [1, 2, 3, 4, 5].map((i) => `${FX_BASE}/magic_particle/star_0${i}.png`),
+  /** Зелёные крестики лечения (спрайт из pixel_art_heal_skill_icons). */
+  heal: [0, 1, 2, 3, 4].map((i) => `${FX_BASE}/heal/cross_${i}.png`),
 };
 
 /** Слои попадания огнём: взрыв → вспышка → дым. Языки — только мягкий CSS-хвост. */
